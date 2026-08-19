@@ -1,5 +1,5 @@
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
@@ -17,9 +17,10 @@ namespace FEBuilderGBA
     /// baseline — NOT a silent truncation of WinForms behaviour):
     ///   PROVIDED by this helper's wrapper:
     ///     - the <c>#include</c> of the chosen .event
-    ///     - <c>#define FreeSpace 0x...</c> for the Program/Data free-area modes
-    ///       (computed via <see cref="ROM.FindFreeSpace"/>, falling back to the ROM
-    ///       end); None mode defines no free area (the .event must ORG itself).
+    ///     - <c>#define FreeSpace 0x...</c> + <c>ORG FreeSpace</c> for the
+    ///       Program/Data free-area modes (computed via
+    ///       <see cref="ROM.FindFreeSpace"/>, falling back to the ROM end); None
+    ///       mode stays include-only (the .event must ORG itself).
     ///   INTENTIONALLY DEFERRED — the extra symbol auto-defs that the full WinForms
     ///   <c>EAUtil.MakeEAAutoDef</c> emits: the ItemImage/ItemPalette/ItemTable/
     ///   TextTable/PortraitTable/AI1Table/AI2Table table-pointer defines, the
@@ -34,6 +35,29 @@ namespace FEBuilderGBA
     /// </summary>
     public static class EventAssemblerCompileCore
     {
+        /// <summary>
+        /// Test seam for resolving the EA executable. Defaults to the production
+        /// resolver and stays internal so callers cannot swap it at runtime.
+        /// </summary>
+        internal static Func<string> ResolveExeOverride = ToolPathResolver.ResolveEventAssembler;
+
+        /// <summary>
+        /// Test seam for the EA process runner. Defaults to
+        /// <see cref="RunProcessDefault"/>'s <see cref="ProcessRunnerCore"/> adapter
+        /// and stays internal for deterministic Core.Tests coverage.
+        /// </summary>
+        internal static Func<string, IEnumerable<string>, string?, ProcessRunResult> RunProcessOverride = RunProcessDefault;
+
+        internal const int DefaultRunProcessTimeoutMs = 120_000;
+
+        /// <summary>
+        /// Internal wait-duration seam for deterministic timeout tests. The shared
+        /// <see cref="ProcessRunnerCore"/> still reports the production
+        /// "120 seconds" sentinel so <see cref="IsEASuccess"/> and higher-level
+        /// error handling keep their exact contract.
+        /// </summary>
+        internal static int RunProcessTimeoutMs = DefaultRunProcessTimeoutMs;
+
         /// <summary>
         /// Free-area selection mode (mirrors WinForms <c>FREEAREA_DEF_ENUM</c>).
         /// </summary>
@@ -69,7 +93,7 @@ namespace FEBuilderGBA
         /// Returns null if none is found — callers should surface
         /// <see cref="GetNotFoundMessage"/>.
         /// </summary>
-        public static string ResolveExe() => ToolPathResolver.ResolveEventAssembler();
+        public static string ResolveExe() => (ResolveExeOverride ?? ToolPathResolver.ResolveEventAssembler)();
 
         /// <summary>Localized "Event Assembler not found" message (no throw).</summary>
         public static string GetNotFoundMessage()
@@ -85,24 +109,59 @@ namespace FEBuilderGBA
         public static string BuildArgs(string gameCode, string wrapperPath, string outputRom,
             string symFile, bool isColorzCore, bool includeSym = true)
         {
-            string args = "A " + gameCode + " "
-                + U.escape_shell_args("-input:" + wrapperPath) + " "
-                + U.escape_shell_args("-output:" + outputRom);
-            if (includeSym)
+            string[] tokens = BuildArgTokens(
+                gameCode,
+                wrapperPath,
+                outputRom,
+                symFile,
+                isColorzCore,
+                includeSym);
+
+            string args = tokens[0] + " " + tokens[1];
+            for (int i = 2; i < tokens.Length; i++)
             {
-                args += " " + (isColorzCore
-                    ? U.escape_shell_args("--nocash-sym:" + symFile)
-                    : U.escape_shell_args("-symOutput:" + symFile));
+                args += " " + U.escape_shell_args(tokens[i]);
             }
             return args;
         }
 
+        static string[] BuildArgTokens(
+            string gameCode,
+            string wrapperPath,
+            string outputRom,
+            string symFile,
+            bool isColorzCore,
+            bool includeSym = true)
+        {
+            if (!includeSym)
+            {
+                return new[]
+                {
+                    "A",
+                    gameCode,
+                    "-input:" + wrapperPath,
+                    "-output:" + outputRom,
+                };
+            }
+
+            return new[]
+            {
+                "A",
+                gameCode,
+                "-input:" + wrapperPath,
+                "-output:" + outputRom,
+                isColorzCore
+                    ? "--nocash-sym:" + symFile
+                    : "-symOutput:" + symFile,
+            };
+        }
+
         /// <summary>
-        /// Build the minimal free-area-def wrapper text. For Program/Data modes a
-        /// <c>#define FreeSpace 0x...</c> precedes the <c>#include</c>; for None no
-        /// FreeSpace is defined. The included path is the leaf filename, since the
-        /// wrapper is written into the same directory as the target .event (so EA's
-        /// include search finds it).
+        /// Build the minimal free-area-def wrapper text. Program/Data modes emit
+        /// <c>#define FreeSpace 0x...</c>, then <c>ORG FreeSpace</c>, then the
+        /// <c>#include</c>; None stays include-only. The included path is the leaf
+        /// filename, since the wrapper is written into the same directory as the
+        /// target .event (so EA's include search finds it).
         /// </summary>
         public static string BuildWrapper(string eaFileName, uint freeArea, FreeAreaMode mode)
         {
@@ -110,6 +169,7 @@ namespace FEBuilderGBA
             if (mode != FreeAreaMode.None && freeArea != U.NOT_FOUND)
             {
                 sb.AppendLine("#define FreeSpace " + U.To0xHexString(freeArea));
+                sb.AppendLine("ORG FreeSpace");
             }
             sb.AppendLine("#include \"" + eaFileName + "\"");
             return sb.ToString();
@@ -120,6 +180,17 @@ namespace FEBuilderGBA
         {
             return output.IndexOf("No errors or warnings.", StringComparison.Ordinal) >= 0
                 || output.IndexOf("No errors. Please continue being awesome.", StringComparison.Ordinal) >= 0;
+        }
+
+        /// <summary>
+        /// Detect the exact EA warning that means bytes were written before the
+        /// script selected an offset. This is treated as a hard failure even when
+        /// EA still prints its normal success marker.
+        /// </summary>
+        internal static bool HasWritingBeforeInitializingOffsetWarning(string output)
+        {
+            return !string.IsNullOrEmpty(output)
+                && output.IndexOf("Writing before initializing offset.", StringComparison.Ordinal) >= 0;
         }
 
         /// <summary>
@@ -218,12 +289,24 @@ namespace FEBuilderGBA
 
                 // Track the args actually executed so a failure reports the right
                 // command (the old-EA fallback below replaces them).
-                string executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore);
+                string[] executedArgTokens = BuildArgTokens(
+                    gameCode,
+                    wrapperPath,
+                    tempRomPath,
+                    symFile,
+                    isColorzCore);
+                string executedArgs = BuildArgs(
+                    gameCode,
+                    wrapperPath,
+                    tempRomPath,
+                    symFile,
+                    isColorzCore);
 
+                ProcessRunResult processRun;
                 string output;
                 try
                 {
-                    output = RunProcess(eaExe, executedArgs, toolDir);
+                    processRun = RunProcess(eaExe, executedArgTokens, toolDir);
                 }
                 catch (Exception ex)
                 {
@@ -233,8 +316,17 @@ namespace FEBuilderGBA
                     result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, ex.ToString());
                     return result;
                 }
+                if (!processRun.Started)
+                {
+                    result.Output = CombineProcessOutput(eaExe, processRun);
+                    result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, processRun.ErrorMessage);
+                    return result;
+                }
 
-                bool hasError = !IsEASuccess(output);
+                output = CombineProcessOutput(eaExe, processRun);
+
+                bool hasError = HasProcessRunnerFailure(processRun)
+                    || !IsEASuccess(output);
 
                 // Old-EA fallback: retry without -symOutput (re-seed the temp ROM
                 // first, the failed attempt may have partially written it).
@@ -244,9 +336,31 @@ namespace FEBuilderGBA
                 {
                     onRetry?.Invoke("Retrying without -symOutput (older EA detected)...");
                     File.WriteAllBytes(tempRomPath, rom.Data);
-                    executedArgs = BuildArgs(gameCode, wrapperPath, tempRomPath, symFile, isColorzCore, includeSym: false);
-                    output = RunProcess(eaExe, executedArgs, toolDir);
-                    hasError = !IsEASuccess(output);
+                    executedArgTokens = BuildArgTokens(
+                        gameCode,
+                        wrapperPath,
+                        tempRomPath,
+                        symFile,
+                        isColorzCore,
+                        includeSym: false);
+                    executedArgs = BuildArgs(
+                        gameCode,
+                        wrapperPath,
+                        tempRomPath,
+                        symFile,
+                        isColorzCore,
+                        includeSym: false);
+                    processRun = RunProcess(eaExe, executedArgTokens, toolDir);
+                    if (!processRun.Started)
+                    {
+                        result.Output = CombineProcessOutput(eaExe, processRun);
+                        result.ErrorMessage = R._("プロセスを実行できません。\r\nfilename:{0}\r\n{1}", eaExe, processRun.ErrorMessage);
+                        return result;
+                    }
+
+                    output = CombineProcessOutput(eaExe, processRun);
+                    hasError = HasProcessRunnerFailure(processRun)
+                        || !IsEASuccess(output);
                 }
 
                 result.Output = output;
@@ -254,6 +368,15 @@ namespace FEBuilderGBA
                 if (hasError)
                 {
                     // Mirror WinForms: prefix the ACTUALLY-EXECUTED command so the user can repro.
+                    result.ErrorMessage = eaExe + " " + executedArgs + " \r\noutput:\r\n" + output;
+                    return result;
+                }
+
+                if (HasWritingBeforeInitializingOffsetWarning(output))
+                {
+                    // EA reported success, but this exact warning means the script
+                    // wrote before choosing an offset (e.g. missing ORG). Fail the
+                    // insert before SwapNewROMData so the loaded ROM stays untouched.
                     result.ErrorMessage = eaExe + " " + executedArgs + " \r\noutput:\r\n" + output;
                     return result;
                 }
@@ -320,44 +443,90 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Run the EA/ColorzCore process and capture combined stdout+stderr.
-        /// Same 120s timeout as the CLI <c>RunEAProcess</c>.
+        /// Run the EA/ColorzCore process via the shared
+        /// <see cref="ProcessRunnerCore"/> infrastructure.
         /// </summary>
-        static string RunProcess(string exePath, string args, string workDir)
+        static ProcessRunResult RunProcess(
+            string exePath,
+            IEnumerable<string> args,
+            string? workDir)
         {
-            var psi = new ProcessStartInfo(exePath, args)
+            return (RunProcessOverride ?? RunProcessDefault)(exePath, args, workDir);
+        }
+
+        static ProcessRunResult RunProcessDefault(
+            string exePath,
+            IEnumerable<string> args,
+            string? workDir)
+        {
+            int timeoutMs = RunProcessTimeoutMs > 0
+                ? RunProcessTimeoutMs
+                : DefaultRunProcessTimeoutMs;
+
+            List<string> materializedArgs = args != null
+                ? new List<string>(args)
+                : new List<string>();
+
+            // Use the shared runner directly on every platform. If a post-exit
+            // descendant keeps inherited pipes open, ProcessRunnerCore's bounded
+            // capture drain still fails closed instead of hanging compilation.
+            return ProcessRunnerCore.Run(
+                exePath,
+                materializedArgs,
+                workDir,
+                timeoutMs);
+        }
+
+        static bool HasProcessRunnerFailure(ProcessRunResult run)
+        {
+            return !run.Started
+                || run.ExitCode != 0
+                || run.TimedOut
+                || run.OutputLimitExceeded
+                || run.TerminationFailed
+                || run.Cancelled;
+        }
+
+        static string CombineProcessOutput(string exePath, ProcessRunResult run)
+        {
+            if (!run.Started)
             {
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                CreateNoWindow = true,
-                WorkingDirectory = workDir,
-            };
+                if (run.ErrorMessage.IndexOf(
+                    "Process.Start returned false",
+                    StringComparison.Ordinal) >= 0)
+                {
+                    return "Error: the Event Assembler process could not be started. filename:"
+                        + exePath;
+                }
+                return run.ErrorMessage ?? "";
+            }
+            if (run.TimedOut)
+            {
+                return "Error: Event Assembler timed out after 120 seconds.";
+            }
 
             var sb = new StringBuilder();
-            using (var proc = Process.Start(psi))
+            AppendOutputSegment(sb, run.Stderr);
+            AppendOutputSegment(sb, run.Stdout);
+            if (!string.IsNullOrEmpty(run.ErrorMessage))
             {
-                // Process.Start can return null (documented) — guard against an NRE and
-                // return a clean error. The string carries no EA success marker, so the
-                // caller's IsEASuccess treats it as a failure and emits nothing (#1250).
-                if (proc == null)
-                {
-                    return "Error: the Event Assembler process could not be started. filename:" + exePath;
-                }
-                proc.OutputDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-                proc.ErrorDataReceived += (_, e) => { if (e.Data != null) sb.AppendLine(e.Data); };
-                proc.BeginOutputReadLine();
-                proc.BeginErrorReadLine();
-
-                if (!proc.WaitForExit(120_000))
-                {
-                    // Kill the WHOLE tree — an EA/build invocation may spawn child processes
-                    // that killing only the parent would orphan.
-                    try { proc.Kill(entireProcessTree: true); } catch { }
-                    return "Error: Event Assembler timed out after 120 seconds.";
-                }
+                AppendOutputSegment(sb, run.ErrorMessage);
             }
             return sb.ToString();
         }
+
+        static void AppendOutputSegment(StringBuilder sb, string text)
+        {
+            if (string.IsNullOrEmpty(text))
+                return;
+
+            sb.Append(text);
+            if (!text.EndsWith("\r", StringComparison.Ordinal)
+                && !text.EndsWith("\n", StringComparison.Ordinal))
+            {
+                sb.AppendLine();
+            }
+        }
+
     }
 }

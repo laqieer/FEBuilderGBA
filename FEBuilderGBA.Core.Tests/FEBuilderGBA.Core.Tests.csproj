@@ -22,11 +22,14 @@
     <Using Include="Xunit" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Remove="Helpers\EventAssemblerProcessStub\**\*.cs" />
     <ProjectReference Include="..\FEBuilderGBA.Core\FEBuilderGBA.Core.csproj" />
     <!-- #1125: the SkiaSharp render byte-parity + version-guard tests need the
          managed SkiaSharp backend (SkiaImageService / SkiaFontRasterizer) and
          force its 3.119.x restore so the restored-graph guard has assets to read. -->
     <ProjectReference Include="..\FEBuilderGBA.SkiaSharp\FEBuilderGBA.SkiaSharp.csproj" />
+    <ProjectReference Include="Helpers\EventAssemblerProcessStub\EventAssemblerProcessStub.csproj"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
   <!-- Build the real CLI before Core.Tests without importing the CLI's
        config/content items into the test output. A ProjectReference with
