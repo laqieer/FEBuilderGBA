@@ -87,6 +87,7 @@ namespace FEBuilderGBA
         public uint sound_room_cg_pointer { get; protected set; } // サウンドルームの背景リスト(FE7のみ)
         public uint event_ballte_talk_pointer { get; protected set; } // 交戦時セリフの開始位置
         public uint event_ballte_talk2_pointer { get; protected set; } // 交戦時セリフの開始位置2 (FE6だとボス汎用会話テーブルがある)
+        public uint event_triangle_attack_quote_address { get; protected set; } // FE6 triangle-attack quote table direct address
         public uint event_haiku_pointer { get; protected set; } // 死亡時セリフの開始位置
         public uint event_haiku_tutorial_1_pointer { get; protected set; } // リン編チュートリアル 死亡時セリフの開始位置 FE7のみ
         public uint event_haiku_tutorial_2_pointer { get; protected set; } // エリウッド編チュートリアル 死亡時セリフの開始位置 FE7のみ

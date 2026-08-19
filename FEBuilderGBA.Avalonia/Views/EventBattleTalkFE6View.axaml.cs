@@ -9,6 +9,11 @@ namespace FEBuilderGBA.Avalonia.Views
 {
     public partial class EventBattleTalkFE6View : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {
+        const string TriangleCharacterLabelKey = "Character (Unit):";
+        const string MainHelpText = "Main battle-dialogue rows are 12-byte attacker/defender/text/flag records triggered when those two units fight.";
+        const string SecondaryHelpText = "FE6's boss-conversation table stores 16-byte generic boss lines: one triggering unit, a chapter/map id, text, flag, and an event pointer.";
+        const string TriangleHelpText = "FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.";
+
         readonly EventBattleTalkFE6ViewModel _vm = new();
         readonly UndoService _undoService = new();
 
@@ -29,10 +34,10 @@ namespace FEBuilderGBA.Avalonia.Views
             WriteButton.Click += OnWrite;
 
             // Live name/text previews while editing. The second field is a unit
-            // only on the main table (it is a chapter id on the secondary table),
-            // so its name preview is suppressed in secondary mode.
+            // only on the main table (it is a chapter id on secondary/triangle),
+            // so its name preview is suppressed outside main mode.
             AttackerUnitBox.ValueChanged += (_, _) => AttackerNameLabel.Text = UnitName(AttackerUnitBox);
-            DefenderUnitBox.ValueChanged += (_, _) => DefenderNameLabel.Text = _vm.IsSecondaryTable ? "" : UnitName(DefenderUnitBox);
+            DefenderUnitBox.ValueChanged += (_, _) => DefenderNameLabel.Text = (_vm.IsSecondaryTable || _vm.IsTriangleAttackTable) ? "" : UnitName(DefenderUnitBox);
             TextIdBox.ValueChanged += (_, _) => TextPreviewLabel.Text = TextPreview(TextIdBox);        }
 
 
@@ -55,9 +60,12 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         EventBattleTalkFE6ViewModel.BattleTalkTable SelectedTable =>
-            TableFilter.SelectedIndex == 1
-                ? EventBattleTalkFE6ViewModel.BattleTalkTable.Secondary
-                : EventBattleTalkFE6ViewModel.BattleTalkTable.Main;
+            TableFilter.SelectedIndex switch
+            {
+                1 => EventBattleTalkFE6ViewModel.BattleTalkTable.Secondary,
+                2 => EventBattleTalkFE6ViewModel.BattleTalkTable.TriangleAttack,
+                _ => EventBattleTalkFE6ViewModel.BattleTalkTable.Main,
+            };
 
         void TableFilter_SelectionChanged(object? sender, SelectionChangedEventArgs e)
         {
@@ -92,20 +100,46 @@ namespace FEBuilderGBA.Avalonia.Views
 
         // Adjust the editor chrome for the active table:
         // - The event-pointer field (offset +0x0C) exists only in the secondary
-        //   16-byte boss-conversation table; hide it on the main table.
-        // - In the secondary table WinForms labels B1 as 章ID (chapter/map id),
-        //   not a defender unit (EventBattleTalkFE6Form.Designer N_J_1_MAP), so
-        //   relabel the second field and hide its unit-name preview there.
+        //   16-byte boss-conversation table; hide it on main/triangle tables.
+        // - Secondary and triangle tables use B1 as a chapter/map id rather than
+        //   a defender unit, so relabel the second field and hide its unit-name
+        //   preview there.
         void ApplyTableVisibility()
         {
             bool secondary = _vm.IsSecondaryTable;
+            bool triangle = _vm.IsTriangleAttackTable;
+            bool showUnknowns = !triangle;
+
             EventPointerLabel.IsVisible = secondary;
             EventPointerBox.IsVisible = secondary;
 
-            DefenderLabel.Text = R._(secondary ? "Chapter/Map ID:" : "Defender Unit:");
+            AttackerLabel.Text = triangle ? TriangleCharacterLabelText() : R._("Attacker Unit:");
+            DefenderLabel.Text = R._((secondary || triangle) ? "Chapter/Map ID:" : "Defender Unit:");
             // The second field is a unit only on the main table; on the secondary
-            // table it is a chapter id, so suppress the misleading unit-name preview.
-            DefenderNameLabel.IsVisible = !secondary;
+            // and triangle tables it is a chapter/map id.
+            DefenderNameLabel.IsVisible = !(secondary || triangle);
+
+            Unknown02Label.IsVisible = Unknown02Box.IsVisible = showUnknowns;
+            Unknown03Label.IsVisible = Unknown03Box.IsVisible = showUnknowns;
+            Unknown06Label.IsVisible = Unknown06Box.IsVisible = showUnknowns;
+            Unknown07Label.IsVisible = Unknown07Box.IsVisible = showUnknowns;
+            Unknown0ALabel.IsVisible = Unknown0ABox.IsVisible = showUnknowns;
+            Unknown0BLabel.IsVisible = Unknown0BBox.IsVisible = showUnknowns;
+
+            AchievementFlagLabel.Text = R._(triangle ? "Event/Flag Byte:" : "Achievement Flag:");
+            AchievementFlagBox.Maximum = triangle ? 255 : 65535;
+            HelpTextLabel.Text = R._(_vm.Table switch
+            {
+                EventBattleTalkFE6ViewModel.BattleTalkTable.Secondary => SecondaryHelpText,
+                EventBattleTalkFE6ViewModel.BattleTalkTable.TriangleAttack => TriangleHelpText,
+                _ => MainHelpText,
+            });
+        }
+
+        static string TriangleCharacterLabelText()
+        {
+            string translated = R._(TriangleCharacterLabelKey);
+            return translated == TriangleCharacterLabelKey ? "Character:" : translated;
         }
 
         void OnSelected(uint addr)
@@ -132,7 +166,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Route through R._() at assignment time — TranslatedUserControl.TranslateAll()
             // runs once at window open, so values assigned afterward must be
             // localized explicitly to apply in ja/zh.
-            TableLabel.Text = R._(_vm.IsSecondaryTable ? "Boss conversation (16-byte)" : "Main (12-byte)");
+            TableLabel.Text = _vm.Table switch
+            {
+                EventBattleTalkFE6ViewModel.BattleTalkTable.Secondary => R._("Boss conversation (16-byte)"),
+                EventBattleTalkFE6ViewModel.BattleTalkTable.TriangleAttack => R._("Triangle attack (16-byte)"),
+                _ => R._("Main (12-byte)"),
+            };
             AddrLabel.Text = string.Format("0x{0:X08}", _vm.CurrentAddr);
             AttackerUnitBox.Value = _vm.AttackerUnit;
             DefenderUnitBox.Value = _vm.DefenderUnit;
@@ -147,9 +186,9 @@ namespace FEBuilderGBA.Avalonia.Views
             EventPointerBox.Value = _vm.EventPointer;
 
             AttackerNameLabel.Text = UnitName(AttackerUnitBox);
-            // On the secondary table the second field is a chapter id (not a unit),
+            // Outside the main table the second field is a chapter id (not a unit),
             // so don't render a unit-name preview for it.
-            DefenderNameLabel.Text = _vm.IsSecondaryTable ? "" : UnitName(DefenderUnitBox);
+            DefenderNameLabel.Text = (_vm.IsSecondaryTable || _vm.IsTriangleAttackTable) ? "" : UnitName(DefenderUnitBox);
             TextPreviewLabel.Text = TextPreview(TextIdBox);
         }
 
@@ -185,7 +224,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Unknown0A = (uint)(Unknown0ABox.Value ?? 0);
                 _vm.Unknown0B = (uint)(Unknown0BBox.Value ?? 0);
                 // Only the secondary 16-byte table carries the event pointer;
-                // the VM ignores EventPointer for main-table writes.
+                // the VM ignores EventPointer for main/triangle writes.
                 _vm.EventPointer = (uint)(EventPointerBox.Value ?? 0);
                 _vm.Write();
                 _undoService.Commit();
@@ -201,10 +240,10 @@ namespace FEBuilderGBA.Avalonia.Views
         /// <summary>
         /// Select the row whose address matches <paramref name="address"/>.
         /// Resolves which physical table the address belongs to — the main
-        /// 12-byte table or the secondary 16-byte boss-conversation table
-        /// (<c>event_ballte_talk2_pointer</c>) — switches the Table filter combo
-        /// to that table (reloading the list under the correct schema), then
-        /// selects the row.
+        /// 12-byte table, secondary 16-byte boss-conversation table, or direct
+        /// fixed triangle-attack table — switches the Table filter combo to that
+        /// table (reloading the list under the correct schema), then selects the
+        /// row.
         /// </summary>
         public void NavigateTo(uint address)
         {
@@ -227,8 +266,9 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Returns the Table filter combo index (0=Main, 1=Secondary) whose
-        /// data region contains <paramref name="address"/>, or -1 if none.
+        /// Returns the Table filter combo index (0=Main, 1=Secondary,
+        /// 2=TriangleAttack) whose data region contains <paramref name="address"/>,
+        /// or -1 if none.
         /// Read-only: does not mutate the VM's current-table state.
         /// FE6 main is 12-byte stride (stop on u16==0||0xFFFF); the secondary
         /// boss-conversation table is 16-byte stride (also u16 termination —
@@ -261,6 +301,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (u == 0 || u == 0xFFFF) break;
                     if (a == address) return 1;
                 }
+            }
+
+            // Triangle attack: direct fixed 6 x 16 table. No pointer deref and
+            // no terminator scan.
+            uint triBase = EventBattleTalkFE6ViewModel.ResolveBaseAddr(rom, EventBattleTalkFE6ViewModel.BattleTalkTable.TriangleAttack);
+            if (triBase != 0 && address >= triBase && (address - triBase) % 16 == 0)
+            {
+                uint index = (address - triBase) / 16;
+                if (index < 6) return 2;
             }
             return -1;
         }

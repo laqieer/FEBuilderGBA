@@ -18,7 +18,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             Main = 0,
             /// <summary>Secondary (boss generic-conversation) table — 16-byte records (event_ballte_talk2_pointer).</summary>
             Secondary = 1,
+            /// <summary>Triangle-attack quotes — direct fixed table, 6 x 16 records.</summary>
+            TriangleAttack = 2,
         }
+
+        const uint TriangleAttackCount = 6;
+        const uint TriangleAttackBlockSize = 16;
 
         // Main (12-byte) schema — matches WinForms EventBattleTalkFE6Form.Init.
         // [B0 atk][B1 def][B2][B3][W4 text][B6][B7][W8 flag][B10][B11]
@@ -31,6 +36,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         // [B0 unit][B1][B2][B3][W4 text][B6][B7][W8 flag][B10][B11][D12 event ptr]
         static readonly List<EditorFormRef.FieldDef> _fieldsSecondary =
             EditorFormRef.DetectFields(new[] { "B0", "B1", "B2", "B3", "W4", "B6", "B7", "W8", "B10", "B11", "D12" });
+
+        // Triangle attack quotes: direct table, exactly 6 x 16 records. Only
+        // B0/B1/W4/B8 are writable; every reserved/tail byte is preserved.
+        static readonly List<EditorFormRef.FieldDef> _fieldsTriangle =
+            EditorFormRef.DetectFields(new[] { "B0", "B1", "W4", "B8" });
 
         BattleTalkTable _table = BattleTalkTable.Main;
 
@@ -59,6 +69,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     // Notify the derived read-only properties so bindings on
                     // IsSecondaryTable / BlockSize refresh too.
                     OnPropertyChanged(nameof(IsSecondaryTable));
+                    OnPropertyChanged(nameof(IsTriangleAttackTable));
                     OnPropertyChanged(nameof(BlockSize));
                 }
             }
@@ -67,8 +78,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>True when the current table uses the 16-byte secondary schema.</summary>
         public bool IsSecondaryTable => _table == BattleTalkTable.Secondary;
 
-        /// <summary>Block size (stride) of the current table: 12 for Main, 16 for Secondary.</summary>
-        public uint BlockSize => IsSecondaryTable ? 16u : 12u;
+        /// <summary>True when the current table is the direct fixed triangle-attack quote table.</summary>
+        public bool IsTriangleAttackTable => _table == BattleTalkTable.TriangleAttack;
+
+        /// <summary>Block size (stride) of the current table: 12 for Main, 16 for Secondary/Triangle.</summary>
+        public uint BlockSize => _table == BattleTalkTable.Main ? 12u : 16u;
 
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
@@ -91,13 +105,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint EventPointer { get => _eventPointer; set => SetField(ref _eventPointer, value); }
 
         /// <summary>
-        /// Resolves the pointer-location for the given table to its data base
-        /// address (after a p32 deref). Returns 0 when the pointer is missing
-        /// or the dereffed base is unsafe.
+        /// Resolves the selected table to its data base address. Main/Secondary
+        /// dereference their ROM pointer fields; TriangleAttack uses its direct
+        /// fixed ROM address and requires the full 6 x 16 byte range to fit.
+        /// Returns 0 when the source is missing, unsafe, or short.
         /// </summary>
         public static uint ResolveBaseAddr(ROM rom, BattleTalkTable table)
         {
             if (rom?.RomInfo == null) return 0;
+            if (table == BattleTalkTable.TriangleAttack)
+            {
+                uint directBase = rom.RomInfo.event_triangle_attack_quote_address;
+                return HasFullTableRange(rom, directBase, TriangleAttackCount, TriangleAttackBlockSize)
+                    ? U.toOffset(directBase)
+                    : 0;
+            }
+
             uint pointer = table == BattleTalkTable.Secondary
                 ? rom.RomInfo.event_ballte_talk2_pointer
                 : rom.RomInfo.event_ballte_talk_pointer;
@@ -105,6 +128,24 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             uint baseAddr = rom.p32(pointer);
             if (!U.isSafetyOffset(baseAddr, rom)) return 0;
             return baseAddr;
+        }
+
+        static bool HasFullTableRange(ROM rom, uint directBase, uint count, uint blockSize)
+        {
+            if (rom?.Data == null || directBase == 0 || count == 0 || blockSize == 0) return false;
+            uint baseAddr = U.toOffset(directBase);
+            if (!U.isSafetyOffset(baseAddr, rom)) return false;
+            ulong end = (ulong)baseAddr + (ulong)count * (ulong)blockSize;
+            return end <= (ulong)rom.Data.Length;
+        }
+
+        static bool IsTriangleAttackRecordAddr(ROM rom, uint addr)
+        {
+            uint baseAddr = ResolveBaseAddr(rom, BattleTalkTable.TriangleAttack);
+            if (baseAddr == 0 || addr < baseAddr) return false;
+            uint delta = addr - baseAddr;
+            return delta % TriangleAttackBlockSize == 0
+                && delta / TriangleAttackBlockSize < TriangleAttackCount;
         }
 
         /// <summary>
@@ -145,6 +186,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (table == BattleTalkTable.Secondary)
                 return LoadSecondaryList(rom, baseAddr);
+            if (table == BattleTalkTable.TriangleAttack)
+                return LoadTriangleAttackList(rom, baseAddr);
 
             const uint blockSize = 12; // FE6 main uses 12-byte blocks
             var result = new List<AddrResult>();
@@ -183,15 +226,47 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return result;
         }
 
+        static List<AddrResult> LoadTriangleAttackList(ROM rom, uint baseAddr)
+        {
+            var result = new List<AddrResult>((int)TriangleAttackCount);
+            if (!HasFullTableRange(rom, baseAddr, TriangleAttackCount, TriangleAttackBlockSize))
+                return result;
+
+            for (uint i = 0; i < TriangleAttackCount; i++)
+            {
+                uint addr = baseAddr + i * TriangleAttackBlockSize;
+                string unitName = NameResolver.GetUnitNameByOneBasedId(rom.u8(addr));
+                uint chapter = rom.u8(addr + 1);
+                result.Add(new AddrResult(addr, $"0x{i:X2} {unitName} Ch 0x{chapter:X2}", i));
+            }
+            return result;
+        }
+
         public void LoadEntry(uint addr)
         {
             ROM rom = CoreState.ROM;
             if (rom == null) return;
             uint blockSize = BlockSize;
             if (addr + blockSize > (uint)rom.Data.Length) return;
+            if (IsTriangleAttackTable && !IsTriangleAttackRecordAddr(rom, addr)) return;
             CurrentAddr = addr;
 
-            if (IsSecondaryTable)
+            if (IsTriangleAttackTable)
+            {
+                var v = EditorFormRef.ReadFields(rom, addr, _fieldsTriangle);
+                AttackerUnit = v["B0"];
+                DefenderUnit = v["B1"];
+                Unknown02 = rom.u8(addr + 2);
+                Unknown03 = rom.u8(addr + 3);
+                Text = v["W4"];
+                Unknown06 = rom.u8(addr + 6);
+                Unknown07 = rom.u8(addr + 7);
+                AchievementFlag = v["B8"];
+                Unknown0A = rom.u8(addr + 10);
+                Unknown0B = rom.u8(addr + 11);
+                EventPointer = 0;
+            }
+            else if (IsSecondaryTable)
             {
                 // 16-byte secondary schema (text @0x04, flag @0x08, event ptr @0x0C).
                 var v = EditorFormRef.ReadFields(rom, addr, _fieldsSecondary);
@@ -230,7 +305,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return;
             uint a = CurrentAddr;
-            if (IsSecondaryTable)
+            if (IsTriangleAttackTable)
+            {
+                if (!IsTriangleAttackRecordAddr(rom, a)) return;
+                var values = new Dictionary<string, uint>
+                {
+                    ["B0"] = AttackerUnit, ["B1"] = DefenderUnit,
+                    ["W4"] = Text, ["B8"] = AchievementFlag,
+                };
+                EditorFormRef.WriteFields(rom, a, values, _fieldsTriangle);
+            }
+            else if (IsSecondaryTable)
             {
                 var values = new Dictionary<string, uint>
                 {
@@ -259,6 +344,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetDataReport()
         {
+            if (IsTriangleAttackTable)
+            {
+                return new Dictionary<string, string>
+                {
+                    ["addr"] = $"0x{CurrentAddr:X08}",
+                    ["Table"] = _table.ToString(),
+                    ["Character"] = $"0x{AttackerUnit:X02}",
+                    ["Chapter"] = $"0x{DefenderUnit:X02}",
+                    ["Text"] = $"0x{Text:X04}",
+                    ["EventFlagByte"] = $"0x{AchievementFlag:X02}",
+                };
+            }
+
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{CurrentAddr:X08}",
@@ -284,6 +382,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom == null || CurrentAddr == 0) return new Dictionary<string, string>();
             uint a = CurrentAddr;
+            if (IsTriangleAttackTable)
+            {
+                return new Dictionary<string, string>
+                {
+                    ["addr"] = $"0x{a:X08}",
+                    ["u8@0x00_Character"] = $"0x{rom.u8(a + 0):X02}",
+                    ["u8@0x01_Chapter"] = $"0x{rom.u8(a + 1):X02}",
+                    ["u16@0x04_Text"] = $"0x{rom.u16(a + 4):X04}",
+                    ["u8@0x08_EventFlagByte"] = $"0x{rom.u8(a + 8):X02}",
+                };
+            }
+
             var report = new Dictionary<string, string>
             {
                 ["addr"] = $"0x{a:X08}",
@@ -305,6 +415,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public Dictionary<string, string> GetFieldOffsetMap()
         {
+            if (IsTriangleAttackTable)
+            {
+                return new Dictionary<string, string>
+                {
+                    ["Character"] = "u8@0x00_Character",
+                    ["Chapter"] = "u8@0x01_Chapter",
+                    ["Text"] = "u16@0x04_Text",
+                    ["EventFlagByte"] = "u8@0x08_EventFlagByte",
+                };
+            }
+
             var map = new Dictionary<string, string>
             {
                 ["AttackerUnit"] = "u8@0x00_AttackerUnit",

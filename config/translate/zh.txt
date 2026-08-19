@@ -28544,3 +28544,21 @@ Git: {0} ...
 
 :Expanded Song Table to {0} entries.
 已将歌曲表扩展到{0}个条目。
+
+:Triangle attack (16-byte)
+三角攻击 (16字节)
+
+:Event/Flag Byte:
+事件/标志字节:
+
+:Character (Unit):
+单位:
+
+:Main battle-dialogue rows are 12-byte attacker/defender/text/flag records triggered when those two units fight.
+FE6的主战斗对话表是当这两个单位交战时触发的12字节 [攻击单位 / 防御单位 / 文本 / 标志] 记录。
+
+:FE6's boss-conversation table stores 16-byte generic boss lines: one triggering unit, a chapter/map id, text, flag, and an event pointer.
+FE6的Boss对话表保存16字节的通用Boss台词记录，内容为 [触发单位 / 章节/地图ID / 文本 / 标志 / 事件指针]。
+
+:FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
+FE6的三角攻击台词使用直接写死的6行16字节表，内容只有 [单位 / 章节/地图ID / 文本 / 事件/标志字节]，没有事件指针。

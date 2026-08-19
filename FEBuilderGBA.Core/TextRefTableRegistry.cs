@@ -934,6 +934,23 @@ namespace FEBuilderGBA
                 });
             }
 
+            // EventTriangleAttackTalk (FE6) — direct 0x666528 table, exactly
+            // six 16-byte records, W4 text id. This is NOT a pointer field and
+            // has no terminator scan; short/unsafe ROMs skip the whole table.
+            if (info.event_triangle_attack_quote_address != 0)
+            {
+                list.Add(new TextRefTableDescriptor
+                {
+                    Kind = "TriangleAttackTalk",
+                    DirectBase = info.event_triangle_attack_quote_address,
+                    EntrySize = 16,
+                    MaxCount = 6,
+                    RequireFullRange = true,
+                    TextIdOffsets = new uint[] { 4 },
+                    NameResolver = id => $"TriangleAttack {id:X02}",
+                });
+            }
+
             // SoundRoom (FE6) — offsets {4, 8} (different from FE7/8 which use {12}).
             // SoundRoomFE6Form.MakeVarsIDArray uses { 4, 8 }; Init: stop on
             // u32==0xFFFFFFFF OR (i > 10 && IsEmpty(addr, size*10)).
