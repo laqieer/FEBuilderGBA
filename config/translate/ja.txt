@@ -14732,3 +14732,12 @@ FE6のボス会話テーブルは、汎用ボス台詞を格納する16バイト
 
 :FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
 FE6のトライアングルアタック台詞は、直接配置された6行固定の16バイトテーブルです。内容は [ユニット / 章・マップID / テキスト / イベント/フラグバイト] のみで、イベントポインタはありません。
+
+:Show Song Table Data Expansion
+Song Table のデータ拡張を表示
+
+:Advanced ROM Editing
+高度な ROM 編集
+
+:Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.
+Song Table にデータ拡張を表示します。Song Table を再配置すると Sappy が認識できなくなる場合があり、通常の ROM には多くの空きエントリがあります。

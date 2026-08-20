@@ -21206,3 +21206,12 @@ FE6's boss-conversation table stores 16-byte generic boss lines: one triggering 
 
 :FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
 FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
+
+:Show Song Table Data Expansion
+Show Song Table Data Expansion
+
+:Advanced ROM Editing
+Advanced ROM Editing
+
+:Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.
+Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.

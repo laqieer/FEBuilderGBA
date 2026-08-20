@@ -28562,3 +28562,12 @@ FE6的Boss对话表保存16字节的通用Boss台词记录，内容为 [触发�
 
 :FE6's triangle-attack quotes use a direct 6-row 16-byte table: character, chapter/map id, text, and event/flag byte only. There is no event pointer.
 FE6的三角攻击台词使用直接写死的6行16字节表，内容只有 [单位 / 章节/地图ID / 文本 / 事件/标志字节]，没有事件指针。
+
+:Show Song Table Data Expansion
+显示歌曲表数据扩展
+
+:Advanced ROM Editing
+高级 ROM 编辑
+
+:Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.
+在歌曲表中显示数据扩展。重新定位歌曲表可能导致 Sappy 无法识别，而且原版 ROM 通常已有许多空闲条目。
