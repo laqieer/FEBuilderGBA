@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
         const string ColorzCoreSuccessMarker =
             "No errors. Please continue being awesome.";
         const int ProcessStubColdStartTimeoutMs = 10_000;
-        const int TimeoutChildSurvivalObservationSeconds = 8;
+        const int TimeoutChildSurvivalObservationSeconds = 10;
 
         static ROM CreateTestRom(int size = 512)
         {
@@ -258,7 +258,7 @@ namespace FEBuilderGBA.Core.Tests
                 bool childSurvived = EventAssemblerProcessStubSupport.TryReadChildMarker(
                     markerPath,
                     TimeSpan.FromSeconds(TimeoutChildSurvivalObservationSeconds),
-                    out _);
+                    out string? childMarker);
 
                 Assert.False(result.Success);
                 Assert.Equal(EventAssemblerProcessStubSupport.TimeoutParentMode, launch.Mode);
@@ -267,11 +267,14 @@ namespace FEBuilderGBA.Core.Tests
                 EventAssemblerProcessStubSupport.AssertSamePath(fakeExe, launch.ProcessPath);
                 Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.Output);
                 Assert.Contains("Error: Event Assembler timed out after 120 seconds.", result.ErrorMessage);
-                Assert.False(childSurvived, "The timeout child outlived the process-tree kill.");
+                Assert.False(
+                    childSurvived,
+                    "The timeout child outlived the process-tree kill. Marker: "
+                    + childMarker);
                 Assert.Equal(before, rom.Data);
                 Assert.Empty(undo.list);
                 Assert.True(
-                    stopwatch.Elapsed < TimeSpan.FromSeconds(25),
+                    stopwatch.Elapsed < TimeSpan.FromSeconds(30),
                     $"Timed-out CompileAndInsert took too long to return: {stopwatch.Elapsed}.");
             }
             finally

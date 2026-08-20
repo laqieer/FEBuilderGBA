@@ -17,6 +17,8 @@ internal static class Program
     const string TimeoutParentMode = "timeout-parent";
     const int ParentExitChildSelfTerminateSeconds = 12;
     const int TimeoutContainmentGraceMs = 5000;
+    const int TimeoutPostParentExitGraceMs = 2500;
+    const int ParentStartIdentityToleranceMs = 2000;
     const int AtomicPublishRetryCount = 3;
     const int AtomicPublishRetryDelayMs = 50;
     const string ParentExitChildCommand = "__parent-exit-child";
@@ -169,6 +171,7 @@ internal static class Program
             parentProcessId,
             parentStartTimeUtcTicks,
             timeoutMs);
+        Thread.Sleep(TimeoutPostParentExitGraceMs);
         WriteAtomicText(args[1], "child survived timeout kill");
         return 0;
     }
@@ -195,8 +198,11 @@ internal static class Program
                 return;
             }
 
-            if (actualStartTimeUtcTicks != parentStartTimeUtcTicks)
+            if (Math.Abs(actualStartTimeUtcTicks - parentStartTimeUtcTicks)
+                > TimeSpan.FromMilliseconds(ParentStartIdentityToleranceMs).Ticks)
+            {
                 return;
+            }
 
             int remainingMs = (int)Math.Clamp(
                 Math.Ceiling((deadlineUtc - DateTime.UtcNow).TotalMilliseconds),
