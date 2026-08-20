@@ -21,6 +21,8 @@ internal static class EventAssemblerProcessStubSupport
     internal const string ConcurrentOutputMode = "concurrent-output";
     internal const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     internal const string TimeoutParentMode = "timeout-parent";
+    internal const string ParentExitChildCommand = "__parent-exit-child";
+    internal const string TimeoutChildCommand = "__timeout-child";
     internal const int ParentExitChildSelfTerminateSeconds = 12;
 
     internal static IDisposable Configure(
