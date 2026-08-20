@@ -219,6 +219,10 @@ internal static class Program
         {
             // The expected parent exited while its process metadata was being read.
         }
+        catch (System.ComponentModel.Win32Exception)
+        {
+            // Parent metadata became unavailable during the exit race.
+        }
     }
 
     static void MutateOutputRom(string outputRomPath)
