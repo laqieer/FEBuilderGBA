@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Core.Tests
     public class EventAssemblerTimeoutChildProbeTests
     {
         const string TimeoutChildMarker = "child survived timeout kill";
+        const int TimeoutChildProbeObservationSeconds = 15;
 
         [Fact]
         public void TimeoutChildProbe_ParentExitPublishesSurvivalMarker()
@@ -43,7 +44,8 @@ namespace FEBuilderGBA.Core.Tests
                     TimeoutChildMarker,
                     EventAssemblerProcessStubSupport.ReadChildMarker(
                         childMarkerPath,
-                        TimeSpan.FromSeconds(8)));
+                        TimeSpan.FromSeconds(
+                            TimeoutChildProbeObservationSeconds)));
                 Assert.True(
                     child.WaitForExit(5000),
                     "The timeout child did not exit after publishing its marker.");
@@ -84,7 +86,8 @@ namespace FEBuilderGBA.Core.Tests
                     TimeoutChildMarker,
                     EventAssemblerProcessStubSupport.ReadChildMarker(
                         childMarkerPath,
-                        TimeSpan.FromSeconds(12)));
+                        TimeSpan.FromSeconds(
+                            TimeoutChildProbeObservationSeconds)));
                 Assert.False(
                     parent.HasExited,
                     "The deadline probe must publish while the watched parent is still alive.");

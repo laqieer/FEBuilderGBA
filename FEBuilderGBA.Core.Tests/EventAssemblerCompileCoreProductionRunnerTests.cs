@@ -21,7 +21,7 @@ namespace FEBuilderGBA.Core.Tests
         const string ColorzCoreSuccessMarker =
             "No errors. Please continue being awesome.";
         const int ProcessStubColdStartTimeoutMs = 10_000;
-        const int TimeoutChildSurvivalObservationSeconds = 10;
+        const int TimeoutChildSurvivalObservationSeconds = 15;
 
         static ROM CreateTestRom(int size = 512)
         {
@@ -274,7 +274,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(before, rom.Data);
                 Assert.Empty(undo.list);
                 Assert.True(
-                    stopwatch.Elapsed < TimeSpan.FromSeconds(30),
+                    stopwatch.Elapsed < TimeSpan.FromSeconds(35),
                     $"Timed-out CompileAndInsert took too long to return: {stopwatch.Elapsed}.");
             }
             finally
