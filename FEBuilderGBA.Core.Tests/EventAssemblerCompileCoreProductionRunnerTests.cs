@@ -20,7 +20,8 @@ namespace FEBuilderGBA.Core.Tests
             "warning: C_Code.lyn.event:11:1: Writing before initializing offset. You may be breaking the ROM!";
         const string ColorzCoreSuccessMarker =
             "No errors. Please continue being awesome.";
-        const int ParentExitColdStartTimeoutMs = 10_000;
+        const int ProcessStubColdStartTimeoutMs = 10_000;
+        const int TimeoutChildSurvivalObservationSeconds = 8;
 
         static ROM CreateTestRom(int size = 512)
         {
@@ -71,7 +72,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
                 EventAssemblerCompileCore.RunProcessOverride = null!;
-                EventAssemblerCompileCore.RunProcessTimeoutMs = ParentExitColdStartTimeoutMs;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = ProcessStubColdStartTimeoutMs;
 
                 var stopwatch = Stopwatch.StartNew();
                 EventAssemblerProcessStubSupport.LaunchRecord launch;
@@ -236,7 +237,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 EventAssemblerCompileCore.ResolveExeOverride = () => fakeExe;
                 EventAssemblerCompileCore.RunProcessOverride = null!;
-                EventAssemblerCompileCore.RunProcessTimeoutMs = 500;
+                EventAssemblerCompileCore.RunProcessTimeoutMs = ProcessStubColdStartTimeoutMs;
 
                 var stopwatch = Stopwatch.StartNew();
                 EventAssemblerProcessStubSupport.LaunchRecord launch;
@@ -244,7 +245,8 @@ namespace FEBuilderGBA.Core.Tests
                 using (EventAssemblerProcessStubSupport.Configure(
                     EventAssemblerProcessStubSupport.TimeoutParentMode,
                     launchRecordPath,
-                    markerPath))
+                    markerPath,
+                    ProcessStubColdStartTimeoutMs))
                 {
                     result = EventAssemblerCompileCore.CompileAndInsert(
                         rom, eaFile, EventAssemblerCompileCore.FreeAreaMode.None,
@@ -255,7 +257,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 bool childSurvived = EventAssemblerProcessStubSupport.TryReadChildMarker(
                     markerPath,
-                    TimeSpan.FromSeconds(3),
+                    TimeSpan.FromSeconds(TimeoutChildSurvivalObservationSeconds),
                     out _);
 
                 Assert.False(result.Success);
@@ -269,7 +271,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(before, rom.Data);
                 Assert.Empty(undo.list);
                 Assert.True(
-                    stopwatch.Elapsed < TimeSpan.FromSeconds(15),
+                    stopwatch.Elapsed < TimeSpan.FromSeconds(25),
                     $"Timed-out CompileAndInsert took too long to return: {stopwatch.Elapsed}.");
             }
             finally

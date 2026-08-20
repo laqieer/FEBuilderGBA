@@ -1,4 +1,5 @@
 using System.IO;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 
@@ -16,18 +17,27 @@ internal static class EventAssemblerProcessStubSupport
     internal const string ModeEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_MODE";
     internal const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
     internal const string ChildMarkerEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_CHILD_MARKER";
+    internal const string TimeoutMsEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_TIMEOUT_MS";
     internal const string ConcurrentOutputMode = "concurrent-output";
     internal const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     internal const string TimeoutParentMode = "timeout-parent";
     internal const int ParentExitChildSelfTerminateSeconds = 12;
 
-    internal static IDisposable Configure(string mode, string launchRecordPath, string? childMarkerPath = null)
+    internal static IDisposable Configure(
+        string mode,
+        string launchRecordPath,
+        string? childMarkerPath = null,
+        int? timeoutMs = null)
     {
+        if (timeoutMs <= 0)
+            throw new ArgumentOutOfRangeException(nameof(timeoutMs));
+
         return new EnvironmentVariableScope(new (string Name, string? Value)[]
         {
             (ModeEnvVar, mode),
             (LaunchRecordEnvVar, launchRecordPath),
             (ChildMarkerEnvVar, childMarkerPath),
+            (TimeoutMsEnvVar, timeoutMs?.ToString(CultureInfo.InvariantCulture)),
         });
     }
 

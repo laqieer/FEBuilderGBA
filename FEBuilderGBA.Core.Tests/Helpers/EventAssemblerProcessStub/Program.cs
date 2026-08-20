@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Globalization;
 using System.Text.Json;
 using System.Threading;
 
@@ -9,11 +10,13 @@ internal static class Program
     const string ModeEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_MODE";
     const string LaunchRecordEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_RECORD";
     const string ChildMarkerEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_CHILD_MARKER";
+    const string TimeoutMsEnvVar = "FEBUILDERGBA_EA_PROCESS_STUB_TIMEOUT_MS";
 
     const string ConcurrentOutputMode = "concurrent-output";
     const string ParentExitDescendantHoldsPipesMode = "parent-exit-descendant-holds-pipes";
     const string TimeoutParentMode = "timeout-parent";
     const int ParentExitChildSelfTerminateSeconds = 12;
+    const int TimeoutContainmentGraceMs = 5000;
     const int AtomicPublishRetryCount = 3;
     const int AtomicPublishRetryDelayMs = 50;
     const string ParentExitChildCommand = "__parent-exit-child";
@@ -118,7 +121,9 @@ internal static class Program
     static int RunTimeoutParent(LaunchRecord launch, string launchRecordPath)
     {
         string childMarkerPath = RequireEnvironmentVariable(ChildMarkerEnvVar);
+        int timeoutMs = RequirePositiveIntEnvironmentVariable(TimeoutMsEnvVar);
         string processPath = Environment.ProcessPath ?? throw new InvalidOperationException("Process path unavailable.");
+        long parentStartTimeUtcTicks = Process.GetCurrentProcess().StartTime.ToUniversalTime().Ticks;
         var psi = new ProcessStartInfo(processPath)
         {
             UseShellExecute = false,
@@ -127,6 +132,9 @@ internal static class Program
         };
         psi.ArgumentList.Add(TimeoutChildCommand);
         psi.ArgumentList.Add(childMarkerPath);
+        psi.ArgumentList.Add(Environment.ProcessId.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(parentStartTimeUtcTicks.ToString(CultureInfo.InvariantCulture));
+        psi.ArgumentList.Add(timeoutMs.ToString(CultureInfo.InvariantCulture));
 
         using var child = Process.Start(psi)
             ?? throw new InvalidOperationException("Failed to start timeout child.");
@@ -150,12 +158,61 @@ internal static class Program
 
     static int RunTimeoutChild(string[] args)
     {
-        if (args.Length != 2)
-            throw new InvalidOperationException("Timeout child expects a marker path.");
+        if (args.Length != 5)
+            throw new InvalidOperationException(
+                "Timeout child expects a marker path, parent PID, parent start time, and timeout.");
 
-        Thread.Sleep(TimeSpan.FromMilliseconds(2500));
+        int parentProcessId = ParsePositiveInt(args[2], "parent PID");
+        long parentStartTimeUtcTicks = ParsePositiveLong(args[3], "parent start time");
+        int timeoutMs = ParsePositiveInt(args[4], "timeout");
+        WaitForParentExitOrContainmentDeadline(
+            parentProcessId,
+            parentStartTimeUtcTicks,
+            timeoutMs);
         WriteAtomicText(args[1], "child survived timeout kill");
         return 0;
+    }
+
+    static void WaitForParentExitOrContainmentDeadline(
+        int parentProcessId,
+        long parentStartTimeUtcTicks,
+        int timeoutMs)
+    {
+        DateTime deadlineUtc = new DateTime(
+            parentStartTimeUtcTicks,
+            DateTimeKind.Utc).AddMilliseconds(timeoutMs + TimeoutContainmentGraceMs);
+
+        try
+        {
+            using Process parent = Process.GetProcessById(parentProcessId);
+            long actualStartTimeUtcTicks;
+            try
+            {
+                actualStartTimeUtcTicks = parent.StartTime.ToUniversalTime().Ticks;
+            }
+            catch (InvalidOperationException)
+            {
+                return;
+            }
+
+            if (actualStartTimeUtcTicks != parentStartTimeUtcTicks)
+                return;
+
+            int remainingMs = (int)Math.Clamp(
+                Math.Ceiling((deadlineUtc - DateTime.UtcNow).TotalMilliseconds),
+                0,
+                int.MaxValue);
+            if (remainingMs > 0)
+                parent.WaitForExit(remainingMs);
+        }
+        catch (ArgumentException)
+        {
+            // The expected parent already exited before the child obtained a handle.
+        }
+        catch (InvalidOperationException)
+        {
+            // The expected parent exited while its process metadata was being read.
+        }
     }
 
     static void MutateOutputRom(string outputRomPath)
@@ -179,6 +236,41 @@ internal static class Program
     {
         return Environment.GetEnvironmentVariable(name)
             ?? throw new InvalidOperationException("Missing environment variable: " + name);
+    }
+
+    static int RequirePositiveIntEnvironmentVariable(string name)
+    {
+        return ParsePositiveInt(RequireEnvironmentVariable(name), name);
+    }
+
+    static int ParsePositiveInt(string value, string description)
+    {
+        if (!int.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out int parsed)
+            || parsed <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Invalid positive integer for {description}: {value}");
+        }
+        return parsed;
+    }
+
+    static long ParsePositiveLong(string value, string description)
+    {
+        if (!long.TryParse(
+                value,
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out long parsed)
+            || parsed <= 0)
+        {
+            throw new InvalidOperationException(
+                $"Invalid positive integer for {description}: {value}");
+        }
+        return parsed;
     }
 
     static void WriteLaunchRecord(string path, LaunchRecord launch)
