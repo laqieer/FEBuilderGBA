@@ -58,6 +58,18 @@
               <TextBlock Text="Interval (minutes):" VerticalAlignment="Center" Margin="0,0,8,0" />
               <NumericUpDown AutomationProperties.AutomationId="Options_AutoSaveInterval_Input" Name="AutoSaveIntervalBox" Minimum="1" Maximum="60" Value="5" Width="100" />
             </StackPanel>
+
+            <Expander AutomationProperties.AutomationId="Options_AdvancedRomEditing_Expander"
+                      Header="Advanced ROM Editing" Margin="0,12,0,0" IsExpanded="False">
+              <StackPanel Spacing="4" Margin="8,4,0,0">
+                <CheckBox AutomationProperties.AutomationId="Options_ShowSongTableExpansion_Check"
+                          Name="ShowSongTableExpansionCheckBox"
+                          Content="Show Song Table Data Expansion" />
+                <TextBlock AutomationProperties.AutomationId="Options_ShowSongTableExpansionHelp_Label"
+                           Text="Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries."
+                           TextWrapping="Wrap" FontSize="11" Foreground="Gray" />
+              </StackPanel>
+            </Expander>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

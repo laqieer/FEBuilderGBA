@@ -99,6 +99,8 @@ namespace FEBuilderGBA.Avalonia.Views
             AutoUpdateCheckBox.IsChecked = _vm.AutoUpdateEnabled;
             AutoSaveCheckBox.IsChecked = _vm.AutoSaveEnabled;
             AutoSaveIntervalBox.Value = _vm.AutoSaveIntervalMinutes;
+            ShowSongTableExpansionCheckBox.IsChecked =
+                _vm.ShowSongTableExpansion;
             Patch2UrlTextBox.Text = _vm.SubmodulePatch2Url;
             FERepoUrlTextBox.Text = _vm.SubmoduleFERepoUrl;
             FERepoMusicUrlTextBox.Text = _vm.SubmoduleFERepoMusicUrl;
@@ -293,6 +295,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.AutoUpdateEnabled = AutoUpdateCheckBox.IsChecked == true;
             _vm.AutoSaveEnabled = AutoSaveCheckBox.IsChecked == true;
             _vm.AutoSaveIntervalMinutes = (int)(AutoSaveIntervalBox.Value ?? 5);
+            _vm.ShowSongTableExpansion =
+                ShowSongTableExpansionCheckBox.IsChecked == true;
             _vm.SubmodulePatch2Url = Patch2UrlTextBox.Text ?? "";
             _vm.SubmoduleFERepoUrl = FERepoUrlTextBox.Text ?? "";
             _vm.SubmoduleFERepoMusicUrl = FERepoMusicUrlTextBox.Text ?? "";

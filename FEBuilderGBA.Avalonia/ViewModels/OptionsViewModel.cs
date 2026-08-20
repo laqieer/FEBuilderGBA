@@ -58,6 +58,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string _autoUpdateRaw = "3";
         bool _autoSaveEnabled = false;
         int _autoSaveIntervalMinutes = 5;
+        bool _showSongTableExpansion;
 
         // External tool paths — keys match WinForms config.xml exactly
         string _emulator = "";
@@ -246,6 +247,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => _autoSaveIntervalMinutes;
             set => SetField(ref _autoSaveIntervalMinutes, Math.Clamp(value, 1, 60));
+        }
+
+        /// <summary>Whether Song Table exposes its opt-in data-expansion action.</summary>
+        public bool ShowSongTableExpansion
+        {
+            get => _showSongTableExpansion;
+            set => SetField(ref _showSongTableExpansion, value);
         }
 
         // ---- External Tool Paths ----
@@ -767,6 +775,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     int asInterval = 5;
                     int.TryParse(cfg.at("autosave_interval_minutes", "5"), out asInterval);
                     AutoSaveIntervalMinutes = Math.Clamp(asInterval, 1, 60);
+                    ShowSongTableExpansion =
+                        cfg.at("func_show_song_table_extends", "0") == "1";
 
                     // Load all tool paths using WinForms-compatible keys
                     Emulator = GetToolPath(cfg, "emulator", "Emulator_Path");
@@ -857,6 +867,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 // Auto-save settings
                 cfg["autosave_enabled"] = AutoSaveEnabled ? "true" : "false";
                 cfg["autosave_interval_minutes"] = AutoSaveIntervalMinutes.ToString();
+                cfg["func_show_song_table_extends"] =
+                    ShowSongTableExpansion ? "1" : "0";
 
                 // Save all tool paths using WinForms-compatible keys
                 cfg["emulator"] = Emulator ?? "";
