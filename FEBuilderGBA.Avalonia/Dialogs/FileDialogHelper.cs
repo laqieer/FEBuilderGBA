@@ -6,6 +6,7 @@ using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA;
+using System.Diagnostics;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
@@ -240,34 +241,52 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             return provider;
         }
 
-        internal static FilePickerOpenOptions CreateExternalToolOpenOptions(string title)
-            => new()
-            {
-                Title = R._(title),
-                AllowMultiple = false,
-                FileTypeFilter = new[]
-                {
-                    new FilePickerFileType(R._("Executables"))
-                    {
-                        Patterns = ExecutablePatterns,
-                    },
-                    MakeAllFileType(),
-                },
-            };
-
-        static string? ResolveExternalToolLocalPath(IReadOnlyList<IStorageFile>? files)
+internal static FilePickerOpenOptions CreateExternalToolOpenOptions(string title)
+{
+    return new FilePickerOpenOptions
+    {
+        Title = R._(title),
+        AllowMultiple = false,
+        FileTypeFilter = new[]
         {
-            if (files == null || files.Count == 0)
-                return null;
-
-            string? path = files[0].TryGetLocalPath();
-            if (string.IsNullOrEmpty(path))
+            new FilePickerFileType(R._("Executables"))
             {
-                CoreState.Services?.ShowInfo(R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
-                return null;
-            }
-            return path;
-        }
+                Patterns = ExecutablePatterns,
+            },
+            MakeAllFileType(),
+        },
+    };
+}
+
+static string? ResolveExternalToolLocalPath(IReadOnlyList<IStorageFile>? files)
+{
+    Log.Notify($"External tool picker: files={files?.Count ?? 0}");
+
+    if (files == null || files.Count == 0)
+    {
+        Log.Notify("External tool picker: NO FILE SELECTED");
+        return null;
+    }
+
+    var file = files[0];
+
+    Log.Notify($"External tool picker: Name={file.Name}");
+    Log.Notify($"External tool picker: Path={file.Path}");
+    Log.Notify($"External tool picker: ToString={file}");
+
+    string? path = file.TryGetLocalPath();
+
+    Log.Notify($"External tool picker: TryGetLocalPath={path ?? "<null>"}");
+
+    if (string.IsNullOrEmpty(path))
+    {
+        CoreState.Services?.ShowInfo(
+            R._("This setting configures an external tool path and requires desktop file-system access; it is not available on this device."));
+        return null;
+    }
+
+    return path;
+}
 
         internal static FilePickerOpenOptions CreateProblemReportBackupOpenOptions()
             => CreateSingleOpenFileOptions(R._("Select Backup File"), "GBA ROMs", ProblemReportBackupPatterns);
@@ -352,27 +371,28 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             Patterns = UpsPatterns,
         };
 
-        /// <summary>
-        /// Open a GBA ROM file and return a usable local path. On Android SAF
-        /// (no local path) the picked ROM is copied to a temp file so the many
-        /// path-based ROM-utility tools (diff / 3-way merge / translate-ROM /
-        /// UPS / header-recovery) keep working (#1639). Callers that need to
-        /// retain the SAF handle for write-back (the main ROM open/save) use
-        /// <see cref="OpenRomFilePick"/> instead.
-        /// </summary>
-        public static async Task<string?> OpenRomFile(TopLevel? owner)
-        {
-            var provider = GetStorageProvider(owner, nameof(OpenRomFile));
-            if (provider == null) return null;
-            var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
-            {
-                Title = R._("Open ROM"),
-                AllowMultiple = false,
-                FileTypeFilter = new[] { MakeGbaFileType(), MakeAllFileType() },
-            });
+ /// <summary>
+/// Open a GBA ROM file and return a usable local path. On Android SAF
+/// (no local path) the picked ROM is copied to a temp file so the many
+/// path-based ROM-utility tools (diff / 3-way merge / translate-ROM /
+/// UPS / header-recovery) keep working (#1639). Callers that need to
+/// retain the SAF handle for write-back (the main ROM open/save) use
+/// <see cref="OpenRomFilePick"/> instead.
+/// </summary>
+public static async Task<string?> OpenRomFile(TopLevel? owner)
+{
+    var provider = GetStorageProvider(owner, nameof(OpenRomFile));
+    if (provider == null) return null;
 
-            return files.Count > 0 ? await ResolveReadPathAsync(files[0]) : null;
-        }
+    var files = await provider.OpenFilePickerAsync(new FilePickerOpenOptions
+    {
+        Title = R._("Open ROM"),
+        AllowMultiple = false,
+        FileTypeFilter = new[] { MakeGbaFileType(), MakeAllFileType() },
+    });
+
+    return files.Count > 0 ? files[0].TryGetLocalPath() : null;
+}
 
         /// <summary>Save a GBA ROM file.</summary>
         public static async Task<string?> SaveRomFile(TopLevel? owner, string? suggestedName = null)
@@ -540,21 +560,193 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             });
         }
 
+/// <summary>
+/// Diagnostic-only macOS application picker test.
+public static async Task<string?> TestMacAppPicker(TopLevel? owner)
+{
+    try
+    {
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"\n=== TestMacAppPicker {DateTime.Now} ===\n");
+
+        // macOS native picker.
+        // Avalonia 11.3.18's FilePickerOpenOptions has no
+        // TreatPackagesAsDirectories support, so .app bundles can
+        // be treated as directories and return no selected file.
+        if (OperatingSystem.IsMacOS())
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "/usr/bin/osascript",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true,
+            };
+
+            psi.ArgumentList.Add("-e");
+            psi.ArgumentList.Add(
+                "POSIX path of (choose file of type {\"app\"} with prompt \"Select Application\")");
+
+            using var process = new System.Diagnostics.Process
+            {
+                StartInfo = psi
+            };
+
+            process.Start();
+
+            string output = await process.StandardOutput.ReadToEndAsync();
+            string error = await process.StandardError.ReadToEndAsync();
+
+            await process.WaitForExitAsync();
+
+            File.AppendAllText(
+                "/tmp/febuilder-picker-debug.txt",
+                $"Native picker exit: {process.ExitCode}\n" +
+                $"Native picker output: {output}\n" +
+                $"Native picker error: {error}\n");
+
+            if (process.ExitCode != 0)
+                return null;
+
+            string path = output.Trim();
+
+            if (string.IsNullOrWhiteSpace(path))
+                return null;
+
+            // osascript returns /Applications/mGBA.app/
+            // Normalize the trailing slash because the rest of
+            // FEBuilder expects a filesystem path to the bundle.
+            path = path.TrimEnd(
+                System.IO.Path.DirectorySeparatorChar,
+                System.IO.Path.AltDirectorySeparatorChar);
+
+            File.AppendAllText(
+                "/tmp/febuilder-picker-debug.txt",
+                $"Native picker selected: {path}\n");
+
+            return path;
+        }
+
+        // Non-macOS platforms continue using Avalonia's picker.
+        var provider = GetStorageProvider(
+            owner,
+            nameof(TestMacAppPicker));
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"Provider: {provider?.GetType().FullName ?? "<null>"}\n");
+
+        if (provider == null)
+            return null;
+
+        var files = await provider.OpenFilePickerAsync(
+            new FilePickerOpenOptions
+            {
+                Title = "Select Application",
+                AllowMultiple = false,
+            });
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"APP TEST COUNT: {files.Count}\n");
+
+        foreach (var file in files)
+        {
+            File.AppendAllText(
+                "/tmp/febuilder-picker-debug.txt",
+                $"APP TEST NAME: {file.Name}\n" +
+                $"APP TEST PATH: {file.Path}\n" +
+                $"APP TEST TYPE: {file.GetType().FullName}\n" +
+                $"APP TEST LOCAL: {file.TryGetLocalPath() ?? "<null>"}\n");
+        }
+
+        return files.Count > 0
+            ? files[0].TryGetLocalPath()
+            : null;
+    }
+    catch (Exception ex)
+    {
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"APP TEST EXCEPTION: {ex}\n");
+
+        throw;
+    }
+}
+
         /// <summary>
         /// Pick a local external-tool path with the shared executable file picker.
         /// macOS application bundles remain selectable through the <c>*.app</c>
         /// filter, while non-desktop targets still reject picks with no local path.
         /// </summary>
-        public static async Task<string?> OpenExternalTool(TopLevel? owner, string title)
-        {
-            var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
-            if (provider == null)
-                return null;
+public static async Task<string?> OpenExternalTool(
+    TopLevel? owner, string title)
+{
+    try
+    {
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"\n=== OpenExternalTool {DateTime.Now} ===\n");
 
-            var files = await provider.OpenFilePickerAsync(CreateExternalToolOpenOptions(title));
-            return ResolveExternalToolLocalPath(files);
+        var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"Provider: {provider?.GetType().FullName ?? "<null>"}\n");
+
+        if (provider == null)
+            return null;
+
+        var options = CreateExternalToolOpenOptions(title);
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"Filter count: {options.FileTypeFilter?.Count ?? 0}\n");
+
+        var files = await provider.OpenFilePickerAsync(options);
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"RETURNED COUNT: {files.Count}\n");
+
+        foreach (var file in files)
+        {
+            File.AppendAllText(
+                "/tmp/febuilder-picker-debug.txt",
+                $"FILE Name={file.Name}\n" +
+                $"FILE Path={file.Path}\n" +
+                $"FILE Type={file.GetType().FullName}\n" +
+                $"FILE ToString={file}\n");
         }
 
+        if (files.Count == 0)
+        {
+            File.AppendAllText(
+                "/tmp/febuilder-picker-debug.txt",
+                "RESULT: ZERO FILES FROM NATIVE PICKER\n");
+
+            return null;
+        }
+
+        var path = files[0].TryGetLocalPath();
+
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"TryGetLocalPath={path ?? "<null>"}\n");
+
+        return path;
+    }
+    catch (Exception ex)
+    {
+        File.AppendAllText(
+            "/tmp/febuilder-picker-debug.txt",
+            $"EXCEPTION: {ex}\n");
+
+        throw;
+    }
+}
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(TopLevel? owner, string title, string pattern, bool requireLocalPath = false)
             => await OpenFile(owner, title, new[] { pattern }, requireLocalPath);

@@ -159,7 +159,10 @@ namespace FEBuilderGBA.Avalonia.Views
             TilesetOptionsListBox.IsEnabled = !busy;
             DiscoverTilesetsButton.IsEnabled = !busy;
             CancelDiscoverTilesetsButton.IsEnabled = busy;
-            SaveTilesetMappingButton.IsEnabled = _vm.HasTilesetContext && _vm.SelectedTileset != null && !busy;
+            SaveTilesetMappingButton.IsEnabled =
+                _vm.HasTilesetContext &&
+                _vm.SelectedTileset != null &&
+                !busy;
         }
 
         /// <summary>
@@ -171,8 +174,10 @@ namespace FEBuilderGBA.Avalonia.Views
         async void DiscoverTilesets_Click(object? sender, RoutedEventArgs e)
         {
             if (_vm.IsTilesetMappingOperationInProgress) return;
+
             Task operation = _vm.DiscoverTilesetsAsync();
             RefreshTilesetMappingUi();
+
             try
             {
                 await operation;
@@ -186,9 +191,12 @@ namespace FEBuilderGBA.Avalonia.Views
         void CancelDiscoverTilesets_Click(object? sender, RoutedEventArgs e) =>
             _vm.CancelTilesetMappingOperation();
 
-        void TilesetOptionsListBox_SelectionChanged(object? sender, global::Avalonia.Controls.SelectionChangedEventArgs e)
+        void TilesetOptionsListBox_SelectionChanged(
+            object? sender,
+            global::Avalonia.Controls.SelectionChangedEventArgs e)
         {
-            _vm.SelectedTileset = TilesetOptionsListBox.SelectedItem as FEMapCreatorTilesetOption;
+            _vm.SelectedTileset =
+                TilesetOptionsListBox.SelectedItem as FEMapCreatorTilesetOption;
             RefreshTilesetMappingUi();
         }
 
@@ -200,8 +208,10 @@ namespace FEBuilderGBA.Avalonia.Views
         async void SaveTilesetMapping_Click(object? sender, RoutedEventArgs e)
         {
             if (_vm.IsTilesetMappingOperationInProgress) return;
+
             Task<bool> operation = _vm.SaveTilesetMappingAsync();
             RefreshTilesetMappingUi();
+
             try
             {
                 await operation;
@@ -229,7 +239,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// textbox, not only after Browse/Clear/initial load. Read-only re-validation only — no
         /// process launch, discovery, or network access is triggered by editing text.
         /// </summary>
-        void FEMapCreatorField_TextChanged(object? sender, global::Avalonia.Controls.TextChangedEventArgs e)
+        void FEMapCreatorField_TextChanged(
+            object? sender,
+            global::Avalonia.Controls.TextChangedEventArgs e)
         {
             RefreshFEMapCreatorStatus();
             RefreshTilesetMappingUi();
@@ -239,14 +251,20 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (sender is not Button btn || btn.Tag is not string targetName)
                 return;
-            var target = this.FindControl<TextBox>(targetName);
-            if (target == null) return;
 
-            string? path = await FileDialogHelper.OpenExternalTool(
-                TopLevel.GetTopLevel(this),
-                "Select File");
+            var target = this.FindControl<TextBox>(targetName);
+            if (target == null)
+                return;
+
+            // Diagnostic macOS picker test:
+            // intentionally uses NO file-type filter so we can determine whether
+            // the native Avalonia/macOS picker can return an .app bundle at all.
+            string? path = await FileDialogHelper.TestMacAppPicker(
+                TopLevel.GetTopLevel(this));
+
             if (path != null)
                 target.Text = path;
+
             RefreshFEMapCreatorStatus();
         }
 
@@ -254,31 +272,42 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (sender is not Button btn || btn.Tag is not string targetName)
                 return;
+
             var target = this.FindControl<TextBox>(targetName);
-            if (target == null) return;
+            if (target == null)
+                return;
 
             var storage = TopLevel.GetTopLevel(this)?.StorageProvider;
-            if (storage == null) return;
-            var folders = await storage.OpenFolderPickerAsync(new FolderPickerOpenOptions
-            {
-                Title = R._("Select Directory"),
-                AllowMultiple = false,
-            });
+            if (storage == null)
+                return;
+
+            var folders = await storage.OpenFolderPickerAsync(
+                new FolderPickerOpenOptions
+                {
+                    Title = R._("Select Directory"),
+                    AllowMultiple = false,
+                });
+
             if (folders.Count > 0)
             {
                 // #1639: tool directory config — a real local directory is
                 // required. On Android (no local path) message instead of
                 // silently doing nothing.
                 string? path = folders[0].TryGetLocalPath();
+
                 if (path != null)
                     target.Text = path;
                 else
-                    CoreState.Services?.ShowInfo(R._("This setting configures an external tool directory and requires desktop file-system access; it is not available on this device."));
+                    CoreState.Services?.ShowInfo(
+                        R._("This setting configures an external tool directory and requires desktop file-system access; it is not available on this device."));
+
                 RefreshFEMapCreatorStatus();
             }
         }
 
-        /// <summary>Clears the optional FEMapCreator assets-root field (empty is a valid, supported state).</summary>
+        /// <summary>
+        /// Clears the optional FEMapCreator assets-root field (empty is a valid, supported state).
+        /// </summary>
         void ClearFEMapCreatorAssetsRoot_Click(object? sender, RoutedEventArgs e)
         {
             FEMapCreatorAssetsRootTextBox.Text = "";
@@ -290,6 +319,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Push UI values back to ViewModel (display string, code extracted in Save())
             if (LanguageCombo.SelectedItem is string lang)
                 _vm.Language = lang;  // e.g. "ja — 日本語"
+
             _vm.GitPath = GitPathTextBox.Text ?? "git";
             _vm.AutoBackup = AutoBackupCheckBox.IsChecked == true;
             _vm.AutoUpdateEnabled = AutoUpdateCheckBox.IsChecked == true;
@@ -327,8 +357,14 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.FEMapCreatorPath = FEMapCreatorPathTextBox.Text ?? "";
             _vm.FEMapCreatorAssetsRoot = FEMapCreatorAssetsRootTextBox.Text ?? "";
 
-            string newLangCode = OptionsViewModel.ExtractLanguageCode(_vm.Language);
-            bool languageChanged = !string.Equals(_originalLanguageCode, newLangCode, StringComparison.Ordinal);
+            string newLangCode =
+                OptionsViewModel.ExtractLanguageCode(_vm.Language);
+
+            bool languageChanged =
+                !string.Equals(
+                    _originalLanguageCode,
+                    newLangCode,
+                    StringComparison.Ordinal);
 
             _vm.Save();
 
@@ -339,12 +375,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 // The main window refreshes via CoreState.LanguageChanged event.
             }
 
-            { DialogResult = true; RequestClose(); }
+            {
+                DialogResult = true;
+                RequestClose();
+            }
         }
 
         void CancelButton_Click(object? sender, RoutedEventArgs e)
         {
-            { DialogResult = false; RequestClose(); }
+            {
+                DialogResult = false;
+                RequestClose();
+            }
         }
 
         /// <summary>
@@ -356,21 +398,36 @@ namespace FEBuilderGBA.Avalonia.Views
         /// re-enabled in a finally.
         /// </summary>
         async void InitUpdatePatch2_Click(object? sender, RoutedEventArgs e)
-            => await RunContentRepoInitUpdate(InitUpdatePatch2Button, Patch2UrlTextBox,
-                "submodule_patch2_url", GitUtil.Patch2RemoteUrl,
-                Patch2GitService.GetPatch2Dir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+            => await RunContentRepoInitUpdate(
+                InitUpdatePatch2Button,
+                Patch2UrlTextBox,
+                "submodule_patch2_url",
+                GitUtil.Patch2RemoteUrl,
+                Patch2GitService.GetPatch2Dir(
+                    CoreState.BaseDirectory ??
+                    AppDomain.CurrentDomain.BaseDirectory),
                 "Patch database");
 
         async void InitUpdateFERepo_Click(object? sender, RoutedEventArgs e)
-            => await RunContentRepoInitUpdate(InitUpdateFERepoButton, FERepoUrlTextBox,
-                "submodule_fe_repo_url", GitUtil.FERepoDefaultUrl,
-                GitUtil.GetFERepoDir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+            => await RunContentRepoInitUpdate(
+                InitUpdateFERepoButton,
+                FERepoUrlTextBox,
+                "submodule_fe_repo_url",
+                GitUtil.FERepoDefaultUrl,
+                GitUtil.GetFERepoDir(
+                    CoreState.BaseDirectory ??
+                    AppDomain.CurrentDomain.BaseDirectory),
                 "FE-Repo");
 
         async void InitUpdateFERepoMusic_Click(object? sender, RoutedEventArgs e)
-            => await RunContentRepoInitUpdate(InitUpdateFERepoMusicButton, FERepoMusicUrlTextBox,
-                "submodule_fe_repo_music_url", GitUtil.FERepoMusicDefaultUrl,
-                GitUtil.GetFERepoMusicDir(CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory),
+            => await RunContentRepoInitUpdate(
+                InitUpdateFERepoMusicButton,
+                FERepoMusicUrlTextBox,
+                "submodule_fe_repo_music_url",
+                GitUtil.FERepoMusicDefaultUrl,
+                GitUtil.GetFERepoMusicDir(
+                    CoreState.BaseDirectory ??
+                    AppDomain.CurrentDomain.BaseDirectory),
                 "FE-Repo-Music");
 
         /// <summary>
@@ -382,45 +439,68 @@ namespace FEBuilderGBA.Avalonia.Views
         /// The button is disabled synchronously and re-enabled in a finally.
         /// </summary>
         async System.Threading.Tasks.Task RunContentRepoInitUpdate(
-            Button button, TextBox urlTextBox, string configKey, string defaultUrl, string repoDir, string displayName)
+            Button button,
+            TextBox urlTextBox,
+            string configKey,
+            string defaultUrl,
+            string repoDir,
+            string displayName)
         {
             button.IsEnabled = false;
+
             try
             {
                 string url = (urlTextBox.Text ?? "").Trim();
-                urlTextBox.Text = url; // reflect the trim so a stray space can't be re-saved
+                urlTextBox.Text = url;
 
                 // Persist ONLY this repo's URL key (do NOT call the full _vm.Save()).
                 var cfg = CoreState.Config;
+
                 if (cfg != null)
                 {
                     cfg[configKey] = url;
                     cfg.Save();
                 }
 
-                string effUrl = string.IsNullOrWhiteSpace(url) ? defaultUrl : url;
+                string effUrl =
+                    string.IsNullOrWhiteSpace(url)
+                        ? defaultUrl
+                        : url;
 
-                var result = await Task.Run(() => ContentRepoGitService.InitializeOrUpdate(repoDir, effUrl, null));
+                var result = await Task.Run(
+                    () => ContentRepoGitService.InitializeOrUpdate(
+                        repoDir,
+                        effUrl,
+                        null));
+
                 switch (result.Kind)
                 {
                     case Patch2GitResultKind.GitNotFound:
-                        CoreState.Services?.ShowError($"Git was not found. Install Git and try again, or set up {displayName} manually.");
+                        CoreState.Services?.ShowError(
+                            $"Git was not found. Install Git and try again, or set up {displayName} manually.");
                         break;
+
                     case Patch2GitResultKind.AlreadyRunning:
-                        CoreState.Services?.ShowInfo("A content repository operation is already running.");
+                        CoreState.Services?.ShowInfo(
+                            "A content repository operation is already running.");
                         break;
+
                     case Patch2GitResultKind.Failed:
-                        CoreState.Services?.ShowError($"{displayName} {(result.WasClone ? "initialize" : "update")} failed (git exit {result.ExitCode}).");
+                        CoreState.Services?.ShowError(
+                            $"{displayName} {(result.WasClone ? "initialize" : "update")} failed (git exit {result.ExitCode}).");
                         break;
+
                     case Patch2GitResultKind.Success:
-                        CoreState.Services?.ShowInfo($"{displayName} updated. Restart recommended for all changes to take full effect.");
+                        CoreState.Services?.ShowInfo(
+                            $"{displayName} updated. Restart recommended for all changes to take full effect.");
                         break;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("OptionsView", ex.ToString());
-                CoreState.Services?.ShowError($"{displayName} operation failed: " + ex.Message);
+                CoreState.Services?.ShowError(
+                    $"{displayName} operation failed: " + ex.Message);
             }
             finally
             {
