@@ -245,14 +245,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         const string MacExternalToolPickerScript = """
             on run argv
                 set pickerPrompt to item 1 of argv
-                if (count of argv) > 1 then
-                    if item 2 of argv is "--validate" then
+                set appChoice to item 2 of argv
+                set fileChoice to item 3 of argv
+                if (count of argv) > 3 then
+                    if item 4 of argv is "--validate" then
                         return "READY"
                     end if
                 end if
 
                 try
-                    set pickedFile to choose file with prompt pickerPrompt of type {"com.apple.application-bundle", "public.data"}
+                    set pickerKind to choose from list {appChoice, fileChoice} with title pickerPrompt with prompt pickerPrompt default items {fileChoice}
+                    if pickerKind is false then
+                        return ""
+                    end if
+                    if item 1 of pickerKind is appChoice then
+                        set pickedFile to choose file with prompt pickerPrompt of type {"app"}
+                    else
+                        set pickedFile to choose file with prompt pickerPrompt
+                    end if
                     return POSIX path of pickedFile
                 on error number -128
                     return ""
@@ -296,6 +306,8 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 "-e",
                 MacExternalToolPickerScript,
                 title,
+                "*.app",
+                R._("All Files"),
             };
             if (validateOnly)
                 arguments.Add("--validate");

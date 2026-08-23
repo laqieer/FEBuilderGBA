@@ -95,13 +95,13 @@ public sealed class ExternalToolAppBundleTests : IDisposable
         Assert.Equal("-l", request.ArgumentList[0]);
         Assert.Equal("AppleScript", request.ArgumentList[1]);
         Assert.Equal("-e", request.ArgumentList[2]);
-        Assert.Contains("choose file with prompt pickerPrompt", request.ArgumentList[3]);
-        Assert.Contains(
-            "of type {\"com.apple.application-bundle\", \"public.data\"}",
-            request.ArgumentList[3]);
+        Assert.Contains("choose from list {appChoice, fileChoice}", request.ArgumentList[3]);
+        Assert.Contains("choose file with prompt pickerPrompt of type {\"app\"}", request.ArgumentList[3]);
         Assert.Contains("on error number -128", request.ArgumentList[3]);
         Assert.DoesNotContain("Select File", request.ArgumentList[3]);
         Assert.Equal("Select File", request.ArgumentList[4]);
+        Assert.Equal("*.app", request.ArgumentList[5]);
+        Assert.Equal("All Files", request.ArgumentList[6]);
         Assert.True(request.CaptureStandardOutput);
         Assert.True(request.CaptureStandardError);
     }
