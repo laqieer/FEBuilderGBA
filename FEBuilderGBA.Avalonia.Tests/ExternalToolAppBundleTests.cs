@@ -9,6 +9,7 @@ using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Dialogs;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -82,6 +83,87 @@ public sealed class ExternalToolAppBundleTests : IDisposable
                 Assert.Equal("All Files", allFiles.Name);
                 Assert.Equal(new[] { "*" }, allFiles.Patterns);
             });
+    }
+
+    [Fact]
+    public void MacExternalToolPickerRequest_UsesStaticJxaScriptAndSeparateTitleArgument()
+    {
+        ExternalProcessRequest request =
+            FileDialogHelper.CreateMacExternalToolPickerRequest("Select File");
+
+        Assert.Equal("/usr/bin/osascript", request.Executable);
+        Assert.Equal("-l", request.ArgumentList[0]);
+        Assert.Equal("JavaScript", request.ArgumentList[1]);
+        Assert.Equal("-e", request.ArgumentList[2]);
+        Assert.Contains("treatsFilePackagesAsDirectories = false", request.ArgumentList[3]);
+        Assert.Contains("canChooseFiles = true", request.ArgumentList[3]);
+        Assert.Contains("canChooseDirectories = false", request.ArgumentList[3]);
+        Assert.DoesNotContain("Select File", request.ArgumentList[3]);
+        Assert.Equal("Select File", request.ArgumentList[4]);
+        Assert.True(request.CaptureStandardOutput);
+        Assert.True(request.CaptureStandardError);
+    }
+
+    [Theory]
+    [InlineData("/Applications/mGBA.app")]
+    [InlineData("/usr/local/bin/mgba")]
+    public void MacExternalToolPickerResult_AcceptsAppBundleOrOrdinaryFile(string path)
+    {
+        bool isBundle = path.EndsWith(".app", StringComparison.OrdinalIgnoreCase);
+        var result = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, path + Environment.NewLine, string.Empty),
+            fileExists: candidate => !isBundle && candidate == path,
+            directoryExists: candidate => isBundle && candidate == path);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Selected, result.Kind);
+        Assert.Equal(path, result.Path);
+        Assert.True(string.IsNullOrEmpty(result.Message));
+    }
+
+    [Fact]
+    public void MacExternalToolPickerResult_TreatsEmptySuccessAsCancellation()
+    {
+        var result = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, Environment.NewLine, string.Empty),
+            fileExists: _ => false,
+            directoryExists: _ => false);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Cancelled, result.Kind);
+        Assert.Null(result.Path);
+    }
+
+    [Fact]
+    public void MacExternalToolPickerResult_FallsBackForProcessFailureOrOrdinaryDirectory()
+    {
+        var failed = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.StartFailure("osascript missing"),
+            fileExists: _ => false,
+            directoryExists: _ => false);
+        var directory = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, "/tmp/not-an-app" + Environment.NewLine, string.Empty),
+            fileExists: _ => false,
+            directoryExists: _ => true);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Fallback, failed.Kind);
+        Assert.Contains("osascript missing", failed.Message);
+        Assert.Equal(MacExternalToolPickerResultKind.Fallback, directory.Kind);
+        Assert.Contains("not an executable file", directory.Message);
+    }
+
+    [SkippableFact]
+    public async System.Threading.Tasks.Task MacExternalToolPickerJxa_InitializesAppKit()
+    {
+        Skip.IfNot(OperatingSystem.IsMacOS(), "macOS-only AppKit probe");
+
+        ExternalProcessResult result =
+            await ExternalLauncher.Current.RunCapturedProcessAsync(
+                FileDialogHelper.CreateMacExternalToolPickerRequest(
+                    "Select File",
+                    validateOnly: true));
+
+        Assert.Equal(ExternalProcessResultKind.Exited, result.Kind);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("READY", result.StandardOutput.Trim());
     }
 
     [AvaloniaFact]

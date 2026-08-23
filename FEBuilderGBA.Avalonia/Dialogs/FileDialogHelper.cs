@@ -6,9 +6,22 @@ using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Platform.Storage;
 using FEBuilderGBA;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Dialogs
 {
+    internal enum MacExternalToolPickerResultKind
+    {
+        Selected,
+        Cancelled,
+        Fallback,
+    }
+
+    internal readonly record struct MacExternalToolPickerResult(
+        MacExternalToolPickerResultKind Kind,
+        string? Path,
+        string Message);
+
     /// <summary>
     /// Helper for file open/save dialogs using Avalonia 11 StorageProvider API.
     /// All user-visible strings are wrapped with R._() for i18n.
@@ -229,6 +242,36 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         static readonly string[] GplPatterns = new[] { "*.gpl" };
         static readonly string[] TxtPatterns = new[] { "*.txt" };
         static readonly string[] AllPalettePatterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" };
+        const string MacExternalToolPickerScript = """
+            ObjC.import("Cocoa");
+
+            function run(argv) {
+                const panel = $.NSOpenPanel.openPanel;
+                panel.canChooseFiles = true;
+                panel.canChooseDirectories = false;
+                panel.allowsMultipleSelection = false;
+                panel.treatsFilePackagesAsDirectories = false;
+                panel.resolvesAliases = true;
+
+                if (argv.length > 0) {
+                    panel.message = argv[0];
+                }
+                if (argv.length > 1 && argv[1] === "--validate") {
+                    return "READY";
+                }
+
+                const response = Number(panel.runModal);
+                if (response !== 1) {
+                    return "";
+                }
+
+                const urls = panel.URLs;
+                if (Number(urls.count) === 0) {
+                    return "";
+                }
+                return ObjC.unwrap(urls.objectAtIndex(0).path);
+            }
+            """;
 
         static IStorageProvider? GetStorageProvider(TopLevel? owner, string operation)
         {
@@ -254,6 +297,83 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                     MakeAllFileType(),
                 },
             };
+
+        internal static ExternalProcessRequest CreateMacExternalToolPickerRequest(
+            string title,
+            bool validateOnly = false)
+        {
+            var arguments = new List<string>
+            {
+                "-l",
+                "JavaScript",
+                "-e",
+                MacExternalToolPickerScript,
+                title,
+            };
+            if (validateOnly)
+                arguments.Add("--validate");
+
+            return new ExternalProcessRequest("/usr/bin/osascript")
+            {
+                ArgumentList = arguments,
+                CaptureStandardOutput = true,
+                CaptureStandardError = true,
+            };
+        }
+
+        internal static MacExternalToolPickerResult ResolveMacExternalToolPickerResult(
+            ExternalProcessResult result,
+            Func<string, bool> fileExists,
+            Func<string, bool> directoryExists)
+        {
+            if (result.Kind != ExternalProcessResultKind.Exited || result.ExitCode != 0)
+            {
+                string detail = !string.IsNullOrWhiteSpace(result.Message)
+                    ? result.Message
+                    : !string.IsNullOrWhiteSpace(result.StandardError)
+                        ? result.StandardError.Trim()
+                        : $"osascript exited with code {result.ExitCode?.ToString() ?? "unknown"}.";
+                return new MacExternalToolPickerResult(
+                    MacExternalToolPickerResultKind.Fallback,
+                    null,
+                    "macOS external-tool picker failed: " + detail);
+            }
+
+            string path = result.StandardOutput.TrimEnd('\r', '\n');
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return new MacExternalToolPickerResult(
+                    MacExternalToolPickerResultKind.Cancelled,
+                    null,
+                    string.Empty);
+            }
+
+            bool isAppBundle = directoryExists(path)
+                && string.Equals(Path.GetExtension(path), ".app", StringComparison.OrdinalIgnoreCase);
+            if (fileExists(path) || isAppBundle)
+            {
+                return new MacExternalToolPickerResult(
+                    MacExternalToolPickerResultKind.Selected,
+                    path,
+                    string.Empty);
+            }
+
+            return new MacExternalToolPickerResult(
+                MacExternalToolPickerResultKind.Fallback,
+                null,
+                $"The macOS picker returned a path that is not an executable file or .app bundle: {path}");
+        }
+
+        static async Task<MacExternalToolPickerResult> PickMacExternalToolAsync(string title)
+        {
+            ExternalProcessResult processResult =
+                await ExternalLauncher.Current.RunCapturedProcessAsync(
+                    CreateMacExternalToolPickerRequest(title));
+            return ResolveMacExternalToolPickerResult(
+                processResult,
+                File.Exists,
+                Directory.Exists);
+        }
 
         static string? ResolveExternalToolLocalPath(IReadOnlyList<IStorageFile>? files)
         {
@@ -541,12 +661,24 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         }
 
         /// <summary>
-        /// Pick a local external-tool path with the shared executable file picker.
-        /// macOS application bundles remain selectable through the <c>*.app</c>
-        /// filter, while non-desktop targets still reject picks with no local path.
+        /// Pick a local external-tool path with one shared picker path. macOS uses
+        /// NSOpenPanel so application packages remain selectable; other platforms
+        /// and macOS failures fall back to Avalonia's storage-provider picker.
         /// </summary>
         public static async Task<string?> OpenExternalTool(TopLevel? owner, string title)
         {
+            if (OperatingSystem.IsMacOS())
+            {
+                MacExternalToolPickerResult macResult =
+                    await PickMacExternalToolAsync(R._(title));
+                if (macResult.Kind == MacExternalToolPickerResultKind.Selected)
+                    return macResult.Path;
+                if (macResult.Kind == MacExternalToolPickerResultKind.Cancelled)
+                    return null;
+
+                Log.Error($"FileDialogHelper.OpenExternalTool: {macResult.Message}");
+            }
+
             var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
             if (provider == null)
                 return null;
