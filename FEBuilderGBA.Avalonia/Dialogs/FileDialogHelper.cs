@@ -257,9 +257,15 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                     panel.message = argv[0];
                 }
                 if (argv.length > 1 && argv[1] === "--validate") {
-                    return "READY";
+                    return [
+                        ObjC.unwrap(panel.className),
+                        String(panel.canChooseFiles),
+                        String(panel.canChooseDirectories),
+                        String(panel.treatsFilePackagesAsDirectories)
+                    ].join("|");
                 }
 
+                $.NSApplication.sharedApplication.activateIgnoringOtherApps(true);
                 const response = Number(panel.runModal);
                 if (response !== 1) {
                     return "";

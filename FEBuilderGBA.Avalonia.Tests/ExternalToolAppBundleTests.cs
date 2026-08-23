@@ -163,7 +163,7 @@ public sealed class ExternalToolAppBundleTests : IDisposable
 
         Assert.Equal(ExternalProcessResultKind.Exited, result.Kind);
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("READY", result.StandardOutput.Trim());
+        Assert.Equal("NSOpenPanel|true|false|false", result.StandardOutput.Trim());
     }
 
     [AvaloniaFact]
