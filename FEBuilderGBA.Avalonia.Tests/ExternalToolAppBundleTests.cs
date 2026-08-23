@@ -86,18 +86,17 @@ public sealed class ExternalToolAppBundleTests : IDisposable
     }
 
     [Fact]
-    public void MacExternalToolPickerRequest_UsesStaticJxaScriptAndSeparateTitleArgument()
+    public void MacExternalToolPickerRequest_UsesStaticAppleScriptAndSeparateTitleArgument()
     {
         ExternalProcessRequest request =
             FileDialogHelper.CreateMacExternalToolPickerRequest("Select File");
 
         Assert.Equal("/usr/bin/osascript", request.Executable);
         Assert.Equal("-l", request.ArgumentList[0]);
-        Assert.Equal("JavaScript", request.ArgumentList[1]);
+        Assert.Equal("AppleScript", request.ArgumentList[1]);
         Assert.Equal("-e", request.ArgumentList[2]);
-        Assert.Contains("treatsFilePackagesAsDirectories = false", request.ArgumentList[3]);
-        Assert.Contains("canChooseFiles = true", request.ArgumentList[3]);
-        Assert.Contains("canChooseDirectories = false", request.ArgumentList[3]);
+        Assert.Contains("choose file with prompt pickerPrompt", request.ArgumentList[3]);
+        Assert.Contains("on error number -128", request.ArgumentList[3]);
         Assert.DoesNotContain("Select File", request.ArgumentList[3]);
         Assert.Equal("Select File", request.ArgumentList[4]);
         Assert.True(request.CaptureStandardOutput);
@@ -150,10 +149,74 @@ public sealed class ExternalToolAppBundleTests : IDisposable
         Assert.Contains("not an executable file", directory.Message);
     }
 
-    [SkippableFact]
-    public async System.Threading.Tasks.Task MacExternalToolPickerJxa_InitializesAppKit()
+    [Fact]
+    public async System.Threading.Tasks.Task ExternalToolPickerRouting_NonMacSkipsNativePicker()
     {
-        Skip.IfNot(OperatingSystem.IsMacOS(), "macOS-only AppKit probe");
+        int nativeCalls = 0;
+        int fallbackCalls = 0;
+
+        string? result = await FileDialogHelper.OpenExternalToolCoreAsync(
+            isMacOS: false,
+            macPicker: () =>
+            {
+                nativeCalls++;
+                return System.Threading.Tasks.Task.FromResult(new MacExternalToolPickerResult(
+                    MacExternalToolPickerResultKind.Selected,
+                    "/Applications/mGBA.app",
+                    string.Empty));
+            },
+            avaloniaPicker: () =>
+            {
+                fallbackCalls++;
+                return System.Threading.Tasks.Task.FromResult<string?>("/usr/local/bin/mgba");
+            });
+
+        Assert.Equal("/usr/local/bin/mgba", result);
+        Assert.Equal(0, nativeCalls);
+        Assert.Equal(1, fallbackCalls);
+    }
+
+    [Theory]
+    [InlineData("Selected", "/Applications/mGBA.app", 0)]
+    [InlineData("Cancelled", null, 0)]
+    [InlineData("Fallback", "/usr/local/bin/mgba", 1)]
+    public async System.Threading.Tasks.Task ExternalToolPickerRouting_HandlesMacOutcome(
+        string kindName,
+        string? expected,
+        int expectedFallbackCalls)
+    {
+        var kind = Enum.Parse<MacExternalToolPickerResultKind>(kindName);
+        int nativeCalls = 0;
+        int fallbackCalls = 0;
+        string? selectedPath = kind == MacExternalToolPickerResultKind.Selected
+            ? "/Applications/mGBA.app"
+            : null;
+
+        string? result = await FileDialogHelper.OpenExternalToolCoreAsync(
+            isMacOS: true,
+            macPicker: () =>
+            {
+                nativeCalls++;
+                return System.Threading.Tasks.Task.FromResult(new MacExternalToolPickerResult(
+                    kind,
+                    selectedPath,
+                    kind == MacExternalToolPickerResultKind.Fallback ? "native picker failed" : string.Empty));
+            },
+            avaloniaPicker: () =>
+            {
+                fallbackCalls++;
+                return System.Threading.Tasks.Task.FromResult<string?>("/usr/local/bin/mgba");
+            });
+
+        Assert.Equal(expected, result);
+        Assert.Equal(1, nativeCalls);
+        Assert.Equal(expectedFallbackCalls, fallbackCalls);
+    }
+
+    [SkippableFact]
+    public async System.Threading.Tasks.Task MacExternalToolPickerAppleScript_LoadsStandardAdditions()
+    {
+        Skip.IfNot(OperatingSystem.IsMacOS(), "macOS-only AppleScript probe");
 
         ExternalProcessResult result =
             await ExternalLauncher.Current.RunCapturedProcessAsync(
@@ -163,7 +226,7 @@ public sealed class ExternalToolAppBundleTests : IDisposable
 
         Assert.Equal(ExternalProcessResultKind.Exited, result.Kind);
         Assert.Equal(0, result.ExitCode);
-        Assert.Equal("NSOpenPanel|true|false|false", result.StandardOutput.Trim());
+        Assert.Equal("READY", result.StandardOutput.Trim());
     }
 
     [AvaloniaFact]

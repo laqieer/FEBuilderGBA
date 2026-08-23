@@ -243,40 +243,21 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         static readonly string[] TxtPatterns = new[] { "*.txt" };
         static readonly string[] AllPalettePatterns = new[] { "*.pal", "*.gbapal", "*.act", "*.gpl", "*.txt" };
         const string MacExternalToolPickerScript = """
-            ObjC.import("Cocoa");
+            on run argv
+                set pickerPrompt to item 1 of argv
+                if (count of argv) > 1 then
+                    if item 2 of argv is "--validate" then
+                        return "READY"
+                    end if
+                end if
 
-            function run(argv) {
-                const panel = $.NSOpenPanel.openPanel;
-                panel.canChooseFiles = true;
-                panel.canChooseDirectories = false;
-                panel.allowsMultipleSelection = false;
-                panel.treatsFilePackagesAsDirectories = false;
-                panel.resolvesAliases = true;
-
-                if (argv.length > 0) {
-                    panel.message = argv[0];
-                }
-                if (argv.length > 1 && argv[1] === "--validate") {
-                    return [
-                        ObjC.unwrap(panel.className),
-                        String(panel.canChooseFiles),
-                        String(panel.canChooseDirectories),
-                        String(panel.treatsFilePackagesAsDirectories)
-                    ].join("|");
-                }
-
-                $.NSApplication.sharedApplication.activateIgnoringOtherApps(true);
-                const response = Number(panel.runModal);
-                if (response !== 1) {
-                    return "";
-                }
-
-                const urls = panel.URLs;
-                if (Number(urls.count) === 0) {
-                    return "";
-                }
-                return ObjC.unwrap(urls.objectAtIndex(0).path);
-            }
+                try
+                    set pickedFile to choose file with prompt pickerPrompt
+                    return POSIX path of pickedFile
+                on error number -128
+                    return ""
+                end try
+            end run
             """;
 
         static IStorageProvider? GetStorageProvider(TopLevel? owner, string operation)
@@ -311,7 +292,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             var arguments = new List<string>
             {
                 "-l",
-                "JavaScript",
+                "AppleScript",
                 "-e",
                 MacExternalToolPickerScript,
                 title,
@@ -375,10 +356,42 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             ExternalProcessResult processResult =
                 await ExternalLauncher.Current.RunCapturedProcessAsync(
                     CreateMacExternalToolPickerRequest(title));
-            return ResolveMacExternalToolPickerResult(
+            MacExternalToolPickerResult result = ResolveMacExternalToolPickerResult(
                 processResult,
                 File.Exists,
                 Directory.Exists);
+            if (result.Kind == MacExternalToolPickerResultKind.Fallback)
+                Log.Error($"FileDialogHelper.OpenExternalTool: {result.Message}");
+            return result;
+        }
+
+        internal static async Task<string?> OpenExternalToolCoreAsync(
+            bool isMacOS,
+            Func<Task<MacExternalToolPickerResult>> macPicker,
+            Func<Task<string?>> avaloniaPicker)
+        {
+            if (isMacOS)
+            {
+                MacExternalToolPickerResult macResult = await macPicker();
+                if (macResult.Kind == MacExternalToolPickerResultKind.Selected)
+                    return macResult.Path;
+                if (macResult.Kind == MacExternalToolPickerResultKind.Cancelled)
+                    return null;
+            }
+
+            return await avaloniaPicker();
+        }
+
+        static async Task<string?> OpenExternalToolWithStorageProviderAsync(
+            TopLevel? owner,
+            string title)
+        {
+            var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
+            if (provider == null)
+                return null;
+
+            var files = await provider.OpenFilePickerAsync(CreateExternalToolOpenOptions(title));
+            return ResolveExternalToolLocalPath(files);
         }
 
         static string? ResolveExternalToolLocalPath(IReadOnlyList<IStorageFile>? files)
@@ -668,30 +681,14 @@ namespace FEBuilderGBA.Avalonia.Dialogs
 
         /// <summary>
         /// Pick a local external-tool path with one shared picker path. macOS uses
-        /// NSOpenPanel so application packages remain selectable; other platforms
-        /// and macOS failures fall back to Avalonia's storage-provider picker.
+        /// the system scripting addition so application packages remain selectable;
+        /// other platforms and macOS failures use Avalonia's storage-provider picker.
         /// </summary>
-        public static async Task<string?> OpenExternalTool(TopLevel? owner, string title)
-        {
-            if (OperatingSystem.IsMacOS())
-            {
-                MacExternalToolPickerResult macResult =
-                    await PickMacExternalToolAsync(R._(title));
-                if (macResult.Kind == MacExternalToolPickerResultKind.Selected)
-                    return macResult.Path;
-                if (macResult.Kind == MacExternalToolPickerResultKind.Cancelled)
-                    return null;
-
-                Log.Error($"FileDialogHelper.OpenExternalTool: {macResult.Message}");
-            }
-
-            var provider = GetStorageProvider(owner, nameof(OpenExternalTool));
-            if (provider == null)
-                return null;
-
-            var files = await provider.OpenFilePickerAsync(CreateExternalToolOpenOptions(title));
-            return ResolveExternalToolLocalPath(files);
-        }
+        public static Task<string?> OpenExternalTool(TopLevel? owner, string title)
+            => OpenExternalToolCoreAsync(
+                OperatingSystem.IsMacOS(),
+                () => PickMacExternalToolAsync(R._(title)),
+                () => OpenExternalToolWithStorageProviderAsync(owner, title));
 
         /// <summary>Open any file with custom filter.</summary>
         public static async Task<string?> OpenFile(TopLevel? owner, string title, string pattern, bool requireLocalPath = false)
