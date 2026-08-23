@@ -252,7 +252,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                 end if
 
                 try
-                    set pickedFile to choose file with prompt pickerPrompt
+                    set pickedFile to choose file with prompt pickerPrompt of type {"com.apple.application-bundle", "public.data"}
                     return POSIX path of pickedFile
                 on error number -128
                     return ""
