@@ -347,20 +347,26 @@ namespace FEBuilderGBA.Avalonia.Dialogs
                     string.Empty);
             }
 
-            bool isAppBundle = directoryExists(path)
-                && string.Equals(Path.GetExtension(path), ".app", StringComparison.OrdinalIgnoreCase);
-            if (fileExists(path) || isAppBundle)
+            string normalizedPath = path.TrimEnd(
+                Path.DirectorySeparatorChar,
+                Path.AltDirectorySeparatorChar);
+            if (normalizedPath.Length == 0)
+                normalizedPath = path;
+
+            bool isAppBundle = directoryExists(normalizedPath)
+                && string.Equals(Path.GetExtension(normalizedPath), ".app", StringComparison.OrdinalIgnoreCase);
+            if (fileExists(normalizedPath) || isAppBundle)
             {
                 return new MacExternalToolPickerResult(
                     MacExternalToolPickerResultKind.Selected,
-                    path,
+                    normalizedPath,
                     string.Empty);
             }
 
             return new MacExternalToolPickerResult(
                 MacExternalToolPickerResultKind.Fallback,
                 null,
-                $"The macOS picker returned a path that is not an executable file or .app bundle: {path}");
+                $"The macOS picker returned a path that is not an executable file or .app bundle: {normalizedPath}");
         }
 
         static async Task<MacExternalToolPickerResult> PickMacExternalToolAsync(string title)

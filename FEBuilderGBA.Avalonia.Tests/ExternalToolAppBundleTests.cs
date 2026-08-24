@@ -107,18 +107,21 @@ public sealed class ExternalToolAppBundleTests : IDisposable
     }
 
     [Theory]
-    [InlineData("/Applications/mGBA.app")]
-    [InlineData("/usr/local/bin/mgba")]
-    public void MacExternalToolPickerResult_AcceptsAppBundleOrOrdinaryFile(string path)
+    [InlineData("/Applications/mGBA.app", "/Applications/mGBA.app", true)]
+    [InlineData("/Applications/mGBA.app/", "/Applications/mGBA.app", true)]
+    [InlineData("/usr/local/bin/mgba", "/usr/local/bin/mgba", false)]
+    public void MacExternalToolPickerResult_AcceptsAppBundleOrOrdinaryFile(
+        string output,
+        string expected,
+        bool isBundle)
     {
-        bool isBundle = path.EndsWith(".app", StringComparison.OrdinalIgnoreCase);
         var result = FileDialogHelper.ResolveMacExternalToolPickerResult(
-            ExternalProcessResult.Exited(0, path + Environment.NewLine, string.Empty),
-            fileExists: candidate => !isBundle && candidate == path,
-            directoryExists: candidate => isBundle && candidate == path);
+            ExternalProcessResult.Exited(0, output + Environment.NewLine, string.Empty),
+            fileExists: candidate => !isBundle && candidate == expected,
+            directoryExists: candidate => isBundle && candidate == expected);
 
         Assert.Equal(MacExternalToolPickerResultKind.Selected, result.Kind);
-        Assert.Equal(path, result.Path);
+        Assert.Equal(expected, result.Path);
         Assert.True(string.IsNullOrEmpty(result.Message));
     }
 
