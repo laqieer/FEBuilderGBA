@@ -9,6 +9,7 @@ using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Threading;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Dialogs;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -82,6 +83,156 @@ public sealed class ExternalToolAppBundleTests : IDisposable
                 Assert.Equal("All Files", allFiles.Name);
                 Assert.Equal(new[] { "*" }, allFiles.Patterns);
             });
+    }
+
+    [Fact]
+    public void MacExternalToolPickerRequest_UsesStaticAppleScriptAndSeparateTitleArgument()
+    {
+        ExternalProcessRequest request =
+            FileDialogHelper.CreateMacExternalToolPickerRequest("Select File");
+
+        Assert.Equal("/usr/bin/osascript", request.Executable);
+        Assert.Equal("-l", request.ArgumentList[0]);
+        Assert.Equal("AppleScript", request.ArgumentList[1]);
+        Assert.Equal("-e", request.ArgumentList[2]);
+        Assert.Contains("choose from list {appChoice, fileChoice}", request.ArgumentList[3]);
+        Assert.Contains("choose file with prompt pickerPrompt of type {\"app\"}", request.ArgumentList[3]);
+        Assert.Contains("on error number -128", request.ArgumentList[3]);
+        Assert.DoesNotContain("Select File", request.ArgumentList[3]);
+        Assert.Equal("Select File", request.ArgumentList[4]);
+        Assert.Equal("*.app", request.ArgumentList[5]);
+        Assert.Equal("All Files", request.ArgumentList[6]);
+        Assert.True(request.CaptureStandardOutput);
+        Assert.True(request.CaptureStandardError);
+    }
+
+    [Theory]
+    [InlineData("/Applications/mGBA.app", "/Applications/mGBA.app", true)]
+    [InlineData("/Applications/mGBA.app/", "/Applications/mGBA.app", true)]
+    [InlineData("/usr/local/bin/mgba", "/usr/local/bin/mgba", false)]
+    public void MacExternalToolPickerResult_AcceptsAppBundleOrOrdinaryFile(
+        string output,
+        string expected,
+        bool isBundle)
+    {
+        var result = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, output + Environment.NewLine, string.Empty),
+            fileExists: candidate => !isBundle && candidate == expected,
+            directoryExists: candidate => isBundle && candidate == expected);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Selected, result.Kind);
+        Assert.Equal(expected, result.Path);
+        Assert.True(string.IsNullOrEmpty(result.Message));
+    }
+
+    [Fact]
+    public void MacExternalToolPickerResult_TreatsEmptySuccessAsCancellation()
+    {
+        var result = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, Environment.NewLine, string.Empty),
+            fileExists: _ => false,
+            directoryExists: _ => false);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Cancelled, result.Kind);
+        Assert.Null(result.Path);
+    }
+
+    [Fact]
+    public void MacExternalToolPickerResult_FallsBackForProcessFailureOrOrdinaryDirectory()
+    {
+        var failed = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.StartFailure("osascript missing"),
+            fileExists: _ => false,
+            directoryExists: _ => false);
+        var directory = FileDialogHelper.ResolveMacExternalToolPickerResult(
+            ExternalProcessResult.Exited(0, "/tmp/not-an-app" + Environment.NewLine, string.Empty),
+            fileExists: _ => false,
+            directoryExists: _ => true);
+
+        Assert.Equal(MacExternalToolPickerResultKind.Fallback, failed.Kind);
+        Assert.Contains("osascript missing", failed.Message);
+        Assert.Equal(MacExternalToolPickerResultKind.Fallback, directory.Kind);
+        Assert.Contains("not an executable file", directory.Message);
+    }
+
+    [Fact]
+    public async System.Threading.Tasks.Task ExternalToolPickerRouting_NonMacSkipsNativePicker()
+    {
+        int nativeCalls = 0;
+        int fallbackCalls = 0;
+
+        string? result = await FileDialogHelper.OpenExternalToolCoreAsync(
+            isMacOS: false,
+            macPicker: () =>
+            {
+                nativeCalls++;
+                return System.Threading.Tasks.Task.FromResult(new MacExternalToolPickerResult(
+                    MacExternalToolPickerResultKind.Selected,
+                    "/Applications/mGBA.app",
+                    string.Empty));
+            },
+            avaloniaPicker: () =>
+            {
+                fallbackCalls++;
+                return System.Threading.Tasks.Task.FromResult<string?>("/usr/local/bin/mgba");
+            });
+
+        Assert.Equal("/usr/local/bin/mgba", result);
+        Assert.Equal(0, nativeCalls);
+        Assert.Equal(1, fallbackCalls);
+    }
+
+    [Theory]
+    [InlineData("Selected", "/Applications/mGBA.app", 0)]
+    [InlineData("Cancelled", null, 0)]
+    [InlineData("Fallback", "/usr/local/bin/mgba", 1)]
+    public async System.Threading.Tasks.Task ExternalToolPickerRouting_HandlesMacOutcome(
+        string kindName,
+        string? expected,
+        int expectedFallbackCalls)
+    {
+        var kind = Enum.Parse<MacExternalToolPickerResultKind>(kindName);
+        int nativeCalls = 0;
+        int fallbackCalls = 0;
+        string? selectedPath = kind == MacExternalToolPickerResultKind.Selected
+            ? "/Applications/mGBA.app"
+            : null;
+
+        string? result = await FileDialogHelper.OpenExternalToolCoreAsync(
+            isMacOS: true,
+            macPicker: () =>
+            {
+                nativeCalls++;
+                return System.Threading.Tasks.Task.FromResult(new MacExternalToolPickerResult(
+                    kind,
+                    selectedPath,
+                    kind == MacExternalToolPickerResultKind.Fallback ? "native picker failed" : string.Empty));
+            },
+            avaloniaPicker: () =>
+            {
+                fallbackCalls++;
+                return System.Threading.Tasks.Task.FromResult<string?>("/usr/local/bin/mgba");
+            });
+
+        Assert.Equal(expected, result);
+        Assert.Equal(1, nativeCalls);
+        Assert.Equal(expectedFallbackCalls, fallbackCalls);
+    }
+
+    [SkippableFact]
+    public async System.Threading.Tasks.Task MacExternalToolPickerAppleScript_LoadsStandardAdditions()
+    {
+        Skip.IfNot(OperatingSystem.IsMacOS(), "macOS-only AppleScript probe");
+
+        ExternalProcessResult result =
+            await ExternalLauncher.Current.RunCapturedProcessAsync(
+                FileDialogHelper.CreateMacExternalToolPickerRequest(
+                    "Select File",
+                    validateOnly: true));
+
+        Assert.Equal(ExternalProcessResultKind.Exited, result.Kind);
+        Assert.Equal(0, result.ExitCode);
+        Assert.Equal("READY", result.StandardOutput.Trim());
     }
 
     [AvaloniaFact]
