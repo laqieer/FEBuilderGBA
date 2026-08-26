@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -195,15 +196,49 @@ namespace FEBuilderGBA
         /// git clone --progress --depth=1 &lt;url&gt; &lt;targetPath&gt;
         /// (targetPath must be absent or an existing EMPTY directory — git clones in place into an
         /// empty directory, which is what keeps a released placeholder root held.)
+        /// On Windows the clone-local core.longpaths setting is persisted before checkout so
+        /// content repositories with paths beyond MAX_PATH initialize and update reliably.
         /// --progress forces git to emit progress lines even when stderr is redirected.
         /// </summary>
         public static int Clone(string gitExe, string url, string targetPath,
                                 Action<string>? outputCallback = null,
                                 StringBuilder? outputLog = null)
         {
-            string args = string.Format("clone --progress --depth=1 \"{0}\" \"{1}\"", url, targetPath);
+            string args = BuildCloneArguments(url, targetPath, OperatingSystem.IsWindows());
             return RunGit(gitExe, args, null, outputCallback, outputLog);
         }
+
+        internal static string BuildCloneArguments(string url, string targetPath, bool isWindows)
+        {
+            string longPathsConfig = isWindows ? " -c core.longpaths=true" : "";
+            return string.Format(
+                "clone --progress --depth=1{0} \"{1}\" \"{2}\"",
+                longPathsConfig,
+                url,
+                targetPath);
+        }
+
+        internal static string[] BuildUpdateArguments(string? remoteUrl, bool isWindows)
+        {
+            var commands = new List<string>(3);
+            if (!string.IsNullOrEmpty(remoteUrl))
+            {
+                commands.Add(ApplyWindowsLongPaths(
+                    string.Format("remote set-url origin \"{0}\"", remoteUrl),
+                    isWindows));
+            }
+
+            commands.Add(ApplyWindowsLongPaths(
+                "fetch --progress --depth=1 origin",
+                isWindows));
+            commands.Add(ApplyWindowsLongPaths(
+                "reset --hard FETCH_HEAD",
+                isWindows));
+            return commands.ToArray();
+        }
+
+        static string ApplyWindowsLongPaths(string args, bool isWindows)
+            => isWindows ? "-c core.longpaths=true " + args : args;
 
         /// <summary>
         /// git fetch --progress --depth=1 origin  +  git reset --hard FETCH_HEAD
@@ -217,15 +252,18 @@ namespace FEBuilderGBA
                                  StringBuilder? outputLog = null,
                                  string? remoteUrl = null)
         {
+            string[] commands = BuildUpdateArguments(remoteUrl, OperatingSystem.IsWindows());
+            int commandIndex = 0;
+
             // Switch origin to the configured remote URL before fetching
             if (!string.IsNullOrEmpty(remoteUrl))
-                RunGit(gitExe, string.Format("remote set-url origin \"{0}\"", remoteUrl), repoPath);
+                RunGit(gitExe, commands[commandIndex++], repoPath);
 
-            int code = RunGit(gitExe, "fetch --progress --depth=1 origin", repoPath, outputCallback, outputLog);
+            int code = RunGit(gitExe, commands[commandIndex++], repoPath, outputCallback, outputLog);
             if (code != 0)
                 return code;
 
-            return RunGit(gitExe, "reset --hard FETCH_HEAD", repoPath, outputCallback, outputLog);
+            return RunGit(gitExe, commands[commandIndex], repoPath, outputCallback, outputLog);
         }
 
         /// <summary>
