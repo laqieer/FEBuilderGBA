@@ -1387,6 +1387,10 @@ namespace FEBuilderGBA
             return result;
         }
 
+        static string GetPatchType(IEnumerable<PatchParam> patchParams)
+            => patchParams.FirstOrDefault(p =>
+                string.Equals(p.Keyword, "TYPE", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
+
         /// <summary>
         /// Exporter-only bounded seam (#1936 review remediation, byte-bounded per #1965).
         /// Identical key=value parsing semantics to <see cref="ParsePatchParams"/> but the file
@@ -1534,7 +1538,7 @@ namespace FEBuilderGBA
             var allParams = ParsePatchParams(patchFilePath);
 
             // Check TYPE
-            string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
+            string type = GetPatchType(allParams);
             if (type == "EA")
                 return PatchApplyResult.Fail("EA-type patches require an external assembler and are not yet supported in the Avalonia port.");
 
@@ -1815,7 +1819,7 @@ namespace FEBuilderGBA
             if (rom == null || !File.Exists(patchFilePath)) return regions;
 
             var allParams = ParsePatchParams(patchFilePath);
-            string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
+            string type = GetPatchType(allParams);
             // BIN patches have a portable fixed-address region map. An EMPTY/missing TYPE is
             // treated as BIN — matching the Avalonia Patch Manager's CanInstall/CanUninstall
             // convention (string.IsNullOrEmpty(Type)) so legacy BIN patches that omit TYPE= are

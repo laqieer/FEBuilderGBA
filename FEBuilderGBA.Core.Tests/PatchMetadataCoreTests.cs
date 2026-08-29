@@ -882,6 +882,43 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Theory]
+        [InlineData("type=EA", "EA-type")]
+        [InlineData("type=CUSTOM", "Unsupported patch type")]
+        public void ApplyPatch_LowercaseTypeKey_DoesNotBypassValidation(
+            string typeLine,
+            string expectedError)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchLowerTypeTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    typeLine,
+                    "BIN:0x200=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.False(result.Success);
+                Assert.Contains(expectedError, result.Message);
+                Assert.Equal(0u, rom.u8(0x200));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
         [Fact]
         public void ApplyPatch_WithUndo_TracksChanges()
         {
