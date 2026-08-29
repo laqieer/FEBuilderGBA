@@ -701,6 +701,40 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ParsePatchFile_TypeWithWhitespace_MatchesActionParsing()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchTypeWhitespace_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE = CUSTOM",
+                    "BIN:0x20=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                var info = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
+                var typeParam = Assert.Single(
+                    PatchMetadataCore.ParsePatchParams(patchFile),
+                    p => string.Equals(p.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase));
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.Equal("CUSTOM", info.Type);
+                Assert.Equal("CUSTOM", typeParam.Value);
+                Assert.False(result.Success);
+                Assert.Contains("Unsupported patch type", result.Message);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
         public void ParsePatchFile_JapaneseLanguage_UsesDefaultName()
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "PatchMetadataCoreTests_" + Guid.NewGuid().ToString("N"));

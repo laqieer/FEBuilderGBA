@@ -678,8 +678,9 @@ namespace FEBuilderGBA
                 if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
                     info.Tags = line.Substring(4).Trim();
 
-                if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
-                    info.Type = line.Substring(5).Trim();
+                if (TryParsePatchParamLine(rawLine, out PatchParam metadataParam) &&
+                    string.Equals(metadataParam.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase))
+                    info.Type = metadataParam.Value;
 
                 if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
                     patchedIf = line.Substring(11);
@@ -1368,23 +1369,29 @@ namespace FEBuilderGBA
             string[] lines = File.ReadAllLines(patchFilePath);
             foreach (string rawLine in lines)
             {
-                string line = rawLine.Trim();
-                if (line.StartsWith("//")) continue;
-
-                int sep = line.IndexOf('=');
-                if (sep < 0) continue;
-
-                string key = line.Substring(0, sep).Trim();
-                string value = line.Substring(sep + 1).Trim();
-
-                result.Add(new PatchParam
-                {
-                    RawKey = key,
-                    Value = value,
-                    KeyParts = key.Split(':'),
-                });
+                if (TryParsePatchParamLine(rawLine, out PatchParam param))
+                    result.Add(param);
             }
             return result;
+        }
+
+        static bool TryParsePatchParamLine(string rawLine, out PatchParam param)
+        {
+            param = null!;
+            string line = rawLine.Trim();
+            if (line.StartsWith("//")) return false;
+
+            int sep = line.IndexOf('=');
+            if (sep < 0) return false;
+
+            string key = line.Substring(0, sep).Trim();
+            param = new PatchParam
+            {
+                RawKey = key,
+                Value = line.Substring(sep + 1).Trim(),
+                KeyParts = key.Split(':'),
+            };
+            return true;
         }
 
         static string GetPatchType(IEnumerable<PatchParam> patchParams)
@@ -1494,11 +1501,7 @@ namespace FEBuilderGBA
             var parsed = new List<PatchParam>();
             foreach (string rawLine in lines)
             {
-                string line = rawLine.Trim();
-                if (line.StartsWith("//")) continue;
-
-                int sep = line.IndexOf('=');
-                if (sep < 0) continue;
+                if (!TryParsePatchParamLine(rawLine, out PatchParam param)) continue;
 
                 if (parsed.Count >= maxEntries)
                 {
@@ -1507,15 +1510,7 @@ namespace FEBuilderGBA
                                   // the locally-built `parsed` list is simply discarded.
                 }
 
-                string key = line.Substring(0, sep).Trim();
-                string value = line.Substring(sep + 1).Trim();
-
-                parsed.Add(new PatchParam
-                {
-                    RawKey = key,
-                    Value = value,
-                    KeyParts = key.Split(':'),
-                });
+                parsed.Add(param);
             }
             result = parsed;
             return true;
