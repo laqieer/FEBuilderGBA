@@ -177,7 +177,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     .ToList();
                 Assert.Equal(5, rows.Count);
                 Assert.All(rows, paletteRow =>
-                    Assert.Equal("30,40,80,80,80", GetAttr(paletteRow, "ColumnDefinitions")));
+                    Assert.Equal("30,40,120,120,120", GetAttr(paletteRow, "ColumnDefinitions")));
 
                 string[] headers = rows[0].Elements()
                     .Where(e => e.Name.LocalName == "TextBlock")
