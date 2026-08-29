@@ -84,7 +84,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// 12-byte name is non-empty (i.e. <c>rom.u32(addr+0) != 0</c>). Both
         /// P12 and name being zero is the terminator.
         /// </summary>
-        public List<AddrResult> LoadList() => LoadList(CoreState.ROM);
+        public List<AddrResult> LoadList() =>
+            LoadList(CoreState.ROM, addr => CoreState.CommentCache?.At(addr));
 
         /// <summary>
         /// Test-friendly overload that scans <paramref name="rom"/> directly
@@ -93,7 +94,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// parallel and another test may transiently mutate
         /// <see cref="CoreState.ROM"/> between the test's set and read points.
         /// </summary>
-        public List<AddrResult> LoadList(ROM? rom)
+        public List<AddrResult> LoadList(ROM? rom) => LoadList(rom, null);
+
+        internal List<AddrResult> LoadList(ROM? rom, Func<uint, string?>? commentResolver)
         {
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
@@ -131,18 +134,20 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (b >= 0x20 && b < 0x7F) ident += (char)b;
                     else if (b == 0) break;
                 }
-                result.Add(new AddrResult(addr, BuildListLabel(i, ident, addr), (uint)i));
+                result.Add(new AddrResult(
+                    addr,
+                    BuildListLabel(i, ident, commentResolver?.Invoke(addr)),
+                    (uint)i));
             }
             return result;
         }
 
-        internal static string BuildListLabel(int index, string ident, uint addr)
+        internal static string BuildListLabel(int index, string ident, string? comment)
         {
             string label = $"0x{index + 1:X2}";
             if (!string.IsNullOrWhiteSpace(ident))
                 label += " " + ident.TrimEnd();
 
-            string comment = CoreState.CommentCache?.At(addr) ?? "";
             if (!string.IsNullOrWhiteSpace(comment))
                 label += " " + comment.Trim();
             return label;

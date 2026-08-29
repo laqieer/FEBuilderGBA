@@ -2913,7 +2913,10 @@ namespace FEBuilderGBA.Avalonia.Services
                     else if (b == 0) break;
                 }
 
-                string name = ImageUnitPaletteViewModel.BuildListLabel(i, ident, addr);
+                string name = ImageUnitPaletteViewModel.BuildListLabel(
+                    i,
+                    ident,
+                    CoreState.CommentCache?.At(addr));
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
             return result;

@@ -496,7 +496,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 CoreState.CommentCache = comments;
 
                 var vm = new ImageUnitPaletteViewModel();
-                var actual = vm.LoadList(rom);
+                var actual = vm.LoadList();
                 var reference = ListParityHelper.BuildReferenceList("ImageUnitPaletteView");
 
                 var actualEntry = Assert.Single(actual);
@@ -506,6 +506,46 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(actualEntry.name, referenceEntry.name);
                 Assert.DoesNotContain(actual, entry =>
                     entry.addr == 0 || entry.name == "Unit Palette Editor");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom!;
+                CoreState.CommentCache = savedCommentCache!;
+            }
+        }
+
+        [Fact]
+        public void LoadList_ExplicitRom_DoesNotUseActiveRomComments()
+        {
+            byte[] activeData = new byte[0x10000];
+            byte[] suppliedData = new byte[0x10000];
+            uint baseAddr = 0x200;
+            U.write_u32(activeData, 0x100, U.toPointer(baseAddr));
+            U.write_u32(suppliedData, 0x100, U.toPointer(baseAddr));
+            activeData[baseAddr] = (byte)'a';
+            suppliedData[baseAddr] = (byte)'s';
+
+            var activeRom = new ROM();
+            activeRom.SwapNewROMDataDirect(activeData);
+            SetRomInfo(activeRom, new StubRomInfo(0x100));
+            var suppliedRom = new ROM();
+            suppliedRom.SwapNewROMDataDirect(suppliedData);
+            SetRomInfo(suppliedRom, new StubRomInfo(0x100));
+
+            ROM? savedRom = CoreState.ROM;
+            IEtcCache? savedCommentCache = CoreState.CommentCache;
+            try
+            {
+                var comments = new HeadlessEtcCache();
+                comments.Update(baseAddr, "Active ROM only");
+                CoreState.ROM = activeRom;
+                CoreState.CommentCache = comments;
+
+                var vm = new ImageUnitPaletteViewModel();
+                var entry = Assert.Single(vm.LoadList(suppliedRom));
+
+                Assert.Equal("0x01 s", entry.name);
+                Assert.DoesNotContain("Active ROM only", entry.name);
             }
             finally
             {
