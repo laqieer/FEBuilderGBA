@@ -1538,7 +1538,7 @@ namespace FEBuilderGBA
             if (type == "EA")
                 return PatchApplyResult.Fail("EA-type patches require an external assembler and are not yet supported in the Avalonia port.");
 
-            if (type != "BIN")
+            if (!string.IsNullOrEmpty(type) && type != "BIN")
                 return PatchApplyResult.Fail($"Unsupported patch type: '{type}'. Only BIN patches are currently supported.");
 
             // Collect BIN/JUMP entries in order

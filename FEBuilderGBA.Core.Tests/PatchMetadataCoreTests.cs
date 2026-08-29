@@ -847,6 +847,42 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ApplyPatch_MissingType_TreatsLegacyPatchAsBin()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchLegacyBinTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "BIN:0x200=test.bin",
+                    "PATCHED_IF:0x200=0xAA 0xBB 0xCC 0xDD",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.True(result.Success);
+                Assert.Equal(4, result.BytesWritten);
+                Assert.Equal(0xAAu, rom.u8(0x200));
+                Assert.Equal(0xBBu, rom.u8(0x201));
+                Assert.Equal(0xCCu, rom.u8(0x202));
+                Assert.Equal(0xDDu, rom.u8(0x203));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
         public void ApplyPatch_WithUndo_TracksChanges()
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "PatchUndoTest_" + Guid.NewGuid().ToString("N"));
