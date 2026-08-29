@@ -147,14 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 ReadStartAddressBox.Text = _vm.LoadListBaseAddress();
-                // The VM appends a trailing "Unit Palette Editor" sentinel row
-                // (addr=0) at the end; exclude it from the displayed count so
-                // the count matches the actual table-row scan (Copilot bot #585
-                // off-by-one ask).
-                int realCount = items.Count;
-                if (realCount > 0 && items[realCount - 1].addr == 0)
-                    realCount--;
-                ReadCountBox.Text = realCount.ToString();
+                ReadCountBox.Text = items.Count.ToString();
             }
             catch (Exception ex)
             {
@@ -651,7 +644,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// an <see cref="UndoService"/> scope, and reloads the list. Mirrors
         /// <see cref="ImageMapActionAnimationView.ListExpand_Click"/> (prompt ->
         /// expand -> repoint -> reload). The VM's ExpandList is PREDICATE-AWARE:
-        /// it uses the real (sentinel-excluded) row count, FIRST-fills new rows
+        /// it uses the exact real-row count, FIRST-fills new rows
         /// from a non-empty template row + clears each new P12 so the rows are
         /// scan-visible, writes a FULL all-zero terminator row, and repoints all
         /// raw + LDR-literal references via
@@ -668,9 +661,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
 
-                // Real (sentinel-excluded) current row count.
-                int listCount = _vm.GetListCount();
-                int realCount = listCount - 1;
+                int realCount = _vm.GetListCount();
                 if (realCount < 1)
                 {
                     CoreState.Services?.ShowInfo(R._("Cannot expand: the unit-palette list has no rows."));

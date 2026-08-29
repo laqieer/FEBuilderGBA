@@ -3,7 +3,7 @@
 //
 // The Unit Palette editor's "Expand List" button grows the unit-palette
 // pointer table with PREDICATE-AWARE semantics:
-//   - real (sentinel-excluded) row count
+//   - exact real-row count
 //   - FIRST-fill new rows from a non-empty template row + clear each P12 so
 //     the new rows are scan-visible (P12==0 && name!=0)
 //   - a FULL all-zero 16-byte terminator row (NOT a 0xFFFFFFFF dword), so the
@@ -107,7 +107,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.ROM = rom;
             var vm = new ImageUnitPaletteViewModel();
 
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
             Assert.Equal(3, realCount);
 
             uint newCount = (uint)(realCount + 3); // 6, well below the 512 scan bound
@@ -131,9 +131,9 @@ namespace FEBuilderGBA.Avalonia.Tests
             uint newBase = rom.p32(POINTER_SLOT);
             Assert.NotEqual(oldBase, newBase);
 
-            // LoadList now sees exactly newCount real rows (+1 sentinel).
+            // LoadList now sees exactly newCount real rows.
             var list = vm.LoadList(rom);
-            Assert.Equal((int)newCount + 1, list.Count);
+            Assert.Equal((int)newCount, list.Count);
 
             // Old rows are preserved at the new base (names intact, P12 intact==0).
             string[] oldNames = { "PLY0", "ENMY", "OTHR" };
@@ -184,7 +184,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var rom = MakeRom(out uint oldBase);
             CoreState.ROM = rom;
             var vm = new ImageUnitPaletteViewModel();
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
             uint newCount = (uint)(realCount + 2);
 
             var ud = new Undo.UndoData
@@ -228,7 +228,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             CoreState.Undo = new Undo();
 
             var vm = new ImageUnitPaletteViewModel();
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
             Assert.Equal(3, realCount);
             uint newCount = (uint)(realCount + 4);
 
@@ -288,7 +288,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Array.Copy(rom.Data, snapshot, rom.Data.Length);
 
             var vm = new ImageUnitPaletteViewModel();
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
             Assert.True(realCount >= 1);
 
             var ud = new Undo.UndoData
@@ -316,7 +316,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var rom = MakeRom(out uint oldBase);
             CoreState.ROM = rom;
             var vm = new ImageUnitPaletteViewModel();
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
 
             var ud = new Undo.UndoData
             {
@@ -341,7 +341,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var rom = MakeRom(out _);
             CoreState.ROM = rom;
             var vm = new ImageUnitPaletteViewModel();
-            int realCount = vm.LoadList(rom).Count - 1;
+            int realCount = vm.LoadList(rom).Count;
             Assert.True(realCount >= 2);
 
             var ud = new Undo.UndoData

@@ -2901,7 +2901,8 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint addr = baseAddr + (uint)(i * blockSize);
                 if (addr + blockSize > (uint)rom.Data.Length) break;
                 uint p = rom.u32(addr + 12);
-                if (!U.isPointer(p)) break;
+                uint nameFirst = rom.u32(addr);
+                if (!U.isPointer(p) && (p != 0 || nameFirst == 0)) break;
 
                 // Read identifier string from bytes 0-11
                 string ident = "";
@@ -2912,11 +2913,12 @@ namespace FEBuilderGBA.Avalonia.Services
                     else if (b == 0) break;
                 }
 
-                string name = $"0x{i:X2} {ident}";
+                string name = ImageUnitPaletteViewModel.BuildListLabel(
+                    i,
+                    ident,
+                    CoreState.CommentCache?.At(addr));
                 result.Add(new AddrResult(addr, name, (uint)i));
             }
-            // Match ImageUnitPaletteViewModel: appends a trailing "Unit Palette Editor" entry
-            result.Add(new AddrResult(0, "Unit Palette Editor", 0));
             return result;
         }
 
