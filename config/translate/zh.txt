@@ -28571,3 +28571,21 @@ FE6的三角攻击台词使用直接写死的6行16字节表，内容只有 [单
 
 :Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.
 在歌曲表中显示数据扩展。重新定位歌曲表可能导致 Sappy 无法识别，而且原版 ROM 通常已有许多空闲条目。
+
+:EA patches require Event Assembler and are not currently supported by the Avalonia Patch Manager.
+EA 补丁需要 Event Assembler，Avalonia 补丁管理器目前不支持此类补丁。
+
+:Patch type '{0}' is not currently supported by the Avalonia Patch Manager.
+Avalonia 补丁管理器目前不支持补丁类型“{0}”。
+
+:Installed
+已安装
+
+:Available
+可用
+
+:Unsupported
+不支持
+
+:Unknown
+未知

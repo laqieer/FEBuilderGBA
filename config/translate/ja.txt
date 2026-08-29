@@ -14741,3 +14741,21 @@ Song Table のデータ拡張を表示
 
 :Shows Data Expansion in Song Table. Repointing the Song Table may stop Sappy from finding it, and vanilla ROMs usually have spare entries.
 Song Table にデータ拡張を表示します。Song Table を再配置すると Sappy が認識できなくなる場合があり、通常の ROM には多くの空きエントリがあります。
+
+:EA patches require Event Assembler and are not currently supported by the Avalonia Patch Manager.
+EAパッチにはEvent Assemblerが必要で、Avalonia版パッチマネージャでは現在サポートされていません。
+
+:Patch type '{0}' is not currently supported by the Avalonia Patch Manager.
+パッチタイプ「{0}」はAvalonia版パッチマネージャでは現在サポートされていません。
+
+:Installed
+インストール済み
+
+:Available
+利用可能
+
+:Unsupported
+未対応
+
+:Unknown
+不明

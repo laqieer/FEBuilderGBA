@@ -21,12 +21,34 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public int UnsatisfiedDependencyCount { get; set; }
         public List<PatchMetadataCore.PatchDependency> UnsatisfiedDependencies { get; set; } = new();
 
+        public bool IsInstallTypeSupported =>
+            string.IsNullOrEmpty(Type) ||
+            Type == "BIN";
+
         public string StatusText => Status switch
         {
-            PatchMetadataCore.PatchStatus.Installed => "Installed",
-            PatchMetadataCore.PatchStatus.NotInstalled => "Available",
-            _ => "Unknown"
+            PatchMetadataCore.PatchStatus.Installed => R._("Installed"),
+            PatchMetadataCore.PatchStatus.NotInstalled when !IsInstallTypeSupported => R._("Unsupported"),
+            PatchMetadataCore.PatchStatus.NotInstalled => R._("Available"),
+            _ => R._("Unknown")
         };
+
+        public string ActionRestrictionMessage
+        {
+            get
+            {
+                if (IsInstallTypeSupported)
+                    return "";
+                if (string.Equals(Type, "EA", StringComparison.OrdinalIgnoreCase))
+                {
+                    return R._(
+                        "EA patches require Event Assembler and are not currently supported by the Avalonia Patch Manager.");
+                }
+                return R._(
+                    "Patch type '{0}' is not currently supported by the Avalonia Patch Manager.",
+                    Type);
+            }
+        }
 
         /// <summary>True when this patch has unmet dependencies.</summary>
         public bool HasUnmetDependencies => UnsatisfiedDependencyCount > 0;
@@ -133,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _selectedPatch != null &&
             _selectedPatch.Status != PatchMetadataCore.PatchStatus.Installed &&
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
-            (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
+            _selectedPatch.IsInstallTypeSupported;
 
         /// <summary>
         /// True when a selected BIN patch is installed and can be uninstalled — either from a
@@ -144,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             _selectedPatch != null &&
             _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed &&
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
-            (_selectedPatch.Type == "BIN" || string.IsNullOrEmpty(_selectedPatch.Type));
+            _selectedPatch.IsInstallTypeSupported;
 
         public ObservableCollection<PatchEntry> FilteredPatches => _filteredPatches;
 

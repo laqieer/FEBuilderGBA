@@ -678,8 +678,9 @@ namespace FEBuilderGBA
                 if (line.StartsWith("TAG=", StringComparison.OrdinalIgnoreCase))
                     info.Tags = line.Substring(4).Trim();
 
-                if (line.StartsWith("TYPE=", StringComparison.OrdinalIgnoreCase))
-                    info.Type = line.Substring(5).Trim();
+                if (TryParsePatchParamLine(rawLine, out PatchParam metadataParam) &&
+                    string.Equals(metadataParam.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase))
+                    info.Type = metadataParam.Value;
 
                 if (line.StartsWith("PATCHED_IF:", StringComparison.OrdinalIgnoreCase))
                     patchedIf = line.Substring(11);
@@ -1368,24 +1369,34 @@ namespace FEBuilderGBA
             string[] lines = File.ReadAllLines(patchFilePath);
             foreach (string rawLine in lines)
             {
-                string line = rawLine.Trim();
-                if (line.StartsWith("//")) continue;
-
-                int sep = line.IndexOf('=');
-                if (sep < 0) continue;
-
-                string key = line.Substring(0, sep).Trim();
-                string value = line.Substring(sep + 1).Trim();
-
-                result.Add(new PatchParam
-                {
-                    RawKey = key,
-                    Value = value,
-                    KeyParts = key.Split(':'),
-                });
+                if (TryParsePatchParamLine(rawLine, out PatchParam param))
+                    result.Add(param);
             }
             return result;
         }
+
+        static bool TryParsePatchParamLine(string rawLine, out PatchParam param)
+        {
+            param = null!;
+            string line = rawLine.Trim();
+            if (line.StartsWith("//")) return false;
+
+            int sep = line.IndexOf('=');
+            if (sep < 0) return false;
+
+            string key = line.Substring(0, sep).Trim();
+            param = new PatchParam
+            {
+                RawKey = key,
+                Value = line.Substring(sep + 1).Trim(),
+                KeyParts = key.Split(':'),
+            };
+            return true;
+        }
+
+        static string GetPatchType(IEnumerable<PatchParam> patchParams)
+            => patchParams.LastOrDefault(p =>
+                string.Equals(p.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
 
         /// <summary>
         /// Exporter-only bounded seam (#1936 review remediation, byte-bounded per #1965).
@@ -1490,11 +1501,7 @@ namespace FEBuilderGBA
             var parsed = new List<PatchParam>();
             foreach (string rawLine in lines)
             {
-                string line = rawLine.Trim();
-                if (line.StartsWith("//")) continue;
-
-                int sep = line.IndexOf('=');
-                if (sep < 0) continue;
+                if (!TryParsePatchParamLine(rawLine, out PatchParam param)) continue;
 
                 if (parsed.Count >= maxEntries)
                 {
@@ -1503,15 +1510,7 @@ namespace FEBuilderGBA
                                   // the locally-built `parsed` list is simply discarded.
                 }
 
-                string key = line.Substring(0, sep).Trim();
-                string value = line.Substring(sep + 1).Trim();
-
-                parsed.Add(new PatchParam
-                {
-                    RawKey = key,
-                    Value = value,
-                    KeyParts = key.Split(':'),
-                });
+                parsed.Add(param);
             }
             result = parsed;
             return true;
@@ -1534,11 +1533,11 @@ namespace FEBuilderGBA
             var allParams = ParsePatchParams(patchFilePath);
 
             // Check TYPE
-            string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
+            string type = GetPatchType(allParams);
             if (type == "EA")
                 return PatchApplyResult.Fail("EA-type patches require an external assembler and are not yet supported in the Avalonia port.");
 
-            if (type != "BIN")
+            if (!string.IsNullOrEmpty(type) && type != "BIN")
                 return PatchApplyResult.Fail($"Unsupported patch type: '{type}'. Only BIN patches are currently supported.");
 
             // Collect BIN/JUMP entries in order
@@ -1815,12 +1814,12 @@ namespace FEBuilderGBA
             if (rom == null || !File.Exists(patchFilePath)) return regions;
 
             var allParams = ParsePatchParams(patchFilePath);
-            string type = allParams.FirstOrDefault(p => p.Keyword == "TYPE")?.Value ?? "";
+            string type = GetPatchType(allParams);
             // BIN patches have a portable fixed-address region map. An EMPTY/missing TYPE is
             // treated as BIN — matching the Avalonia Patch Manager's CanInstall/CanUninstall
             // convention (string.IsNullOrEmpty(Type)) so legacy BIN patches that omit TYPE= are
             // still uninstallable. EA tracing is WF-only.
-            bool isBin = string.IsNullOrEmpty(type) || type.Equals("BIN", StringComparison.OrdinalIgnoreCase);
+            bool isBin = string.IsNullOrEmpty(type) || type == "BIN";
             if (!isBin)
             {
                 // Count every action-bearing line as untraceable so EA is reported as not supported.

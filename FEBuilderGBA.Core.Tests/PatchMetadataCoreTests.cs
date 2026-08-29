@@ -701,6 +701,40 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ParsePatchFile_TypeWithWhitespace_MatchesActionParsing()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchTypeWhitespace_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE = CUSTOM",
+                    "BIN:0x20=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+
+                var info = PatchMetadataCore.ParsePatchFile(patchFile, "TestDir", rom, "en");
+                var typeParam = Assert.Single(
+                    PatchMetadataCore.ParsePatchParams(patchFile),
+                    p => string.Equals(p.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase));
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.Equal("CUSTOM", info.Type);
+                Assert.Equal("CUSTOM", typeParam.Value);
+                Assert.False(result.Success);
+                Assert.Contains("Unsupported patch type", result.Message);
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
         public void ParsePatchFile_JapaneseLanguage_UsesDefaultName()
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "PatchMetadataCoreTests_" + Guid.NewGuid().ToString("N"));
@@ -839,6 +873,147 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.Equal(0xBBu, rom.u8(0x201));
                 Assert.Equal(0xCCu, rom.u8(0x202));
                 Assert.Equal(0xDDu, rom.u8(0x203));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ApplyPatch_MissingType_TreatsLegacyPatchAsBin()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchLegacyBinTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "BIN:0x200=test.bin",
+                    "PATCHED_IF:0x200=0xAA 0xBB 0xCC 0xDD",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.True(result.Success);
+                Assert.Equal(4, result.BytesWritten);
+                Assert.Equal(0xAAu, rom.u8(0x200));
+                Assert.Equal(0xBBu, rom.u8(0x201));
+                Assert.Equal(0xCCu, rom.u8(0x202));
+                Assert.Equal(0xDDu, rom.u8(0x203));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Theory]
+        [InlineData("type=EA", "EA-type")]
+        [InlineData("type=CUSTOM", "Unsupported patch type")]
+        public void ApplyPatch_LowercaseTypeKey_DoesNotBypassValidation(
+            string typeLine,
+            string expectedError)
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchLowerTypeTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    typeLine,
+                    "BIN:0x200=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.False(result.Success);
+                Assert.Contains(expectedError, result.Message);
+                Assert.Equal(0u, rom.u8(0x200));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ApplyPatch_DuplicateMixedCaseType_UsesLastDeclaration()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchDuplicateTypeTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=",
+                    "type=CUSTOM",
+                    "BIN:0x200=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.False(result.Success);
+                Assert.Contains("Unsupported patch type", result.Message);
+                Assert.Equal(0u, rom.u8(0x200));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
+        public void ApplyPatch_ScopedTypeLikeKey_DoesNotOverrideExactType()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchScopedTypeTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=BIN",
+                    "TYPE:NOTE=CUSTOM",
+                    "BIN:0x200=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.True(result.Success);
+                Assert.Equal(4, result.BytesWritten);
+                Assert.Equal(0xAAu, rom.u8(0x200));
             }
             finally
             {
