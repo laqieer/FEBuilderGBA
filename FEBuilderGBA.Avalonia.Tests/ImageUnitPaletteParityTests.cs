@@ -394,7 +394,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ===== WU1: WF row-acceptance parity =====
 
         [Fact]
-        public void LoadList_Treats_ZeroPointer_With_NonEmptyName_As_Valid()
+        public void LoadList_Treats_ZeroPointer_With_NonEmptyName_As_OnlyRealRow()
         {
             // Build a synthetic ROM where the row at base + 0 has name="SOME" (u32 != 0)
             // and P12 (u32 at +12) = 0. WF's Init() validator accepts this row, but the
@@ -425,18 +425,30 @@ namespace FEBuilderGBA.Avalonia.Tests
             // Inject the RomInfo: set image_unit_palette_pointer = 0x100
             SetRomInfo(rom, new StubRomInfo(0x100));
 
-            // Pass the synthetic ROM directly to LoadList to avoid a race with
-            // other xUnit collections that may transiently mutate CoreState.ROM
-            // while this test runs in parallel on CI.
-            var vm = new ImageUnitPaletteViewModel();
-            var list = vm.LoadList(rom);
-            Assert.NotEmpty(list);
-            // First row must be the "SOME" row (P12=0 with name!=0).
-            Assert.Equal(baseAddr, list[0].addr);
+            ROM? savedRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var vm = new ImageUnitPaletteViewModel();
+                var list = vm.LoadList(rom);
+                var reference = ListParityHelper.BuildReferenceList("ImageUnitPaletteView");
+
+                var entry = Assert.Single(list);
+                var referenceEntry = Assert.Single(reference);
+                Assert.Equal(baseAddr, entry.addr);
+                Assert.Equal(0u, entry.tag);
+                Assert.Equal("0x01 SOME", entry.name);
+                Assert.Equal(entry.addr, referenceEntry.addr);
+                Assert.Equal(entry.name, referenceEntry.name);
+            }
+            finally
+            {
+                CoreState.ROM = savedRom!;
+            }
         }
 
         [Fact]
-        public void LoadList_TreatsRow_With_Both_Zero_As_Terminator()
+        public void LoadList_TreatsRow_With_Both_Zero_As_EmptyTerminator()
         {
             byte[] data = new byte[0x10000];
             uint baseAddr = 0x200;
@@ -456,11 +468,49 @@ namespace FEBuilderGBA.Avalonia.Tests
             // while this test runs in parallel on CI.
             var vm = new ImageUnitPaletteViewModel();
             var list = vm.LoadList(rom);
-            // The VM appends a trailing "Unit Palette Editor" sentinel row at the
-            // end. The first row should NOT include the baseAddr terminator row.
-            foreach (var entry in list)
+            Assert.Empty(list);
+        }
+
+        [Fact]
+        public void LoadList_AndReferenceList_AppendCommentsWithoutSyntheticEditorRow()
+        {
+            byte[] data = new byte[0x10000];
+            uint baseAddr = 0x200;
+            U.write_u32(data, 0x100, U.toPointer(baseAddr));
+            data[baseAddr + 0] = (byte)'e';
+            data[baseAddr + 1] = (byte)'i';
+            data[baseAddr + 2] = (byte)'r';
+            U.write_u32(data, baseAddr + 12, U.toPointer(0x400));
+
+            var rom = new ROM();
+            rom.SwapNewROMDataDirect(data);
+            SetRomInfo(rom, new StubRomInfo(0x100));
+
+            ROM? savedRom = CoreState.ROM;
+            IEtcCache? savedCommentCache = CoreState.CommentCache;
+            try
             {
-                Assert.NotEqual(baseAddr, entry.addr);
+                var comments = new HeadlessEtcCache();
+                comments.Update(baseAddr, "Eirika");
+                CoreState.ROM = rom;
+                CoreState.CommentCache = comments;
+
+                var vm = new ImageUnitPaletteViewModel();
+                var actual = vm.LoadList(rom);
+                var reference = ListParityHelper.BuildReferenceList("ImageUnitPaletteView");
+
+                var actualEntry = Assert.Single(actual);
+                var referenceEntry = Assert.Single(reference);
+                Assert.Equal("0x01 eir Eirika", actualEntry.name);
+                Assert.Equal(actualEntry.addr, referenceEntry.addr);
+                Assert.Equal(actualEntry.name, referenceEntry.name);
+                Assert.DoesNotContain(actual, entry =>
+                    entry.addr == 0 || entry.name == "Unit Palette Editor");
+            }
+            finally
+            {
+                CoreState.ROM = savedRom!;
+                CoreState.CommentCache = savedCommentCache!;
             }
         }
 

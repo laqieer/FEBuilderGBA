@@ -131,10 +131,21 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                     if (b >= 0x20 && b < 0x7F) ident += (char)b;
                     else if (b == 0) break;
                 }
-                result.Add(new AddrResult(addr, $"0x{i:X2} {ident}", (uint)i));
+                result.Add(new AddrResult(addr, BuildListLabel(i, ident, addr), (uint)i));
             }
-            result.Add(new AddrResult(0, "Unit Palette Editor", 0));
             return result;
+        }
+
+        internal static string BuildListLabel(int index, string ident, uint addr)
+        {
+            string label = $"0x{index + 1:X2}";
+            if (!string.IsNullOrWhiteSpace(ident))
+                label += " " + ident.TrimEnd();
+
+            string comment = CoreState.CommentCache?.At(addr) ?? "";
+            if (!string.IsNullOrWhiteSpace(comment))
+                label += " " + comment.Trim();
+            return label;
         }
 
         public void LoadEntry(uint addr)
@@ -329,9 +340,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// for the Unit Palette row scan (which differs from #501's pointer-first
         /// scan):
         /// <list type="bullet">
-        ///   <item><b>Real count, not the sentinel count.</b> <see cref="GetListCount"/>
-        ///         includes the trailing <c>AddrResult(0,"Unit Palette Editor",0)</c>
-        ///         sentinel, so the current row count is <c>GetListCount() - 1</c>.</item>
+        ///   <item><b>Exact real-row count.</b> <see cref="GetListCount"/> returns
+        ///         only rows scanned from the ROM table.</item>
         ///   <item><b>Full all-zero terminator row.</b> <see cref="LoadList()"/>
         ///         accepts a row when <c>P12</c> is a valid pointer OR
         ///         (<c>P12==0 &amp;&amp; name!=0</c>), and stops only on a full
@@ -370,18 +380,15 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (!U.isSafetyOffset(rom.p32(pointer), rom))
                 return R._("Unit palette table pointer is invalid.");
 
-            // Real row count excludes the trailing sentinel row that LoadList
-            // appends (AddrResult(0, "Unit Palette Editor", 0)).
-            int listCount = GetListCount();
-            int realCount = listCount - 1;
-            if (realCount < 1)
+            int currentCount = GetListCount();
+            if (currentCount < 1)
                 return R._("Cannot expand: the unit-palette list has no rows.");
             if (newCount > 512)
                 return R._("New count ({0}) exceeds the maximum of 512.", newCount);
-            if (newCount < (uint)realCount)
+            if (newCount < (uint)currentCount)
                 return R._("New count ({0}) must be greater than or equal to current count ({1}).",
-                    newCount, realCount);
-            if (newCount == (uint)realCount)
+                    newCount, currentCount);
+            if (newCount == (uint)currentCount)
                 return ""; // no-op success
 
             // Template-row selection (guardrail #1): the FIRST row whose first
@@ -389,7 +396,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // mutating anything.
             uint oldBase = rom.p32(pointer);
             int templateIdx = -1;
-            for (int i = 0; i < realCount; i++)
+            for (int i = 0; i < currentCount; i++)
             {
                 if (rom.u32(oldBase + (uint)(i * (int)SIZE) + 0) != 0)
                 {
@@ -402,7 +409,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             // Grow the table with a FULL all-zero 16-byte terminator row.
             var result = DataExpansionCore.ExpandTableTo(
-                rom, pointer, SIZE, (uint)realCount, newCount, fullZeroTerminatorRow: true);
+                rom, pointer, SIZE, (uint)currentCount, newCount, fullZeroTerminatorRow: true);
             if (!result.Success)
                 return result.Error ?? R._("Table expansion failed.");
 
@@ -418,7 +425,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // (P12==0 && name!=0). All writes ambient (caller owns the undo scope).
             byte[] templateIdent = rom.getBinaryData(
                 result.NewBaseAddress + (uint)(templateIdx * (int)SIZE), 12);
-            for (int i = realCount; i < (int)newCount; i++)
+            for (int i = currentCount; i < (int)newCount; i++)
             {
                 uint rowAddr = result.NewBaseAddress + (uint)(i * (int)SIZE);
                 rom.write_range(rowAddr, templateIdent);
