@@ -1824,7 +1824,7 @@ namespace FEBuilderGBA
             // treated as BIN — matching the Avalonia Patch Manager's CanInstall/CanUninstall
             // convention (string.IsNullOrEmpty(Type)) so legacy BIN patches that omit TYPE= are
             // still uninstallable. EA tracing is WF-only.
-            bool isBin = string.IsNullOrEmpty(type) || type.Equals("BIN", StringComparison.OrdinalIgnoreCase);
+            bool isBin = string.IsNullOrEmpty(type) || type == "BIN";
             if (!isBin)
             {
                 // Count every action-bearing line as untraceable so EA is reported as not supported.

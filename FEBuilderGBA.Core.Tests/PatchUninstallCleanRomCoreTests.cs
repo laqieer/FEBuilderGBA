@@ -176,6 +176,27 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CollectPatchRegions_NoncanonicalLowercaseBinValue_IsUntraceable()
+        {
+            byte[] clean = Clean();
+            var rom = MakeRom(clean);
+            string binName = "LowercaseBin_250.bin";
+            File.WriteAllBytes(Path.Combine(_tempDir, binName), new byte[0x10]);
+            string outFile = Path.Combine(_tempDir, "PATCH_LowercaseBin.txt");
+            File.WriteAllLines(outFile, new[]
+            {
+                "NAME=LowercaseBin",
+                "TYPE=bin",
+                "BIN:0x250=" + binName,
+            });
+
+            var regions = PatchMetadataCore.CollectPatchRegions(rom, outFile, out int untraceable);
+
+            Assert.Empty(regions);
+            Assert.True(untraceable > 0);
+        }
+
+        [Fact]
         public void CollectPatchRegions_DuplicateMixedCaseType_UsesLastDeclaration()
         {
             byte[] clean = Clean();
