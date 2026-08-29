@@ -109,7 +109,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             UpdateActionButtons();
-            StatusMessageLabel.Text = "";
+            StatusMessageLabel.Text = patch.ActionRestrictionMessage;
         }
 
         void UpdateActionButtons()
@@ -120,7 +120,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Disable normal Install if deps are unmet, but allow ForceInstall
             InstallButton.IsEnabled = canInstall && !hasUnmetDeps;
             ForceInstallButton.IsEnabled = canInstall && hasUnmetDeps;
-            ForceInstallButton.IsVisible = hasUnmetDeps;
+            ForceInstallButton.IsVisible = canInstall && hasUnmetDeps;
             UninstallButton.IsEnabled = _vm.CanUninstall;
         }
 
