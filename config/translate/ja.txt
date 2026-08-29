@@ -14747,3 +14747,15 @@ EAパッチをインストールするにはEvent Assemblerが必要ですが、
 
 :Patch type '{0}' is not currently supported by the Avalonia Patch Manager.
 パッチタイプ「{0}」はAvalonia版パッチマネージャでは現在サポートされていません。
+
+:Installed
+インストール済み
+
+:Available
+利用可能
+
+:Unsupported
+未対応
+
+:Unknown
+不明

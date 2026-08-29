@@ -23,14 +23,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public bool IsInstallTypeSupported =>
             string.IsNullOrEmpty(Type) ||
-            string.Equals(Type, "BIN", StringComparison.OrdinalIgnoreCase);
+            Type == "BIN";
 
         public string StatusText => Status switch
         {
-            PatchMetadataCore.PatchStatus.Installed => "Installed",
-            PatchMetadataCore.PatchStatus.NotInstalled when !IsInstallTypeSupported => "Unsupported",
-            PatchMetadataCore.PatchStatus.NotInstalled => "Available",
-            _ => "Unknown"
+            PatchMetadataCore.PatchStatus.Installed => R._("Installed"),
+            PatchMetadataCore.PatchStatus.NotInstalled when !IsInstallTypeSupported => R._("Unsupported"),
+            PatchMetadataCore.PatchStatus.NotInstalled => R._("Available"),
+            _ => R._("Unknown")
         };
 
         public string ActionRestrictionMessage

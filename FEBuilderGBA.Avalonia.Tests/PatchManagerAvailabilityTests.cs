@@ -16,7 +16,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [Theory]
         [InlineData("", "Available", true)]
         [InlineData("BIN", "Available", true)]
-        [InlineData("bin", "Available", true)]
+        [InlineData("bin", "Unsupported", false)]
         [InlineData("EA", "Unsupported", false)]
         [InlineData("ea", "Unsupported", false)]
         [InlineData("CUSTOM", "Unsupported", false)]
@@ -68,6 +68,33 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.Contains("not currently supported", patch.ActionRestrictionMessage);
         }
 
+        [Theory]
+        [InlineData("ja", "未対応")]
+        [InlineData("zh", "不支持")]
+        public void UnsupportedStatus_LocalizesFromShippedTable(string language, string expected)
+        {
+            string path = Path.Combine(
+                FindRepoRoot(),
+                "config",
+                "translate",
+                language + ".txt");
+            try
+            {
+                MyTranslateResource.LoadResource(path);
+                var patch = new PatchEntry
+                {
+                    Status = PatchMetadataCore.PatchStatus.NotInstalled,
+                    Type = "EA",
+                };
+
+                Assert.Equal(expected, patch.StatusText);
+            }
+            finally
+            {
+                MyTranslateResource.Clear();
+            }
+        }
+
         [AvaloniaFact]
         public void SelectingUnsupportedEaPatch_ShowsExplanationAndDisablesActions()
         {
@@ -110,6 +137,18 @@ namespace FEBuilderGBA.Avalonia.Tests
                 host.Close();
                 CoreState.ROM = savedRom!;
             }
+        }
+
+        static string FindRepoRoot()
+        {
+            for (var dir = new DirectoryInfo(AppContext.BaseDirectory);
+                 dir != null;
+                 dir = dir.Parent)
+            {
+                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
+                    return dir.FullName;
+            }
+            throw new InvalidOperationException("Could not locate FEBuilderGBA.sln.");
         }
     }
 }

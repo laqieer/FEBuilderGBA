@@ -28577,3 +28577,15 @@ EA 补丁需要 Event Assembler，Avalonia 补丁管理器目前不支持安装�
 
 :Patch type '{0}' is not currently supported by the Avalonia Patch Manager.
 Avalonia 补丁管理器目前不支持补丁类型“{0}”。
+
+:Installed
+已安装
+
+:Available
+可用
+
+:Unsupported
+不支持
+
+:Unknown
+未知
