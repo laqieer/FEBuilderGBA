@@ -1389,7 +1389,7 @@ namespace FEBuilderGBA
 
         static string GetPatchType(IEnumerable<PatchParam> patchParams)
             => patchParams.LastOrDefault(p =>
-                string.Equals(p.Keyword, "TYPE", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
+                string.Equals(p.RawKey, "TYPE", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
 
         /// <summary>
         /// Exporter-only bounded seam (#1936 review remediation, byte-bounded per #1965).

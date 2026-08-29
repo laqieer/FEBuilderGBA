@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Threading;
@@ -128,6 +129,10 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Contains(
                     "Event Assembler",
                     view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+                Assert.Equal(
+                    AutomationLiveSetting.Polite,
+                    AutomationProperties.GetLiveSetting(
+                        view.FindControl<TextBlock>("StatusMessageLabel")!));
                 Assert.False(view.FindControl<Button>("InstallButton")!.IsEnabled);
                 Assert.False(view.FindControl<Button>("ForceInstallButton")!.IsEnabled);
                 Assert.False(view.FindControl<Button>("ForceInstallButton")!.IsVisible);

@@ -105,7 +105,9 @@
           </StackPanel>
 
           <!-- Status Message -->
-          <TextBlock AutomationProperties.AutomationId="PatchManager_StatusMessage_Label" Name="StatusMessageLabel" TextWrapping="Wrap" FontSize="12"
+          <TextBlock AutomationProperties.AutomationId="PatchManager_StatusMessage_Label"
+                     AutomationProperties.LiveSetting="Polite"
+                     Name="StatusMessageLabel" TextWrapping="Wrap" FontSize="12"
                      Foreground="Gray" Margin="0,0,0,8" />
 
           <!-- Separator -->

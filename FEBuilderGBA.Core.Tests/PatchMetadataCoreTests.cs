@@ -954,6 +954,40 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void ApplyPatch_ScopedTypeLikeKey_DoesNotOverrideExactType()
+        {
+            string tempDir = Path.Combine(Path.GetTempPath(), "PatchScopedTypeTest_" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(tempDir);
+            try
+            {
+                File.WriteAllBytes(
+                    Path.Combine(tempDir, "test.bin"),
+                    new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+                string patchFile = Path.Combine(tempDir, "PATCH_Test.txt");
+                File.WriteAllLines(patchFile, new[]
+                {
+                    "TYPE=BIN",
+                    "TYPE:NOTE=CUSTOM",
+                    "BIN:0x200=test.bin",
+                });
+
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x1000]);
+
+                var result = PatchMetadataCore.ApplyPatch(rom, patchFile);
+
+                Assert.True(result.Success);
+                Assert.Equal(4, result.BytesWritten);
+                Assert.Equal(0xAAu, rom.u8(0x200));
+            }
+            finally
+            {
+                Directory.Delete(tempDir, true);
+            }
+        }
+
+        [Fact]
         public void ApplyPatch_WithUndo_TracksChanges()
         {
             string tempDir = Path.Combine(Path.GetTempPath(), "PatchUndoTest_" + Guid.NewGuid().ToString("N"));
