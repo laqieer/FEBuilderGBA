@@ -186,36 +186,39 @@
               </Grid>
 
               <!-- Palette grid: 16 swatches in a 4x4 visual grid -->
-              <Grid ColumnDefinitions="*,*,*,*" Margin="0,8,0,0">
+              <Grid AutomationProperties.AutomationId="ImageUnitPalette_PaletteGroups_Grid"
+                    ColumnDefinitions="Auto,Auto" RowDefinitions="Auto,Auto" Margin="0,8,0,0">
                 <!-- Column 1: indices 1-4 -->
-                <Grid Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <Grid Grid.Row="0" ColumnDefinitions="30,40,60,60,60">
+                <Grid AutomationProperties.AutomationId="ImageUnitPalette_PaletteGroup1_Grid"
+                      Grid.Row="0" Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      Margin="0,0,16,12">
+                  <Grid Grid.Row="0" ColumnDefinitions="30,40,80,80,80">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_R_Header_Label" Grid.Column="2" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_G_Header_Label" Grid.Column="3" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_B_Header_Label" Grid.Column="4" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
                   </Grid>
-                  <Grid Grid.Row="1" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="1" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index1_Label" Grid.Column="0" Text="1" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch1_Image" Grid.Column="1" Name="Swatch1" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R1_Input" Grid.Column="2" Name="R1Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G1_Input" Grid.Column="3" Name="G1Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B1_Input" Grid.Column="4" Name="B1Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="2" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="2" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index2_Label" Grid.Column="0" Text="2" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch2_Image" Grid.Column="1" Name="Swatch2" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R2_Input" Grid.Column="2" Name="R2Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G2_Input" Grid.Column="3" Name="G2Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B2_Input" Grid.Column="4" Name="B2Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="3" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="3" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index3_Label" Grid.Column="0" Text="3" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch3_Image" Grid.Column="1" Name="Swatch3" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R3_Input" Grid.Column="2" Name="R3Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G3_Input" Grid.Column="3" Name="G3Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B3_Input" Grid.Column="4" Name="B3Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="4" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="4" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index4_Label" Grid.Column="0" Text="4" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch4_Image" Grid.Column="1" Name="Swatch4" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R4_Input" Grid.Column="2" Name="R4Box" FormatString="0" Minimum="0" Maximum="31" />
@@ -225,32 +228,36 @@
                 </Grid>
 
                 <!-- Column 2: indices 5-8 -->
-                <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <Grid Grid.Row="0" ColumnDefinitions="30,40,60,60,60">
-                    <TextBlock Grid.Column="0" Text=" " />
+                <Grid AutomationProperties.AutomationId="ImageUnitPalette_PaletteGroup2_Grid"
+                      Grid.Row="0" Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      Margin="0,0,0,12">
+                  <Grid Grid.Row="0" ColumnDefinitions="30,40,80,80,80">
+                    <TextBlock Grid.Column="2" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="4" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
                   </Grid>
-                  <Grid Grid.Row="1" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="1" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index5_Label" Grid.Column="0" Text="5" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch5_Image" Grid.Column="1" Name="Swatch5" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R5_Input" Grid.Column="2" Name="R5Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G5_Input" Grid.Column="3" Name="G5Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B5_Input" Grid.Column="4" Name="B5Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="2" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="2" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index6_Label" Grid.Column="0" Text="6" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch6_Image" Grid.Column="1" Name="Swatch6" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R6_Input" Grid.Column="2" Name="R6Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G6_Input" Grid.Column="3" Name="G6Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B6_Input" Grid.Column="4" Name="B6Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="3" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="3" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index7_Label" Grid.Column="0" Text="7" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch7_Image" Grid.Column="1" Name="Swatch7" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R7_Input" Grid.Column="2" Name="R7Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G7_Input" Grid.Column="3" Name="G7Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B7_Input" Grid.Column="4" Name="B7Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="4" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="4" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index8_Label" Grid.Column="0" Text="8" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch8_Image" Grid.Column="1" Name="Swatch8" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R8_Input" Grid.Column="2" Name="R8Box" FormatString="0" Minimum="0" Maximum="31" />
@@ -260,32 +267,36 @@
                 </Grid>
 
                 <!-- Column 3: indices 9-12 -->
-                <Grid Grid.Column="2" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <Grid Grid.Row="0" ColumnDefinitions="30,40,60,60,60">
-                    <TextBlock Grid.Column="0" Text=" " />
+                <Grid AutomationProperties.AutomationId="ImageUnitPalette_PaletteGroup3_Grid"
+                      Grid.Row="1" Grid.Column="0" RowDefinitions="Auto,Auto,Auto,Auto,Auto"
+                      Margin="0,0,16,0">
+                  <Grid Grid.Row="0" ColumnDefinitions="30,40,80,80,80">
+                    <TextBlock Grid.Column="2" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="4" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
                   </Grid>
-                  <Grid Grid.Row="1" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="1" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index9_Label" Grid.Column="0" Text="9" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch9_Image" Grid.Column="1" Name="Swatch9" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R9_Input" Grid.Column="2" Name="R9Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G9_Input" Grid.Column="3" Name="G9Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B9_Input" Grid.Column="4" Name="B9Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="2" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="2" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index10_Label" Grid.Column="0" Text="10" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch10_Image" Grid.Column="1" Name="Swatch10" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R10_Input" Grid.Column="2" Name="R10Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G10_Input" Grid.Column="3" Name="G10Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B10_Input" Grid.Column="4" Name="B10Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="3" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="3" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index11_Label" Grid.Column="0" Text="11" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch11_Image" Grid.Column="1" Name="Swatch11" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R11_Input" Grid.Column="2" Name="R11Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G11_Input" Grid.Column="3" Name="G11Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B11_Input" Grid.Column="4" Name="B11Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="4" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="4" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index12_Label" Grid.Column="0" Text="12" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch12_Image" Grid.Column="1" Name="Swatch12" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R12_Input" Grid.Column="2" Name="R12Box" FormatString="0" Minimum="0" Maximum="31" />
@@ -295,32 +306,35 @@
                 </Grid>
 
                 <!-- Column 4: indices 13-16 -->
-                <Grid Grid.Column="3" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
-                  <Grid Grid.Row="0" ColumnDefinitions="30,40,60,60,60">
-                    <TextBlock Grid.Column="0" Text=" " />
+                <Grid AutomationProperties.AutomationId="ImageUnitPalette_PaletteGroup4_Grid"
+                      Grid.Row="1" Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto,Auto">
+                  <Grid Grid.Row="0" ColumnDefinitions="30,40,80,80,80">
+                    <TextBlock Grid.Column="2" Text="R" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="3" Text="G" HorizontalAlignment="Center" FontWeight="SemiBold" />
+                    <TextBlock Grid.Column="4" Text="B" HorizontalAlignment="Center" FontWeight="SemiBold" />
                   </Grid>
-                  <Grid Grid.Row="1" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="1" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index13_Label" Grid.Column="0" Text="13" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch13_Image" Grid.Column="1" Name="Swatch13" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R13_Input" Grid.Column="2" Name="R13Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G13_Input" Grid.Column="3" Name="G13Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B13_Input" Grid.Column="4" Name="B13Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="2" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="2" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index14_Label" Grid.Column="0" Text="14" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch14_Image" Grid.Column="1" Name="Swatch14" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R14_Input" Grid.Column="2" Name="R14Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G14_Input" Grid.Column="3" Name="G14Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B14_Input" Grid.Column="4" Name="B14Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="3" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="3" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index15_Label" Grid.Column="0" Text="15" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch15_Image" Grid.Column="1" Name="Swatch15" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R15_Input" Grid.Column="2" Name="R15Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_G15_Input" Grid.Column="3" Name="G15Box" FormatString="0" Minimum="0" Maximum="31" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_B15_Input" Grid.Column="4" Name="B15Box" FormatString="0" Minimum="0" Maximum="31" />
                   </Grid>
-                  <Grid Grid.Row="4" ColumnDefinitions="30,40,60,60,60" Margin="0,2">
+                  <Grid Grid.Row="4" ColumnDefinitions="30,40,80,80,80" Margin="0,2">
                     <TextBlock AutomationProperties.AutomationId="ImageUnitPalette_Index16_Label" Grid.Column="0" Text="16" VerticalAlignment="Center" />
                     <Border AutomationProperties.AutomationId="ImageUnitPalette_Swatch16_Image" Grid.Column="1" Name="Swatch16" Width="32" Height="20" BorderBrush="Black" BorderThickness="1" />
                     <NumericUpDown AutomationProperties.AutomationId="ImageUnitPalette_R16_Input" Grid.Column="2" Name="R16Box" FormatString="0" Minimum="0" Maximum="31" />
