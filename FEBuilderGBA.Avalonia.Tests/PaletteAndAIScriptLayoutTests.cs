@@ -143,5 +143,49 @@ namespace FEBuilderGBA.Avalonia.Tests
                 "Palette index labels too narrow (2-digit indices 10..16 will be cropped by the adjacent swatch) " +
                 "— give each Width >= 30 or MinWidth >= 30 (#1690):\n" + string.Join("\n", offenders));
         }
+
+        [Fact]
+        public void ImageUnitPalette_PaletteGroupsUseTwoByTwoWideLayout()
+        {
+            string path = Path.Combine(ViewsDir(), "ImageUnitPaletteView.axaml");
+            Assert.True(File.Exists(path), $"ImageUnitPaletteView.axaml not found: {path}");
+
+            XDocument doc = XDocument.Load(path);
+            XElement groups = doc.Descendants()
+                .Single(e => GetAutomationId(e) == "ImageUnitPalette_PaletteGroups_Grid");
+
+            Assert.Equal("Auto,Auto", GetAttr(groups, "ColumnDefinitions"));
+            Assert.Equal("Auto,Auto", GetAttr(groups, "RowDefinitions"));
+
+            var expectedPositions = new[]
+            {
+                ("ImageUnitPalette_PaletteGroup1_Grid", "0", "0"),
+                ("ImageUnitPalette_PaletteGroup2_Grid", "0", "1"),
+                ("ImageUnitPalette_PaletteGroup3_Grid", "1", "0"),
+                ("ImageUnitPalette_PaletteGroup4_Grid", "1", "1"),
+            };
+
+            foreach ((string id, string row, string column) in expectedPositions)
+            {
+                XElement group = groups.Elements()
+                    .Single(e => GetAutomationId(e) == id);
+                Assert.Equal(row, GetAttr(group, "Grid.Row") ?? "0");
+                Assert.Equal(column, GetAttr(group, "Grid.Column") ?? "0");
+
+                var rows = group.Elements()
+                    .Where(e => e.Name.LocalName == "Grid")
+                    .ToList();
+                Assert.Equal(5, rows.Count);
+                Assert.All(rows, paletteRow =>
+                    Assert.Equal("30,40,120,120,120", GetAttr(paletteRow, "ColumnDefinitions")));
+
+                string[] headers = rows[0].Elements()
+                    .Where(e => e.Name.LocalName == "TextBlock")
+                    .Select(e => GetAttr(e, "Text") ?? "")
+                    .Where(text => text.Length != 0)
+                    .ToArray();
+                Assert.Equal(new[] { "R", "G", "B" }, headers);
+            }
+        }
     }
 }
