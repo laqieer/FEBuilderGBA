@@ -1388,7 +1388,7 @@ namespace FEBuilderGBA
         }
 
         static string GetPatchType(IEnumerable<PatchParam> patchParams)
-            => patchParams.FirstOrDefault(p =>
+            => patchParams.LastOrDefault(p =>
                 string.Equals(p.Keyword, "TYPE", StringComparison.OrdinalIgnoreCase))?.Value ?? "";
 
         /// <summary>

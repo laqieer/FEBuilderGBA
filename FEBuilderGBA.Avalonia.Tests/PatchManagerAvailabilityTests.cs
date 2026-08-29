@@ -99,12 +99,13 @@ namespace FEBuilderGBA.Avalonia.Tests
         public void SelectingUnsupportedEaPatch_ShowsExplanationAndDisablesActions()
         {
             ROM? savedRom = CoreState.ROM;
-            CoreState.ROM = null!;
-            var view = new PatchManagerView();
-            var host = new Window { Content = view };
-            host.Show();
+            Window? host = null;
             try
             {
+                CoreState.ROM = null!;
+                var view = new PatchManagerView();
+                host = new Window { Content = view };
+                host.Show();
                 Dispatcher.UIThread.RunJobs();
                 var patch = new PatchEntry
                 {
@@ -134,7 +135,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
             finally
             {
-                host.Close();
+                host?.Close();
                 CoreState.ROM = savedRom!;
             }
         }

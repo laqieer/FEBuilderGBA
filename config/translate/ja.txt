@@ -14743,7 +14743,7 @@ Song Table のデータ拡張を表示
 Song Table にデータ拡張を表示します。Song Table を再配置すると Sappy が認識できなくなる場合があり、通常の ROM には多くの空きエントリがあります。
 
 :EA patches require Event Assembler and are not currently supported by the Avalonia Patch Manager.
-EAパッチをインストールするにはEvent Assemblerが必要ですが、Avalonia版パッチマネージャでは現在サポートされていません。
+EAパッチにはEvent Assemblerが必要で、Avalonia版パッチマネージャでは現在サポートされていません。
 
 :Patch type '{0}' is not currently supported by the Avalonia Patch Manager.
 パッチタイプ「{0}」はAvalonia版パッチマネージャでは現在サポートされていません。

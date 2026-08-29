@@ -176,6 +176,28 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void CollectPatchRegions_DuplicateMixedCaseType_UsesLastDeclaration()
+        {
+            byte[] clean = Clean();
+            var rom = MakeRom(clean);
+            string binName = "DuplicateType_250.bin";
+            File.WriteAllBytes(Path.Combine(_tempDir, binName), new byte[0x10]);
+            string outFile = Path.Combine(_tempDir, "PATCH_DuplicateType.txt");
+            File.WriteAllLines(outFile, new[]
+            {
+                "NAME=DuplicateType",
+                "TYPE=",
+                "type=CUSTOM",
+                "BIN:0x250=" + binName,
+            });
+
+            var regions = PatchMetadataCore.CollectPatchRegions(rom, outFile, out int untraceable);
+
+            Assert.Empty(regions);
+            Assert.True(untraceable > 0);
+        }
+
+        [Fact]
         public void Uninstall_TwoSeparateRuns_RestoresBothRuns_BatchedWrites()
         {
             // Two disjoint differing runs inside one over-length region. The batched
