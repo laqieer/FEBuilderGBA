@@ -45,9 +45,8 @@ namespace FEBuilderGBA.Android
     /// <c>config/patch2</c> is NOT bundled (deferred — see docs/ANDROID.md §5).
     /// </para>
     /// </summary>
-    // NOTE: no Theme/Icon resource is referenced — this skeleton ships no
-    // Android resource (drawable/style) files, so referencing @drawable/icon or
-    // a custom @style/ would fail aapt. A real port adds an app icon + theme.
+    // AvaloniaMainActivity uses AppCompatActivity internally, so Android must
+    // apply an AppCompat-derived theme before activity initialization.
     //
     // Exported = true is REQUIRED when targeting Android 12 / API 31+ for any
     // activity with an intent-filter. This project targets API 36, and the
@@ -56,6 +55,7 @@ namespace FEBuilderGBA.Android
     // because this is the user-facing launcher.
     [Activity(
         Label = "FEBuilderGBA",
+        Theme = "@style/FEBuilderTheme",
         MainLauncher = true,
         Exported = true,
         ConfigurationChanges = ConfigChanges.Orientation | ConfigChanges.ScreenSize | ConfigChanges.UiMode)]
