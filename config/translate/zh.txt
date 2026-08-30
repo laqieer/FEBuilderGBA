@@ -15170,6 +15170,51 @@ ASM指针:
 :Advanced Class 4:
 上级职业4:
 
+:Promoted Class 1:
+上级职业1:
+
+:Promoted Class 2:
+上级职业2:
+
+:Promoted Class 3:
+上级职业3:
+
+:Promoted Class 4:
+上级职业4:
+
+:Trainee Class
+实习生职业
+
+:Base Class 1
+基础职业1
+
+:Base Class 2
+基础职业2
+
+:Promoted Class 1
+上级职业1
+
+:Promoted Class 2
+上级职业2
+
+:Promoted Class 3
+上级职业3
+
+:Promoted Class 4
+上级职业4
+
+:Input (decimal or 0x hex)
+输入（十进制或 0x 十六进制）
+
+:Hex value
+十六进制值
+
+:Decimal or 0x hex
+十进制或 0x 十六进制
+
+:{0} must be 0-255 decimal or 0x00-0xFF hexadecimal.
+{0}必须是 0-255 的十进制数或 0x00-0xFF 的十六进制数。
+
 :Advanced utilities: hex editing, patching, ROM diagnostics, and more.
 高级工具: 十六进制编辑、补丁、ROM诊断等。
 
