@@ -1,4 +1,5 @@
 using System.Reflection;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
@@ -48,6 +49,28 @@ public sealed class UnitPaletteViewTests : IDisposable
         Assert.Equal("Promoted Class 2:", view.FindControl<TextBlock>("PromotedClass2Label")?.Text);
         Assert.Equal("Promoted Class 3:", view.FindControl<TextBlock>("PromotedClass3Label")?.Text);
         Assert.Equal("Promoted Class 4:", view.FindControl<TextBlock>("PromotedClass4Label")?.Text);
+    }
+
+    [AvaloniaFact]
+    public void NamedLabels_HaveStableAutomationIds()
+    {
+        var view = new UnitPaletteView();
+        var expected = new Dictionary<string, string>
+        {
+            ["InputFormatHeader"] = "UnitPalette_InputFormat_Label",
+            ["HexValueHeader"] = "UnitPalette_HexValue_Label",
+            ["PromotedClass1Label"] = "UnitPalette_PromotedClass1_Label",
+            ["PromotedClass2Label"] = "UnitPalette_PromotedClass2_Label",
+            ["PromotedClass3Label"] = "UnitPalette_PromotedClass3_Label",
+            ["PromotedClass4Label"] = "UnitPalette_PromotedClass4_Label",
+        };
+
+        foreach (var pair in expected)
+        {
+            TextBlock? label = view.FindControl<TextBlock>(pair.Key);
+            Assert.NotNull(label);
+            Assert.Equal(pair.Value, AutomationProperties.GetAutomationId(label));
+        }
     }
 
     [AvaloniaFact]

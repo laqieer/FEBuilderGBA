@@ -9,12 +9,12 @@
       <StackPanel Spacing="8" Margin="8">
         <TextBlock Text="Unit Palette Assignment" FontSize="18" FontWeight="Bold" />
 
-        <Grid ColumnDefinitions="Auto,160,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
+        <Grid ColumnDefinitions="Auto,Auto,Auto" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
           <TextBlock Grid.Row="0" Grid.Column="0" Text="Address:" VerticalAlignment="Center" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_Addr_Label" Grid.Row="0" Grid.Column="1" Name="AddrLabel" VerticalAlignment="Center" />
 
-          <TextBlock Grid.Row="1" Grid.Column="1" Name="InputFormatHeader" Text="Input (decimal or 0x hex)" FontWeight="SemiBold" Margin="0,4,0,2" />
-          <TextBlock Grid.Row="1" Grid.Column="2" Name="HexValueHeader" Text="Hex value" FontWeight="SemiBold" Margin="8,4,0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_InputFormat_Label" Grid.Row="1" Grid.Column="1" Name="InputFormatHeader" Text="Input (decimal or 0x hex)" FontWeight="SemiBold" Margin="0,4,0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_HexValue_Label" Grid.Row="1" Grid.Column="2" Name="HexValueHeader" Text="Hex value" FontWeight="SemiBold" Margin="8,4,0,2" />
 
           <TextBlock Grid.Row="2" Grid.Column="0" Text="Trainee Class (trainee only):" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="UnitPalette_TraineeClass_Input" Grid.Row="2" Grid.Column="1" Name="TraineeClassBox" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
@@ -28,19 +28,19 @@
           <TextBox AutomationProperties.AutomationId="UnitPalette_BaseClass2_Input" Grid.Row="4" Grid.Column="1" Name="BaseClass2Box" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_BaseClass2_Hex_Label" Grid.Row="4" Grid.Column="2" Name="BaseClass2HexLabel" Text="0x00" FontFamily="Consolas" VerticalAlignment="Center" Margin="8,2,0,2" />
 
-          <TextBlock Grid.Row="5" Grid.Column="0" Name="PromotedClass1Label" Text="Promoted Class 1:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_PromotedClass1_Label" Grid.Row="5" Grid.Column="0" Name="PromotedClass1Label" Text="Promoted Class 1:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="UnitPalette_AdvancedClass1_Input" Grid.Row="5" Grid.Column="1" Name="AdvancedClass1Box" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_AdvancedClass1_Hex_Label" Grid.Row="5" Grid.Column="2" Name="AdvancedClass1HexLabel" Text="0x00" FontFamily="Consolas" VerticalAlignment="Center" Margin="8,2,0,2" />
 
-          <TextBlock Grid.Row="6" Grid.Column="0" Name="PromotedClass2Label" Text="Promoted Class 2:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_PromotedClass2_Label" Grid.Row="6" Grid.Column="0" Name="PromotedClass2Label" Text="Promoted Class 2:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="UnitPalette_AdvancedClass2_Input" Grid.Row="6" Grid.Column="1" Name="AdvancedClass2Box" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_AdvancedClass2_Hex_Label" Grid.Row="6" Grid.Column="2" Name="AdvancedClass2HexLabel" Text="0x00" FontFamily="Consolas" VerticalAlignment="Center" Margin="8,2,0,2" />
 
-          <TextBlock Grid.Row="7" Grid.Column="0" Name="PromotedClass3Label" Text="Promoted Class 3:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_PromotedClass3_Label" Grid.Row="7" Grid.Column="0" Name="PromotedClass3Label" Text="Promoted Class 3:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="UnitPalette_AdvancedClass3_Input" Grid.Row="7" Grid.Column="1" Name="AdvancedClass3Box" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_AdvancedClass3_Hex_Label" Grid.Row="7" Grid.Column="2" Name="AdvancedClass3HexLabel" Text="0x00" FontFamily="Consolas" VerticalAlignment="Center" Margin="8,2,0,2" />
 
-          <TextBlock Grid.Row="8" Grid.Column="0" Name="PromotedClass4Label" Text="Promoted Class 4:" VerticalAlignment="Center" Margin="0,2" />
+          <TextBlock AutomationProperties.AutomationId="UnitPalette_PromotedClass4_Label" Grid.Row="8" Grid.Column="0" Name="PromotedClass4Label" Text="Promoted Class 4:" VerticalAlignment="Center" Margin="0,2" />
           <TextBox AutomationProperties.AutomationId="UnitPalette_AdvancedClass4_Input" Grid.Row="8" Grid.Column="1" Name="AdvancedClass4Box" Width="160" Margin="0,2" Watermark="Decimal or 0x hex" />
           <TextBlock AutomationProperties.AutomationId="UnitPalette_AdvancedClass4_Hex_Label" Grid.Row="8" Grid.Column="2" Name="AdvancedClass4HexLabel" Text="0x00" FontFamily="Consolas" VerticalAlignment="Center" Margin="8,2,0,2" />
         </Grid>
