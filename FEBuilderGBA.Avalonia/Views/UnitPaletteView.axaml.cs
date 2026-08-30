@@ -13,6 +13,7 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly UndoService _undoService = new();
         readonly (TextBox Input, TextBlock HexLabel, string DisplayName)[] _classFields;
         bool _hasLoadedList;
+        bool _classValueLanguageSubscribed;
 
         public string ViewTitle => "Unit Palette Assignment";
         public new bool IsLoaded => _vm.IsLoaded;
@@ -42,11 +43,26 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            if (!_classValueLanguageSubscribed)
+            {
+                CoreState.LanguageChanged += OnClassValueLanguageChanged;
+                _classValueLanguageSubscribed = true;
+            }
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadList();
             }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            if (_classValueLanguageSubscribed)
+            {
+                CoreState.LanguageChanged -= OnClassValueLanguageChanged;
+                _classValueLanguageSubscribed = false;
+            }
+            base.OnDetachedFromVisualTree(e);
         }
 
         void LoadList()
@@ -131,6 +147,17 @@ namespace FEBuilderGBA.Avalonia.Views
                     return;
                 }
             }
+        }
+
+        void OnClassValueLanguageChanged()
+        {
+            global::Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                foreach (var field in _classFields)
+                {
+                    UpdateHexLabel(field);
+                }
+            });
         }
 
         static void SetClassValue(

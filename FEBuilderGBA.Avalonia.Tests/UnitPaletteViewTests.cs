@@ -3,6 +3,7 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using Xunit;
@@ -89,6 +90,39 @@ public sealed class UnitPaletteViewTests : IDisposable
 
         input.Text = "FF";
         Assert.Equal("Invalid", hex.Text);
+    }
+
+    [AvaloniaFact]
+    public async Task LanguageChange_AfterInvalidReattach_PreservesCorrectedHexValue()
+    {
+        var view = new UnitPaletteView();
+        var input = Assert.IsType<TextBox>(view.FindControl<Control>("BaseClass1Box"));
+        var hex = view.FindControl<TextBlock>("BaseClass1HexLabel");
+        Assert.NotNull(hex);
+
+        var firstWindow = new Window { Content = view };
+        firstWindow.Show();
+        input.Text = "FF";
+        Assert.Equal("Invalid", hex!.Text);
+        firstWindow.Content = null;
+        firstWindow.Close();
+
+        var secondWindow = new Window { Content = view };
+        secondWindow.Show();
+        try
+        {
+            input.Text = "66";
+            Assert.Equal("0x42", hex.Text);
+
+            CoreState.RaiseLanguageChanged();
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+
+            Assert.Equal("0x42", hex.Text);
+        }
+        finally
+        {
+            secondWindow.Close();
+        }
     }
 
     [AvaloniaFact]
