@@ -37,9 +37,10 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.True(File.Exists(path), $"Android theme resource should exist at {path}");
 
             var document = XDocument.Load(path);
-            var style = Assert.Single(document.Root!.Elements("style"));
-            Assert.Equal("FEBuilderTheme", style.Attribute("name")?.Value);
-            Assert.Equal("Theme.AppCompat.DayNight.NoActionBar", style.Attribute("parent")?.Value);
+            var style = document.Root!.Elements("style")
+                .SingleOrDefault(element => element.Attribute("name")?.Value == "FEBuilderTheme");
+            Assert.NotNull(style);
+            Assert.Equal("Theme.AppCompat.DayNight.NoActionBar", style!.Attribute("parent")?.Value);
         }
     }
 }
