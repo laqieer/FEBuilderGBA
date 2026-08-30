@@ -1169,6 +1169,51 @@ Advanced クラス 3:
 :Advanced Class 4:
 Advanced クラス 4:
 
+:Promoted Class 1:
+上級クラス1:
+
+:Promoted Class 2:
+上級クラス2:
+
+:Promoted Class 3:
+上級クラス3:
+
+:Promoted Class 4:
+上級クラス4:
+
+:Trainee Class
+見習いクラス
+
+:Base Class 1
+基本クラス1
+
+:Base Class 2
+基本クラス2
+
+:Promoted Class 1
+上級クラス1
+
+:Promoted Class 2
+上級クラス2
+
+:Promoted Class 3
+上級クラス3
+
+:Promoted Class 4
+上級クラス4
+
+:Input (decimal or 0x hex)
+入力 (10進数または0x付き16進数)
+
+:Hex value
+16進数値
+
+:Decimal or 0x hex
+10進数または0x付き16進数
+
+:{0} must be 0-255 decimal or 0x00-0xFF hexadecimal.
+{0}は0～255の10進数、または0x00～0xFFの16進数で入力してください。
+
 :Affinity Type:
 属性 タイプ:
 
