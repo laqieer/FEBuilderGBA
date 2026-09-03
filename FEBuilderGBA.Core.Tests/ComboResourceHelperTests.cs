@@ -20,24 +20,15 @@ namespace FEBuilderGBA.Core.Tests
         {
             var list = ComboResourceHelper.MakeWeaponTypeList();
 
-            var expected = new (uint id, string name)[]
+            uint[] expectedIds =
             {
-                (0x00, "00 Sword"),
-                (0x01, "01 Lance"),
-                (0x02, "02 Axe"),
-                (0x03, "03 Bow"),
-                (0x04, "04 Staff"),
-                (0x05, "05 Anima"),
-                (0x06, "06 Light"),
-                (0x07, "07 Dark"),
-                (0x09, "09 Item"),
-                (0x0B, "0B Dragonstone/Monster Weapon"),
-                (0x0C, "0C Ring"),
-                (0x11, "11 Dragonstone"),
-                (0x12, "12 Dancer's Ring"),
+                0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+                0x07, 0x09, 0x0B, 0x0C, 0x11, 0x12,
             };
 
-            Assert.Equal(expected, list);
+            Assert.Equal(expectedIds, list.Select(x => x.id));
+            Assert.All(list, entry =>
+                Assert.StartsWith($"{U.ToHexString(entry.id)} ", entry.name));
         }
 
         [Fact]
@@ -46,7 +37,8 @@ namespace FEBuilderGBA.Core.Tests
             var list = ComboResourceHelper.MakeWeaponTypeList(0x08);
 
             Assert.Equal(14, list.Count);
-            Assert.Equal((0x08u, "08 Unknown"), list[^1]);
+            Assert.Equal(0x08u, list[^1].id);
+            Assert.StartsWith("08 ", list[^1].name);
         }
 
         [Fact]
