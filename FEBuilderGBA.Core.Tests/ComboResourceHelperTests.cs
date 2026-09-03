@@ -16,12 +16,28 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
-        public void MakeWeaponTypeList_ReturnsExpectedEntries()
+        public void MakeWeaponTypeList_ReturnsCanonicalSparseEntries()
         {
             var list = ComboResourceHelper.MakeWeaponTypeList();
-            Assert.Equal(9, list.Count);
-            Assert.Contains("Sword", list[0].name);
-            Assert.Contains("Staff", list[4].name);
+
+            var expected = new (uint id, string name)[]
+            {
+                (0x00, "00 Sword"),
+                (0x01, "01 Lance"),
+                (0x02, "02 Axe"),
+                (0x03, "03 Bow"),
+                (0x04, "04 Staff"),
+                (0x05, "05 Anima"),
+                (0x06, "06 Light"),
+                (0x07, "07 Dark"),
+                (0x09, "09 Item"),
+                (0x0B, "0B Dragonstone/Monster Weapon"),
+                (0x0C, "0C Ring"),
+                (0x11, "11 Dragonstone"),
+                (0x12, "12 Dancer's Ring"),
+            };
+
+            Assert.Equal(expected, list);
         }
 
         [Fact]

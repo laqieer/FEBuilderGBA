@@ -82,11 +82,22 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public static List<(uint id, string name)> MakeWeaponTypeList()
         {
-            string[] names = { "Sword", "Lance", "Axe", "Bow", "Staff", "Anima", "Light", "Dark", "Item" };
-            var result = new List<(uint, string)>();
-            for (uint i = 0; i < (uint)names.Length; i++)
-                result.Add((i, $"{U.ToHexString(i)} {names[i]}"));
-            return result;
+            return new List<(uint id, string name)>
+            {
+                (0x00, "00 Sword"),
+                (0x01, "01 Lance"),
+                (0x02, "02 Axe"),
+                (0x03, "03 Bow"),
+                (0x04, "04 Staff"),
+                (0x05, "05 Anima"),
+                (0x06, "06 Light"),
+                (0x07, "07 Dark"),
+                (0x09, "09 Item"),
+                (0x0B, "0B Dragonstone/Monster Weapon"),
+                (0x0C, "0C Ring"),
+                (0x11, "11 Dragonstone"),
+                (0x12, "12 Dancer's Ring"),
+            };
         }
 
         /// <summary>
