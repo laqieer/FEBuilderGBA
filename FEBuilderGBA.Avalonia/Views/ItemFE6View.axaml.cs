@@ -72,24 +72,6 @@ namespace FEBuilderGBA.Avalonia.Views
             base.OnDetachedFromVisualTree(e);
         }
 
-        void LoadList()
-        {
-            try
-            {
-                // Populate combo dropdown BEFORE SetItems.
-                RefreshWeaponTypeList();
-
-                var items = _vm.LoadItemList();
-                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
-
-                UpdateListMetadata(items.Count);
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("ItemFE6View.LoadList failed: {0}", ex.Message);
-            }
-        }
-
         void OnLanguageChanged()
         {
             Dispatcher.UIThread.Post(RefreshForLanguage);
@@ -115,6 +97,24 @@ namespace FEBuilderGBA.Avalonia.Views
             WeaponTypeCombo.SelectedIndex = selectedId.HasValue
                 ? _weaponTypeList.FindIndex(x => x.id == selectedId.Value)
                 : -1;
+        }
+
+        void LoadList()
+        {
+            try
+            {
+                // Populate combo dropdown BEFORE SetItems.
+                RefreshWeaponTypeList();
+
+                var items = _vm.LoadItemList();
+                EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+
+                UpdateListMetadata(items.Count);
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("ItemFE6View.LoadList failed: {0}", ex.Message);
+            }
         }
 
         void UpdateListMetadata(int count)

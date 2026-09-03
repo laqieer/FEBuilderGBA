@@ -69,25 +69,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
         }
 
-        void LoadList()
-        {
-            try
-            {
-                // Populate combo dropdowns BEFORE SetItems (fixes #52).
-                RefreshWeaponTypeList();
-
-                // Show "Edit Skill Config" button if a skill system is installed
-                EditSkillConfigButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
-
-                var items = _vm.LoadItemList();
-                ItemList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("ItemEditorView.LoadList failed: {0}", ex.Message);
-            }
-        }
-
         void OnLanguageChanged()
         {
             Dispatcher.UIThread.Post(RefreshForLanguage);
@@ -115,6 +96,25 @@ namespace FEBuilderGBA.Avalonia.Views
             WeaponTypeCombo.SelectedIndex = selectedId.HasValue
                 ? _weaponTypeList.FindIndex(x => x.id == selectedId.Value)
                 : -1;
+        }
+
+        void LoadList()
+        {
+            try
+            {
+                // Populate combo dropdowns BEFORE SetItems (fixes #52).
+                RefreshWeaponTypeList();
+
+                // Show "Edit Skill Config" button if a skill system is installed
+                EditSkillConfigButton.IsVisible = PatchDetectionService.Instance.HasSkillSystem;
+
+                var items = _vm.LoadItemList();
+                ItemList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("ItemEditorView.LoadList failed: {0}", ex.Message);
+            }
         }
 
         void OnDescIdChanged(object? sender, NumericUpDownValueChangedEventArgs e)
