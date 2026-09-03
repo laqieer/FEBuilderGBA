@@ -5,6 +5,7 @@ using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -52,11 +53,50 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadList();
             }
+            else
+            {
+                OnLanguageChanged();
+            }
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnLanguageChanged()
+        {
+            Dispatcher.UIThread.Post(RefreshForLanguage);
+        }
+
+        void RefreshForLanguage()
+        {
+            RefreshWeaponTypeList(GetSelectedWeaponTypeId());
+        }
+
+        uint GetSelectedWeaponTypeId()
+        {
+            int selectedIndex = WeaponTypeCombo.SelectedIndex;
+            return selectedIndex >= 0 && selectedIndex < _weaponTypeList.Count
+                ? _weaponTypeList[selectedIndex].id
+                : _vm.WeaponType;
+        }
+
+        void RefreshWeaponTypeList(uint? selectedId = null)
+        {
+            _weaponTypeList = ComboResourceHelper.MakeWeaponTypeList(selectedId);
+            WeaponTypeCombo.ItemsSource = _weaponTypeList.Select(x => x.name).ToList();
+            WeaponTypeCombo.SelectedIndex = selectedId.HasValue
+                ? _weaponTypeList.FindIndex(x => x.id == selectedId.Value)
+                : -1;
         }
 
         void LoadList()
@@ -64,8 +104,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 // Populate combo dropdown BEFORE SetItems.
-                _weaponTypeList = ComboResourceHelper.MakeWeaponTypeList();
-                WeaponTypeCombo.ItemsSource = _weaponTypeList.Select(x => x.name).ToList();
+                RefreshWeaponTypeList();
 
                 var items = _vm.LoadItemList();
                 EntryList.SetItemsWithIcons(items, i => ListIconLoaders.ItemIconLoader(items, i));
@@ -196,9 +235,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UseDescTextLabel.Text = _vm.UseDescText;
             ItemNumberBox.Value = _vm.ItemNumber;
 
-            // Weapon type combo
-            int wtIdx = _weaponTypeList.FindIndex(x => x.id == _vm.WeaponType);
-            WeaponTypeCombo.SelectedIndex = wtIdx >= 0 ? wtIdx : (int)_vm.WeaponType;
+            RefreshWeaponTypeList(_vm.WeaponType);
 
             // Trait flags (BitFlagPanel) + hex preview labels (#402 mirrors
             // WF "特性1/2/3/4" plus the raw-byte readout).
@@ -462,35 +499,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
-            // Read UI values into the ViewModel.
-            _vm.NameId = (uint)(NameIdBox.Value ?? 0);
-            _vm.DescId = (uint)(DescIdBox.Value ?? 0);
-            _vm.UseDescId = (uint)(UseDescIdBox.Value ?? 0);
-            _vm.ItemNumber = (uint)(ItemNumberBox.Value ?? 0);
-
-            // Weapon type from combo.
-            int wtIdx = WeaponTypeCombo.SelectedIndex;
-            _vm.WeaponType = wtIdx >= 0 && wtIdx < _weaponTypeList.Count ? _weaponTypeList[wtIdx].id : 0;
-
-            // Trait flags from BitFlagPanel + raw NumericUpDown.
-            _vm.Trait1 = Trait1Flags.Value;
-            _vm.Trait2 = Trait2Flags.Value;
-            _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
-            _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
-
-            _vm.StatBonusesPtr = ParseHexText(StatBonusesPtrBox.Text);
-            _vm.EffectivenessPtr = ParseHexText(EffectivenessPtrBox.Text);
-            _vm.Uses = (uint)(UsesBox.Value ?? 0);
-            _vm.Might = (uint)(MightBox.Value ?? 0);
-            _vm.Hit = (uint)(HitBox.Value ?? 0);
-            _vm.Weight = (uint)(WeightBox.Value ?? 0);
-            _vm.Crit = (uint)(CritBox.Value ?? 0);
-            _vm.Range = (uint)(RangeBox.Value ?? 0);
-            _vm.Price = (uint)(PriceBox.Value ?? 0);
-            _vm.WeaponRank = (uint)(WeaponRankBox.Value ?? 0);
-            _vm.Icon = (uint)(IconBox.Value ?? 0);
-            _vm.UsageEffect = (uint)(UsageEffectBox.Value ?? 0);
-            _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
+            ReadFromUI();
 
             _undoService.Begin("Edit Item (FE6)");
             try
@@ -518,6 +527,39 @@ namespace FEBuilderGBA.Avalonia.Views
                 _undoService.Rollback();
                 Log.ErrorF("Write failed: {0}", ex.Message);
             }
+        }
+
+        void ReadFromUI()
+        {
+            _vm.NameId = (uint)(NameIdBox.Value ?? 0);
+            _vm.DescId = (uint)(DescIdBox.Value ?? 0);
+            _vm.UseDescId = (uint)(UseDescIdBox.Value ?? 0);
+            _vm.ItemNumber = (uint)(ItemNumberBox.Value ?? 0);
+
+            // Weapon type from combo.
+            int wtIdx = WeaponTypeCombo.SelectedIndex;
+            if (wtIdx >= 0 && wtIdx < _weaponTypeList.Count)
+                _vm.WeaponType = _weaponTypeList[wtIdx].id;
+
+            // Trait flags from BitFlagPanel + raw NumericUpDown.
+            _vm.Trait1 = Trait1Flags.Value;
+            _vm.Trait2 = Trait2Flags.Value;
+            _vm.Trait3 = (uint)(Trait3Box.Value ?? 0);
+            _vm.Trait4 = (uint)(Trait4Box.Value ?? 0);
+
+            _vm.StatBonusesPtr = ParseHexText(StatBonusesPtrBox.Text);
+            _vm.EffectivenessPtr = ParseHexText(EffectivenessPtrBox.Text);
+            _vm.Uses = (uint)(UsesBox.Value ?? 0);
+            _vm.Might = (uint)(MightBox.Value ?? 0);
+            _vm.Hit = (uint)(HitBox.Value ?? 0);
+            _vm.Weight = (uint)(WeightBox.Value ?? 0);
+            _vm.Crit = (uint)(CritBox.Value ?? 0);
+            _vm.Range = (uint)(RangeBox.Value ?? 0);
+            _vm.Price = (uint)(PriceBox.Value ?? 0);
+            _vm.WeaponRank = (uint)(WeaponRankBox.Value ?? 0);
+            _vm.Icon = (uint)(IconBox.Value ?? 0);
+            _vm.UsageEffect = (uint)(UsageEffectBox.Value ?? 0);
+            _vm.DamageEffect = (uint)(DamageEffectBox.Value ?? 0);
         }
 
         // #831: new-alloc the StatBooster (P12) block — mirrors WF
