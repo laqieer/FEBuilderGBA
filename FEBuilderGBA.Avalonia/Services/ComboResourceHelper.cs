@@ -80,25 +80,33 @@ namespace FEBuilderGBA.Avalonia.Services
             return result;
         }
 
-        public static List<(uint id, string name)> MakeWeaponTypeList()
+        public static List<(uint id, string name)> MakeWeaponTypeList(uint? currentId = null)
         {
-            return new List<(uint id, string name)>
+            var result = new List<(uint id, string name)>
             {
-                (0x00, "00 Sword"),
-                (0x01, "01 Lance"),
-                (0x02, "02 Axe"),
-                (0x03, "03 Bow"),
-                (0x04, "04 Staff"),
-                (0x05, "05 Anima"),
-                (0x06, "06 Light"),
-                (0x07, "07 Dark"),
-                (0x09, "09 Item"),
-                (0x0B, "0B Dragonstone/Monster Weapon"),
-                (0x0C, "0C Ring"),
-                (0x11, "11 Dragonstone"),
-                (0x12, "12 Dancer's Ring"),
+                (0x00, LocalizeComboLabel("00=Sword")),
+                (0x01, LocalizeComboLabel("01=Lance")),
+                (0x02, LocalizeComboLabel("02=Axe")),
+                (0x03, LocalizeComboLabel("03=Bow")),
+                (0x04, LocalizeComboLabel("04=Staff")),
+                (0x05, LocalizeComboLabel("05=Anima")),
+                (0x06, LocalizeComboLabel("06=Light")),
+                (0x07, LocalizeComboLabel("07=Dark")),
+                (0x09, LocalizeComboLabel("09=Item")),
+                (0x0B, LocalizeComboLabel("0B=Dragonstone/Monster Weapon")),
+                (0x0C, LocalizeComboLabel("0C=Ring")),
+                (0x11, LocalizeComboLabel("11=Dragonstone")),
+                (0x12, LocalizeComboLabel("12=Dancer's Ring")),
             };
+
+            if (currentId.HasValue && !result.Exists(x => x.id == currentId.Value))
+                result.Add((currentId.Value, $"{U.ToHexString(currentId.Value)} {R._("Unknown")}"));
+
+            return result;
         }
+
+        private static string LocalizeComboLabel(string source)
+            => R._(source).Replace('=', ' ');
 
         /// <summary>
         /// Resolve a ROMFEINFO pointer address to a ROM offset.

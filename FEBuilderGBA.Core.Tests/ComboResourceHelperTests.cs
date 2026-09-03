@@ -41,6 +41,15 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void MakeWeaponTypeList_IncludesUnknownCurrentId()
+        {
+            var list = ComboResourceHelper.MakeWeaponTypeList(0x08);
+
+            Assert.Equal(14, list.Count);
+            Assert.Equal((0x08u, "08 Unknown"), list[^1]);
+        }
+
+        [Fact]
         public void MakeUnitList_NoRom_ReturnsEmpty()
         {
             ROM? oldRom = CoreState.ROM;
