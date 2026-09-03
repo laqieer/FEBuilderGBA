@@ -160,6 +160,46 @@ public class WeaponTypeComboTests
         }
     }
 
+    [AvaloniaFact]
+    public void ItemEditor_QueuesUiThreadLanguageRefresh()
+    {
+        string tempDir = Path.Combine(
+            Path.GetTempPath(),
+            "weapon_type_queued_translation_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        string firstMap = Path.Combine(tempDir, "first.txt");
+        string secondMap = Path.Combine(tempDir, "second.txt");
+        File.WriteAllText(firstMap, ":12=Dancer's Ring\n12=[FIRST]\n\n");
+        File.WriteAllText(secondMap, ":12=Dancer's Ring\n12=[SECOND]\n\n");
+
+        EditorHostWindow? host = null;
+        try
+        {
+            MyTranslateResource.LoadResource(firstMap);
+
+            var view = new ItemEditorView();
+            host = new EditorHostWindow(view);
+            host.Show();
+            var vm = GetViewModel<ItemEditorViewModel>(view);
+            vm.WeaponType = 0x12;
+            Invoke(view, "UpdateUI");
+            Assert.Equal("12 [FIRST]", SelectedLabel(view));
+
+            MyTranslateResource.LoadResource(secondMap);
+            CoreState.RaiseLanguageChanged();
+
+            Assert.Equal("12 [FIRST]", SelectedLabel(view));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("12 [SECOND]", SelectedLabel(view));
+        }
+        finally
+        {
+            host?.Close();
+            MyTranslateResource.Clear();
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
     static void AssertSelectedId(Control view, uint expectedId)
     {
         var combo = Assert.IsType<ComboBox>(

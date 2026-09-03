@@ -92,10 +92,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnLanguageChanged()
         {
-            if (Dispatcher.UIThread.CheckAccess())
-                RefreshForLanguage();
-            else
-                Dispatcher.UIThread.Post(RefreshForLanguage);
+            Dispatcher.UIThread.Post(RefreshForLanguage);
         }
 
         void RefreshForLanguage()
