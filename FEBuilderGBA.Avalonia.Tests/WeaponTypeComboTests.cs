@@ -44,7 +44,7 @@ public class WeaponTypeComboTests
     }
 
     [AvaloniaFact]
-    public void ItemEditors_RefreshWeaponTypeLabelsOnLanguageChange()
+    public void ItemEditors_RefreshWeaponTypeLabelsAfterDetachedLanguageChange()
     {
         string tempDir = Path.Combine(
             Path.GetTempPath(),
@@ -82,8 +82,16 @@ public class WeaponTypeComboTests
             Assert.Equal(0x00u, itemVm.WeaponType);
             Assert.Equal(0x00u, fe6Vm.WeaponType);
 
+            itemHost.Content = null;
+            fe6Host.Content = null;
+            Dispatcher.UIThread.RunJobs();
+
             MyTranslateResource.LoadResource(secondMap);
             CoreState.RaiseLanguageChanged();
+            Dispatcher.UIThread.RunJobs();
+
+            itemHost.Content = itemView;
+            fe6Host.Content = fe6View;
             Dispatcher.UIThread.RunJobs();
 
             Assert.Equal("12 [SECOND]", SelectedLabel(itemView));

@@ -62,6 +62,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _hasLoadedList = true;
                 LoadList();
             }
+            else
+            {
+                OnLanguageChanged();
+            }
         }
 
         void LoadList()

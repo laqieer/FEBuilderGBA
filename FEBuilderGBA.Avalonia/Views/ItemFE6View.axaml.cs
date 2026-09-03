@@ -59,6 +59,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 _hasLoadedList = true;
                 LoadList();
             }
+            else
+            {
+                OnLanguageChanged();
+            }
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
