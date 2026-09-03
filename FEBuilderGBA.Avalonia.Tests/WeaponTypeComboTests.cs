@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
@@ -100,6 +101,55 @@ public class WeaponTypeComboTests
             AssertSelectedId(fe6View, 0x12);
             Assert.Equal(0x00u, itemVm.WeaponType);
             Assert.Equal(0x00u, fe6Vm.WeaponType);
+        }
+        finally
+        {
+            itemHost?.Close();
+            fe6Host?.Close();
+            MyTranslateResource.Clear();
+            Directory.Delete(tempDir, recursive: true);
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task ItemEditors_MarshalBackgroundLanguageChange()
+    {
+        string tempDir = Path.Combine(
+            Path.GetTempPath(),
+            "weapon_type_background_translation_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(tempDir);
+        string firstMap = Path.Combine(tempDir, "first.txt");
+        string secondMap = Path.Combine(tempDir, "second.txt");
+        File.WriteAllText(firstMap, ":12=Dancer's Ring\n12=[FIRST]\n\n");
+        File.WriteAllText(secondMap, ":12=Dancer's Ring\n12=[SECOND]\n\n");
+
+        EditorHostWindow? itemHost = null;
+        EditorHostWindow? fe6Host = null;
+        try
+        {
+            MyTranslateResource.LoadResource(firstMap);
+
+            var itemView = new ItemEditorView();
+            itemHost = new EditorHostWindow(itemView);
+            itemHost.Show();
+            var itemVm = GetViewModel<ItemEditorViewModel>(itemView);
+            itemVm.WeaponType = 0x12;
+            Invoke(itemView, "UpdateUI");
+
+            var fe6View = new ItemFE6View();
+            fe6Host = new EditorHostWindow(fe6View);
+            fe6Host.Show();
+            var fe6Vm = GetViewModel<ItemFE6ViewModel>(fe6View);
+            fe6Vm.WeaponType = 0x12;
+            Invoke(fe6View, "UpdateUI");
+
+            MyTranslateResource.LoadResource(secondMap);
+            await Task.Run(() => Invoke(itemView, "OnLanguageChanged"));
+            await Task.Run(() => Invoke(fe6View, "OnLanguageChanged"));
+            await Dispatcher.UIThread.InvokeAsync(() => { });
+
+            Assert.Equal("12 [SECOND]", SelectedLabel(itemView));
+            Assert.Equal("12 [SECOND]", SelectedLabel(fe6View));
         }
         finally
         {
