@@ -331,6 +331,53 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
+        public void FilterClearingSelection_DisablesCommandsAndBlocksStaleWrite()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                ROM rom = MakeRom(out _);
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+                var view = OpenViewWithSelection(out var vm);
+                var entryList = view.FindControl<AddressListControl>("EntryList")!;
+                uint originalId0 = rom.u8(UNITPAL_BASE);
+                view.FindControl<NumericUpDown>("Id0Box")!.Value = 0x41;
+
+                entryList.ApplySearchFilter("no matching palette");
+                Pump(view);
+
+                Assert.Null(entryList.SelectedItem);
+                Assert.Equal(0u, vm.CurrentAddr);
+                Assert.False(vm.CanWrite);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Write_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_PaletteWrite_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+
+                Invoke(view, "Write_Click", null!,
+                    new global::Avalonia.Interactivity.RoutedEventArgs());
+
+                Assert.Equal(originalId0, rom.u8(UNITPAL_BASE));
+                Assert.Contains("Select a palette entry", services.LastError);
+                Assert.False(CoreState.Undo.IsModified);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
         public void Write_NoSelection_ReportsErrorAndPreservesDirtyState()
         {
             ROM? previousRom = CoreState.ROM;

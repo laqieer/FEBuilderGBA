@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageUnitPaletteView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+            EntryList.SelectedItemChanged += OnSelectedItemChanged;
 
             // Populate the preview sub-palette combo via R._() so it picks up
             // ja/zh translations (ComboBoxItem.Content is not touched by
@@ -147,6 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _vm.CurrentAddr = 0;
                 _vm.CanWrite = false;
+                _vm.IsLoaded = false;
                 UpdateWriteCommandState();
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
@@ -158,6 +159,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ImageUnitPaletteView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void OnSelectedItemChanged(AddrResult? item)
+        {
+            if (item == null)
+            {
+                ClearSelectedEntry();
+                return;
+            }
+            OnSelected(item.addr);
+        }
+
+        void ClearSelectedEntry()
+        {
+            bool wasLoading = _vm.IsLoading;
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.CurrentAddr = 0;
+                _vm.CanWrite = false;
+                _vm.IsLoaded = false;
+                _vm.SelectedPaletteSlot = 0;
+            }
+            finally
+            {
+                _vm.IsLoading = wasLoading;
+            }
+
+            AddrLabel.Text = "";
+            SelectedAddressBox.Text = "";
+            UpdateWriteCommandState();
         }
 
         void OnSelected(uint addr)
@@ -601,9 +633,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Dialog-free import core (testable seam): load the image, run the
         /// ≤16-color guard + ordered extraction, populate the NumericUpDowns,
         /// then reuse the ROM write. Returns <c>true</c> when the palette was
-        /// applied + written; <c>false</c> when the image was rejected (no UI
-        /// or ROM change). The <see cref="ImportImage_Click"/> handler owns the
-        /// pre-checks (selected entry, image service) + file dialog.
+        /// applied + written. Returns <c>false</c> when the image was rejected
+        /// before changing UI/ROM state, or when the imported control values
+        /// were retained but the ROM write failed. The
+        /// <see cref="ImportImage_Click"/> handler owns the pre-checks (selected
+        /// entry, image service) + file dialog.
         /// </summary>
         internal bool ImportFromFile(string path)
         {
