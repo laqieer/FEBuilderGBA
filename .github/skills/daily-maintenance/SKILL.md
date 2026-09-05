@@ -7,6 +7,8 @@ description: "Run the unattended FEBuilderGBA maintenance loop: CI and security 
 
 Run unattended and make the safest reasonable decision. Any repository change must invoke `dev-flow`.
 
+At pass start, persist a unique UTC pass ID in the compact checkpoint; reuse it on retries/resume. Designate one coordinator to publish that pass's summary.
+
 ## Always-retained safeguards
 
 - Target only `laqieer/FEBuilderGBA`; verify `origin` before GitHub reads or writes.
@@ -32,6 +34,17 @@ Run unattended and make the safest reasonable decision. Any repository change mu
 ## Completion loop
 
 After each pass, re-query open issues and PRs. Continue until both counts are zero. Persist a compact queue/checkpoint and use a fresh child or session per independent item instead of accumulating every artifact in one context.
+
+## Final step: maintenance summary
+
+Use the permanent [Daily maintenance track](https://github.com/laqieer/FEBuilderGBA/discussions/2155), not a new discussion per pass.
+
+1. After the zero-queue loop, freshly verify current `master` CI, security alerts, discussions, open issue/PR counts, and the release outcome. Return to the loop if work remains; never publish a completed summary while checks are pending or blocking work remains.
+2. Prepare a concise top-level comment with `<!-- daily-maintenance-pass:<pass-id> -->`, UTC date, and **completed** or **blocked/incomplete** status. Report actual issue/PR outcomes with useful links, master SHA/CI and security results, final queue counts, release link or no-release reason, and limitations. Use a few bullets, not logs, secrets, ROMs, or fabricated results; finish with the live footer below.
+3. Before any write, paginate all top-level comments and match the exact marker. Skip an identical report. Correct or complete an existing report only after verifying its marker, author matches the authenticated operator, and it is that operator's own pass report; retain its comment ID/URL in the checkpoint. Never edit another author's comment. Conflicting authors or ambiguous duplicates block publication; do not delete comments or invent a new pass ID to evade the conflict.
+4. If absent, post one new comment and checkpoint its ID/URL. After a timeout or ambiguous write failure, re-read remote comments before retrying the same pass; do not blindly repeat a write. If the discussion is missing, locked, or unavailable, retain the intended report/checkpoint, record the publication blocker, and retry later without creating a replacement discussion. Do not claim the pass fully reported until publication is verified.
+
+Blocked/interrupted work may publish an explicitly **blocked/incomplete** report with the same marker, known outcomes, blockers, and remaining work; never imply zero queues or successful unchecked results. Preserve the checkpoint and resume the completion loop, then update only the verified own report after final checks pass. Publication failure remains an explicit blocker even if maintenance checks passed.
 
 ## Mandatory GitHub footer
 
