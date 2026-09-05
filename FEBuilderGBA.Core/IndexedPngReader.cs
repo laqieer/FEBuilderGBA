@@ -63,10 +63,8 @@ namespace FEBuilderGBA
     /// <see cref="IndexedPngWriter"/>. Parses the PNG signature + IHDR + PLTE + tRNS and
     /// INFLATEs IDAT to recover the per-pixel palette indices for validation.
     ///
-    /// Only PNG scanline filter type 0 (None) is reconstructed — the writer always emits
-    /// filter 0, so a FEBuilder-exported PNG round-trips exactly. A PNG that uses other
-    /// filters parses structurally (dims/palette/tRNS) but sets
-    /// <see cref="IndexedPngInfo.FiltersUnsupportedForIndexCheck"/> instead of throwing.
+    /// PNG scanline filter types 0-4 are reconstructed for 8-bit indexed images,
+    /// so files resaved by external editors retain their exact palette indices.
     ///
     /// NEVER throws: any malformed input yields <c>Ok=false</c> + an <c>Error</c>.
     /// </summary>
@@ -203,9 +201,8 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Inflate the zlib IDAT stream and reconstruct filter-0 scanlines into a flat
-        /// index array. Sets <see cref="IndexedPngInfo.FiltersUnsupportedForIndexCheck"/>
-        /// (instead of throwing) when a non-zero filter byte appears. NEVER throws.
+        /// Inflate the zlib IDAT stream and reconstruct PNG filter types 0-4
+        /// into a flat index array. NEVER throws.
         /// </summary>
         static void TryRecoverIndices(byte[] idat, IndexedPngInfo info)
         {
@@ -228,21 +225,10 @@ namespace FEBuilderGBA
                 if (raw.Length < expected)
                     return; // not enough scanline data; leave indices unavailable
 
-                var indices = new byte[w * h];
-                for (int y = 0; y < h; y++)
-                {
-                    int rowBase = y * (1 + w);
-                    byte filter = raw[rowBase];
-                    if (filter != 0)
-                    {
-                        // Only filter type 0 (None) is reconstructed here.
-                        info.FiltersUnsupportedForIndexCheck = true;
-                        info.IndicesAvailable = false;
-                        return;
-                    }
-                    Array.Copy(raw, rowBase + 1, indices, y * w, w);
-                }
-
+                byte[] indices = ReconstructIndexedScanlines(
+                    raw, w, h, out bool unsupportedFilter);
+                info.FiltersUnsupportedForIndexCheck = unsupportedFilter;
+                if (indices == null) return;
                 info.Indices = indices;
                 info.IndicesAvailable = true;
             }
@@ -251,6 +237,59 @@ namespace FEBuilderGBA
                 // inflate / shape fault: indices simply unavailable (structural still ok).
                 info.IndicesAvailable = false;
             }
+        }
+
+        internal static byte[] ReconstructIndexedScanlines(
+            byte[] raw, int width, int height, out bool unsupportedFilter)
+        {
+            unsupportedFilter = false;
+            if (raw == null || width <= 0 || height <= 0) return null;
+            if (raw.Length < (long)height * (width + 1)) return null;
+
+            var indices = new byte[width * height];
+            for (int y = 0; y < height; y++)
+            {
+                int rawRow = y * (width + 1);
+                int outputRow = y * width;
+                byte filter = raw[rawRow];
+                if (filter > 4)
+                {
+                    unsupportedFilter = true;
+                    return null;
+                }
+
+                for (int x = 0; x < width; x++)
+                {
+                    byte encoded = raw[rawRow + 1 + x];
+                    byte left = x > 0 ? indices[outputRow + x - 1] : (byte)0;
+                    byte up = y > 0 ? indices[outputRow - width + x] : (byte)0;
+                    byte upLeft = x > 0 && y > 0
+                        ? indices[outputRow - width + x - 1]
+                        : (byte)0;
+                    int predictor = filter switch
+                    {
+                        0 => 0,
+                        1 => left,
+                        2 => up,
+                        3 => (left + up) / 2,
+                        4 => PaethPredictor(left, up, upLeft),
+                        _ => 0,
+                    };
+                    indices[outputRow + x] = unchecked((byte)(encoded + predictor));
+                }
+            }
+            return indices;
+        }
+
+        static int PaethPredictor(int left, int up, int upLeft)
+        {
+            int estimate = left + up - upLeft;
+            int leftDistance = Math.Abs(estimate - left);
+            int upDistance = Math.Abs(estimate - up);
+            int upperLeftDistance = Math.Abs(estimate - upLeft);
+            if (leftDistance <= upDistance && leftDistance <= upperLeftDistance)
+                return left;
+            return upDistance <= upperLeftDistance ? up : upLeft;
         }
 
         /// <summary>

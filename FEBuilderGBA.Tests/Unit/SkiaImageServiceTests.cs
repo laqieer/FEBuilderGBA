@@ -340,7 +340,7 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void LoadImageFromBytes_IndexedPng_PreservesPaletteAndIndices()
+        public void LoadImageFromBytes_IndexedPng_DefaultRemainsRgba()
         {
             var svc = new SkiaImageService();
             byte[] palette = MakeIndexedPalette();
@@ -350,6 +350,21 @@ namespace FEBuilderGBA.Tests.Unit
 
             using var loaded = svc.LoadImageFromBytes(png);
 
+            Assert.False(loaded.IsIndexed);
+            Assert.Equal(8 * 8 * 4, loaded.GetPixelData().Length);
+        }
+
+        [Fact]
+        public void LoadImageFromBytesPreservingIndexed_PreservesPaletteAndIndices()
+        {
+            var svc = new SkiaImageService();
+            byte[] palette = MakeIndexedPalette();
+            byte[] indices = MakeIndexedPixels(8, 8);
+            byte[] png = IndexedPngWriter.Write(
+                indices, 8, 8, palette, 16, transparentIndex: 0);
+
+            using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
+
             Assert.True(loaded.IsIndexed);
             Assert.Equal(indices, loaded.GetPixelData());
             Assert.Equal(palette, loaded.GetPaletteGBA());
@@ -357,7 +372,7 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void LoadImage_IndexedPng_PreservesPaletteAndIndices()
+        public void LoadImagePreservingIndexed_PreservesPaletteAndIndices()
         {
             var svc = new SkiaImageService();
             byte[] palette = MakeIndexedPalette();
@@ -369,7 +384,7 @@ namespace FEBuilderGBA.Tests.Unit
             try
             {
                 File.WriteAllBytes(path, png);
-                using var loaded = svc.LoadImage(path);
+                using var loaded = svc.LoadImagePreservingIndexed(path);
 
                 Assert.True(loaded.IsIndexed);
                 Assert.Equal(indices, loaded.GetPixelData());

@@ -664,7 +664,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             byte[] gbaPalette;
             byte[] rgbaPixels;
-            using (IImage image = imgService.LoadImage(path))
+            using (IImage image = imgService.LoadImagePreservingIndexed(path))
             {
                 // Prefer a loader-preserved indexed palette; fall back to the
                 // RGBA pixels (the SkiaSharp loader decodes to RGBA, so this is
