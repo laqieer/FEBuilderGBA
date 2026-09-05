@@ -67,6 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassBox.ValueChanged += OnClassChanged;
             PreviewPaletteTypeCombo.SelectionChanged += OnPreviewPaletteTypeChanged;
 
+            UpdateWriteCommandState();
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -144,6 +145,9 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
+                _vm.CurrentAddr = 0;
+                _vm.CanWrite = false;
+                UpdateWriteCommandState();
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 ReadStartAddressBox.Text = _vm.LoadListBaseAddress();
@@ -198,6 +202,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 UpdateUI();
+                UpdateWriteCommandState();
                 RefreshSamplePreview();
             }
             catch (Exception ex)
@@ -205,6 +210,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ImageUnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void UpdateWriteCommandState()
+        {
+            bool canWrite = _vm.CanWrite && _vm.CurrentAddr != 0;
+            WriteButton.IsEnabled = canWrite;
+            PaletteWriteButton.IsEnabled = canWrite;
+            ImportImageButton.IsEnabled = canWrite;
         }
 
         void UpdateUI()
@@ -343,6 +356,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            if (!_vm.CanWrite || _vm.CurrentAddr == 0)
+            {
+                CoreState.Services?.ShowError(R._("Select a palette entry first."));
+                return;
+            }
+
             _undoService.Begin("Edit Unit Palette");
             try
             {
@@ -359,11 +378,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Id10 = (uint)(Id10Box.Value ?? 0);
                 _vm.Id11 = (uint)(Id11Box.Value ?? 0);
                 _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
-                _vm.Write();
+                if (!_vm.Write())
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(R._("Failed to write palette data."));
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Palette written."));
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ImageUnitPaletteView.Write: {0}", ex.Message); }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.ErrorF("ImageUnitPaletteView.Write: {0}", ex.Message);
+                CoreState.Services?.ShowError(
+                    $"{R._("Failed to write palette data.")} {ex.Message}");
+            }
         }
 
         /// <summary>Palette Write button handler — delegates to
@@ -387,6 +418,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.CurrentAddr == 0)
             {
                 Log.Error("ImageUnitPaletteView.PaletteWrite: no selected entry.");
+                CoreState.Services?.ShowError(R._("Select a palette entry first."));
                 return false;
             }
             var r = new uint[16];
@@ -419,6 +451,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _undoService.Rollback();
                     Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND (invalid pointer or LZ77 stream).");
+                    CoreState.Services?.ShowError(R._(
+                        "Palette area has not been allocated. Use New Palette Allocation first."));
                     return false;
                 }
                 _vm.PalettePointer = newP12;
@@ -426,12 +460,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteAddressBox.Text = $"0x{newP12:X08}";
                 _undoService.Commit();
                 _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Palette written."));
                 return true;
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.ErrorF("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
+                CoreState.Services?.ShowError(
+                    $"{R._("Failed to write palette data.")} {ex.Message}");
                 return false;
             }
         }
@@ -603,11 +640,12 @@ namespace FEBuilderGBA.Avalonia.Views
             // Reuse the existing ROM write (owns its single undo scope +
             // LZ77/repoint). #906 review: call the sender/args-free core method,
             // NOT the event handler with null RoutedEventArgs.
-            PerformPaletteWrite();
-
-            // Refresh the sample preview to reflect the new palette.
+            bool written = PerformPaletteWrite();
+            // Keep the imported colors visible even when the ROM write fails,
+            // so the user can allocate a palette block and retry without
+            // repeating the import.
             RefreshSamplePreview();
-            return true;
+            return written;
         }
 
         /// <summary>

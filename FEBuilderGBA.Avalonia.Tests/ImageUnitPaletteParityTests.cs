@@ -137,6 +137,22 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(FindByAutomationId<Button>(view, "ImageUnitPalette_REDO_Button"));
         }
 
+        [Fact]
+        public void Axaml_WriteCommands_StartDisabledUntilSelection()
+        {
+            string axaml = ReadViewAxaml();
+            foreach (string automationId in new[]
+            {
+                "ImageUnitPalette_Write_Button",
+                "ImageUnitPalette_PaletteWrite_Button",
+                "ImageUnitPalette_Import_Button",
+            })
+            {
+                Assert.Contains("IsEnabled=\"False\"",
+                    ExtractElement(axaml, automationId));
+            }
+        }
+
         [AvaloniaFact]
         public void View_Has_Three_Tabs()
         {

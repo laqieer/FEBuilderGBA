@@ -96,7 +96,8 @@
                         ToolTip.Tip="Allocate a fresh palette block in free space and repoint this slot's P12" />
 
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Write_Button"
-                        Content="Write" Name="WriteButton" Click="Write_Click" Margin="0,8,0,0" />
+                        Content="Write" Name="WriteButton" Click="Write_Click"
+                        IsEnabled="False" Margin="0,8,0,0" />
               </StackPanel>
 
               <!-- Right half: class selector + battle-anime sample preview (#840),
@@ -346,13 +347,15 @@
 
               <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,12,0,0">
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_PaletteWrite_Button"
-                        Content="Palette Write" Name="PaletteWriteButton" Click="PaletteWrite_Click" />
+                        Content="Palette Write" Name="PaletteWriteButton"
+                        IsEnabled="False" Click="PaletteWrite_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Clipboard_Button"
                         Content="Clipboard" Name="ClipboardButton" Click="Clipboard_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Export_Button"
                         Content="Export Image" Name="ExportImageButton" Click="ExportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_Import_Button"
-                        Content="Import Image" Name="ImportImageButton" Click="ImportImage_Click" />
+                        Content="Import Image" Name="ImportImageButton"
+                        IsEnabled="False" Click="ImportImage_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_UNDO_Button"
                         Content="UNDO" Name="UndoButton" Click="Undo_Click" />
                 <Button AutomationProperties.AutomationId="ImageUnitPalette_REDO_Button"

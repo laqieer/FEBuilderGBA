@@ -227,10 +227,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             OnPropertyChanged(nameof(BChannel));
         }
 
-        public void Write()
+        public bool Write()
         {
             ROM rom = CoreState.ROM;
-            if (rom == null || CurrentAddr == 0) return;
+            if (rom == null || !CanWrite || CurrentAddr == 0 ||
+                CurrentAddr + SIZE > (uint)rom.Data.Length)
+            {
+                return false;
+            }
 
             uint addr = CurrentAddr;
             rom.write_u8(addr + 0, Id0);
@@ -246,6 +250,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             rom.write_u8(addr + 10, Id10);
             rom.write_u8(addr + 11, Id11);
             rom.write_u32(addr + 12, PalettePointer);
+            return true;
         }
 
         /// <summary>
