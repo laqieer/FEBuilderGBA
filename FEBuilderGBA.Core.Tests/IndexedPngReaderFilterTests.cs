@@ -42,6 +42,22 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Null(actual);
         }
 
+        [Fact]
+        public void Read_Adam7IndexedPng_DoesNotExposeLinearIndices()
+        {
+            byte[] palette = new byte[32];
+            byte[] indices = new byte[8 * 8];
+            byte[] png = IndexedPngWriter.Write(
+                indices, 8, 8, palette, 16, transparentIndex: 0);
+            png[28] = 1; // IHDR interlace method (CRC is not validated by this reader).
+
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+
+            Assert.True(info.Ok, info.Error);
+            Assert.Equal(1, info.InterlaceMethod);
+            Assert.False(info.IndicesAvailable);
+        }
+
         static byte[] EncodeFiltered(
             byte[] pixels, int width, int height, int filter)
         {

@@ -26,6 +26,9 @@ namespace FEBuilderGBA
         /// <summary>Color type from IHDR (3 == indexed/palette).</summary>
         public int ColorType;
 
+        /// <summary>Interlace method from IHDR (0 == none, 1 == Adam7).</summary>
+        public int InterlaceMethod;
+
         /// <summary>Number of palette entries (PLTE length / 3); 0 when no PLTE.</summary>
         public int PaletteColorCount;
 
@@ -38,6 +41,11 @@ namespace FEBuilderGBA
 
         /// <summary>True when a tRNS chunk is present.</summary>
         public bool HasTrns;
+
+        /// <summary>
+        /// Raw tRNS alpha bytes. Palette entries beyond this array are opaque.
+        /// </summary>
+        public byte[] PaletteAlpha = Array.Empty<byte>();
 
         /// <summary>Transparent palette indices (from tRNS, value 0); empty when none.</summary>
         public int[] TransparentIndices = Array.Empty<int>();
@@ -116,6 +124,7 @@ namespace FEBuilderGBA
                             info.Height = ReadU32BE(pngBytes, dataPos + 4);
                             info.BitDepth = pngBytes[dataPos + 8];
                             info.ColorType = pngBytes[dataPos + 9];
+                            info.InterlaceMethod = pngBytes[dataPos + 12];
                             sawIhdr = true;
                             break;
 
@@ -132,6 +141,9 @@ namespace FEBuilderGBA
                         case "tRNS":
                         {
                             info.HasTrns = true;
+                            var alpha = new byte[len];
+                            Array.Copy(pngBytes, dataPos, alpha, 0, len);
+                            info.PaletteAlpha = alpha;
                             // An index i is fully transparent when its tRNS alpha byte == 0;
                             // indices beyond the tRNS length are implicitly opaque (255).
                             var trans = new System.Collections.Generic.List<int>();
@@ -184,7 +196,9 @@ namespace FEBuilderGBA
                 info.Ok = true;
 
                 // Index recovery only for indexed 8-bit (what the writer emits) with IDAT.
-                if (info.ColorType == 3 && info.BitDepth == 8 && idat != null && info.Width > 0 && info.Height > 0)
+                if (info.ColorType == 3 && info.BitDepth == 8 &&
+                    info.InterlaceMethod == 0 &&
+                    idat != null && info.Width > 0 && info.Height > 0)
                 {
                     TryRecoverIndices(idat, info);
                 }

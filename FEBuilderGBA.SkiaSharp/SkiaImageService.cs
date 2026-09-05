@@ -51,14 +51,16 @@ namespace FEBuilderGBA.SkiaSharp
                 indexed.PaletteRgb.Length >= indexed.PaletteColorCount * 3 &&
                 indexed.Width > 0 && indexed.Height > 0 &&
                 (long)indexed.Width * indexed.Height <= int.MaxValue &&
-                bitmap.Width == indexed.Width && bitmap.Height == indexed.Height)
+                bitmap.Width == indexed.Width && bitmap.Height == indexed.Height &&
+                indexed.InterlaceMethod == 0 &&
+                indexed.IndicesAvailable &&
+                indexed.Indices?.Length == indexed.Width * indexed.Height &&
+                HasGbaTransparency(indexed))
             {
-                if (indexed.IndicesAvailable &&
-                    indexed.Indices?.Length == indexed.Width * indexed.Height)
+                try
                 {
                     byte[] gbaPalette = ConvertIndexedPaletteToGba(
                         indexed.PaletteRgb, indexed.PaletteColorCount);
-                    bitmap.Dispose();
 
                     var image = new SkiaImage(
                         indexed.Width, indexed.Height, gbaPalette,
@@ -66,8 +68,26 @@ namespace FEBuilderGBA.SkiaSharp
                     image.SetPixelData(indexed.Indices);
                     return image;
                 }
+                finally
+                {
+                    bitmap.Dispose();
+                }
             }
             return new SkiaImage(bitmap);
+        }
+
+        static bool HasGbaTransparency(IndexedPngInfo indexed)
+        {
+            if (!indexed.HasTrns) return false;
+            for (int i = 0; i < indexed.PaletteColorCount; i++)
+            {
+                byte alpha = i < indexed.PaletteAlpha.Length
+                    ? indexed.PaletteAlpha[i]
+                    : (byte)255;
+                byte expected = i == 0 ? (byte)0 : (byte)255;
+                if (alpha != expected) return false;
+            }
+            return true;
         }
 
         byte[] ConvertIndexedPaletteToGba(byte[] paletteRgb, int colorCount)

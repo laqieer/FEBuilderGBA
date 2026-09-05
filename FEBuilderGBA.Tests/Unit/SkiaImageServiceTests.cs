@@ -396,6 +396,117 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        [Fact]
+        public void LoadImageFromBytesPreservingIndexed_NoTransparency_FallsBackToRgba()
+        {
+            var svc = new SkiaImageService();
+            byte[] png = IndexedPngWriter.Write(
+                MakeIndexedPixels(8, 8), 8, 8,
+                MakeIndexedPalette(), 16, transparentIndex: -1);
+
+            using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
+
+            Assert.False(loaded.IsIndexed);
+            Assert.Equal(8 * 8 * 4, loaded.GetPixelData().Length);
+        }
+
+        [Fact]
+        public void LoadImageFromBytesPreservingIndexed_NonzeroTransparentIndex_FallsBackToRgba()
+        {
+            var svc = new SkiaImageService();
+            byte[] png = IndexedPngWriter.Write(
+                MakeIndexedPixels(8, 8), 8, 8,
+                MakeIndexedPalette(), 16, transparentIndex: 1);
+
+            using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
+
+            Assert.False(loaded.IsIndexed);
+        }
+
+        [Fact]
+        public void LoadImageFromBytesPreservingIndexed_PartialAlpha_FallsBackToRgba()
+        {
+            var svc = new SkiaImageService();
+            byte[] png = IndexedPngWriter.Write(
+                MakeIndexedPixels(8, 8), 8, 8,
+                MakeIndexedPalette(), 16, transparentIndex: 0);
+            SetFirstTrnsAlphaAndRepairCrc(png, 128);
+
+            using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
+
+            Assert.False(loaded.IsIndexed);
+        }
+
+        [Fact]
+        public void LoadImageFromBytesPreservingIndexed_Adam7_FallsBackToRgba()
+        {
+            var svc = new SkiaImageService();
+            byte[] png = IndexedPngWriter.Write(
+                new byte[] { 1 }, 1, 1,
+                MakeIndexedPalette(), 16, transparentIndex: 0);
+            SetIhdrInterlaceAndRepairCrc(png, 1);
+
+            using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
+
+            Assert.False(loaded.IsIndexed);
+        }
+
+        static void SetIhdrInterlaceAndRepairCrc(byte[] png, byte interlace)
+        {
+            png[28] = interlace;
+            uint crc = Crc32(png, 12, 17);
+            png[29] = (byte)(crc >> 24);
+            png[30] = (byte)(crc >> 16);
+            png[31] = (byte)(crc >> 8);
+            png[32] = (byte)crc;
+        }
+
+        static void SetFirstTrnsAlphaAndRepairCrc(byte[] png, byte alpha)
+        {
+            int offset = 8;
+            while (offset + 12 <= png.Length)
+            {
+                int length = ReadU32Be(png, offset);
+                if (png[offset + 4] == (byte)'t' &&
+                    png[offset + 5] == (byte)'R' &&
+                    png[offset + 6] == (byte)'N' &&
+                    png[offset + 7] == (byte)'S')
+                {
+                    int dataOffset = offset + 8;
+                    png[dataOffset] = alpha;
+                    uint crc = Crc32(png, offset + 4, 4 + length);
+                    int crcOffset = dataOffset + length;
+                    png[crcOffset] = (byte)(crc >> 24);
+                    png[crcOffset + 1] = (byte)(crc >> 16);
+                    png[crcOffset + 2] = (byte)(crc >> 8);
+                    png[crcOffset + 3] = (byte)crc;
+                    return;
+                }
+                offset += 12 + length;
+            }
+            throw new InvalidDataException("tRNS chunk not found.");
+        }
+
+        static int ReadU32Be(byte[] data, int offset)
+            => (data[offset] << 24) |
+               (data[offset + 1] << 16) |
+               (data[offset + 2] << 8) |
+               data[offset + 3];
+
+        static uint Crc32(byte[] data, int offset, int count)
+        {
+            uint crc = 0xFFFFFFFF;
+            for (int i = offset; i < offset + count; i++)
+            {
+                crc ^= data[i];
+                for (int bit = 0; bit < 8; bit++)
+                    crc = (crc & 1) != 0
+                        ? 0xEDB88320 ^ (crc >> 1)
+                        : crc >> 1;
+            }
+            return crc ^ 0xFFFFFFFF;
+        }
+
         static byte[] MakeIndexedPalette()
         {
             var palette = new byte[32];
