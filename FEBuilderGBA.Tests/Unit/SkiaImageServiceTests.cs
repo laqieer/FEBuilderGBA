@@ -345,8 +345,9 @@ namespace FEBuilderGBA.Tests.Unit
             var svc = new SkiaImageService();
             byte[] palette = MakeIndexedPalette();
             byte[] indices = MakeIndexedPixels(8, 8);
-            byte[] png = IndexedPngWriter.Write(
-                indices, 8, 8, palette, 16, transparentIndex: 0);
+            byte[] png = IndexedPngWriter.WriteWithBitDepth(
+                indices, 8, 8, palette, 16,
+                bitDepth: 4, transparentIndex: 0);
 
             using var loaded = svc.LoadImageFromBytes(png);
 
@@ -360,8 +361,9 @@ namespace FEBuilderGBA.Tests.Unit
             var svc = new SkiaImageService();
             byte[] palette = MakeIndexedPalette();
             byte[] indices = MakeIndexedPixels(8, 8);
-            byte[] png = IndexedPngWriter.Write(
-                indices, 8, 8, palette, 16, transparentIndex: 0);
+            byte[] png = IndexedPngWriter.WriteWithBitDepth(
+                indices, 8, 8, palette, 16,
+                bitDepth: 4, transparentIndex: 0);
 
             using var loaded = svc.LoadImageFromBytesPreservingIndexed(png);
 

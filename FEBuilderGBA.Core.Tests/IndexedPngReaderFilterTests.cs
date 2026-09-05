@@ -58,6 +58,28 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(info.IndicesAvailable);
         }
 
+        [Theory]
+        [InlineData(1)]
+        [InlineData(2)]
+        [InlineData(4)]
+        public void Read_PackedIndexedPng_RecoversExactIndices(int bitDepth)
+        {
+            int colorCount = 1 << bitDepth;
+            byte[] palette = new byte[colorCount * 2];
+            byte[] indices = new byte[16];
+            for (int i = 0; i < indices.Length; i++)
+                indices[i] = (byte)(i % colorCount);
+            byte[] png = IndexedPngWriter.WriteWithBitDepth(
+                indices, 16, 1, palette, colorCount, bitDepth, transparentIndex: 0);
+
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+
+            Assert.True(info.Ok, info.Error);
+            Assert.Equal(bitDepth, info.BitDepth);
+            Assert.True(info.IndicesAvailable);
+            Assert.Equal(indices, info.Indices);
+        }
+
         static byte[] EncodeFiltered(
             byte[] pixels, int width, int height, int filter)
         {

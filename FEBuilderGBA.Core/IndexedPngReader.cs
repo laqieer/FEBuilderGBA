@@ -195,8 +195,10 @@ namespace FEBuilderGBA
 
                 info.Ok = true;
 
-                // Index recovery only for indexed 8-bit (what the writer emits) with IDAT.
-                if (info.ColorType == 3 && info.BitDepth == 8 &&
+                // Recover all standard indexed bit depths for non-interlaced PNGs.
+                if (info.ColorType == 3 &&
+                    (info.BitDepth == 1 || info.BitDepth == 2 ||
+                     info.BitDepth == 4 || info.BitDepth == 8) &&
                     info.InterlaceMethod == 0 &&
                     idat != null && info.Width > 0 && info.Height > 0)
                 {
@@ -235,12 +237,13 @@ namespace FEBuilderGBA
                 }
 
                 int w = info.Width, h = info.Height;
-                long expected = (long)h * (1 + w);
+                long rowBytes = ((long)w * info.BitDepth + 7) / 8;
+                long expected = (long)h * (1 + rowBytes);
                 if (raw.Length < expected)
                     return; // not enough scanline data; leave indices unavailable
 
                 byte[] indices = ReconstructIndexedScanlines(
-                    raw, w, h, out bool unsupportedFilter);
+                    raw, w, h, info.BitDepth, out bool unsupportedFilter);
                 info.FiltersUnsupportedForIndexCheck = unsupportedFilter;
                 if (indices == null) return;
                 info.Indices = indices;
@@ -255,16 +258,28 @@ namespace FEBuilderGBA
 
         internal static byte[] ReconstructIndexedScanlines(
             byte[] raw, int width, int height, out bool unsupportedFilter)
+            => ReconstructIndexedScanlines(
+                raw, width, height, bitDepth: 8, out unsupportedFilter);
+
+        internal static byte[] ReconstructIndexedScanlines(
+            byte[] raw, int width, int height, int bitDepth,
+            out bool unsupportedFilter)
         {
             unsupportedFilter = false;
             if (raw == null || width <= 0 || height <= 0) return null;
-            if (raw.Length < (long)height * (width + 1)) return null;
+            if (bitDepth != 1 && bitDepth != 2 &&
+                bitDepth != 4 && bitDepth != 8)
+                return null;
+            long rowBytesValue = ((long)width * bitDepth + 7) / 8;
+            if (rowBytesValue > int.MaxValue) return null;
+            int rowBytes = (int)rowBytesValue;
+            if (raw.Length < (long)height * (rowBytes + 1)) return null;
 
-            var indices = new byte[width * height];
+            var packed = new byte[rowBytes * height];
             for (int y = 0; y < height; y++)
             {
-                int rawRow = y * (width + 1);
-                int outputRow = y * width;
+                int rawRow = y * (rowBytes + 1);
+                int outputRow = y * rowBytes;
                 byte filter = raw[rawRow];
                 if (filter > 4)
                 {
@@ -272,13 +287,13 @@ namespace FEBuilderGBA
                     return null;
                 }
 
-                for (int x = 0; x < width; x++)
+                for (int x = 0; x < rowBytes; x++)
                 {
                     byte encoded = raw[rawRow + 1 + x];
-                    byte left = x > 0 ? indices[outputRow + x - 1] : (byte)0;
-                    byte up = y > 0 ? indices[outputRow - width + x] : (byte)0;
+                    byte left = x > 0 ? packed[outputRow + x - 1] : (byte)0;
+                    byte up = y > 0 ? packed[outputRow - rowBytes + x] : (byte)0;
                     byte upLeft = x > 0 && y > 0
-                        ? indices[outputRow - width + x - 1]
+                        ? packed[outputRow - rowBytes + x - 1]
                         : (byte)0;
                     int predictor = filter switch
                     {
@@ -289,7 +304,22 @@ namespace FEBuilderGBA
                         4 => PaethPredictor(left, up, upLeft),
                         _ => 0,
                     };
-                    indices[outputRow + x] = unchecked((byte)(encoded + predictor));
+                    packed[outputRow + x] = unchecked((byte)(encoded + predictor));
+                }
+            }
+
+            var indices = new byte[width * height];
+            int mask = (1 << bitDepth) - 1;
+            for (int y = 0; y < height; y++)
+            {
+                int packedRow = y * rowBytes;
+                int outputRow = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    int bitOffset = x * bitDepth;
+                    int shift = 8 - bitDepth - (bitOffset % 8);
+                    indices[outputRow + x] =
+                        (byte)((packed[packedRow + bitOffset / 8] >> shift) & mask);
                 }
             }
             return indices;

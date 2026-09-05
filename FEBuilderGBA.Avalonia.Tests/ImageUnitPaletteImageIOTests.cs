@@ -221,7 +221,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaFact]
-        public void Import_TrueIndexedPng_PreservesEmbeddedPaletteOrder()
+        public void Import_True4BitIndexedPng_PreservesEmbeddedPaletteOrder()
         {
             EnsureImageService();
             var rom = MakeRom(out uint p12Offset);
@@ -242,8 +242,9 @@ namespace FEBuilderGBA.Avalonia.Tests
                 byte[] indices = Enumerable.Range(0, 16)
                     .Select(i => (byte)(15 - i))
                     .ToArray();
-                byte[] png = IndexedPngWriter.Write(
-                    indices, 16, 1, gbaPalette, 16, transparentIndex: 0);
+                byte[] png = IndexedPngWriter.WriteWithBitDepth(
+                    indices, 16, 1, gbaPalette, 16,
+                    bitDepth: 4, transparentIndex: 0);
                 string imagePath = Path.Combine(
                     Path.GetTempPath(), $"unit-palette-indexed-{Guid.NewGuid():N}.png");
                 try

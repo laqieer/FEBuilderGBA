@@ -40,16 +40,47 @@ namespace FEBuilderGBA
             byte[] gbaPalette,
             int paletteColorCount,
             int transparentIndex = 0)
+            => WriteCore(indices, width, height, gbaPalette,
+                paletteColorCount, bitDepth: 8, transparentIndex);
+
+        /// <summary>
+        /// Encode an indexed PNG with an explicit standard indexed bit depth
+        /// (1, 2, 4, or 8). Primarily used for compatibility fixtures.
+        /// </summary>
+        public static byte[] WriteWithBitDepth(
+            byte[] indices,
+            int width,
+            int height,
+            byte[] gbaPalette,
+            int paletteColorCount,
+            int bitDepth,
+            int transparentIndex = 0)
+            => WriteCore(indices, width, height, gbaPalette,
+                paletteColorCount, bitDepth, transparentIndex);
+
+        static byte[] WriteCore(
+            byte[] indices,
+            int width,
+            int height,
+            byte[] gbaPalette,
+            int paletteColorCount,
+            int bitDepth,
+            int transparentIndex)
         {
             try
             {
                 // ---- Validate inputs ----
                 if (indices == null) return null;
                 if (width <= 0 || height <= 0) return null;
-                if (indices.Length != width * height) return null;
+                long pixelCount = (long)width * height;
+                if (pixelCount > int.MaxValue || indices.Length != pixelCount) return null;
                 if (gbaPalette == null) return null;
                 if (paletteColorCount < 1 || paletteColorCount > 256) return null;
                 if (gbaPalette.Length < paletteColorCount * 2) return null;
+                if (bitDepth != 1 && bitDepth != 2 &&
+                    bitDepth != 4 && bitDepth != 8)
+                    return null;
+                if (paletteColorCount > (1 << bitDepth)) return null;
 
                 // Every pixel index must be representable by the PLTE
                 // (color type 3 requires index < palette size). An out-of-range
@@ -68,7 +99,7 @@ namespace FEBuilderGBA
                 byte[] ihdrData = new byte[13];
                 WriteU32BE(ihdrData, 0, (uint)width);
                 WriteU32BE(ihdrData, 4, (uint)height);
-                ihdrData[8] = 8;   // bit depth = 8
+                ihdrData[8] = (byte)bitDepth;
                 ihdrData[9] = 3;   // color type = indexed (palette)
                 ihdrData[10] = 0;  // compression method = deflate
                 ihdrData[11] = 0;  // filter method = adaptive
@@ -102,13 +133,21 @@ namespace FEBuilderGBA
                 }
 
                 // ---- IDAT ----
-                // Raw scanlines: for each row, prefix with filter byte 0, then width pixel indices
-                byte[] scanlines = new byte[height * (1 + width)];
+                // Raw scanlines: filter byte 0 followed by packed indices.
+                int rowBytes = (int)(((long)width * bitDepth + 7) / 8);
+                byte[] scanlines = new byte[height * (1 + rowBytes)];
                 for (int y = 0; y < height; y++)
                 {
-                    int scanlineBase = y * (1 + width);
+                    int scanlineBase = y * (1 + rowBytes);
                     scanlines[scanlineBase] = 0; // filter type = None
-                    Array.Copy(indices, y * width, scanlines, scanlineBase + 1, width);
+                    for (int x = 0; x < width; x++)
+                    {
+                        int bitOffset = x * bitDepth;
+                        int byteOffset = bitOffset / 8;
+                        int shift = 8 - bitDepth - (bitOffset % 8);
+                        scanlines[scanlineBase + 1 + byteOffset] |=
+                            (byte)(indices[y * width + x] << shift);
+                    }
                 }
 
                 // zlib compress: 2-byte header (0x78 0x01) + deflate body + Adler-32 (4 bytes BE)
