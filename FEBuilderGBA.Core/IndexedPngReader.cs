@@ -57,8 +57,8 @@ namespace FEBuilderGBA
         public bool IndicesAvailable;
 
         /// <summary>
-        /// True when the IDAT used a PNG scanline filter other than 0 (None), so the
-        /// index-level recovery was skipped — a structural check is still valid.
+        /// True when the IDAT used an unknown scanline filter, so index-level
+        /// recovery was skipped while structural parsing remained valid.
         /// </summary>
         public bool FiltersUnsupportedForIndexCheck;
 
@@ -71,8 +71,9 @@ namespace FEBuilderGBA
     /// <see cref="IndexedPngWriter"/>. Parses the PNG signature + IHDR + PLTE + tRNS and
     /// INFLATEs IDAT to recover the per-pixel palette indices for validation.
     ///
-    /// PNG scanline filter types 0-4 are reconstructed for 8-bit indexed images,
-    /// so files resaved by external editors retain their exact palette indices.
+    /// PNG scanline filter types 0-4 are reconstructed for 1-, 2-, 4-, and
+    /// 8-bit indexed images, so files resaved by external editors retain their
+    /// exact palette indices.
     ///
     /// NEVER throws: any malformed input yields <c>Ok=false</c> + an <c>Error</c>.
     /// </summary>
