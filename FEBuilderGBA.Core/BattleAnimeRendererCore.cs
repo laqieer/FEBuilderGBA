@@ -616,8 +616,9 @@ namespace FEBuilderGBA
                 return null;
 
             byte[] indices = MapRgbaToPaletteIndices(rgba, palette);
-            return IndexedPngWriter.Write(
-                indices, grid.Width, grid.Height, palette, 16, transparentIndex: 0);
+            return IndexedPngWriter.WriteWithBitDepth(
+                indices, grid.Width, grid.Height, palette, 16,
+                bitDepth: 4, transparentIndex: 0);
         }
 
         /// <summary>

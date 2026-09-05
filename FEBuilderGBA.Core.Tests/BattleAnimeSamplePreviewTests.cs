@@ -236,6 +236,7 @@ namespace FEBuilderGBA.Core.Tests
             Assert.NotNull(png);
             IndexedPngInfo info = IndexedPngReader.Read(png);
             Assert.True(info.Ok, info.Error);
+            Assert.Equal(4, info.BitDepth);
             Assert.Equal(3, info.ColorType);
             Assert.Equal(16, info.PaletteColorCount);
             Assert.True(info.IndicesAvailable);
