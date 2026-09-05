@@ -171,6 +171,22 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void WritePalette_OverflowSlot_ReturnsNotFound()
+        {
+            var compressed = LZ77.compress(PackRgb555(
+                MakeUniquePalette().r,
+                MakeUniquePalette().g,
+                MakeUniquePalette().b));
+            var (rom, _, _) = BuildRomWithPaletteAt(compressed);
+            var (r, g, b) = MakeUniquePalette();
+
+            Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(
+                rom, uint.MaxValue - 1, r, g, b, 0, false, undo: null));
+            Assert.False(UnitPaletteWriteCore.HasWritablePaletteSource(
+                rom, uint.MaxValue - 1));
+        }
+
+        [Fact]
         public void WritePalette_NonLZ77Source_ReturnsNotFound()
         {
             byte[] data = new byte[0x10000];
@@ -185,6 +201,24 @@ namespace FEBuilderGBA.Core.Tests
             CoreState.ROM = rom;
             var (r, g, b) = MakeUniquePalette();
             Assert.Equal(U.NOT_FOUND, UnitPaletteWriteCore.WritePalette(rom, 0x4Cu, r, g, b, 0, false, undo: null));
+        }
+
+        [Fact]
+        public void HasWritablePaletteSource_DistinguishesValidAndMissingStreams()
+        {
+            var (r, g, b) = MakeUniquePalette();
+            byte[] compressed = LZ77.compress(PackRgb555(r, g, b));
+            var (rom, _, p12Slot) = BuildRomWithPaletteAt(compressed);
+
+            Assert.True(UnitPaletteWriteCore.HasWritablePaletteSource(rom, p12Slot));
+
+            U.write_u32(rom.Data, p12Slot, 0);
+            Assert.False(UnitPaletteWriteCore.HasWritablePaletteSource(rom, p12Slot));
+
+            uint junkOffset = 0x400;
+            for (int i = 0; i < 32; i++) rom.Data[junkOffset + i] = 0xAB;
+            U.write_u32(rom.Data, p12Slot, U.toPointer(junkOffset));
+            Assert.False(UnitPaletteWriteCore.HasWritablePaletteSource(rom, p12Slot));
         }
 
         // ===== Single-slot in-place writes (no other slots present) =====

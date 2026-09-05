@@ -465,6 +465,16 @@ namespace FEBuilderGBA.Avalonia.Views
             int paletteIndex = PaletteTypeCombo.SelectedIndex;
             if (paletteIndex < 0) paletteIndex = 0;
             bool isOverrideAll = PaletteOverrideAllCheck.IsChecked ?? false;
+            ulong p12SlotValue = (ulong)_vm.CurrentAddr + 12;
+            if (p12SlotValue > uint.MaxValue ||
+                !UnitPaletteWriteCore.HasWritablePaletteSource(
+                    CoreState.ROM, (uint)p12SlotValue))
+            {
+                CoreState.Services?.ShowError(R._(
+                    "Palette area has not been allocated. Use New Palette Allocation first."));
+                return false;
+            }
+
             _undoService.Begin("Write Unit Palette");
             try
             {
@@ -482,9 +492,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (newP12 == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND (invalid pointer or LZ77 stream).");
-                    CoreState.Services?.ShowError(R._(
-                        "Palette area has not been allocated. Use New Palette Allocation first."));
+                    Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND.");
+                    CoreState.Services?.ShowError(R._("Failed to write palette data."));
                     return false;
                 }
                 _vm.PalettePointer = newP12;

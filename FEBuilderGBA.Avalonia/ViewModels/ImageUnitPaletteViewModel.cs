@@ -231,7 +231,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             ROM rom = CoreState.ROM;
             if (rom == null || !CanWrite || CurrentAddr == 0 ||
-                CurrentAddr + SIZE > (uint)rom.Data.Length)
+                (ulong)CurrentAddr + SIZE > (ulong)rom.Data.Length)
             {
                 return false;
             }

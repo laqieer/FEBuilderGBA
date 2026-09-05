@@ -578,6 +578,29 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(vm.Write());
         }
 
+        [Fact]
+        public void ViewModelWrite_OverflowAddress_ReturnsFalse()
+        {
+            ROM? previousRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+                CoreState.ROM = rom;
+                var vm = new ImageUnitPaletteViewModel
+                {
+                    CanWrite = true,
+                    CurrentAddr = uint.MaxValue - 8,
+                };
+
+                Assert.False(vm.Write());
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
+        }
+
         // ===================== helpers =====================
 
         static void EnsureImageService()
