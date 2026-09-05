@@ -134,10 +134,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 // around their 48-spinner writes) so a single entry-load/import
                 // fires ZERO per-spinner renders — the load path runs ONE final
                 // RefreshSamplePreview() itself.
-                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
-                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
-                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
             }
+        }
+
+        void OnPaletteColorChanged(int index)
+        {
+            RefreshSwatch(index);
+            if (_vm.IsLoading) return;
+            _vm.MarkDirty();
+            RefreshSamplePreview();
         }
 
         void LoadList()
@@ -679,6 +687,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // would cause a stale write. UI-only updates — no undo scope here
             // (PaletteWrite_Click owns its own).
             ApplyImportedChannels(r, g, b);
+            _vm.MarkDirty();
 
             // Reuse the existing ROM write (owns its single undo scope +
             // LZ77/repoint). #906 review: call the sender/args-free core method,

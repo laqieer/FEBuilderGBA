@@ -805,17 +805,18 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [Fact]
-        public void View_RgbValueChanged_RefreshesSamplePreview_GuardedByIsLoading()
+        public void View_RgbValueChanged_MarksDirtyAndRefreshesPreview_WhenNotLoading()
         {
-            // The R/G/B ValueChanged handlers must call RefreshSamplePreview()
-            // guarded by !_vm.IsLoading (the bulk-load suppression).
+            // The R/G/B ValueChanged handlers share one helper so each genuine
+            // user edit marks dirty and refreshes the sample, while bulk loads
+            // still return before either action.
             string src = ReadViewSource();
-            Assert.Contains("if (!_vm.IsLoading) RefreshSamplePreview()", src);
-            // All three channels (R/G/B) wire the guarded refresh.
-            int guarded = System.Text.RegularExpressions.Regex.Matches(
-                src, @"if \(!_vm\.IsLoading\) RefreshSamplePreview\(\)").Count;
-            Assert.True(guarded >= 3,
-                $"expected R/G/B (>=3) guarded RefreshSamplePreview calls, found {guarded}");
+            int wired = System.Text.RegularExpressions.Regex.Matches(
+                src, @"ValueChanged \+= \(_, _\) => OnPaletteColorChanged\(captureIdx\)").Count;
+            Assert.Equal(3, wired);
+            Assert.Matches(new System.Text.RegularExpressions.Regex(
+                @"void\s+OnPaletteColorChanged\(int index\)\s*\{[\s\S]*?RefreshSwatch\(index\);[\s\S]*?if \(_vm\.IsLoading\) return;[\s\S]*?_vm\.MarkDirty\(\);[\s\S]*?RefreshSamplePreview\(\);",
+                System.Text.RegularExpressions.RegexOptions.Singleline), src);
         }
 
         [Fact]

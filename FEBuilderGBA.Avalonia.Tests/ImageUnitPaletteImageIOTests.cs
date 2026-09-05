@@ -187,6 +187,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 {
                     bool ok = (bool)Invoke(view, "ImportFromFile", imgPath)!;
                     Assert.True(ok);
+                    Assert.False(vm.IsDirty);
 
                     // Assert the 16 NUD triples equal the source palette IN INDEX
                     // ORDER (ordered equality — guards CORRECTION 3b).
@@ -323,6 +324,27 @@ namespace FEBuilderGBA.Avalonia.Tests
                     view, "ImageUnitPalette_PaletteWrite_Button")!.IsEnabled);
                 Assert.True(FindByAutomationId<Button>(
                     view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
+        }
+
+        [AvaloniaFact]
+        public void PaletteColorEdit_MarksViewModelDirty()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeRom(out _);
+                var view = OpenViewWithSelection(out var vm);
+                vm.MarkClean();
+
+                NUD(view, "R", 0).Value = 31;
+
+                Assert.True(vm.IsDirty);
             }
             finally
             {
@@ -556,6 +578,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 Assert.Equal(r5, (uint)(NUD(view, "R", 0).Value ?? -1));
                 Assert.Equal(g5, (uint)(NUD(view, "G", 0).Value ?? -1));
                 Assert.Equal(b5, (uint)(NUD(view, "B", 0).Value ?? -1));
+                Assert.True(vm.IsDirty);
                 Assert.Equal(R._(
                     "Palette area has not been allocated. Use New Palette Allocation first."),
                     services.LastError);
