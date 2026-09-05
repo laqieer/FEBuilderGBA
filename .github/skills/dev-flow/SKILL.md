@@ -18,6 +18,12 @@ Invoke this skill before creating a branch or changing repository files. The sou
    - `high`: two reviewers from distinct providers; add `security-review` when security-relevant.
 5. Post the consolidated verdict with `Review Tier`, classifier result, reviewer IDs when required, and the runtime footer. Do not implement until no blocking concerns remain.
 
+For every normal/high plan or PR board, follow [dynamic reviewer selection](../../reviewer-selection.md) and the [workflow review gates](../../../DEVELOPMENT-WORKFLOW.md#review-gates). Capture a fresh list from the actual dispatch tool, resolve fields metadata-first with the approved `dynamic-R1` fallback, and select the newest eligible comparable version per non-developer configured publisher. New matching versions/variants require no per-ID approval or source edit; snapshots and examples are audit outputs, never allowlists.
+
+Keep individual unranked/unknown entries excluded with diagnostics, not publisher-wide vetoes. Genuine metadata conflicts or incomparable eligible versioned families still block. Preserve numeric ordering, deterministic ties, stage priorities, and the required distinct-provider counts. Recheck before dispatch; freeze dispatched evidence and never silently substitute after failure.
+
+Record the exact reviewed revision, immutable ruleset/approval references, source/time/snapshot digest, rankings/exclusions, per-field provenance, reviewer IDs, matching requested/registry configured IDs, successful completion, and substantive verdicts. Approved `configured-only` evidence means `execution_identity=unconfirmed`, not backend attestation; execution-confirmed needs authoritative matching execution fields. Missing authority, mismatches, missing completed registry records, or substantive findings block. Material rule/evidence changes require renewed approval; all safeguards and high-risk governance classification remain.
+
 Reviewers fetch issue/plan content from identifiers in their own isolated context. Never paste full bodies, diffs, logs, or images into the coordinator prompt. Reports are findings plus citations, normally under 4 KiB and never over 8 KiB.
 
 ## 2. Isolated implementation
@@ -64,7 +70,7 @@ Open the PR against `laqieer/FEBuilderGBA` with:
 - `## GUI Test Report` plus a real GitHub-attachment screenshot only for GUI `feat`/`fix` changes.
 - Runtime footer.
 
-Classify the actual base-to-head changed paths and run the matching PR gate using the same tier rules as the plan. Any higher actual tier supersedes the plan tier.
+Classify the actual base-to-head changed paths and run the matching PR gate using the same tier rules as the plan, with fresh dynamic discovery and reviews against the exact head. Any higher actual tier supersedes the plan tier. After material revisions, refresh discovery, rerun affected checks, and obtain current review signoff.
 
 Check and clear all three feedback channels after every push:
 

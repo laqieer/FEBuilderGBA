@@ -51,28 +51,37 @@ Any conflict selects the higher tier. An untrusted or cross-repository PR is alw
 | Normal | One reviewer from a different provider | One reviewer from a different provider |
 | High | Two reviewers from distinct providers | Two reviewers from distinct providers; add `security-review` when security-relevant |
 
-Reviewer selection uses the local runtime inventory:
+For each new board, select the **newest among eligible comparable live entries** using the version-independent [reviewer selection rules, `dynamic-R1`](.github/reviewer-selection.md):
 
-1. Inventory source is local runtime metadata only. Keep only explicitly selectable text/chat models whose runtime fields show they can run review agents; exclude picker aliases, non-review specializations, and the active developer provider. If runtime fields cannot determine candidate eligibility or review-agent capacity, fail closed.
-2. Resolve the developer provider identity and every candidate provider identity from runtime metadata only; never infer a provider from model names. Define `advertised_index` as the candidate's zero-based position in the raw runtime-advertised inventory order. Fail closed if any provider identity is missing, contradictory, or ambiguous, or if that raw order is unavailable or contradictory.
-3. Within each provider, sort models ascending by `(advertised_index, model_id lexical)` and retain the first model. If any eligible model ID appears under multiple providers or has a contradictory provider mapping, fail closed before provider selection.
-4. Assign provider role bias by review stage: plan review `Google=0`, `xAI=1`, others `2`; PR review `xAI=0`, `Google=1`, others `2`. Sort providers ascending by `(role bias, first-model advertised_index, provider_id lexical)`.
-5. Normal review takes the first eligible provider. High review takes the first two distinct eligible providers. Never duplicate providers or model IDs; if too few distinct providers remain, fail closed.
-6. Record the inventory source and only the selected provider IDs, model IDs, and reviewer IDs in the Review Board entry.
+1. Capture the actual review-dispatch tool's current selectable-model list, available metadata, and reliable raw order when supplied. Record source, time, and snapshot digest. Explicit model choices in the current tool schema are an acceptable source; historical snapshots, examples, issue prose, and model self-reports are not.
+2. Prefer semantically explicit runtime publisher, comparable-version, and review-capability fields. Fill missing fields only through the maintainer-approved R1 interpretation and capability fallback, recording provenance per field. Resolve the developer the same way and exclude its configured publisher. Exclude aliases/pickers, non-review specializations, unidentified publishers, and individual unranked IDs with diagnostics; an unranked sibling must not veto its rankable publisher peers.
+3. Choose the highest comparable release version within each remaining provider, comparing numeric components rather than version strings. Equal versions use `(raw advertised index, model_id lexical)` if order is reliable, otherwise `model_id lexical`. Block contradictory metadata/mappings, invalid keys, conflicting duplicate IDs, or otherwise eligible but mutually incomparable release families; never conceal that ambiguity by choosing another provider.
+4. Preserve stage bias: plan `Google=0`, `xAI=1`, others `2`; PR `xAI=0`, `Google=1`, others `2`. Order providers by `(stage bias, selected_model.raw_index, provider_id lexical)` with reliable order, otherwise `(stage bias, provider_id lexical)`. Never compare versions across providers. Normal takes one non-developer provider; high takes two distinct non-developer providers, without duplicate models. Missing required providers or insufficient diversity blocks the board.
+5. Record ordered choices before dispatch and recheck their current availability. Recompute the board if the refreshed list changes the selection, including a newer eligible release. Freeze the dispatched snapshot; a subsequent release affects the next board, not an already completed review. A post-dispatch failure or mismatch blocks that board rather than silently substituting an older ID.
+6. Verify successful reviewer completion and matching requested/task-registry configured IDs. With the approved fallback and no authoritative execution identity supplied, evidence may pass as `configured-only`, with `execution_identity=unconfirmed`. Only matching authoritative actual-execution fields support `execution-confirmed`; registry configuration is not backend attestation. A substantive blocker, missing approval/registry evidence, or authoritative identity contradiction still blocks.
 
-Each reviewer fetches the issue/plan/PR/diff from identifiers inside its own isolated invocation. Prompts contain only issue/PR numbers, accepted-plan URL, and current head SHA. Reports contain verdict, findings, and citations; normally under 4 KiB and never over 8 KiB.
+New numeric versions and variants matching unchanged approved rules enter automatically, without source edits or per-ID approval. There is no exact-ID allowlist, version ceiling, fixed preferred model, or cached candidate pool. Selection snapshots are audit outputs only; newest is not a quality claim.
+
+The [ruleset authority and bootstrap](.github/reviewer-selection.md#authority-and-bootstrap) bind R1 to a separate explicit maintainer approval of the exact plan digest. Material rule, algorithm, or evidence changes require renewed review and approval; a newly matching model ID does not. Keep `.github/reviewer-selection.md` changes high-risk and retain every review, safety-screen, CI, feedback, freshness, and merge safeguard.
+
+Each reviewer fetches the issue/plan/PR/diff and approval/board evidence from identifiers inside its own isolated invocation. Prompts provide identifiers, immutable plan/ruleset references, and the current head SHA rather than full source bodies or diffs. Reports contain verdict, findings, and citations; normally under 4 KiB and never over 8 KiB.
 
 Post the consolidated signoff with:
 
 ```text
 Review Tier: low|normal|high
 Classifier Result: <tier and reason>
-Review Board: <inventory source; selected provider ids; selected model ids; reviewer ids, omitted for low>
+Review Board: <link to the complete per-board audit record, omitted for low>
+Ruleset: <dynamic-R1 at full commit SHA; approval permalink>
+Reviewed Revision: <exact plan digest or PR head SHA>
+Evidence: <configured-only | execution-confirmed; execution identity/source or unconfirmed>
 Copilot CLI: <version>
 Model: <display-name> (<model-id>)
 ```
 
 Any blocking finding blocks the gate. Fix it or obtain an explicit withdrawal; the developer cannot silently override it.
+
+Use the [required audit fields](.github/reviewer-selection.md#per-board-audit-record) for discovery, rankings/exclusions, developer and reviewer identities, per-field provenance, registry completion, and verdicts. Under the approved fallback, independence means distinct configured publishers, not independently attested backend diversity.
 
 ## Context hygiene
 
