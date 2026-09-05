@@ -1,4 +1,7 @@
+using System;
+using System.IO;
 using Xunit;
+using FEBuilderGBA;
 using FEBuilderGBA.SkiaSharp;
 
 namespace FEBuilderGBA.Tests.Unit
@@ -334,6 +337,71 @@ namespace FEBuilderGBA.Tests.Unit
             Assert.Equal(16, loaded.Width);
             Assert.Equal(8, loaded.Height);
             Assert.False(loaded.IsIndexed);
+        }
+
+        [Fact]
+        public void LoadImageFromBytes_IndexedPng_PreservesPaletteAndIndices()
+        {
+            var svc = new SkiaImageService();
+            byte[] palette = MakeIndexedPalette();
+            byte[] indices = MakeIndexedPixels(8, 8);
+            byte[] png = IndexedPngWriter.Write(
+                indices, 8, 8, palette, 16, transparentIndex: 0);
+
+            using var loaded = svc.LoadImageFromBytes(png);
+
+            Assert.True(loaded.IsIndexed);
+            Assert.Equal(indices, loaded.GetPixelData());
+            Assert.Equal(palette, loaded.GetPaletteGBA());
+            Assert.Equal(0, loaded.GetPaletteRGBA()[3]);
+        }
+
+        [Fact]
+        public void LoadImage_IndexedPng_PreservesPaletteAndIndices()
+        {
+            var svc = new SkiaImageService();
+            byte[] palette = MakeIndexedPalette();
+            byte[] indices = MakeIndexedPixels(8, 8);
+            byte[] png = IndexedPngWriter.Write(
+                indices, 8, 8, palette, 16, transparentIndex: 0);
+            string path = Path.Combine(
+                Path.GetTempPath(), $"indexed-{Guid.NewGuid():N}.png");
+            try
+            {
+                File.WriteAllBytes(path, png);
+                using var loaded = svc.LoadImage(path);
+
+                Assert.True(loaded.IsIndexed);
+                Assert.Equal(indices, loaded.GetPixelData());
+                Assert.Equal(palette, loaded.GetPaletteGBA());
+            }
+            finally
+            {
+                if (File.Exists(path)) File.Delete(path);
+            }
+        }
+
+        static byte[] MakeIndexedPalette()
+        {
+            var palette = new byte[32];
+            for (int i = 0; i < 16; i++)
+            {
+                ushort color = (ushort)(
+                    (i & 0x1F) |
+                    (((i * 2) & 0x1F) << 5) |
+                    (((i * 3) & 0x1F) << 10));
+                palette[i * 2] = (byte)color;
+                palette[i * 2 + 1] = (byte)(color >> 8);
+            }
+            return palette;
+        }
+
+        static byte[] MakeIndexedPixels(int width, int height)
+        {
+            var indices = new byte[width * height];
+            for (int i = 0; i < indices.Length; i++)
+                indices[i] = (byte)(i % 16);
+            return indices;
         }
 
         [Fact]

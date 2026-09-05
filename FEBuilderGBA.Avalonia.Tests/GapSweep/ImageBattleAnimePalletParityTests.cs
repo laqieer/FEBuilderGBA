@@ -265,14 +265,10 @@ public class ImageBattleAnimePalletParityTests
     }
 
     /// <summary>
-    /// #828: the Export Image button now reuses <c>GbaImageControl.ExportPng</c>
-    /// (the merged read-only PNG primitive, #815) to export the rendered sample
-    /// grid. It is wired to a Click handler, starts disabled (gated until a
-    /// sample render succeeds), and the code-behind drives its IsEnabled from
-    /// <c>SamplePreview.HasImage</c> — the exact pattern
-    /// <c>ImageBattleScreenView</c> (#810) uses. The stale "Export requires…
-    /// WinForms-coupled DrawBattleAnime via ImageFormRef.ExportImage" marker
-    /// must be gone.
+    /// #828/#2149: the Export Image button writes the rendered sample grid as
+    /// an indexed PNG so palette order survives Unit Palette import. It starts
+    /// disabled until a preview render succeeds, and the stale WinForms-coupled
+    /// export marker must remain absent.
     /// </summary>
     [Fact]
     public void View_ExportButton_WiredAndGated()
@@ -290,9 +286,13 @@ public class ImageBattleAnimePalletParityTests
         Assert.DoesNotContain("ImageFormRef.ExportImage", axaml);
 
         string code = File.ReadAllText(CodeBehindPath());
-        // Handler exports the rendered sample preview (no ROM write).
-        Assert.Matches(new Regex(
-            @"SamplePreview\.ExportPng\(\s*TopLevel\.GetTopLevel\(this\)\s+as\s+Window", RegexOptions.Singleline), code);
+        // Handler exports indexed PNG bytes through the SAF-compatible save path.
+        Assert.Contains("_vm.ExportSampleBattleAnimePng()", code);
+        Assert.Contains("FileDialogHelper.SaveImageFileVia", code);
+        Assert.Contains("File.WriteAllBytes", code);
+        Assert.DoesNotContain(
+            "SamplePreview.ExportPng(TopLevel.GetTopLevel(this)",
+            code);
         // Gate is driven from HasImage and applied to the button.
         Assert.Matches(new Regex(
             @"ExportButton\.IsEnabled\s*=\s*SamplePreview\.HasImage",

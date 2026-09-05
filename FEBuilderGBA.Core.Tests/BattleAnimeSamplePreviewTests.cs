@@ -225,6 +225,29 @@ namespace FEBuilderGBA.Core.Tests
         }
 
         [Fact]
+        public void RenderSampleIndexedPng_PreservesPaletteOrderAndTransparency()
+        {
+            ROM rom = MakeAnimeRom();
+            CoreState.ROM = rom;
+
+            byte[] png = BattleAnimeRendererCore.RenderSampleBattleAnimeIndexedPng(
+                RECORD_OFFSET, 0);
+
+            Assert.NotNull(png);
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+            Assert.True(info.Ok, info.Error);
+            Assert.Equal(3, info.ColorType);
+            Assert.Equal(16, info.PaletteColorCount);
+            Assert.True(info.IndicesAvailable);
+            Assert.Contains(0, info.TransparentIndices);
+            Assert.Contains((byte)0, info.Indices);
+            Assert.Contains((byte)5, info.Indices);
+            Assert.Equal(0, info.PaletteRgb[5 * 3 + 0]);
+            Assert.Equal(248, info.PaletteRgb[5 * 3 + 1]);
+            Assert.Equal(0, info.PaletteRgb[5 * 3 + 2]);
+        }
+
+        [Fact]
         public void RenderSample_OutOfRangePaletteIndex_FallsBackToBlock0()
         {
             // paletteIndex 9 is beyond the planted 2 blocks => fall back to

@@ -312,6 +312,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         }
 
         /// <summary>
+        /// Render the current sample grid as an indexed PNG whose PLTE preserves
+        /// the active GBA palette order and whose transparent index is 0.
+        /// </summary>
+        public byte[]? ExportSampleBattleAnimePng()
+        {
+            if (_sourcePointerSlot < PalettePointerOffsetInRecord) return null;
+            uint recordOffset = _sourcePointerSlot - PalettePointerOffsetInRecord;
+            return BattleAnimeRendererCore.RenderSampleBattleAnimeIndexedPng(
+                recordOffset, _paletteTypeIndex);
+        }
+
+        /// <summary>
         /// Apply a 16-color GBA palette (32 bytes, RGB555 u16 LE pairs) to
         /// the VM R/G/B arrays. Mirrors WinForms
         /// <c>PaletteFormRef.MakePaletteBitmapToUI(bitmap, palette_index:0)</c>.

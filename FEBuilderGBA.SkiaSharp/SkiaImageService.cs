@@ -21,10 +21,7 @@ namespace FEBuilderGBA.SkiaSharp
 
         public IImage LoadImage(string filePath)
         {
-            var bitmap = SKBitmap.Decode(filePath);
-            if (bitmap == null)
-                throw new IOException($"Failed to load image: {filePath}");
-            return new SkiaImage(bitmap);
+            return LoadImageFromBytes(File.ReadAllBytes(filePath));
         }
 
         public IImage LoadImageFromBytes(byte[] pngData)
@@ -32,7 +29,91 @@ namespace FEBuilderGBA.SkiaSharp
             var bitmap = SKBitmap.Decode(pngData);
             if (bitmap == null)
                 throw new InvalidOperationException("Failed to decode image from byte data.");
+
+            IndexedPngInfo indexed = IndexedPngReader.Read(pngData);
+            if (indexed.Ok && indexed.ColorType == 3 &&
+                indexed.PaletteColorCount > 0 &&
+                indexed.PaletteColorCount <= 256 &&
+                indexed.PaletteRgb.Length >= indexed.PaletteColorCount * 3 &&
+                indexed.Width > 0 && indexed.Height > 0 &&
+                (long)indexed.Width * indexed.Height <= int.MaxValue &&
+                bitmap.Width == indexed.Width && bitmap.Height == indexed.Height)
+            {
+                try
+                {
+                    byte[] gbaPalette = ConvertIndexedPaletteToGba(
+                        indexed.PaletteRgb, indexed.PaletteColorCount);
+                    byte[] indices = indexed.IndicesAvailable &&
+                        indexed.Indices?.Length == indexed.Width * indexed.Height
+                        ? indexed.Indices
+                        : MapBitmapToPaletteIndices(bitmap, indexed);
+
+                    var image = new SkiaImage(
+                        indexed.Width, indexed.Height, gbaPalette,
+                        indexed.PaletteColorCount);
+                    image.SetPixelData(indices);
+                    return image;
+                }
+                finally
+                {
+                    bitmap.Dispose();
+                }
+            }
             return new SkiaImage(bitmap);
+        }
+
+        byte[] ConvertIndexedPaletteToGba(byte[] paletteRgb, int colorCount)
+        {
+            var result = new byte[colorCount * 2];
+            for (int i = 0; i < colorCount; i++)
+            {
+                ushort color = RGBAToGBAColor(
+                    paletteRgb[i * 3],
+                    paletteRgb[i * 3 + 1],
+                    paletteRgb[i * 3 + 2]);
+                result[i * 2] = (byte)color;
+                result[i * 2 + 1] = (byte)(color >> 8);
+            }
+            return result;
+        }
+
+        static byte[] MapBitmapToPaletteIndices(
+            SKBitmap bitmap, IndexedPngInfo indexed)
+        {
+            SKColor[] pixels = bitmap.Pixels;
+            var result = new byte[indexed.Width * indexed.Height];
+            int transparentIndex = indexed.TransparentIndices.Length > 0
+                ? indexed.TransparentIndices[0]
+                : 0;
+
+            for (int p = 0; p < result.Length; p++)
+            {
+                SKColor pixel = pixels[p];
+                if (pixel.Alpha == 0)
+                {
+                    result[p] = (byte)transparentIndex;
+                    continue;
+                }
+
+                int bestIndex = 0;
+                int bestDistance = int.MaxValue;
+                for (int i = 0; i < indexed.PaletteColorCount; i++)
+                {
+                    int offset = i * 3;
+                    int dr = indexed.PaletteRgb[offset] - pixel.Red;
+                    int dg = indexed.PaletteRgb[offset + 1] - pixel.Green;
+                    int db = indexed.PaletteRgb[offset + 2] - pixel.Blue;
+                    int distance = dr * dr + dg * dg + db * db;
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestIndex = i;
+                        if (distance == 0) break;
+                    }
+                }
+                result[p] = (byte)bestIndex;
+            }
+            return result;
         }
 
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
