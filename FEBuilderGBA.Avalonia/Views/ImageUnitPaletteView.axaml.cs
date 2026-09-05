@@ -664,7 +664,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             byte[] gbaPalette;
             byte[] rgbaPixels;
-            using (IImage image = imgService.LoadImagePreservingIndexed(path))
+            using (IImage image = LoadPaletteImportImage(imgService, path))
             {
                 // Prefer a loader-preserved indexed palette; fall back to the
                 // RGBA pixels (the SkiaSharp loader decodes to RGBA, so this is
@@ -698,6 +698,19 @@ namespace FEBuilderGBA.Avalonia.Views
             // repeating the import.
             RefreshSamplePreview();
             return written;
+        }
+
+        static IImage LoadPaletteImportImage(IImageService imageService, string path)
+        {
+            IImage image = imageService.LoadImagePreservingIndexed(path);
+            if (!image.IsIndexed ||
+                image.GetPaletteGBA().Length <= UnitPaletteImportCore.PALETTE_COUNT * 2)
+            {
+                return image;
+            }
+
+            image.Dispose();
+            return imageService.LoadImage(path);
         }
 
         /// <summary>

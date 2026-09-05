@@ -125,6 +125,12 @@ namespace FEBuilderGBA
                             info.BitDepth = pngBytes[dataPos + 8];
                             info.ColorType = pngBytes[dataPos + 9];
                             info.InterlaceMethod = pngBytes[dataPos + 12];
+                            if (info.InterlaceMethod != 0 &&
+                                info.InterlaceMethod != 1)
+                            {
+                                info.Error = "Invalid PNG interlace method.";
+                                return info;
+                            }
                             sawIhdr = true;
                             break;
 

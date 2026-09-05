@@ -58,6 +58,21 @@ namespace FEBuilderGBA.Core.Tests
             Assert.False(info.IndicesAvailable);
         }
 
+        [Fact]
+        public void Read_InvalidInterlaceMethod_IsRejected()
+        {
+            byte[] palette = new byte[32];
+            byte[] indices = new byte[8 * 8];
+            byte[] png = IndexedPngWriter.Write(
+                indices, 8, 8, palette, 16, transparentIndex: 0);
+            png[28] = 2; // PNG only defines 0 (none) and 1 (Adam7).
+
+            IndexedPngInfo info = IndexedPngReader.Read(png);
+
+            Assert.False(info.Ok);
+            Assert.Contains("interlace", info.Error, StringComparison.OrdinalIgnoreCase);
+        }
+
         [Theory]
         [InlineData(1)]
         [InlineData(2)]

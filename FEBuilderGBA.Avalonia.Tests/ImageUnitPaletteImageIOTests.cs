@@ -276,6 +276,50 @@ namespace FEBuilderGBA.Avalonia.Tests
             }
         }
 
+        [AvaloniaFact]
+        public void Import_IndexedPngWithUnusedExtraPaletteEntries_UsesLegacyRgbaFallback()
+        {
+            EnsureImageService();
+            var rom = MakeRom(out _);
+            var prev = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var view = OpenViewWithSelection(out _);
+                byte[] gbaPalette = new byte[64];
+                for (int i = 0; i < 32; i++)
+                {
+                    ushort color = (ushort)(
+                        (i & 0x1F) |
+                        (((i * 2) & 0x1F) << 5) |
+                        (((i * 3) & 0x1F) << 10));
+                    gbaPalette[i * 2] = (byte)color;
+                    gbaPalette[i * 2 + 1] = (byte)(color >> 8);
+                }
+                byte[] indices = Enumerable.Range(0, 16)
+                    .Select(i => (byte)i)
+                    .ToArray();
+                byte[] png = IndexedPngWriter.Write(
+                    indices, 16, 1, gbaPalette, 32, transparentIndex: 0);
+                string imagePath = Path.Combine(
+                    Path.GetTempPath(), $"unit-palette-indexed-32-{Guid.NewGuid():N}.png");
+                try
+                {
+                    File.WriteAllBytes(imagePath, png);
+                    bool ok = (bool)Invoke(view, "ImportFromFile", imagePath)!;
+                    Assert.True(ok);
+                }
+                finally
+                {
+                    if (File.Exists(imagePath)) File.Delete(imagePath);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+            }
+        }
+
         // ----- >16-color rejection: no NUD change, no ROM write -----
 
         [AvaloniaFact]
