@@ -594,6 +594,34 @@ namespace FEBuilderGBA
             => RenderSampleBattleAnime(animeRecordAddr, paletteIndex, 0);
 
         /// <summary>
+        /// Render the sample grid as an indexed PNG so palette order and
+        /// transparent index 0 survive export/import round trips.
+        /// </summary>
+        public static byte[] RenderSampleBattleAnimeIndexedPng(
+            uint animeRecordAddr, int paletteIndex)
+        {
+            ROM rom = CoreState.ROM;
+            if (rom == null || (ulong)animeRecordAddr + 32 > (ulong)rom.Data.Length)
+                return null;
+            if (paletteIndex < 0) paletteIndex = 0;
+
+            byte[] palette = ResolveSamplePaletteBlock(
+                rom, rom.u32(animeRecordAddr + 28), paletteIndex);
+            if (palette == null || palette.Length < 32) return null;
+
+            using IImage grid = RenderSampleBattleAnime(animeRecordAddr, paletteIndex);
+            if (grid == null) return null;
+            byte[] rgba = grid.GetPixelData();
+            if (rgba == null || rgba.Length < grid.Width * grid.Height * 4)
+                return null;
+
+            byte[] indices = MapRgbaToPaletteIndices(rgba, palette);
+            return IndexedPngWriter.WriteWithBitDepth(
+                indices, grid.Width, grid.Height, palette, 16,
+                bitDepth: 4, transparentIndex: 0);
+        }
+
+        /// <summary>
         /// Palette-override overload of <see cref="RenderSampleBattleAnime(uint,int)"/>.
         /// When <paramref name="paletteOverrideAddr"/> is non-zero, the 12-cell
         /// grid is rendered with the palette block at THAT address (a GBA pointer
@@ -878,6 +906,52 @@ namespace FEBuilderGBA
             byte[] sub = new byte[blockBytes];
             Array.Copy(decompressed, start, sub, 0, blockBytes);
             return sub;
+        }
+
+        static byte[] MapRgbaToPaletteIndices(byte[] rgba, byte[] gbaPalette)
+        {
+            int pixelCount = rgba.Length / 4;
+            var indices = new byte[pixelCount];
+            var palette = new ushort[16];
+            for (int i = 0; i < palette.Length; i++)
+                palette[i] = (ushort)(gbaPalette[i * 2] | (gbaPalette[i * 2 + 1] << 8));
+
+            for (int pixel = 0; pixel < pixelCount; pixel++)
+            {
+                int offset = pixel * 4;
+                if (rgba[offset + 3] == 0)
+                {
+                    indices[pixel] = 0;
+                    continue;
+                }
+
+                ushort color = (ushort)(
+                    ((rgba[offset] >> 3) & 0x1F) |
+                    (((rgba[offset + 1] >> 3) & 0x1F) << 5) |
+                    (((rgba[offset + 2] >> 3) & 0x1F) << 10));
+                int bestIndex = 1;
+                int bestDistance = int.MaxValue;
+                for (int i = 1; i < palette.Length; i++)
+                {
+                    if (palette[i] == color)
+                    {
+                        bestIndex = i;
+                        break;
+                    }
+
+                    int dr = (palette[i] & 0x1F) - (color & 0x1F);
+                    int dg = ((palette[i] >> 5) & 0x1F) - ((color >> 5) & 0x1F);
+                    int db = ((palette[i] >> 10) & 0x1F) - ((color >> 10) & 0x1F);
+                    int distance = dr * dr + dg * dg + db * db;
+                    if (distance < bestDistance)
+                    {
+                        bestDistance = distance;
+                        bestIndex = i;
+                    }
+                }
+                indices[pixel] = (byte)bestIndex;
+            }
+            return indices;
         }
 
         /// <summary>

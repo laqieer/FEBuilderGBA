@@ -26,6 +26,9 @@ namespace FEBuilderGBA
         /// <summary>Color type from IHDR (3 == indexed/palette).</summary>
         public int ColorType;
 
+        /// <summary>Interlace method from IHDR (0 == none, 1 == Adam7).</summary>
+        public int InterlaceMethod;
+
         /// <summary>Number of palette entries (PLTE length / 3); 0 when no PLTE.</summary>
         public int PaletteColorCount;
 
@@ -39,6 +42,11 @@ namespace FEBuilderGBA
         /// <summary>True when a tRNS chunk is present.</summary>
         public bool HasTrns;
 
+        /// <summary>
+        /// Raw tRNS alpha bytes. Palette entries beyond this array are opaque.
+        /// </summary>
+        public byte[] PaletteAlpha = Array.Empty<byte>();
+
         /// <summary>Transparent palette indices (from tRNS, value 0); empty when none.</summary>
         public int[] TransparentIndices = Array.Empty<int>();
 
@@ -49,8 +57,8 @@ namespace FEBuilderGBA
         public bool IndicesAvailable;
 
         /// <summary>
-        /// True when the IDAT used a PNG scanline filter other than 0 (None), so the
-        /// index-level recovery was skipped — a structural check is still valid.
+        /// True when the IDAT used an unknown scanline filter, so index-level
+        /// recovery was skipped while structural parsing remained valid.
         /// </summary>
         public bool FiltersUnsupportedForIndexCheck;
 
@@ -63,10 +71,9 @@ namespace FEBuilderGBA
     /// <see cref="IndexedPngWriter"/>. Parses the PNG signature + IHDR + PLTE + tRNS and
     /// INFLATEs IDAT to recover the per-pixel palette indices for validation.
     ///
-    /// Only PNG scanline filter type 0 (None) is reconstructed — the writer always emits
-    /// filter 0, so a FEBuilder-exported PNG round-trips exactly. A PNG that uses other
-    /// filters parses structurally (dims/palette/tRNS) but sets
-    /// <see cref="IndexedPngInfo.FiltersUnsupportedForIndexCheck"/> instead of throwing.
+    /// PNG scanline filter types 0-4 are reconstructed for 1-, 2-, 4-, and
+    /// 8-bit indexed images, so files resaved by external editors retain their
+    /// exact palette indices.
     ///
     /// NEVER throws: any malformed input yields <c>Ok=false</c> + an <c>Error</c>.
     /// </summary>
@@ -118,6 +125,13 @@ namespace FEBuilderGBA
                             info.Height = ReadU32BE(pngBytes, dataPos + 4);
                             info.BitDepth = pngBytes[dataPos + 8];
                             info.ColorType = pngBytes[dataPos + 9];
+                            info.InterlaceMethod = pngBytes[dataPos + 12];
+                            if (info.InterlaceMethod != 0 &&
+                                info.InterlaceMethod != 1)
+                            {
+                                info.Error = "Invalid PNG interlace method.";
+                                return info;
+                            }
                             sawIhdr = true;
                             break;
 
@@ -134,6 +148,9 @@ namespace FEBuilderGBA
                         case "tRNS":
                         {
                             info.HasTrns = true;
+                            var alpha = new byte[len];
+                            Array.Copy(pngBytes, dataPos, alpha, 0, len);
+                            info.PaletteAlpha = alpha;
                             // An index i is fully transparent when its tRNS alpha byte == 0;
                             // indices beyond the tRNS length are implicitly opaque (255).
                             var trans = new System.Collections.Generic.List<int>();
@@ -185,8 +202,12 @@ namespace FEBuilderGBA
 
                 info.Ok = true;
 
-                // Index recovery only for indexed 8-bit (what the writer emits) with IDAT.
-                if (info.ColorType == 3 && info.BitDepth == 8 && idat != null && info.Width > 0 && info.Height > 0)
+                // Recover all standard indexed bit depths for non-interlaced PNGs.
+                if (info.ColorType == 3 &&
+                    (info.BitDepth == 1 || info.BitDepth == 2 ||
+                     info.BitDepth == 4 || info.BitDepth == 8) &&
+                    info.InterlaceMethod == 0 &&
+                    idat != null && info.Width > 0 && info.Height > 0)
                 {
                     TryRecoverIndices(idat, info);
                 }
@@ -203,9 +224,8 @@ namespace FEBuilderGBA
         }
 
         /// <summary>
-        /// Inflate the zlib IDAT stream and reconstruct filter-0 scanlines into a flat
-        /// index array. Sets <see cref="IndexedPngInfo.FiltersUnsupportedForIndexCheck"/>
-        /// (instead of throwing) when a non-zero filter byte appears. NEVER throws.
+        /// Inflate the zlib IDAT stream and reconstruct PNG filter types 0-4
+        /// into a flat index array. NEVER throws.
         /// </summary>
         static void TryRecoverIndices(byte[] idat, IndexedPngInfo info)
         {
@@ -224,25 +244,15 @@ namespace FEBuilderGBA
                 }
 
                 int w = info.Width, h = info.Height;
-                long expected = (long)h * (1 + w);
+                long rowBytes = ((long)w * info.BitDepth + 7) / 8;
+                long expected = (long)h * (1 + rowBytes);
                 if (raw.Length < expected)
                     return; // not enough scanline data; leave indices unavailable
 
-                var indices = new byte[w * h];
-                for (int y = 0; y < h; y++)
-                {
-                    int rowBase = y * (1 + w);
-                    byte filter = raw[rowBase];
-                    if (filter != 0)
-                    {
-                        // Only filter type 0 (None) is reconstructed here.
-                        info.FiltersUnsupportedForIndexCheck = true;
-                        info.IndicesAvailable = false;
-                        return;
-                    }
-                    Array.Copy(raw, rowBase + 1, indices, y * w, w);
-                }
-
+                byte[] indices = ReconstructIndexedScanlines(
+                    raw, w, h, info.BitDepth, out bool unsupportedFilter);
+                info.FiltersUnsupportedForIndexCheck = unsupportedFilter;
+                if (indices == null) return;
                 info.Indices = indices;
                 info.IndicesAvailable = true;
             }
@@ -251,6 +261,86 @@ namespace FEBuilderGBA
                 // inflate / shape fault: indices simply unavailable (structural still ok).
                 info.IndicesAvailable = false;
             }
+        }
+
+        internal static byte[] ReconstructIndexedScanlines(
+            byte[] raw, int width, int height, out bool unsupportedFilter)
+            => ReconstructIndexedScanlines(
+                raw, width, height, bitDepth: 8, out unsupportedFilter);
+
+        internal static byte[] ReconstructIndexedScanlines(
+            byte[] raw, int width, int height, int bitDepth,
+            out bool unsupportedFilter)
+        {
+            unsupportedFilter = false;
+            if (raw == null || width <= 0 || height <= 0) return null;
+            if (bitDepth != 1 && bitDepth != 2 &&
+                bitDepth != 4 && bitDepth != 8)
+                return null;
+            long rowBytesValue = ((long)width * bitDepth + 7) / 8;
+            if (rowBytesValue > int.MaxValue) return null;
+            int rowBytes = (int)rowBytesValue;
+            if (raw.Length < (long)height * (rowBytes + 1)) return null;
+
+            var packed = new byte[rowBytes * height];
+            for (int y = 0; y < height; y++)
+            {
+                int rawRow = y * (rowBytes + 1);
+                int outputRow = y * rowBytes;
+                byte filter = raw[rawRow];
+                if (filter > 4)
+                {
+                    unsupportedFilter = true;
+                    return null;
+                }
+
+                for (int x = 0; x < rowBytes; x++)
+                {
+                    byte encoded = raw[rawRow + 1 + x];
+                    byte left = x > 0 ? packed[outputRow + x - 1] : (byte)0;
+                    byte up = y > 0 ? packed[outputRow - rowBytes + x] : (byte)0;
+                    byte upLeft = x > 0 && y > 0
+                        ? packed[outputRow - rowBytes + x - 1]
+                        : (byte)0;
+                    int predictor = filter switch
+                    {
+                        0 => 0,
+                        1 => left,
+                        2 => up,
+                        3 => (left + up) / 2,
+                        4 => PaethPredictor(left, up, upLeft),
+                        _ => 0,
+                    };
+                    packed[outputRow + x] = unchecked((byte)(encoded + predictor));
+                }
+            }
+
+            var indices = new byte[width * height];
+            int mask = (1 << bitDepth) - 1;
+            for (int y = 0; y < height; y++)
+            {
+                int packedRow = y * rowBytes;
+                int outputRow = y * width;
+                for (int x = 0; x < width; x++)
+                {
+                    int bitOffset = x * bitDepth;
+                    int shift = 8 - bitDepth - (bitOffset % 8);
+                    indices[outputRow + x] =
+                        (byte)((packed[packedRow + bitOffset / 8] >> shift) & mask);
+                }
+            }
+            return indices;
+        }
+
+        static int PaethPredictor(int left, int up, int upLeft)
+        {
+            int estimate = left + up - upLeft;
+            int leftDistance = Math.Abs(estimate - left);
+            int upDistance = Math.Abs(estimate - up);
+            int upperLeftDistance = Math.Abs(estimate - upLeft);
+            if (leftDistance <= upDistance && leftDistance <= upperLeftDistance)
+                return left;
+            return upDistance <= upperLeftDistance ? up : upLeft;
         }
 
         /// <summary>

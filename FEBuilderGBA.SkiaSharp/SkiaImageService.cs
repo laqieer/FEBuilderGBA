@@ -35,6 +35,76 @@ namespace FEBuilderGBA.SkiaSharp
             return new SkiaImage(bitmap);
         }
 
+        public IImage LoadImagePreservingIndexed(string filePath)
+            => LoadImageFromBytesPreservingIndexed(File.ReadAllBytes(filePath));
+
+        public IImage LoadImageFromBytesPreservingIndexed(byte[] pngData)
+        {
+            var bitmap = SKBitmap.Decode(pngData);
+            if (bitmap == null)
+                throw new InvalidOperationException("Failed to decode image from byte data.");
+
+            IndexedPngInfo indexed = IndexedPngReader.Read(pngData);
+            if (indexed.Ok && indexed.ColorType == 3 &&
+                indexed.PaletteColorCount > 0 &&
+                indexed.PaletteColorCount <= 256 &&
+                indexed.PaletteRgb.Length >= indexed.PaletteColorCount * 3 &&
+                indexed.Width > 0 && indexed.Height > 0 &&
+                (long)indexed.Width * indexed.Height <= int.MaxValue &&
+                bitmap.Width == indexed.Width && bitmap.Height == indexed.Height &&
+                indexed.InterlaceMethod == 0 &&
+                indexed.IndicesAvailable &&
+                indexed.Indices?.Length == indexed.Width * indexed.Height &&
+                HasGbaTransparency(indexed))
+            {
+                try
+                {
+                    byte[] gbaPalette = ConvertIndexedPaletteToGba(
+                        indexed.PaletteRgb, indexed.PaletteColorCount);
+
+                    var image = new SkiaImage(
+                        indexed.Width, indexed.Height, gbaPalette,
+                        indexed.PaletteColorCount);
+                    image.SetPixelData(indexed.Indices);
+                    return image;
+                }
+                finally
+                {
+                    bitmap.Dispose();
+                }
+            }
+            return new SkiaImage(bitmap);
+        }
+
+        static bool HasGbaTransparency(IndexedPngInfo indexed)
+        {
+            if (!indexed.HasTrns) return false;
+            for (int i = 0; i < indexed.PaletteColorCount; i++)
+            {
+                byte alpha = i < indexed.PaletteAlpha.Length
+                    ? indexed.PaletteAlpha[i]
+                    : (byte)255;
+                byte expected = i == 0 ? (byte)0 : (byte)255;
+                if (alpha != expected) return false;
+            }
+            return true;
+        }
+
+        byte[] ConvertIndexedPaletteToGba(byte[] paletteRgb, int colorCount)
+        {
+            var result = new byte[colorCount * 2];
+            for (int i = 0; i < colorCount; i++)
+            {
+                ushort color = RGBAToGBAColor(
+                    paletteRgb[i * 3],
+                    paletteRgb[i * 3 + 1],
+                    paletteRgb[i * 3 + 2]);
+                result[i * 2] = (byte)color;
+                result[i * 2 + 1] = (byte)(color >> 8);
+            }
+            return result;
+        }
+
         public void GBAColorToRGBA(ushort gbaColor, out byte r, out byte g, out byte b)
         {
             r = (byte)((gbaColor & 0x1F) << 3);

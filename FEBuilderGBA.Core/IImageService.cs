@@ -66,6 +66,20 @@ namespace FEBuilderGBA
         /// <summary>Load an image from PNG byte data.</summary>
         IImage LoadImageFromBytes(byte[] pngData);
 
+        /// <summary>
+        /// Load an image while preserving indexed PNG palette/index data when
+        /// the implementation supports it. The default keeps legacy RGBA load
+        /// behavior for existing image-service implementations.
+        /// </summary>
+        IImage LoadImagePreservingIndexed(string filePath) => LoadImage(filePath);
+
+        /// <summary>
+        /// Load PNG bytes while preserving indexed palette/index data when the
+        /// implementation supports it. The default keeps legacy RGBA behavior.
+        /// </summary>
+        IImage LoadImageFromBytesPreservingIndexed(byte[] pngData)
+            => LoadImageFromBytes(pngData);
+
         // ---- GBA Color Conversion ----
 
         /// <summary>

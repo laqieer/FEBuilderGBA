@@ -8,6 +8,7 @@
 using global::Avalonia;
 using System;
 using System.Globalization;
+using System.IO;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Media;
@@ -245,18 +246,24 @@ namespace FEBuilderGBA.Avalonia.Views
         }
 
         /// <summary>
-        /// Export the rendered battle-animation sample grid to a PNG file via a
-        /// non-modal save dialog. #828: reuses <c>GbaImageControl.ExportPng</c>
-        /// — the identical read-only PNG primitive the merged battle-screen
-        /// (#810) and TSA (#810/#815) editors use. Read-only — no ROM write.
+        /// Export the rendered battle-animation sample grid as an indexed PNG
+        /// via a non-modal save dialog. The Core encoder preserves the active
+        /// 16-color palette order and transparent index 0 so Unit Palette import
+        /// can round-trip the file without reconstructing colors from RGBA.
+        /// Read-only — no ROM write.
         /// Enabled only when a render succeeded (<see cref="RefreshSamplePreview"/>
-        /// set <c>HasImage</c>); <c>ExportPng</c> early-returns on a null bitmap.
+        /// set <c>HasImage</c>).
         /// </summary>
         async void Export_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                await SamplePreview.ExportPng(TopLevel.GetTopLevel(this) as Window, ExportSuggestedName());
+                byte[]? png = _vm.ExportSampleBattleAnimePng();
+                if (png == null || png.Length == 0) return;
+                await FileDialogHelper.SaveImageFileVia(
+                    TopLevel.GetTopLevel(this) as Window,
+                    ExportSuggestedName(),
+                    path => File.WriteAllBytes(path, png));
             }
             catch (Exception ex)
             {

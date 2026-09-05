@@ -220,6 +220,106 @@ namespace FEBuilderGBA.Avalonia.Tests
             finally { CoreState.ROM = prev; }
         }
 
+        [AvaloniaFact]
+        public void Import_True4BitIndexedPng_PreservesEmbeddedPaletteOrder()
+        {
+            EnsureImageService();
+            var rom = MakeRom(out uint p12Offset);
+            var prev = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var view = OpenViewWithSelection(out _);
+                var colors = MakeKnownColors();
+                byte[] gbaPalette = new byte[32];
+                for (int i = 0; i < colors.Length; i++)
+                {
+                    var (r5, g5, b5) = Rgb555(colors[i]);
+                    ushort color = (ushort)(r5 | (g5 << 5) | (b5 << 10));
+                    gbaPalette[i * 2] = (byte)color;
+                    gbaPalette[i * 2 + 1] = (byte)(color >> 8);
+                }
+                byte[] indices = Enumerable.Range(0, 16)
+                    .Select(i => (byte)(15 - i))
+                    .ToArray();
+                byte[] png = IndexedPngWriter.WriteWithBitDepth(
+                    indices, 16, 1, gbaPalette, 16,
+                    bitDepth: 4, transparentIndex: 0);
+                string imagePath = Path.Combine(
+                    Path.GetTempPath(), $"unit-palette-indexed-{Guid.NewGuid():N}.png");
+                try
+                {
+                    File.WriteAllBytes(imagePath, png);
+                    bool ok = (bool)Invoke(view, "ImportFromFile", imagePath)!;
+                    Assert.True(ok);
+
+                    for (int i = 0; i < 16; i++)
+                    {
+                        var (r5, g5, b5) = Rgb555(colors[i]);
+                        Assert.Equal(r5, (uint)(NUD(view, "R", i).Value ?? -1));
+                        Assert.Equal(g5, (uint)(NUD(view, "G", i).Value ?? -1));
+                        Assert.Equal(b5, (uint)(NUD(view, "B", i).Value ?? -1));
+                    }
+
+                    byte[] raw = LZ77.decompress(
+                        rom.Data, U.toOffset(rom.u32(p12Offset)));
+                    Assert.Equal(gbaPalette, raw.Take(32));
+                }
+                finally
+                {
+                    if (File.Exists(imagePath)) File.Delete(imagePath);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+            }
+        }
+
+        [AvaloniaFact]
+        public void Import_IndexedPngWithUnusedExtraPaletteEntries_UsesLegacyRgbaFallback()
+        {
+            EnsureImageService();
+            var rom = MakeRom(out _);
+            var prev = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var view = OpenViewWithSelection(out _);
+                byte[] gbaPalette = new byte[64];
+                for (int i = 0; i < 32; i++)
+                {
+                    ushort color = (ushort)(
+                        (i & 0x1F) |
+                        (((i * 2) & 0x1F) << 5) |
+                        (((i * 3) & 0x1F) << 10));
+                    gbaPalette[i * 2] = (byte)color;
+                    gbaPalette[i * 2 + 1] = (byte)(color >> 8);
+                }
+                byte[] indices = Enumerable.Range(0, 16)
+                    .Select(i => (byte)i)
+                    .ToArray();
+                byte[] png = IndexedPngWriter.Write(
+                    indices, 16, 1, gbaPalette, 32, transparentIndex: 0);
+                string imagePath = Path.Combine(
+                    Path.GetTempPath(), $"unit-palette-indexed-32-{Guid.NewGuid():N}.png");
+                try
+                {
+                    File.WriteAllBytes(imagePath, png);
+                    bool ok = (bool)Invoke(view, "ImportFromFile", imagePath)!;
+                    Assert.True(ok);
+                }
+                finally
+                {
+                    if (File.Exists(imagePath)) File.Delete(imagePath);
+                }
+            }
+            finally
+            {
+                CoreState.ROM = prev;
+            }
+        }
+
         // ----- >16-color rejection: no NUD change, no ROM write -----
 
         [AvaloniaFact]
