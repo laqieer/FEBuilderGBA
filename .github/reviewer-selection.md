@@ -35,6 +35,8 @@ Resolve each field deterministically: use semantically explicit runtime metadata
 
 Authoritative runtime metadata contradicting the applicable rule is a blocker, not permission to hide the conflict. Missing or unrelated gateway metadata is not itself a contradiction. Reject contradictory publisher mappings, invalid authoritative keys, and conflicting duplicate IDs. Resolve the active developer's configured publisher with the same procedure and exclude that publisher; an unknown or contradictory developer identity blocks the board.
 
+Use one canonical `provider_id` for grouping, developer exclusion, diversity counts, stage bias, and ties. For R1 publishers, that key is exactly the publisher string in the table below. Runtime identity evidence must unambiguously agree with that key; an unexplained spelling/casing difference or alias is unresolved/conflicting identity, not a second publisher. Do not invent case-folding or alias mappings. A runtime-only new publisher needs a documented, unambiguous canonical key; ambiguity about whether it duplicates another publisher blocks the board. Compare canonical provider keys and model IDs with case-sensitive ordinal equality and ordinal lexical ordering, never locale-dependent comparison. Keep the original runtime value and its provenance in the audit record.
+
 ### Approved publisher and version grammar
 
 These are literal prefixes and generic release families, **not approved model IDs**:
@@ -84,6 +86,8 @@ Disclose exclusions/unranked entries and qualify the result as newest **among el
 | All the above, plus authoritative runtime fields explicitly identifying matching actual execution model and publisher | Record **`execution-confirmed`**, with the authoritative source. Registry configuration alone does not meet this standard. |
 | Missing approval, invalid/ambiguous selection, insufficient required providers, no completed matching registry record, requested/configured mismatch, or contradictory authoritative execution identity | **Block**. No silent replacement, downgrade, or acceptance of a reviewer's prose claim as identity evidence. |
 
+Partial authoritative execution identity also **blocks**: if any actual-execution identity field is supplied but a matching actual model-and-publisher pair cannot be established, neither passing row applies. Record the supplied fields and their authoritative source; do not discard them to claim "no execution identity supplied," or use configured R1 publisher interpretation to fabricate actual-execution attestation. This preserves fail-closed handling rather than extending `configured-only` to a new evidence case.
+
 A substantive blocking finding still blocks at either evidence level. Provider diversity under R1 means distinct approved-rule/runtime-derived **configured publishers**, not independently attested backend diversity. Do not describe configured-only selection as confirmed execution or independent backend attestation.
 
 ## Per-board audit record
@@ -114,8 +118,8 @@ Validate policy changes with the existing Copilot-customization validator/tests,
 | Unknown publisher or publisher with no rankable entries | Diagnose and exclude; apply remaining provider priorities/counts, not a blanket veto on rankable siblings. |
 | Missing specifically required provider, unknown developer, or too few non-developer publishers | Block the board. |
 | Two eligible versioned families within one publisher lacking common ordering | Block; neither drop a family nor conceal ambiguity with another publisher. |
-| Authoritative field contradiction, invalid authoritative key, or conflicting duplicate ID | Block; do not relabel a conflict as merely missing metadata. |
+| Authoritative field contradiction, invalid authoritative key, conflicting duplicate ID, or unresolved publisher spelling/alias | Block; do not relabel a conflict as missing metadata or count two spellings as distinct publishers. |
 | Alias/picker, non-review specialization, or developer-publisher candidate | Exclude before ranking. |
-| Missing approval/completed registry record, dispatch mismatch, or conflicting execution identity | Block regardless of a prose APPROVE verdict. |
+| Missing approval/completed registry record, dispatch mismatch, or partial/conflicting execution identity | Block regardless of a prose APPROVE verdict; matching partial execution fields cannot manufacture a passing evidence case. |
 | Stale snapshot, past example/fixture, or cached preferred ID offered as discovery | Reject it as a candidate source; capture the current dispatch list. |
 | New release after an already completed valid review | Preserve that frozen review; discover afresh for the next board, without endless restarts. |

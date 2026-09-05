@@ -72,16 +72,16 @@ Post the consolidated signoff with:
 Review Tier: low|normal|high
 Classifier Result: <tier and reason>
 Review Board: <link to the complete per-board audit record, omitted for low>
-Ruleset: <dynamic-R1 at full commit SHA; approval permalink>
+Ruleset: <dynamic-R1 at full commit SHA; approval permalink, omitted for low>
 Reviewed Revision: <exact plan digest or PR head SHA>
-Evidence: <configured-only | execution-confirmed; execution identity/source or unconfirmed>
+Evidence: <configured-only | execution-confirmed; execution identity/source or unconfirmed, omitted for low>
 Copilot CLI: <version>
 Model: <display-name> (<model-id>)
 ```
 
 Any blocking finding blocks the gate. Fix it or obtain an explicit withdrawal; the developer cannot silently override it.
 
-Use the [required audit fields](.github/reviewer-selection.md#per-board-audit-record) for discovery, rankings/exclusions, developer and reviewer identities, per-field provenance, registry completion, and verdicts. Under the approved fallback, independence means distinct configured publishers, not independently attested backend diversity.
+For normal/high boards, use the [required audit fields](.github/reviewer-selection.md#per-board-audit-record) for discovery, rankings/exclusions, developer and reviewer identities, per-field provenance, registry completion, and verdicts. Low-tier signoffs omit the reviewer board, ruleset, and evidence fields (or mark them not applicable); they do not invent reviewer evidence. Under the approved fallback, independence means distinct configured publishers, not independently attested backend diversity.
 
 ## Context hygiene
 
