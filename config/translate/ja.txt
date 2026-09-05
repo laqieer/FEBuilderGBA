@@ -12981,6 +12981,12 @@ OBJタイルシートを{0}にエクスポートしました。
 :Palette write refused (invalid address or out of bounds).
 パレットの書き込みが拒否されました（無効なアドレスまたは範囲外）。
 
+:Failed to write palette data.
+パレットデータの書き込みに失敗しました。
+
+:Palette area has not been allocated. Use New Palette Allocation first.
+パレット領域が割り当てられていません。先に「新規パレット割り当て」を使用してください。
+
 :Palette written.
 パレットを書き込みました。
 

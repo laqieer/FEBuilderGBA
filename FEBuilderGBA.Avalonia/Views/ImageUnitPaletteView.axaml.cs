@@ -37,7 +37,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public ImageUnitPaletteView()
         {
             InitializeComponent();
-            EntryList.SelectedAddressChanged += OnSelected;
+            EntryList.SelectedItemChanged += OnSelectedItemChanged;
 
             // Populate the preview sub-palette combo via R._() so it picks up
             // ja/zh translations (ComboBoxItem.Content is not touched by
@@ -67,6 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             ClassBox.ValueChanged += OnClassChanged;
             PreviewPaletteTypeCombo.SelectionChanged += OnPreviewPaletteTypeChanged;
 
+            UpdateWriteCommandState();
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
@@ -133,10 +134,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 // around their 48-spinner writes) so a single entry-load/import
                 // fires ZERO per-spinner renders — the load path runs ONE final
                 // RefreshSamplePreview() itself.
-                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
-                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
-                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => { RefreshSwatch(captureIdx); if (!_vm.IsLoading) RefreshSamplePreview(); };
+                if (_rBoxes[i] != null) _rBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
+                if (_gBoxes[i] != null) _gBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
+                if (_bBoxes[i] != null) _bBoxes[i].ValueChanged += (_, _) => OnPaletteColorChanged(captureIdx);
             }
+        }
+
+        void OnPaletteColorChanged(int index)
+        {
+            RefreshSwatch(index);
+            if (_vm.IsLoading) return;
+            _vm.MarkDirty();
+            RefreshSamplePreview();
         }
 
         void LoadList()
@@ -144,6 +153,10 @@ namespace FEBuilderGBA.Avalonia.Views
             _vm.IsLoading = true;
             try
             {
+                _vm.CurrentAddr = 0;
+                _vm.CanWrite = false;
+                _vm.IsLoaded = false;
+                UpdateWriteCommandState();
                 var items = _vm.LoadList();
                 EntryList.SetItems(items);
                 ReadStartAddressBox.Text = _vm.LoadListBaseAddress();
@@ -154,6 +167,37 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ImageUnitPaletteView.LoadList failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void OnSelectedItemChanged(AddrResult? item)
+        {
+            if (item == null)
+            {
+                ClearSelectedEntry();
+                return;
+            }
+            OnSelected(item.addr);
+        }
+
+        void ClearSelectedEntry()
+        {
+            bool wasLoading = _vm.IsLoading;
+            _vm.IsLoading = true;
+            try
+            {
+                _vm.CurrentAddr = 0;
+                _vm.CanWrite = false;
+                _vm.IsLoaded = false;
+                _vm.SelectedPaletteSlot = 0;
+            }
+            finally
+            {
+                _vm.IsLoading = wasLoading;
+            }
+
+            AddrLabel.Text = "";
+            SelectedAddressBox.Text = "";
+            UpdateWriteCommandState();
         }
 
         void OnSelected(uint addr)
@@ -198,6 +242,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
 
                 UpdateUI();
+                UpdateWriteCommandState();
                 RefreshSamplePreview();
             }
             catch (Exception ex)
@@ -205,6 +250,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ImageUnitPaletteView.OnSelected failed: {0}", ex.Message);
             }
             finally { _vm.IsLoading = false; _vm.MarkClean(); }
+        }
+
+        void UpdateWriteCommandState()
+        {
+            bool canWrite = _vm.CanWrite && _vm.CurrentAddr != 0;
+            WriteButton.IsEnabled = canWrite;
+            PaletteWriteButton.IsEnabled = canWrite;
+            ImportImageButton.IsEnabled = canWrite;
         }
 
         void UpdateUI()
@@ -343,6 +396,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void Write_Click(object? sender, RoutedEventArgs e)
         {
+            if (!_vm.CanWrite || _vm.CurrentAddr == 0)
+            {
+                CoreState.Services?.ShowError(R._("Select a palette entry first."));
+                return;
+            }
+
             _undoService.Begin("Edit Unit Palette");
             try
             {
@@ -359,11 +418,23 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.Id10 = (uint)(Id10Box.Value ?? 0);
                 _vm.Id11 = (uint)(Id11Box.Value ?? 0);
                 _vm.PalettePointer = ParseHexText(PalettePointerBox.Text);
-                _vm.Write();
+                if (!_vm.Write())
+                {
+                    _undoService.Rollback();
+                    CoreState.Services?.ShowError(R._("Failed to write palette data."));
+                    return;
+                }
                 _undoService.Commit();
                 _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Palette written."));
             }
-            catch (Exception ex) { _undoService.Rollback(); Log.ErrorF("ImageUnitPaletteView.Write: {0}", ex.Message); }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.ErrorF("ImageUnitPaletteView.Write: {0}", ex.Message);
+                CoreState.Services?.ShowError(
+                    $"{R._("Failed to write palette data.")} {ex.Message}");
+            }
         }
 
         /// <summary>Palette Write button handler — delegates to
@@ -387,6 +458,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (_vm.CurrentAddr == 0)
             {
                 Log.Error("ImageUnitPaletteView.PaletteWrite: no selected entry.");
+                CoreState.Services?.ShowError(R._("Select a palette entry first."));
                 return false;
             }
             var r = new uint[16];
@@ -401,6 +473,16 @@ namespace FEBuilderGBA.Avalonia.Views
             int paletteIndex = PaletteTypeCombo.SelectedIndex;
             if (paletteIndex < 0) paletteIndex = 0;
             bool isOverrideAll = PaletteOverrideAllCheck.IsChecked ?? false;
+            ulong p12SlotValue = (ulong)_vm.CurrentAddr + 12;
+            if (p12SlotValue > uint.MaxValue ||
+                !UnitPaletteWriteCore.HasWritablePaletteSource(
+                    CoreState.ROM, (uint)p12SlotValue))
+            {
+                CoreState.Services?.ShowError(R._(
+                    "Palette area has not been allocated. Use New Palette Allocation first."));
+                return false;
+            }
+
             _undoService.Begin("Write Unit Palette");
             try
             {
@@ -418,7 +500,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (newP12 == U.NOT_FOUND)
                 {
                     _undoService.Rollback();
-                    Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND (invalid pointer or LZ77 stream).");
+                    Log.Error("ImageUnitPaletteView.PaletteWrite: WritePalette returned NOT_FOUND.");
+                    CoreState.Services?.ShowError(R._("Failed to write palette data."));
                     return false;
                 }
                 _vm.PalettePointer = newP12;
@@ -426,12 +509,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 PaletteAddressBox.Text = $"0x{newP12:X08}";
                 _undoService.Commit();
                 _vm.MarkClean();
+                CoreState.Services?.ShowInfo(R._("Palette written."));
                 return true;
             }
             catch (Exception ex)
             {
                 _undoService.Rollback();
                 Log.ErrorF("ImageUnitPaletteView.PaletteWrite: {0}", ex.Message);
+                CoreState.Services?.ShowError(
+                    $"{R._("Failed to write palette data.")} {ex.Message}");
                 return false;
             }
         }
@@ -564,9 +650,11 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Dialog-free import core (testable seam): load the image, run the
         /// ≤16-color guard + ordered extraction, populate the NumericUpDowns,
         /// then reuse the ROM write. Returns <c>true</c> when the palette was
-        /// applied + written; <c>false</c> when the image was rejected (no UI
-        /// or ROM change). The <see cref="ImportImage_Click"/> handler owns the
-        /// pre-checks (selected entry, image service) + file dialog.
+        /// applied + written. Returns <c>false</c> when the image was rejected
+        /// before changing UI/ROM state, or when the imported control values
+        /// were retained but the ROM write failed. The
+        /// <see cref="ImportImage_Click"/> handler owns the pre-checks (selected
+        /// entry, image service) + file dialog.
         /// </summary>
         internal bool ImportFromFile(string path)
         {
@@ -599,15 +687,17 @@ namespace FEBuilderGBA.Avalonia.Views
             // would cause a stale write. UI-only updates — no undo scope here
             // (PaletteWrite_Click owns its own).
             ApplyImportedChannels(r, g, b);
+            _vm.MarkDirty();
 
             // Reuse the existing ROM write (owns its single undo scope +
             // LZ77/repoint). #906 review: call the sender/args-free core method,
             // NOT the event handler with null RoutedEventArgs.
-            PerformPaletteWrite();
-
-            // Refresh the sample preview to reflect the new palette.
+            bool written = PerformPaletteWrite();
+            // Keep the imported colors visible even when the ROM write fails,
+            // so the user can allocate a palette block and retry without
+            // repeating the import.
             RefreshSamplePreview();
-            return true;
+            return written;
         }
 
         /// <summary>

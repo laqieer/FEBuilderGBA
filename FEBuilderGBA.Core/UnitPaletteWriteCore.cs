@@ -142,7 +142,7 @@ namespace FEBuilderGBA
             if (paletteIndex < 0) return U.NOT_FOUND;
 
             // ----- Read raw P12 pointer (preserve raw for round-trip) -----
-            if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return U.NOT_FOUND;
+            if ((ulong)rowP12SlotOffset + 4 > (ulong)rom.Data.Length) return U.NOT_FOUND;
             uint rawP12 = rom.u32(rowP12SlotOffset);
             if (!U.isPointer(rawP12)) return U.NOT_FOUND;
 
@@ -287,7 +287,7 @@ namespace FEBuilderGBA
             try
             {
                 uint result;
-                if (HasValidLz77Source(rom, rowP12SlotOffset))
+                if (HasWritablePaletteSource(rom, rowP12SlotOffset))
                 {
                     // Existing multi-bank stream: splice + force-append (preserves
                     // untouched banks).
@@ -326,11 +326,12 @@ namespace FEBuilderGBA
         /// <see cref="AllocNewPalette"/> never feeds <see cref="WritePalette"/> a
         /// pointer it would reject. Guarded against every fault; never throws.
         /// </summary>
-        static bool HasValidLz77Source(ROM rom, uint rowP12SlotOffset)
+        public static bool HasWritablePaletteSource(ROM? rom, uint rowP12SlotOffset)
         {
             try
             {
-                if (rowP12SlotOffset + 4 > (uint)rom.Data.Length) return false;
+                if (rom == null) return false;
+                if ((ulong)rowP12SlotOffset + 4 > (ulong)rom.Data.Length) return false;
                 uint rawP12 = rom.u32(rowP12SlotOffset);
                 if (!U.isPointer(rawP12)) return false;
                 uint srcOffset = U.toOffset(rawP12);

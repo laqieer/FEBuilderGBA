@@ -26812,6 +26812,12 @@ OBJ 图像已导入，但界面刷新失败：{0}。请重新选择该地图样�
 :Palette write refused (invalid address or out of bounds).
 调色板写入被拒绝（地址无效或越界）。
 
+:Failed to write palette data.
+写入调色板数据失败。
+
+:Palette area has not been allocated. Use New Palette Allocation first.
+尚未分配调色板区域。请先使用“新建调色板分配”。
+
 :Palette written.
 调色板已写入。
 

@@ -31,6 +31,13 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Reset dirty state (call after save or initial load).</summary>
         public void MarkClean() => IsDirty = false;
 
+        /// <summary>Mark a non-property editor change as dirty.</summary>
+        public void MarkDirty()
+        {
+            if (!IsLoading)
+                IsDirty = true;
+        }
+
         protected void OnPropertyChanged([CallerMemberName] string? name = null)
             => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
 

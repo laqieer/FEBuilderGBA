@@ -31,6 +31,19 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class ImageUnitPaletteImageIOTests
     {
+        sealed class RecordingServices : IAppServices
+        {
+            public string? LastError { get; private set; }
+            public string? LastInfo { get; private set; }
+
+            public void ShowError(string message) => LastError = message;
+            public void ShowInfo(string message) => LastInfo = message;
+            public bool ShowQuestion(string message) => false;
+            public bool ShowYesNo(string message) => false;
+            public void RunOnUIThread(Action action) => action();
+            public bool IsMainThread() => true;
+        }
+
         // ----- control lookup helpers -----
 
         static T? FindByAutomationId<T>(Control root, string automationId) where T : Control
@@ -44,7 +57,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         // ----- wiring parity (regex-declaration style, not hard-coded signature) -----
 
         [AvaloniaFact]
-        public void ExportImport_Buttons_Enabled_And_Handlers_Wired()
+        public void ExportImport_Buttons_HaveExpectedInitialState_AndHandlersWired()
         {
             var view = new ImageUnitPaletteView();
             var export = FindByAutomationId<Button>(view, "ImageUnitPalette_Export_Button");
@@ -52,7 +65,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.NotNull(export);
             Assert.NotNull(import);
             Assert.True(export!.IsEnabled);
-            Assert.True(import!.IsEnabled);
+            Assert.False(import!.IsEnabled);
 
             // Source-level declaration check: the handlers exist and are wired in
             // AXAML (regex over the source, not a hard-coded reflection signature
@@ -174,6 +187,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                 {
                     bool ok = (bool)Invoke(view, "ImportFromFile", imgPath)!;
                     Assert.True(ok);
+                    Assert.False(vm.IsDirty);
 
                     // Assert the 16 NUD triples equal the source palette IN INDEX
                     // ORDER (ordered equality — guards CORRECTION 3b).
@@ -276,6 +290,338 @@ namespace FEBuilderGBA.Avalonia.Tests
                 finally { if (File.Exists(imgPath)) File.Delete(imgPath); }
             }
             finally { CoreState.ROM = prev; }
+        }
+
+        [AvaloniaFact]
+        public void WriteCommands_AreDisabledUntilSelection()
+        {
+            EnsureImageService();
+            var rom = MakeRom(out _);
+            ROM? previousRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = rom;
+                var view = new ImageUnitPaletteView();
+                Invoke(view, "CacheSwatchControls");
+
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Write_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_PaletteWrite_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+
+                var vm = (ImageUnitPaletteViewModel)Field(view, "_vm")!;
+                var entryList = view.FindControl<AddressListControl>("EntryList")!;
+                entryList.SetItems(vm.LoadList());
+                Pump(view);
+                entryList.SelectByIndex(0);
+                Pump(view);
+
+                Assert.True(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Write_Button")!.IsEnabled);
+                Assert.True(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_PaletteWrite_Button")!.IsEnabled);
+                Assert.True(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
+        }
+
+        [AvaloniaFact]
+        public void PaletteColorEdit_MarksViewModelDirty()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            try
+            {
+                CoreState.ROM = MakeRom(out _);
+                var view = OpenViewWithSelection(out var vm);
+                vm.MarkClean();
+
+                NUD(view, "R", 0).Value = 31;
+
+                Assert.True(vm.IsDirty);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
+        }
+
+        [AvaloniaFact]
+        public void FilterClearingSelection_DisablesCommandsAndBlocksStaleWrite()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                ROM rom = MakeRom(out _);
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+                var view = OpenViewWithSelection(out var vm);
+                var entryList = view.FindControl<AddressListControl>("EntryList")!;
+                uint originalId0 = rom.u8(UNITPAL_BASE);
+                view.FindControl<NumericUpDown>("Id0Box")!.Value = 0x41;
+
+                entryList.ApplySearchFilter("no matching palette");
+                Pump(view);
+
+                Assert.Null(entryList.SelectedItem);
+                Assert.Equal(0u, vm.CurrentAddr);
+                Assert.False(vm.CanWrite);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Write_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_PaletteWrite_Button")!.IsEnabled);
+                Assert.False(FindByAutomationId<Button>(
+                    view, "ImageUnitPalette_Import_Button")!.IsEnabled);
+
+                Invoke(view, "Write_Click", null!,
+                    new global::Avalonia.Interactivity.RoutedEventArgs());
+
+                Assert.Equal(originalId0, rom.u8(UNITPAL_BASE));
+                Assert.Contains("Select a palette entry", services.LastError);
+                Assert.False(CoreState.Undo.IsModified);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
+        public void Write_NoSelection_ReportsErrorAndPreservesDirtyState()
+        {
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                CoreState.ROM = MakeRom(out _);
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+                var view = new ImageUnitPaletteView();
+                var vm = (ImageUnitPaletteViewModel)Field(view, "_vm")!;
+                vm.Id0 = 0x41;
+                Assert.True(vm.IsDirty);
+
+                Invoke(view, "Write_Click", null!,
+                    new global::Avalonia.Interactivity.RoutedEventArgs());
+
+                Assert.Contains("Select a palette entry", services.LastError);
+                Assert.Null(services.LastInfo);
+                Assert.True(vm.IsDirty);
+                Assert.False(CoreState.Undo.IsModified);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
+        public void Write_ValidSelection_WritesAndShowsConfirmation()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                ROM rom = MakeRom(out _);
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+                var view = OpenViewWithSelection(out _);
+                view.FindControl<NumericUpDown>("Id0Box")!.Value = 0x41;
+
+                Invoke(view, "Write_Click", null!,
+                    new global::Avalonia.Interactivity.RoutedEventArgs());
+
+                Assert.Equal(0x41u, rom.u8(UNITPAL_BASE));
+                Assert.Null(services.LastError);
+                Assert.Equal("Palette written.", services.LastInfo);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
+        public void PaletteWrite_InvalidSource_ReportsAllocationGuidance()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                ROM rom = MakeRom(out uint p12Offset);
+                U.write_u32(rom.Data, p12Offset, 0);
+                byte[] before = rom.Data.ToArray();
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+
+                var view = new ImageUnitPaletteView();
+                Invoke(view, "CacheSwatchControls");
+                var vm = (ImageUnitPaletteViewModel)Field(view, "_vm")!;
+                vm.IsLoading = true;
+                vm.LoadEntry(UNITPAL_BASE);
+                vm.IsLoading = false;
+                vm.MarkClean();
+                Invoke(view, "UpdateUI");
+                vm.Id0 = 0x41;
+                Assert.True(vm.IsDirty);
+
+                bool ok = (bool)Invoke(view, "PerformPaletteWrite")!;
+
+                Assert.False(ok);
+                Assert.Equal(R._(
+                    "Palette area has not been allocated. Use New Palette Allocation first."),
+                    services.LastError);
+                Assert.Null(services.LastInfo);
+                Assert.True(vm.IsDirty);
+                Assert.True(before.SequenceEqual(rom.Data));
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
+        public void PaletteWrite_ValidSource_WritesAndShowsConfirmation()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            try
+            {
+                ROM rom = MakeRom(out uint p12Offset);
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+                var view = OpenViewWithSelection(out _);
+                NUD(view, "R", 0).Value = 31;
+
+                bool ok = (bool)Invoke(view, "PerformPaletteWrite")!;
+
+                Assert.True(ok);
+                byte[] raw = LZ77.decompress(
+                    rom.Data, U.toOffset(rom.u32(p12Offset)));
+                Assert.Equal(31u, (uint)(raw[0] & 0x1F));
+                Assert.Null(services.LastError);
+                Assert.Equal("Palette written.", services.LastInfo);
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [AvaloniaFact]
+        public void Import_WriteFailure_ReturnsFalseAndReportsError()
+        {
+            EnsureImageService();
+            ROM? previousRom = CoreState.ROM;
+            Undo? previousUndo = CoreState.Undo;
+            IAppServices? previousServices = CoreState.Services;
+            string? imagePath = null;
+            try
+            {
+                ROM rom = MakeRom(out uint p12Offset);
+                U.write_u32(rom.Data, p12Offset, 0);
+                CoreState.ROM = rom;
+                CoreState.Undo = new Undo();
+                var services = new RecordingServices();
+                CoreState.Services = services;
+
+                var view = new ImageUnitPaletteView();
+                Invoke(view, "CacheSwatchControls");
+                var vm = (ImageUnitPaletteViewModel)Field(view, "_vm")!;
+                vm.IsLoading = true;
+                vm.LoadEntry(UNITPAL_BASE);
+                vm.IsLoading = false;
+                vm.MarkClean();
+                Invoke(view, "UpdateUI");
+
+                imagePath = WriteIndexedPng(MakeKnownColors());
+                bool ok = (bool)Invoke(view, "ImportFromFile", imagePath)!;
+
+                Assert.False(ok);
+                var (r5, g5, b5) = Rgb555(MakeKnownColors()[0]);
+                Assert.Equal(r5, (uint)(NUD(view, "R", 0).Value ?? -1));
+                Assert.Equal(g5, (uint)(NUD(view, "G", 0).Value ?? -1));
+                Assert.Equal(b5, (uint)(NUD(view, "B", 0).Value ?? -1));
+                Assert.True(vm.IsDirty);
+                Assert.Equal(R._(
+                    "Palette area has not been allocated. Use New Palette Allocation first."),
+                    services.LastError);
+                Assert.Null(services.LastInfo);
+            }
+            finally
+            {
+                if (imagePath != null && File.Exists(imagePath))
+                    File.Delete(imagePath);
+                CoreState.ROM = previousRom;
+                CoreState.Undo = previousUndo;
+                CoreState.Services = previousServices;
+            }
+        }
+
+        [Fact]
+        public void ViewModelWrite_ReturnsFalseWithoutSelection()
+        {
+            var vm = new ImageUnitPaletteViewModel();
+            Assert.False(vm.Write());
+        }
+
+        [Fact]
+        public void ViewModelWrite_OverflowAddress_ReturnsFalse()
+        {
+            ROM? previousRom = CoreState.ROM;
+            try
+            {
+                var rom = new ROM();
+                rom.SwapNewROMDataDirect(new byte[0x100]);
+                CoreState.ROM = rom;
+                var vm = new ImageUnitPaletteViewModel
+                {
+                    CanWrite = true,
+                    CurrentAddr = uint.MaxValue - 8,
+                };
+
+                Assert.False(vm.Write());
+            }
+            finally
+            {
+                CoreState.ROM = previousRom;
+            }
         }
 
         // ===================== helpers =====================
