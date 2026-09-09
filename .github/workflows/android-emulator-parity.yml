@@ -327,9 +327,9 @@ jobs:
 
       - name: Validate exact synthetic fixture in Debug and Release
         run: |
-          dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Debug --filter FullyQualifiedName~SyntheticPatchImportFixtureTests
-          dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release --filter FullyQualifiedName~SyntheticPatchImportFixtureTests
-          dotnet build scripts/SyntheticProofFixtures/SyntheticProofFixtures.csproj -c Debug
+          dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Debug -warnaserror --filter FullyQualifiedName~SyntheticPatchImportFixtureTests
+          dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release -warnaserror --filter FullyQualifiedName~SyntheticPatchImportFixtureTests
+          dotnet build scripts/SyntheticProofFixtures/SyntheticProofFixtures.csproj -c Debug -warnaserror
 
       - name: Install android workload
         run: dotnet workload install android
