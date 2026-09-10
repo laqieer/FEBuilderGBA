@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
@@ -175,8 +176,35 @@ namespace FEBuilderGBA.Avalonia
             AvaloniaXamlLoader.Load(this);
         }
 
-        internal static string PatchDatabaseRecoveryNotice { get; private set; } = "";
-        internal static void ClearPatchDatabaseRecoveryNotice() => PatchDatabaseRecoveryNotice = "";
+        internal sealed record PatchDatabaseRecoveryState(PatchDatabaseImportCore.Result? Result,
+            PatchDatabaseImportCore.RecoveryException? Exception);
+        static PatchDatabaseRecoveryState? patchDatabaseRecoveryState;
+        internal static PatchDatabaseRecoveryState? CapturePatchDatabaseRecoveryNotice()
+            => Volatile.Read(ref patchDatabaseRecoveryState);
+        internal static PatchDatabaseImportCore.Result? PatchDatabaseRecoveryResult => CapturePatchDatabaseRecoveryNotice()?.Result;
+        internal static PatchDatabaseImportCore.RecoveryException? PatchDatabaseRecoveryException => CapturePatchDatabaseRecoveryNotice()?.Exception;
+        internal static string PatchDatabaseRecoveryNotice
+        {
+            get
+            {
+                var state = CapturePatchDatabaseRecoveryNotice();
+                return state?.Exception != null ? PatchDatabaseImportService.FormatRecoveryException(state.Exception)
+                    : state?.Result != null ? PatchDatabaseImportService.FormatResult(state.Result) : "";
+            }
+        }
+
+        internal static void ClearPatchDatabaseRecoveryNotice()
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState, null);
+
+        internal static void ClearPatchDatabaseRecoveryNotice(PatchDatabaseRecoveryState? expected)
+            => Interlocked.CompareExchange(ref patchDatabaseRecoveryState, null, expected);
+
+        internal static void RecordPatchDatabaseRecovery(PatchDatabaseImportCore.Result result)
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState,
+                result.RecoveryRequired ? new PatchDatabaseRecoveryState(result, null) : null);
+
+        internal static void RecordPatchDatabaseRecovery(PatchDatabaseImportCore.RecoveryException exception)
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState, new PatchDatabaseRecoveryState(null, exception));
 
         public override void OnFrameworkInitializationCompleted()
         {
@@ -193,8 +221,7 @@ namespace FEBuilderGBA.Avalonia
             CoreState.ImageService = new SkiaImageService();
 
             var recovery = PatchDatabaseImportCore.RecoverPending(baseDir);
-            PatchDatabaseRecoveryNotice = recovery.Success ? "" :
-                R._("Patch database recovery needs attention: {0}", recovery.Message);
+            RecordPatchDatabaseRecovery(recovery);
             if (!string.IsNullOrEmpty(PatchDatabaseRecoveryNotice))
                 Log.Error(PatchDatabaseRecoveryNotice);
 

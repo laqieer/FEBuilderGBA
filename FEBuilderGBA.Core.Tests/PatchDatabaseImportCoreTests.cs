@@ -97,14 +97,78 @@ public class PatchDatabaseImportCoreTests
         var result = prepared.Commit(deferCleanup: true);
         Assert.False(result.Success);
         Assert.True(result.RecoveryRequired);
+        Assert.Equal(PatchDatabaseImportCore.ResultKind.StoppedBeforeCommit, result.Kind);
+        Assert.Equal("Injected failure after moving the old database.", result.Detail);
         Assert.False(Directory.Exists(fixture.Target));
         string operation = Assert.Single(fixture.OperationDirectories());
         Assert.Equal("old", File.ReadAllText(Path.Combine(operation, "old", "old.txt")));
         result = await Task.Run(prepared.CompleteCleanup);
         Assert.False(result.Success);
         Assert.False(result.RecoveryRequired, result.Message);
+        Assert.Empty(result.CleanupDetail);
         Assert.Equal("old", File.ReadAllText(fixture.OldFile));
         Assert.Empty(fixture.OperationDirectories());
+    }
+
+    [Theory]
+    [InlineData("Committed")]
+    [InlineData("BeforeCleanup")]
+    public async Task StructuredCommitAndCleanupDiagnosticsRemainDistinct(string checkpoint)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("New");
+        using var prepared = await fixture.Prepare(zip, checkpoint: point =>
+        {
+            if (point.ToString() == checkpoint) throw new IOException("Owned diagnostic");
+        });
+        var result = prepared.Commit(deferCleanup: true);
+        result = prepared.CompleteCleanup();
+        Assert.True(result.Success);
+        if (checkpoint == "Committed")
+        {
+            Assert.Equal(PatchDatabaseImportCore.ResultKind.CommittedAfterInterruption, result.Kind);
+            Assert.Equal("Owned diagnostic", result.Detail);
+            Assert.False(result.RecoveryRequired);
+            Assert.Empty(result.CleanupDetail);
+        }
+        else
+        {
+            Assert.Equal(PatchDatabaseImportCore.ResultKind.Completed, result.Kind);
+            Assert.Empty(result.Detail);
+            Assert.True(result.RecoveryRequired);
+            Assert.Equal("Owned diagnostic", result.CleanupDetail);
+            Assert.Equal(Assert.Single(fixture.OperationDirectories()), result.RetainedPath);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecoveryCompletionIsReportedUnderBothLocksBeforePreparationFails(bool cancel)
+    {
+        using var fixture = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        using var source = new MemoryStream(new byte[] { 1, 2, 3 });
+        bool notified = false;
+        Task<PatchDatabaseImportCore.PreparedImport> task = PatchDatabaseImportCore.PrepareForTestAsync(
+            source, fixture.Root, "FE8U", cancellation.Token, _ => false, recoveryCompleted: () =>
+            {
+                notified = true;
+                Assert.True(ContentRepoGitService.IsRunning());
+                Assert.False(ContentRepoGitService.TryEnter());
+                Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() =>
+                {
+                    using var otherLease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+                });
+                if (cancel) cancellation.Cancel();
+            });
+        if (cancel) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => task);
+        else await Assert.ThrowsAsync<InvalidDataException>(() => task);
+        Assert.True(notified);
+        Assert.False(ContentRepoGitService.IsRunning());
+        Assert.Empty(fixture.OperationDirectories());
+        using var releasedLease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
     }
 
     [Fact]
@@ -458,6 +522,8 @@ public class PatchDatabaseImportCoreTests
         var result = PatchDatabaseImportCore.RecoverPending(fixture.Root);
         Assert.False(result.Success);
         Assert.True(result.RecoveryRequired);
+        Assert.Equal(PatchDatabaseImportCore.ResultKind.RecoveryBlocked, result.Kind);
+        Assert.Equal(result.Message, result.Detail);
         Assert.Equal("not ours", File.ReadAllText(Path.Combine(operation, "sentinel")));
     }
 

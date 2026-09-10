@@ -18,8 +18,10 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _hasLoadedList;
         bool _importing;
         bool _gitRunning;
+        bool _uninstalling;
         bool _importDialogOpen;
         CancellationTokenSource? _importCancellation;
+        readonly DispatcherTimer _operationTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
 
         public string ViewTitle => "Patch Manager";
         public new bool IsLoaded => _vm.IsLoaded;
@@ -42,22 +44,26 @@ namespace FEBuilderGBA.Avalonia.Views
             InitUpdatePatch2Button.Click += OnInitUpdatePatch2Click;
             ImportPatchDatabaseButton.Click += OnImportPatchDatabaseClick;
             CancelPatchDatabaseImportButton.Click += (_, _) => _importCancellation?.Cancel();
+            _operationTimer.Tick += (_, _) => UpdateOperationControls();
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            _operationTimer.Start();
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadPatches();
             }
+            UpdateOperationControls();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
             // An Android modal temporarily detaches the underlying editor without closing it.
             if (!_importDialogOpen) _importCancellation?.Cancel();
+            _operationTimer.Stop();
             base.OnDetachedFromVisualTree(e);
         }
 
@@ -99,8 +105,8 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateOperationControls()
         {
-            ImportPatchDatabaseButton.IsEnabled = !_importing && !_gitRunning && _vm.CanImportPatchDatabase;
-            InitUpdatePatch2Button.IsEnabled = !_importing && !_gitRunning;
+            ImportPatchDatabaseButton.IsEnabled = !PatchActionsBlocked && _vm.CanImportPatchDatabase;
+            InitUpdatePatch2Button.IsEnabled = !PatchActionsBlocked;
             CancelPatchDatabaseImportButton.IsVisible = _importing;
             CancelPatchDatabaseImportButton.IsEnabled = _importing && _importCancellation?.IsCancellationRequested != true;
             UpdateActionButtons();
@@ -159,14 +165,24 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void UpdateActionButtons()
         {
-            bool canInstall = !_importing && _vm.CanInstall;
+            bool canInstall = !PatchActionsBlocked && _vm.CanInstall;
             bool hasUnmetDeps = _vm.SelectedPatch?.HasUnmetDependencies == true;
 
             // Disable normal Install if deps are unmet, but allow ForceInstall
             InstallButton.IsEnabled = canInstall && !hasUnmetDeps;
             ForceInstallButton.IsEnabled = canInstall && hasUnmetDeps;
             ForceInstallButton.IsVisible = canInstall && hasUnmetDeps;
-            UninstallButton.IsEnabled = !_importing && _vm.CanUninstall;
+            UninstallButton.IsEnabled = !PatchActionsBlocked && _vm.CanUninstall;
+        }
+
+        bool PatchActionsBlocked => _importing || _gitRunning || _uninstalling || _vm.IsPatchDatabaseOperationRunning;
+
+        bool RefuseBusyPatchAction()
+        {
+            if (!PatchActionsBlocked) return false;
+            StatusMessageLabel.Text = PatchManagerViewModel.PatchDatabaseBusyMessage;
+            UpdateOperationControls();
+            return true;
         }
 
         void OnInstallClick(object? sender, RoutedEventArgs e)
@@ -181,6 +197,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void DoInstall(bool forceIgnoreDependencies)
         {
+            if (RefuseBusyPatchAction()) return;
             string msg = _vm.InstallPatch(forceIgnoreDependencies);
             StatusMessageLabel.Text = msg;
 
@@ -199,39 +216,29 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OnUninstallClick(object? sender, RoutedEventArgs e)
         {
-            // Fast path: a per-patch backup written by this/Avalonia session's install.
-            if (!_vm.SelectedPatchNeedsCleanRom)
-            {
-                StatusMessageLabel.Text = _vm.UninstallPatch();
-                return;
-            }
-
-            // #1462: no backup file (patch installed in a prior/WinForms session or already
-            // present in the loaded ROM) — open the clean-ROM-diff dialog to obtain a
-            // patch-free ROM, then diff-restore the patched regions.
+            if (RefuseBusyPatchAction()) return;
+            _uninstalling = true;
+            UpdateOperationControls();
             try
             {
-                var dialog = await WindowManager.Instance.OpenModal<PatchFormUninstallDialogView>(
-                    TopLevel.GetTopLevel(this) as Window,
-                    d => d.SeedPatchName(_vm.SelectedPatchName));
-
-                if (!dialog.UserConfirmed)
+                StatusMessageLabel.Text = await _vm.UninstallPatchAsync(async () =>
                 {
-                    StatusMessageLabel.Text = "Uninstall cancelled.";
-                    return;
-                }
-                if (string.IsNullOrEmpty(dialog.OriginalFilename))
-                {
-                    StatusMessageLabel.Text = "Uninstall failed: no clean ROM selected.";
-                    return;
-                }
-
-                StatusMessageLabel.Text = _vm.UninstallPatchWithCleanRom(dialog.OriginalFilename);
+                    var dialog = await WindowManager.Instance.OpenModal<PatchFormUninstallDialogView>(
+                        TopLevel.GetTopLevel(this) as Window, d => d.SeedPatchName(_vm.SelectedPatchName));
+                    return dialog.UserConfirmed ? dialog.OriginalFilename : null;
+                });
             }
             catch (Exception ex)
             {
                 Log.Error("PatchManagerView", ex.ToString());
                 StatusMessageLabel.Text = "Uninstall failed: " + ex.Message;
+            }
+            finally
+            {
+                _uninstalling = false;
+                if (_vm.SelectedPatch != null) DetailStatus.Text = _vm.SelectedPatch.StatusText;
+                UpdateSummary();
+                UpdateOperationControls();
             }
         }
 
@@ -251,7 +258,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         async void OnInitUpdatePatch2Click(object? sender, RoutedEventArgs e)
         {
-            if (_importing || _gitRunning) return;
+            if (RefuseBusyPatchAction()) return;
             _gitRunning = true;
             UpdateOperationControls();
             InitUpdatePatch2Button.IsEnabled = false;   // synchronous re-entrancy guard
@@ -304,7 +311,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
         async void OnImportPatchDatabaseClick(object? sender, RoutedEventArgs e)
         {
-            if (_importing || _gitRunning) return;
+            if (RefuseBusyPatchAction()) return;
             var identity = PatchDatabaseImportService.CaptureLoadedRom();
             if (identity == null)
             {

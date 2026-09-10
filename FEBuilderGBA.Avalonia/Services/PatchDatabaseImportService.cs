@@ -59,20 +59,53 @@ namespace FEBuilderGBA.Avalonia.Services
                     ? R._("The existing database for this version will be replaced after confirmation.")
                     : R._("A new database for this version will be installed."));
 
+        internal static string FormatResult(PatchDatabaseImportCore.Result result)
+        {
+            string message = result.Kind switch
+            {
+                PatchDatabaseImportCore.ResultKind.Completed => "",
+                PatchDatabaseImportCore.ResultKind.CommittedAfterInterruption =>
+                    R._("The database was committed despite an interrupted commit response: {0}", result.Detail),
+                PatchDatabaseImportCore.ResultKind.StoppedBeforeCommit =>
+                    R._("Import stopped without committing: {0}", result.Detail),
+                PatchDatabaseImportCore.ResultKind.RecoveryFailed when !result.RecoveryRequired =>
+                    R._("Import stopped without committing: {0}", result.Detail),
+                PatchDatabaseImportCore.ResultKind.RecoveryFailed =>
+                    R._("Import recovery is required; the owned workspace was retained.\r\n{0}\r\nRecovery: {1}",
+                        result.Detail, result.RecoveryDetail),
+                _ => R._("Patch database recovery needs attention: {0}", result.Detail),
+            };
+            if (result.RecoveryRequired && (result.Success || result.CleanupDetail.Length != 0))
+                message = Append(message, result.Success
+                    ? R._("The new database is installed, but owned backup cleanup is pending: {0}", result.CleanupDetail)
+                    : R._("Owned workspace cleanup is pending: {0}", result.CleanupDetail));
+            if (result.RetainedPath.Length != 0)
+                message = Append(message, R._("Retained workspace: {0}", result.RetainedPath));
+            return message;
+        }
+
+        internal static string FormatRecoveryException(PatchDatabaseImportCore.RecoveryException exception)
+            => R._("Import cleanup requires recovery. Retained workspace: {0}\r\n{1}",
+                exception.RetainedPath, exception.InnerException?.Message ?? "");
+
+        static string Append(string message, string next) => message.Length == 0 ? next : message + "\n" + next;
+
         public static Task<Outcome> ImportAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
             Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm, CancellationToken cancellationToken = default)
             => ImportCoreAsync(selected, identity, baseDirectory, confirm, cancellationToken,
-                PatchDatabaseImportCore.PrepareAsync);
+                PatchDatabaseImportCore.PrepareWithRecoveryNotificationAsync);
 
         internal static Task<Outcome> ImportForTestAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
             Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm, CancellationToken cancellationToken,
-            Func<Stream, string, string, CancellationToken, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
+            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
             => ImportCoreAsync(selected, identity, baseDirectory, confirm, cancellationToken, prepare);
 
         static async Task<Outcome> ImportCoreAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
             Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm, CancellationToken cancellationToken,
-            Func<Stream, string, string, CancellationToken, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
+            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
         {
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            int recoveryCompleted = 0;
             try
             {
                 if (!identity.IsCurrent) return RomChanged();
@@ -82,9 +115,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 {
                     await using (Stream source = await selected.OpenReadAsync())
                     {
-                        prepared = await Task.Run(() => prepare(source, baseDirectory, identity.Version, cancellationToken),
+                        prepared = await Task.Run(() => prepare(source, baseDirectory, identity.Version, cancellationToken,
+                            () => Interlocked.Exchange(ref recoveryCompleted, 1)),
                             cancellationToken);
-                        App.ClearPatchDatabaseRecoveryNotice();
                     }
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!identity.IsCurrent) return RomChanged();
@@ -99,30 +132,39 @@ namespace FEBuilderGBA.Avalonia.Services
                     if (result.RecoveryRequired)
                         // Leases remain held while full rollback/inventory/cleanup runs off the UI thread.
                         result = await Task.Run(prepared.CompleteCleanup);
+                    if (result.RecoveryRequired) App.RecordPatchDatabaseRecovery(result);
                     return new Outcome
                     {
                         Imported = result.Success, RecoveryRequired = result.RecoveryRequired,
-                        Message = result.Message + (string.IsNullOrEmpty(result.RetainedPath)
-                            ? "" : "\n" + R._("Retained workspace: {0}", result.RetainedPath)),
+                        Message = FormatResult(result),
                     };
                 }
                 finally
                 {
-                    if (prepared != null) await Task.Run(prepared.Dispose);
+                    if (prepared != null)
+                        await Task.Run(prepared.Dispose);
                 }
             }
             catch (OperationCanceledException) { return Cancelled(); }
             catch (PatchDatabaseImportCore.RecoveryException ex)
             {
+                App.RecordPatchDatabaseRecovery(ex);
                 return new Outcome
                 {
                     RecoveryRequired = true,
-                    Message = R._("Import cleanup requires recovery. Retained workspace: {0}\r\n{1}", ex.RetainedPath, ex.Message),
+                    Message = FormatRecoveryException(ex),
                 };
             }
             catch (Exception ex)
             {
                 return new Outcome { Message = R._("Patch database import failed: {0}", ex.Message) };
+            }
+            finally
+            {
+                // Only Core's explicit completion receipt can clear the captured notice.
+                // A new cleanup failure or another operation's notice has a different identity.
+                if (Volatile.Read(ref recoveryCompleted) != 0)
+                    App.ClearPatchDatabaseRecoveryNotice(previousNotice);
             }
         }
 

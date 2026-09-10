@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.ViewModels
@@ -106,6 +107,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanImportPatchDatabase => PatchDatabaseImportService.CanImportLoadedRom;
+        public bool IsPatchDatabaseOperationRunning => ContentRepoGitService.IsRunning();
+        public static string PatchDatabaseBusyMessage =>
+            R._("A patch database operation is already running. Try again when it finishes.");
 
         /// <summary>
         /// Label for the in-app patch2 Initialize/Update button (#1817). "Update Patch Database" when the
@@ -154,6 +158,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>True when a patch is selected and not already installed.</summary>
         public bool CanInstall =>
+            !IsPatchDatabaseOperationRunning &&
             _selectedPatch != null &&
             _selectedPatch.Status != PatchMetadataCore.PatchStatus.Installed &&
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
@@ -165,6 +170,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// backup exists (patch installed in a prior/WinForms session or already in the ROM).
         /// </summary>
         public bool CanUninstall =>
+            !IsPatchDatabaseOperationRunning &&
             _selectedPatch != null &&
             _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed &&
             !string.IsNullOrEmpty(_selectedPatch.PatchFilePath) &&
@@ -295,6 +301,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Set forceIgnoreDependencies to true to skip dependency checks.
         /// </summary>
         public string InstallPatch(bool forceIgnoreDependencies = false)
+            => RunPatchAction(() => InstallPatchCore(forceIgnoreDependencies));
+
+        string InstallPatchCore(bool forceIgnoreDependencies)
         {
             if (_selectedPatch == null)
                 return "No patch selected.";
@@ -338,8 +347,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 StatusMessage = "Install failed: " + result.Message;
             }
 
-            OnPropertyChanged(nameof(CanInstall));
-            OnPropertyChanged(nameof(CanUninstall));
             return StatusMessage;
         }
 
@@ -347,6 +354,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Uninstall the currently selected patch by restoring original bytes from backup.
         /// </summary>
         public string UninstallPatch()
+            => RunPatchAction(UninstallPatchCore);
+
+        string UninstallPatchCore()
         {
             if (_selectedPatch == null)
                 return "No patch selected.";
@@ -380,8 +390,6 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 StatusMessage = "Uninstall failed: " + result.Message;
             }
 
-            OnPropertyChanged(nameof(CanInstall));
-            OnPropertyChanged(nameof(CanUninstall));
             return StatusMessage;
         }
 
@@ -411,6 +419,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// backup-based path's Push/Rollback discipline.
         /// </summary>
         public string UninstallPatchWithCleanRom(string cleanRomPath)
+            => RunPatchAction(() => UninstallPatchWithCleanRomCore(cleanRomPath));
+
+        string UninstallPatchWithCleanRomCore(string cleanRomPath)
         {
             if (_selectedPatch == null)
                 return "No patch selected.";
@@ -455,10 +466,46 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 StatusMessage = "Uninstall failed: " + result.Message;
             }
 
+            return StatusMessage;
+        }
+
+        public async Task<string> UninstallPatchAsync(Func<Task<string?>> selectCleanRom)
+        {
+            if (!ContentRepoGitService.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
+            try
+            {
+                var patch = _selectedPatch;
+                if (patch == null) return "No patch selected.";
+                ROM rom = CoreState.ROM;
+                if (rom == null) return "No ROM loaded.";
+                if (!SelectedPatchNeedsCleanRom) return UninstallPatchCore();
+                var data = rom.Data;
+                var info = rom.RomInfo;
+                // Keep the shared gate across the dialog so a completed Git/import operation
+                // cannot silently replace the selected descriptor while the user picks a ROM.
+                string? cleanRom = await selectCleanRom();
+                if (cleanRom == null) return StatusMessage = R._("Uninstall cancelled.");
+                if (!ReferenceEquals(patch, _selectedPatch) || !ReferenceEquals(rom, CoreState.ROM) ||
+                    !ReferenceEquals(data, rom.Data) || !ReferenceEquals(info, rom.RomInfo))
+                    return StatusMessage = R._("The loaded ROM or selected patch changed. Uninstall was cancelled.");
+                return UninstallPatchWithCleanRomCore(cleanRom);
+            }
+            finally { ExitPatchAction(); }
+        }
+
+        string RunPatchAction(Func<string> action)
+        {
+            if (!ContentRepoGitService.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
+            try { return action(); }
+            finally { ExitPatchAction(); }
+        }
+
+        void ExitPatchAction()
+        {
+            ContentRepoGitService.Exit();
             OnPropertyChanged(nameof(CanInstall));
             OnPropertyChanged(nameof(CanUninstall));
             OnPropertyChanged(nameof(SelectedPatchNeedsCleanRom));
-            return StatusMessage;
         }
 
         /// <summary>Re-check installation status of the selected patch and update counts.</summary>

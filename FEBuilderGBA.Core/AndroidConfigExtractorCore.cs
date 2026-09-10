@@ -118,7 +118,6 @@ namespace FEBuilderGBA
             string stampPath = Path.Combine(targetRootDir, stampFileName);
             string protectedRoot = Path.GetFullPath(Path.Combine(targetRootDir, "config", "patch2"));
             List<string>? manifest = null;
-            bool safeStampProbes = true;
             if (preservePatchDatabase)
             {
                 PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(protectedRoot);
@@ -128,17 +127,13 @@ namespace FEBuilderGBA
                 {
                     if (PathsOverlap(rel, "config/patch2") || PathsOverlap(rel, ".patch2-import"))
                         throw new IOException("Bundled assets overlap separately owned patch database storage: " + rel);
-                    try
-                    {
-                        PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(
-                            Path.GetFullPath(Path.Combine(targetRootDir, ToPlatformPath(rel))), allowFileLeaf: true);
-                    }
-                    catch (IOException) { safeStampProbes = false; }
+                    PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(
+                        Path.GetFullPath(Path.Combine(targetRootDir, ToPlatformPath(rel))), allowFileLeaf: true);
                 }
             }
             bool stampExisted = File.Exists(stampPath);
 
-            if (stampExisted && safeStampProbes && IsStampValid(stampPath, version, targetRootDir, preservePatchDatabase))
+            if (stampExisted && IsStampValid(stampPath, version, targetRootDir, preservePatchDatabase))
             {
                 return ExtractionResult.SkippedUpToDate;
             }

@@ -323,6 +323,33 @@ public class PatchDatabaseZipReaderCoreTests
         Assert.Single(PatchDatabaseZipReaderCore.Inspect(stream, "FE8U").Files);
     }
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void NonSentinelZip64Payload_Rejects(bool local, bool conflicting)
+    {
+        byte[] payload = new byte[16];
+        ulong size = conflicting ? 1234UL : (ulong)Encoding.UTF8.GetByteCount("descriptor payload");
+        BinaryPrimitives.WriteUInt64LittleEndian(payload, size);
+        BinaryPrimitives.WriteUInt64LittleEndian(payload.AsSpan(8), size);
+        using var stream = DescriptorZip(false, true, false, knownLocalValues: true,
+            unusedLocalZip64: local ? payload : null, unusedCentralZip64: local ? null : payload);
+        Assert.Throws<InvalidDataException>(() => PatchDatabaseZipReaderCore.Inspect(stream, "FE8U"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EmptyNonSentinelZip64Payload_HasNoUnconsumedBytes(bool local)
+    {
+        using var stream = DescriptorZip(false, true, false, knownLocalValues: true,
+            unusedLocalZip64: local ? Array.Empty<byte>() : null,
+            unusedCentralZip64: local ? null : Array.Empty<byte>());
+        Assert.Single(PatchDatabaseZipReaderCore.Inspect(stream, "FE8U").Files);
+    }
+
     [Fact]
     public void Zip64EndRecord_AgreesWithSmallActualArchive()
     {
@@ -402,7 +429,8 @@ public class PatchDatabaseZipReaderCoreTests
     }
 
     static MemoryStream DescriptorZip(bool zip64, bool signed, bool deflate,
-        bool wrongWidth = false, bool knownLocalValues = false)
+        bool wrongWidth = false, bool knownLocalValues = false,
+        byte[]? unusedLocalZip64 = null, byte[]? unusedCentralZip64 = null)
     {
         byte[] name = Encoding.UTF8.GetBytes("FE8U/PATCH_stream.txt");
         byte[] payload = Encoding.UTF8.GetBytes("descriptor payload");
@@ -426,7 +454,7 @@ public class PatchDatabaseZipReaderCoreTests
         writer.Write(zip64 ? uint.MaxValue : knownLocalValues ? (uint)compressed.Length : 0U);
         writer.Write(zip64 ? uint.MaxValue : knownLocalValues ? (uint)payload.Length : 0U);
         writer.Write((ushort)name.Length);
-        writer.Write((ushort)(zip64 ? 20 : 0));
+        writer.Write((ushort)(zip64 ? 20 : unusedLocalZip64 == null ? 0 : unusedLocalZip64.Length + 4));
         writer.Write(name);
         if (zip64)
         {
@@ -434,6 +462,12 @@ public class PatchDatabaseZipReaderCoreTests
             writer.Write((ushort)16);
             writer.Write(knownLocalValues ? (ulong)payload.Length : 0UL);
             writer.Write(knownLocalValues ? (ulong)compressed.Length : 0UL);
+        }
+        else if (unusedLocalZip64 != null)
+        {
+            writer.Write((ushort)1);
+            writer.Write((ushort)unusedLocalZip64.Length);
+            writer.Write(unusedLocalZip64);
         }
         writer.Write(compressed);
         if (signed) writer.Write(0x08074b50U);
@@ -459,7 +493,7 @@ public class PatchDatabaseZipReaderCoreTests
         writer.Write(zip64 ? uint.MaxValue : (uint)compressed.Length);
         writer.Write(zip64 ? uint.MaxValue : (uint)payload.Length);
         writer.Write((ushort)name.Length);
-        writer.Write((ushort)(zip64 ? 20 : 0));
+        writer.Write((ushort)(zip64 ? 20 : unusedCentralZip64 == null ? 0 : unusedCentralZip64.Length + 4));
         writer.Write((ushort)0);
         writer.Write((ushort)0);
         writer.Write((ushort)0);
@@ -472,6 +506,12 @@ public class PatchDatabaseZipReaderCoreTests
             writer.Write((ushort)16);
             writer.Write((ulong)payload.Length);
             writer.Write((ulong)compressed.Length);
+        }
+        else if (unusedCentralZip64 != null)
+        {
+            writer.Write((ushort)1);
+            writer.Write((ushort)unusedCentralZip64.Length);
+            writer.Write(unusedCentralZip64);
         }
         uint centralLength = (uint)stream.Position - central;
         writer.Write(0x06054b50U);

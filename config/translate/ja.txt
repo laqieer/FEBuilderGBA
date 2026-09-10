@@ -14865,6 +14865,27 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 :Import cleanup requires recovery. Retained workspace: {0}\r\n{1}
 インポート後のクリーンアップを完了するには復旧が必要です。保持された作業領域: {0}\r\n{1}
 
+:The database was committed despite an interrupted commit response: {0}
+確定処理の応答は中断されましたが、データベースの確定は完了しています: {0}
+
+:Import stopped without committing: {0}
+データベースを確定せずにインポートを停止しました: {0}
+
+:Import recovery is required; the owned workspace was retained.\r\n{0}\r\nRecovery: {1}
+インポートの復旧が必要なため、管理対象の作業領域を保持しました。\r\n{0}\r\n復旧: {1}
+
+:The new database is installed, but owned backup cleanup is pending: {0}
+新しいデータベースはインストール済みですが、管理対象のバックアップのクリーンアップが未完了です: {0}
+
+:Owned workspace cleanup is pending: {0}
+管理対象の作業領域のクリーンアップが未完了です: {0}
+
+:A patch database operation is already running. Try again when it finishes.
+パッチデータベースの操作が実行中です。完了してから再試行してください。
+
+:The loaded ROM or selected patch changed. Uninstall was cancelled.
+読み込まれたROMまたは選択されたパッチが変更されたため、アンインストールをキャンセルしました。
+
 :The file picker is unavailable on this platform.
 このプラットフォームではファイル選択機能を利用できません。
 

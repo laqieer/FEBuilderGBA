@@ -58,10 +58,19 @@ namespace FEBuilderGBA
             public string? OriginalFingerprint { get; set; }
         }
 
+        public enum ResultKind
+        {
+            Completed, CommittedAfterInterruption, StoppedBeforeCommit, RecoveryFailed, RecoveryBlocked,
+        }
+
         public sealed class Result
         {
             public bool Success { get; internal set; }
             public bool RecoveryRequired { get; internal set; }
+            public ResultKind Kind { get; internal set; }
+            public string Detail { get; internal set; } = "";
+            public string RecoveryDetail { get; internal set; } = "";
+            public string CleanupDetail { get; internal set; } = "";
             public string Message { get; internal set; } = "";
             public string RetainedPath { get; internal set; } = "";
         }
@@ -193,11 +202,13 @@ namespace FEBuilderGBA
                     }
                     outcome.RecoveryRequired = false;
                     outcome.RetainedPath = "";
+                    outcome.CleanupDetail = "";
                 }
                 catch (Exception ex) when (IsExpectedFailure(ex))
                 {
                     outcome.RecoveryRequired = true;
                     outcome.RetainedPath = OperationDirectory;
+                    outcome.CleanupDetail = ex.Message;
                     outcome.Message += (outcome.Success
                         ? "The new database is installed, but owned backup cleanup is pending: "
                         : "\nOwned workspace cleanup is pending: ") + ex.Message;
@@ -230,16 +241,23 @@ namespace FEBuilderGBA
         public static Task<PreparedImport> PrepareAsync(Stream source, string baseDirectory, string version,
             CancellationToken cancellationToken = default)
             => PrepareCoreAsync(source, baseDirectory, version, cancellationToken,
-                path => IsGitOwned(path, cancellationToken), null, null, null);
+                path => IsGitOwned(path, cancellationToken), null, null, null, null);
+
+        internal static Task<PreparedImport> PrepareWithRecoveryNotificationAsync(Stream source, string baseDirectory,
+            string version, CancellationToken cancellationToken, Action recoveryCompleted)
+            => PrepareCoreAsync(source, baseDirectory, version, cancellationToken,
+                path => IsGitOwned(path, cancellationToken), null, null, null, recoveryCompleted);
 
         internal static Task<PreparedImport> PrepareForTestAsync(Stream source, string baseDirectory, string version,
             CancellationToken cancellationToken, Func<string, bool> isGitOwned, Action<Checkpoint>? checkpoint = null,
-            PatchDatabaseZipReaderCore.Limits? limits = null, InventoryLimits? inventory = null)
-            => PrepareCoreAsync(source, baseDirectory, version, cancellationToken, isGitOwned, checkpoint, limits, inventory);
+            PatchDatabaseZipReaderCore.Limits? limits = null, InventoryLimits? inventory = null,
+            Action? recoveryCompleted = null)
+            => PrepareCoreAsync(source, baseDirectory, version, cancellationToken, isGitOwned, checkpoint, limits, inventory,
+                recoveryCompleted);
 
         static async Task<PreparedImport> PrepareCoreAsync(Stream source, string baseDirectory, string version,
             CancellationToken cancellationToken, Func<string, bool> isGitOwned, Action<Checkpoint>? checkpoint,
-            PatchDatabaseZipReaderCore.Limits? limits, InventoryLimits? inventory)
+            PatchDatabaseZipReaderCore.Limits? limits, InventoryLimits? inventory, Action? recoveryCompleted)
         {
             ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead) throw new InvalidDataException("The selected ZIP stream is not readable.");
@@ -258,6 +276,8 @@ namespace FEBuilderGBA
             {
                 lease = PatchDatabaseOperationLeaseCore.Acquire(baseDirectory);
                 RecoverUnderLease(lease.BaseDirectory, isGitOwned, inventory);
+                // This completion is independent of later validation/cancellation; both operation locks are still held.
+                recoveryCompleted?.Invoke();
                 string target = TargetFor(lease.BaseDirectory, version);
                 RefuseGitOwnership(target, isGitOwned);
                 journal = new Journal
@@ -367,7 +387,8 @@ namespace FEBuilderGBA
             }
             catch (Exception ex) when (IsExpectedFailure(ex))
             {
-                return new Result { RecoveryRequired = true, Message = ex.Message };
+                return new Result { RecoveryRequired = true, Kind = ResultKind.RecoveryBlocked,
+                    Detail = ex.Message, Message = ex.Message };
             }
         }
 
@@ -417,12 +438,14 @@ namespace FEBuilderGBA
                     return new Result
                     {
                         Success = true, RecoveryRequired = true, RetainedPath = operation,
+                        Kind = ResultKind.CommittedAfterInterruption, Detail = failure.Message,
                         Message = "The database was committed despite an interrupted commit response: " + failure.Message,
                     };
                 if (!deferCleanup)
                     CleanupUncommitted(root, operation, durable, inventory, verifyBackup: verifyBackup);
                 return new Result
                 {
+                    Kind = ResultKind.StoppedBeforeCommit, Detail = failure.Message,
                     Message = "Import stopped without committing: " + failure.Message,
                     RecoveryRequired = deferCleanup, RetainedPath = deferCleanup ? operation : "",
                 };
@@ -432,6 +455,7 @@ namespace FEBuilderGBA
                 return new Result
                 {
                     RecoveryRequired = true, RetainedPath = operation,
+                    Kind = ResultKind.RecoveryFailed, Detail = failure.Message, RecoveryDetail = rollback.Message,
                     Message = "Import recovery is required; the owned workspace was retained. " +
                         failure.Message + " Recovery: " + rollback.Message,
                 };

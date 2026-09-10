@@ -89,6 +89,106 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(target); }
         }
 
+        [Theory]
+        [InlineData("config/blocked")]
+        [InlineData("config/blocked/nested")]
+        public void UnsafeManifestDestinationAbortsBeforePruning(string blockedAncestor)
+        {
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/aaa-canary.txt", "UNCHANGED");
+                WriteAsset(target, blockedAncestor, "NOT A DIRECTORY");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "old stamp");
+                string[] beforeFiles = Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                byte[][] beforeContents = beforeFiles.Select(File.ReadAllBytes).ToArray();
+                string[] beforeDirectories = Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config/new.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                    [blockedAncestor + "/asset.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal(beforeFiles, Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                Assert.Equal(beforeDirectories, Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                for (int i = 0; i < beforeFiles.Length; i++)
+                    Assert.Equal(beforeContents[i], File.ReadAllBytes(beforeFiles[i]));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [Fact]
+        public void ReparseManifestAncestorAbortsBeforePruningOrFollowingTheLink()
+        {
+            string target = NewTempDir();
+            string outside = NewTempDir();
+            string link = Path.Combine(target, "config", "blocked");
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/aaa-canary.txt", "UNCHANGED");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "old stamp");
+                WriteAsset(outside, "asset.txt", "EXTERNAL OWNED CANARY");
+                var before = Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .ToDictionary(path => path, File.ReadAllBytes);
+                if (OperatingSystem.IsWindows())
+                {
+                    // A directory junction exercises the reparse guard without symlink privileges.
+                    var start = new System.Diagnostics.ProcessStartInfo(
+                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"))
+                    {
+                        UseShellExecute = false, CreateNoWindow = true,
+                        RedirectStandardOutput = true, RedirectStandardError = true,
+                    };
+                    foreach (string argument in new[] { "/d", "/c", "mklink", "/J", link, outside })
+                        start.ArgumentList.Add(argument);
+                    using var process = System.Diagnostics.Process.Start(start)!;
+                    if (!process.WaitForExit(10_000))
+                    {
+                        process.Kill(entireProcessTree: true);
+                        throw new TimeoutException("Owned test junction creation timed out.");
+                    }
+                    Assert.True(process.ExitCode == 0, process.StandardError.ReadToEnd());
+                }
+                else Directory.CreateSymbolicLink(link, outside);
+                string? linkTarget = new DirectoryInfo(link).LinkTarget;
+                Assert.NotNull(linkTarget);
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config/new.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                    ["config/blocked/asset.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal(linkTarget, new DirectoryInfo(link).LinkTarget);
+                Assert.True((File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0);
+                Assert.False(File.Exists(Path.Combine(target, "config", "new.txt")));
+                foreach (var file in before) Assert.Equal(file.Value, File.ReadAllBytes(file.Key));
+                Assert.Equal("EXTERNAL OWNED CANARY", File.ReadAllText(Path.Combine(outside, "asset.txt")));
+                Assert.Single(Directory.GetFiles(outside));
+            }
+            finally
+            {
+                if (Directory.Exists(link) && (File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0)
+                    Directory.Delete(link);
+                Cleanup(target, outside);
+            }
+        }
+
         [Fact]
         public void DefaultExtractionDoesNotOptOtherHeadsIntoPreservation()
         {
@@ -128,8 +228,13 @@ namespace FEBuilderGBA.Core.Tests
         {
             readonly Dictionary<string, byte[]> _files;
             public InMemoryAssetSource(Dictionary<string, byte[]> files) { _files = files; }
+            public int OpenAssetCalls { get; private set; }
             public IEnumerable<string> EnumerateAssetFiles() => _files.Keys;
-            public Stream OpenAsset(string relativePath) => new MemoryStream(_files[relativePath], writable: false);
+            public Stream OpenAsset(string relativePath)
+            {
+                OpenAssetCalls++;
+                return new MemoryStream(_files[relativePath], writable: false);
+            }
         }
 
         static string NewTempDir()

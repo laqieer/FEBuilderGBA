@@ -201,7 +201,7 @@ namespace FEBuilderGBA
                     disk = U32(extras, z);
                     z += 4;
                 }
-                if (z != 0 && z != extras!.Length) throw Invalid("Ambiguous ZIP64 size extra.");
+                if (z != (extras?.Length ?? 0)) throw Invalid("Ambiguous ZIP64 size extra.");
                 if (disk != 0 || expanded > (ulong)limits.MaxFileBytes ||
                     compressed > (ulong)limits.MaxInputBytes)
                     throw Invalid("ZIP entry disk or size limit exceeded.");
@@ -311,7 +311,7 @@ namespace FEBuilderGBA
                 int z = 0;
                 if (expanded == uint.MaxValue) expanded = Extra64(zip64, ref z);
                 if (compressed == uint.MaxValue) compressed = Extra64(zip64, ref z);
-                if (z != 0 && z != zip64!.Length) throw Invalid("Ambiguous local ZIP64 sizes.");
+                if (z != (zip64?.Length ?? 0)) throw Invalid("Ambiguous local ZIP64 sizes.");
                 bool descriptor = (e.Flags & 8) != 0;
                 uint crc = U32(h, 14);
                 if (descriptor)

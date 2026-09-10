@@ -405,12 +405,18 @@ refresh. Desktop import requires a writable, non-Git-owned application tree:
 Git worktrees, repositories, submodules, unsafe ancestry and concurrent
 cooperating import/Git operations are refused. Run a portable desktop build
 outside a source checkout rather than modifying the checkout's database.
+Patch install, force-install and both uninstall paths also use the shared
+in-process content-operation gate. Clean-ROM selection keeps that gate until
+the uninstall dialog completes; Git/import cannot replace its descriptor
+mid-dialog. This does not coordinate unrelated external filesystem writers.
 
 Supported archives are single-disk stored/deflate ZIPs, including bounded ZIP64
 and checked streaming data descriptors. Limits include a 1-GiB input, 100,000
 archive records, 50,000 selected files, 100,000 distinct materialized paths,
 128 MiB per expanded file and 2 GiB selected expanded data. Names, collisions,
-entry types, compressed extents, actual bytes and CRC are checked. Metadata
+entry types, compressed extents, actual bytes and CRC are checked. ZIP64 extra
+payloads must be consumed exactly, including when ordinary header fields do
+not need ZIP64 values. Metadata
 references must remain within the selected version and satisfy bounded
 text/reference-graph limits; ambiguous language/path interpretations, missing
 dependencies, cycles and unsafe operands are rejected. A ZIP is not an
@@ -422,6 +428,12 @@ holds a base-wide lease and preserves the old directory until a durable commit
 record exists. Recovery/cleanup runs with ownership and inventory checks; an
 uncertain state is retained with an explicit warning, not deleted. Preserve
 any reported `.patch2-import/<operation-id>` workspace for diagnosis.
+Pending recovery notices survive reopening Patch Manager and are cleared only
+after successful recovery/cleanup. Avalonia localizes structured Core outcome
+templates; provider/filesystem error details remain diagnostic text. During
+Android config refresh, an unsafe destination ancestry (including a reparse
+point or file where a directory is required) aborts before pruning or extraction,
+leaving the prior stamp and imported library untouched.
 
 The `android-patch-import-smoke` job in
 [`android-emulator-parity.yml`](../.github/workflows/android-emulator-parity.yml)

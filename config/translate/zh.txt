@@ -28695,6 +28695,27 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 :Import cleanup requires recovery. Retained workspace: {0}\r\n{1}
 导入清理需要恢复处理。保留的工作目录：{0}\r\n{1}
 
+:The database was committed despite an interrupted commit response: {0}
+虽然提交响应中断，但数据库已提交：{0}
+
+:Import stopped without committing: {0}
+导入已停止，未提交数据库：{0}
+
+:Import recovery is required; the owned workspace was retained.\r\n{0}\r\nRecovery: {1}
+导入需要恢复处理，已保留自有工作目录。\r\n{0}\r\n恢复：{1}
+
+:The new database is installed, but owned backup cleanup is pending: {0}
+新数据库已安装，但自有备份尚待清理：{0}
+
+:Owned workspace cleanup is pending: {0}
+自有工作目录尚待清理：{0}
+
+:A patch database operation is already running. Try again when it finishes.
+补丁数据库操作正在进行中。请等待操作完成后重试。
+
+:The loaded ROM or selected patch changed. Uninstall was cancelled.
+加载的 ROM 或选中的补丁已更改。已取消卸载。
+
 :The file picker is unavailable on this platform.
 此平台不支持文件选择器。
 
