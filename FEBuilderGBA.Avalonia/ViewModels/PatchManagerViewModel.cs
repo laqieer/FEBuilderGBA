@@ -96,14 +96,36 @@ namespace FEBuilderGBA.Avalonia.ViewModels
     public class PatchManagerViewModel : ViewModelBase
     {
         bool _isLoaded;
+        bool _snapshotCurrent = true;
         string _filterText = "";
         PatchEntry? _selectedPatch;
         int _totalCount;
         int _installedCount;
         string _statusMessage = "";
 
-        readonly List<PatchEntry> _allPatches = new();
-        readonly ObservableCollection<PatchEntry> _filteredPatches = new();
+        List<PatchEntry> _allPatches = new();
+        ObservableCollection<PatchEntry> _filteredPatches = new();
+
+        internal void SetPendingFilter(string filter)
+        {
+            _snapshotCurrent = false;
+            SetField(ref _filterText, filter, nameof(FilterText));
+            SelectedPatch = null;
+            IsLoaded = false;
+        }
+
+        internal void Publish(PatchManagerRefreshService.PatchListSnapshot snapshot)
+        {
+            _snapshotCurrent = true;
+            _allPatches = snapshot.All;
+            _filteredPatches = snapshot.Filtered;
+            TotalCount = snapshot.All.Count;
+            InstalledCount = snapshot.Installed;
+            StatusMessage = snapshot.Message;
+            SelectedPatch = null;
+            OnPropertyChanged(nameof(FilteredPatches));
+            IsLoaded = true;
+        }
 
         public bool IsLoaded { get => _isLoaded; set => SetField(ref _isLoaded, value); }
         public bool CanImportPatchDatabase => PatchDatabaseImportService.CanImportLoadedRom;
@@ -158,6 +180,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         /// <summary>True when a patch is selected and not already installed.</summary>
         public bool CanInstall =>
+            _snapshotCurrent &&
             !IsPatchDatabaseOperationRunning &&
             _selectedPatch != null &&
             _selectedPatch.Status != PatchMetadataCore.PatchStatus.Installed &&
@@ -170,6 +193,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// backup exists (patch installed in a prior/WinForms session or already in the ROM).
         /// </summary>
         public bool CanUninstall =>
+            _snapshotCurrent &&
             !IsPatchDatabaseOperationRunning &&
             _selectedPatch != null &&
             _selectedPatch.Status == PatchMetadataCore.PatchStatus.Installed &&
@@ -187,6 +211,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         bool LoadPatchListCore(bool requireCompleteRead)
         {
+            _snapshotCurrent = true;
             _allPatches.Clear();
             _filteredPatches.Clear();
             TotalCount = 0;
@@ -596,17 +621,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// Tool's ChapterNameToText install) can reuse the single resolution path.
         /// </summary>
         public static string ResolvePatchDirectory(string version)
+            => ResolvePatchLocation(version).Directory;
+
+        internal sealed record PatchLocation(string BaseDirectory, string Directory);
+
+        internal static PatchLocation ResolvePatchLocation(string version)
         {
             string exeDir = AppDomain.CurrentDomain.BaseDirectory;
             string baseDir = string.IsNullOrEmpty(CoreState.BaseDirectory) ? exeDir : CoreState.BaseDirectory;
             string canonical = Path.Combine(baseDir, "config", "patch2", version);
-            if (Directory.Exists(canonical)) return canonical;
+            if (AdmittedCandidate(baseDir, version, canonical)) return new(Path.GetFullPath(baseDir), canonical);
 
             string path = Path.Combine(exeDir, "config", "patch2", version);
-            if (Directory.Exists(path)) return path;
+            if (AdmittedCandidate(exeDir, version, path)) return new(exeDir, path);
 
             path = Path.Combine(Directory.GetCurrentDirectory(), "config", "patch2", version);
-            if (Directory.Exists(path)) return path;
+            if (AdmittedCandidate(Directory.GetCurrentDirectory(), version, path)) return new(Directory.GetCurrentDirectory(), path);
 
             // Development: find repo root
             string dir = exeDir;
@@ -615,7 +645,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (Directory.Exists(Path.Combine(dir, ".git")))
                 {
                     path = Path.Combine(dir, "config", "patch2", version);
-                    if (Directory.Exists(path)) return path;
+                    if (AdmittedCandidate(dir, version, path)) return new(dir, path);
                     break;
                 }
                 string parent = Path.GetDirectoryName(dir) ?? "";
@@ -623,7 +653,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 dir = parent;
             }
 
-            return canonical;
+            return new(baseDir, canonical);
+        }
+
+        static bool AdmittedCandidate(string root, string version, string directory)
+        {
+            if (PatchDatabaseImportCore.IsSupportedVersion(version) &&
+                PatchDatabaseOperationLeaseCore.ProbeExisting(root, version, directory).Managed)
+                return true;
+            // ProbeExisting above rejects access/type/ancestry errors before legacy absence is considered.
+            return Directory.Exists(directory);
         }
     }
 }

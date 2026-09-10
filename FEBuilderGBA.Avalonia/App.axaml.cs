@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -206,8 +208,20 @@ namespace FEBuilderGBA.Avalonia
         internal static void RecordPatchDatabaseRecovery(PatchDatabaseImportCore.RecoveryException exception)
             => Interlocked.Exchange(ref patchDatabaseRecoveryState, new PatchDatabaseRecoveryState(null, exception));
 
+        readonly PatchDatabaseStartupService patchDatabaseStartup = new();
+        internal Task? StartupTask { get; private set; }
+        bool frameworkInitialized;
+
+        internal static bool HasSynchronousStartupRoute =>
+            GapSweepMode != null || !string.IsNullOrEmpty(RenderMainViewPath) ||
+            (!string.IsNullOrEmpty(ScreenshotWindowName) && !string.IsNullOrEmpty(ScreenshotWindowOut)) ||
+            SmokeTestMode || SmokeTestAll || DataVerifyMode || DataVerifyFullMode || ScreenshotAllMode ||
+            ExportEditorImagesMode || ValidateImportMode || ValidatePaletteMode || ListParityMode;
+
         public override void OnFrameworkInitializationCompleted()
         {
+            if (frameworkInitialized) return;
+            frameworkInitialized = true;
             // Register code pages for Shift-JIS, etc.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -220,7 +234,56 @@ namespace FEBuilderGBA.Avalonia
             CoreState.Services = new AvaloniaAppServices();
             CoreState.ImageService = new SkiaImageService();
 
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime route)
+                ParseArguments(route.Args, resolveLastRom: false);
+#if !BROWSER && !IOS
+            if (!HasSynchronousStartupRoute &&
+                (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime ||
+                 ApplicationLifetime is ISingleViewApplicationLifetime))
+            {
+                var status = new TextBlock { Text = "Recovering patch database…", Margin = new Thickness(24) };
+                var root = new Border { Child = status };
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime interactive)
+                {
+                    var loading = new Window { Title = "FEBuilderGBA", Width = 480, Height = 160, Content = root };
+                    bool closed = false;
+                    loading.Closed += (_, _) => closed = true;
+                    interactive.MainWindow = loading;
+                    StartupTask = patchDatabaseStartup.CompleteAsync(baseDir,
+                        () => !closed && ReferenceEquals(ApplicationLifetime, interactive) &&
+                              ReferenceEquals(interactive.MainWindow, loading),
+                        result =>
+                        {
+                            InitializeConsumers(baseDir, result);
+                            ParseArgs(interactive.Args);
+                            PatchDatabaseStartupService.Handoff(interactive, loading, () => new Views.MainWindow());
+                        },
+                        ex => status.Text = "Startup failed. No patch database consumers were opened.\n" + ex.Message);
+                }
+                else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
+                {
+                    single.MainView = root;
+                    StartupTask = patchDatabaseStartup.CompleteAsync(baseDir,
+                        () => ReferenceEquals(ApplicationLifetime, single) && ReferenceEquals(single.MainView, root),
+                        result =>
+                        {
+                            InitializeConsumers(baseDir, result);
+                            single.MainView = new Views.MainView();
+                        },
+                        ex => status.Text = "Startup failed. No patch database consumers were opened.\n" + ex.Message);
+                }
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+#endif
             var recovery = PatchDatabaseImportCore.RecoverPending(baseDir);
+            InitializeConsumers(baseDir, recovery);
+            InitializeSynchronousShell();
+            base.OnFrameworkInitializationCompleted();
+        }
+
+        void InitializeConsumers(string baseDir, PatchDatabaseImportCore.Result recovery)
+        {
             RecordPatchDatabaseRecovery(recovery);
             if (!string.IsNullOrEmpty(PatchDatabaseRecoveryNotice))
                 Log.Error(PatchDatabaseRecoveryNotice);
@@ -271,7 +334,10 @@ namespace FEBuilderGBA.Avalonia
 
             // Apply saved theme preference
             ApplySavedTheme();
+        }
 
+        void InitializeSynchronousShell()
+        {
             // Parse command line arguments
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -324,7 +390,6 @@ namespace FEBuilderGBA.Avalonia
                 singleView.MainView = new Views.MainView();
             }
 
-            base.OnFrameworkInitializationCompleted();
         }
 
         /// <summary>
@@ -668,6 +733,9 @@ namespace FEBuilderGBA.Avalonia
         }
 
         static void ParseArgs(string[]? args)
+            => ParseArguments(args, resolveLastRom: true);
+
+        internal static void ParseArguments(string[]? args, bool resolveLastRom)
         {
             if (args == null) return;
             for (int i = 0; i < args.Length; i++)
@@ -819,7 +887,7 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i] == "--lastrom")
                 {
                     // Load last ROM from config
-                    if (CoreState.Config != null)
+                    if (resolveLastRom && CoreState.Config != null)
                     {
                         string lastRom = CoreState.Config.at("Last_Rom_Filename", "");
                         if (!string.IsNullOrEmpty(lastRom) && File.Exists(lastRom))

@@ -435,6 +435,36 @@ Android config refresh, an unsafe destination ancestry (including a reparse
 point or file where a directory is required) aborts before pruning or extraction,
 leaving the prior stamp and imported library untouched.
 
+Interactive Android/desktop startup first displays an inert recovery screen.
+Recovery runs on a worker before the normal shell, caches or ROM consumers
+are initialized. Closing/replacing that screen suppresses late startup.
+Command/render/smoke startup keeps its existing synchronous route.
+
+Patch Manager loads, filters and refreshes metadata on a captured ROM-byte
+clone, including real file-backed FGREP and dependency checks. Each view has
+one running read and at most one replaceable pending request. Changing the
+ROM, filter or attachment discards stale results; cancellation never releases
+an in-use import/reader lease. A committed import stays imported even if its
+list refresh fails or is cancelled; reopen Patch Manager to retry.
+Managed libraries require the existing fixed read/write exclusive lease.
+Missing, inaccessible or read-only managed locks are reported, not repaired
+or bypassed. Legacy libraries remain readable without creating a workspace
+or changing permissions; a newly appearing managed state forces a locked reread.
+
+For source-bound large-input proof, the existing Core test executable includes
+`PatchDatabaseImportCoreTests.GenerateResponsivenessProofFixtures`.
+Set `FEBUILDER_RESPONSIVENESS_PROOF` to a fresh 32-hex GUID, then run that exact
+test with `dotnet vstest` against the built Core.Tests DLL. It writes only to
+that DLL's `TestResults/responsiveness-proof-<GUID>`: a generated 16-MiB FE8U
+ROM, `large-fgrep.zip` (10,000 descriptors, expected Installed), and
+`recovery-base` containing a valid interrupted Prepared workspace with 20,000
+user-data descendants (20,001 including the owned marker). Keep the complete
+workspace and fixed lock together when copying into an owned app-private
+proof root. The helper does not install app test hooks or establish GUI
+responsiveness. Actual device/desktop proof must independently record loading,
+input responsiveness and final counts/recovery, with 600-second stages and
+a 30-minute owned session limit; do not reduce the fixture after a timeout.
+
 The `android-patch-import-smoke` job in
 [`android-emulator-parity.yml`](../.github/workflows/android-emulator-parity.yml)
 uses a fresh API-34 x86_64 AVD, ordinary Debug APKs and generated legal fixtures.

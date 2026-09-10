@@ -37,6 +37,8 @@ namespace FEBuilderGBA.Avalonia.Services
             public bool Imported { get; internal set; }
             public bool Cancelled { get; internal set; }
             public bool RecoveryRequired { get; internal set; }
+            public bool Refreshed { get; internal set; }
+            internal PatchDatabaseImportCore.Result? Receipt { get; set; }
             public string Message { get; internal set; } = "";
         }
 
@@ -97,21 +99,37 @@ namespace FEBuilderGBA.Avalonia.Services
 
         internal static Task<Outcome> ImportForTestAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
             Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm, CancellationToken cancellationToken,
-            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
-            => ImportCoreAsync(selected, identity, baseDirectory, confirm, cancellationToken, prepare);
+            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare,
+            Func<PatchDatabaseImportCore.PreparedImport, Task<bool>>? refresh = null, Action<ImportPhase>? phase = null)
+            => ImportCoreAsync(selected, identity, baseDirectory, confirm, cancellationToken, prepare, refresh, phase);
+
+        internal enum ImportPhase { PreCommit, Committed, Mapping, Refresh, Disposing, Disposed, Terminal }
+
+        internal static Task<Outcome> ImportAndRefreshAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
+            Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm,
+            Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> refresh, CancellationToken token)
+            => ImportCoreAsync(selected, identity, baseDirectory, confirm, token,
+                PatchDatabaseImportCore.PrepareWithRecoveryNotificationAsync, refresh);
 
         static async Task<Outcome> ImportCoreAsync(IStorageFile selected, RomIdentity identity, string baseDirectory,
             Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm, CancellationToken cancellationToken,
-            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare)
+            Func<Stream, string, string, CancellationToken, Action, Task<PatchDatabaseImportCore.PreparedImport>> prepare,
+            Func<PatchDatabaseImportCore.PreparedImport, Task<bool>>? refresh = null, Action<ImportPhase>? phase = null)
         {
             var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
             int recoveryCompleted = 0;
+            bool committed = false, refreshed = false;
+            PatchDatabaseImportCore.PreparedImport? prepared = null;
+            PatchDatabaseImportCore.Result? receipt = null;
+            Exception? failure = null;
+            PatchDatabaseImportCore.RecoveryException? recoveryException = null;
+            Outcome? early = null;
+            string message = "";
             try
             {
-                if (!identity.IsCurrent) return RomChanged();
+                if (!identity.IsCurrent) early = RomChanged();
                 cancellationToken.ThrowIfCancellationRequested();
-                PatchDatabaseImportCore.PreparedImport? prepared = null;
-                try
+                if (early == null)
                 {
                     await using (Stream source = await selected.OpenReadAsync())
                     {
@@ -120,52 +138,107 @@ namespace FEBuilderGBA.Avalonia.Services
                             cancellationToken);
                     }
                     cancellationToken.ThrowIfCancellationRequested();
-                    if (!identity.IsCurrent) return RomChanged();
-                    if (!await confirm(prepared))
-                        return Cancelled();
-                    cancellationToken.ThrowIfCancellationRequested();
-                    await Task.Run(() => prepared.ValidateForCommit(cancellationToken), cancellationToken);
-                    if (!identity.IsCurrent) return RomChanged();
-                    // Commit is synchronous on the owning UI context: no ROM-load UI event can
-                    // interleave the final identity check with its short rename/journal sequence.
-                    var result = prepared.Commit(cancellationToken, deferCleanup: true);
-                    if (result.RecoveryRequired)
-                        // Leases remain held while full rollback/inventory/cleanup runs off the UI thread.
-                        result = await Task.Run(prepared.CompleteCleanup);
-                    if (result.RecoveryRequired) App.RecordPatchDatabaseRecovery(result);
-                    return new Outcome
+                    if (!identity.IsCurrent) early = RomChanged();
+                    else if (!await confirm(prepared)) early = Cancelled();
+                    if (early == null)
                     {
-                        Imported = result.Success, RecoveryRequired = result.RecoveryRequired,
-                        Message = FormatResult(result),
-                    };
+                        cancellationToken.ThrowIfCancellationRequested();
+                        await Task.Run(() => prepared.ValidateForCommit(cancellationToken), cancellationToken);
+                        if (!identity.IsCurrent) early = RomChanged();
+                        else
+                        {
+                            phase?.Invoke(ImportPhase.PreCommit);
+                            // No await may interleave the final identity check and short commit.
+                            if (!identity.IsCurrent) early = RomChanged();
+                            else
+                            {
+                                receipt = prepared.Commit(cancellationToken, deferCleanup: true);
+                                committed = receipt.Success;
+                                if (committed) phase?.Invoke(ImportPhase.Committed);
+                            }
+                        }
+                    }
                 }
-                finally
-                {
-                    if (prepared != null)
-                        await Task.Run(prepared.Dispose);
-                }
-            }
-            catch (OperationCanceledException) { return Cancelled(); }
-            catch (PatchDatabaseImportCore.RecoveryException ex)
-            {
-                App.RecordPatchDatabaseRecovery(ex);
-                return new Outcome
-                {
-                    RecoveryRequired = true,
-                    Message = FormatRecoveryException(ex),
-                };
             }
             catch (Exception ex)
             {
-                return new Outcome { Message = R._("Patch database import failed: {0}", ex.Message) };
+                failure = ex;
+                recoveryException = ex as PatchDatabaseImportCore.RecoveryException;
             }
-            finally
+
+            // These phases must run independently of cancellation and of faults following the latch.
+            if (receipt != null && prepared != null && receipt.RecoveryRequired)
             {
-                // Only Core's explicit completion receipt can clear the captured notice.
-                // A new cleanup failure or another operation's notice has a different identity.
-                if (Volatile.Read(ref recoveryCompleted) != 0)
-                    App.ClearPatchDatabaseRecoveryNotice(previousNotice);
+                try
+                {
+                    receipt = await Task.Run(prepared.CompleteCleanup);
+                    if (receipt.Success) committed = true;
+                }
+                catch (Exception ex) { failure = ex; }
             }
+            if (receipt?.RecoveryRequired == true) App.RecordPatchDatabaseRecovery(receipt);
+            if (recoveryException != null) App.RecordPatchDatabaseRecovery(recoveryException);
+            var ownedNotice = App.CapturePatchDatabaseRecoveryNotice();
+            try
+            {
+                phase?.Invoke(ImportPhase.Mapping);
+                if (receipt != null) message = FormatResult(receipt);
+            }
+            catch (Exception ex) { failure = ex; }
+            if (committed && prepared != null && refresh != null)
+            {
+                try
+                {
+                    phase?.Invoke(ImportPhase.Refresh);
+                    refreshed = await refresh(prepared);
+                }
+                catch (Exception ex) { failure = ex; }
+            }
+            if (prepared != null)
+            {
+                try
+                {
+                    await Task.Run(() =>
+                    {
+                        try { phase?.Invoke(ImportPhase.Disposing); }
+                        finally { prepared.Dispose(); }
+                        phase?.Invoke(ImportPhase.Disposed);
+                    });
+                }
+                catch (Exception ex)
+                {
+                    failure = ex;
+                    if (ex is PatchDatabaseImportCore.RecoveryException recovery)
+                    {
+                        recoveryException = recovery;
+                        if (ReferenceEquals(ownedNotice, App.CapturePatchDatabaseRecoveryNotice()))
+                            App.RecordPatchDatabaseRecovery(recovery);
+                    }
+                }
+            }
+            if (Volatile.Read(ref recoveryCompleted) != 0)
+                App.ClearPatchDatabaseRecoveryNotice(previousNotice);
+            if (committed)
+            {
+                if (failure != null) refreshed = false;
+                if (message.Length == 0 && receipt?.RecoveryRequired == true)
+                    message = "The database is installed; recovery is required. Retained workspace: " +
+                        receipt.RetainedPath + "\n" + receipt.Detail + "\n" + receipt.CleanupDetail;
+                if ((!refreshed && refresh != null) || failure != null)
+                    message = Append("The database was imported, but the list was not refreshed.", message);
+                if (failure != null) message = Append(message, failure.Message);
+                return new Outcome { Imported = true, Refreshed = refreshed, Receipt = receipt,
+                    RecoveryRequired = receipt?.RecoveryRequired == true ||
+                        recoveryException != null, Message = message };
+            }
+            if (recoveryException != null)
+                return new Outcome { RecoveryRequired = true, Message = FormatRecoveryException(recoveryException), Receipt = receipt };
+            if (receipt != null)
+                return new Outcome { Receipt = receipt, RecoveryRequired = receipt.RecoveryRequired,
+                    Message = message.Length != 0 ? message : "Import stopped without committing. " + receipt.Detail };
+            if (failure is OperationCanceledException) return Cancelled();
+            if (failure != null) return new Outcome { Message = R._("Patch database import failed: {0}", failure.Message) };
+            return early ?? new Outcome();
         }
 
         static Outcome Cancelled() => new Outcome

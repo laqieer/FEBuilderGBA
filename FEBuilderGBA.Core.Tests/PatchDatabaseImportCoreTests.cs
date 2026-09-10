@@ -10,6 +10,86 @@ namespace FEBuilderGBA.Core.Tests;
 public class PatchDatabaseImportCoreTests
 {
     [Fact]
+    public async Task GeneratedResponsivenessFixtureHasRealFgrepAndRecoverableInventory()
+    {
+        using var fixture = new Fixture();
+        using var zip = ResponsivenessZip(8, fgrep: true);
+        using (var prepared = await PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U", default, _ => false))
+        {
+            Assert.Equal(9, prepared.FileCount);
+            Assert.True(prepared.Commit().Success);
+        }
+        var rom = new ROM();
+        rom.LoadLow("generated.gba", ResponsivenessRom(), "BE8E01");
+        var infos = PatchMetadataCore.EnumeratePatches(fixture.Target, rom, "en");
+        Assert.Equal(8, infos.Count);
+        Assert.All(infos, info => Assert.Equal(PatchMetadataCore.PatchStatus.Installed, info.Status));
+        using var recovery = ResponsivenessZip(20, fgrep: false);
+        using (var prepared = await PatchDatabaseImportCore.PrepareForTestAsync(recovery, fixture.Root, "FE8U", default, _ => false))
+            Assert.Equal(20, prepared.FileCount);
+        Assert.True(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+    }
+
+    [Fact]
+    public void GenerateResponsivenessProofFixtures()
+    {
+        string? name = Environment.GetEnvironmentVariable("FEBUILDER_RESPONSIVENESS_PROOF");
+        if (string.IsNullOrEmpty(name)) return;
+        Assert.True(Guid.TryParseExact(name, "N", out _), "Proof output must be an owned fresh GUID.");
+        string root = Path.Combine(AppContext.BaseDirectory, "TestResults", "responsiveness-proof-" + name);
+        Assert.False(Directory.Exists(root), "Never overwrite a proof fixture.");
+        Directory.CreateDirectory(root);
+        File.WriteAllBytes(Path.Combine(root, "synthetic-fe8u.gba"), ResponsivenessRom());
+        using (var zip = ResponsivenessZip(10_000, fgrep: true))
+        using (var output = new FileStream(Path.Combine(root, "large-fgrep.zip"), FileMode.CreateNew))
+            zip.CopyTo(output);
+        string recovery = Path.Combine(root, "recovery-base");
+        Directory.CreateDirectory(recovery);
+        RunCrashProbe(recovery, "Prepared", large: true);
+        string operation = Assert.Single(Directory.GetDirectories(Path.Combine(recovery, ".patch2-import")));
+        Assert.Equal(20_001, Directory.GetFileSystemEntries(Path.Combine(operation, "new"), "*", SearchOption.AllDirectories).Length);
+        File.WriteAllText(Path.Combine(root, "fixture-receipt.json"), JsonSerializer.Serialize(new
+        {
+            descriptors = 10_000, status = "Installed", libraryNodes = 10_001,
+            recoveryUserNodes = 20_000, recoveryDescendantsIncludingMarker = 20_001,
+            checkpoint = "Prepared", stageDeadlineSeconds = 600, sessionDeadlineSeconds = 1800,
+            sourceAssembly = Assembly.GetExecutingAssembly().Location,
+        }));
+    }
+
+    static byte[] ResponsivenessRom()
+    {
+        var data = new byte[0x1000000];
+        Encoding.ASCII.GetBytes("BE8E01").CopyTo(data, 0xAC);
+        new byte[] { 0xAB, 0xCD, 0xEF, 0x12 }.CopyTo(data, data.Length - 4);
+        return data;
+    }
+
+    static MemoryStream ResponsivenessZip(int count, bool fgrep)
+    {
+        if (count < 1 || count > (fgrep ? 10_000 : 20_000)) throw new ArgumentOutOfRangeException(nameof(count));
+        var result = new MemoryStream();
+        using (var archive = new ZipArchive(result, ZipArchiveMode.Create, true))
+        {
+            if (fgrep)
+            {
+                using var signature = archive.CreateEntry("FE8U/sig.bin").Open();
+                signature.Write(new byte[] { 0xAB, 0xCD, 0xEF, 0x12 });
+            }
+            for (int i = 0; i < count; i++)
+            {
+                string path = fgrep || i == 0 ? $"FE8U/PATCH_{i:D5}.txt" : $"FE8U/data_{i:D5}.dat";
+                using var writer = new StreamWriter(archive.CreateEntry(path).Open(), new UTF8Encoding(false));
+                writer.Write(fgrep
+                    ? $"NAME=Generated FGREP {i:D5}\nTYPE=BIN\nPATCHED_IF:$FGREP4 sig.bin=0xAB 0xCD 0xEF 0x12"
+                    : i == 0 ? "NAME=After interruption\nTYPE=BIN\nPATCHED_IF:0x100=0xAA" : "owned generated data");
+            }
+        }
+        result.Position = 0;
+        return result;
+    }
+
+    [Fact]
     public void JournalCodecUsesGeneratedMetadataForTrimmedAndroidBuilds()
     {
         var metadata = PatchDatabaseImportCore.JournalTypeInfo;
@@ -559,7 +639,8 @@ public class PatchDatabaseImportCoreTests
         string allowed = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestResults")) + Path.DirectorySeparatorChar;
         Assert.StartsWith(allowed, Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase);
         string? checkpoint = Environment.GetEnvironmentVariable("FEBUILDER_TEST_IMPORT_CHECKPOINT");
-        using var zip = Fixture.Zip("After interruption");
+        using var zip = Environment.GetEnvironmentVariable("FEBUILDER_TEST_IMPORT_LARGE") == "1"
+            ? ResponsivenessZip(20_000, fgrep: false) : Fixture.Zip("After interruption");
         using var prepared = await PatchDatabaseImportCore.PrepareForTestAsync(zip, root, "FE8U", default, _ => false,
             point =>
             {
@@ -587,7 +668,7 @@ public class PatchDatabaseImportCoreTests
         Assert.True(Directory.Exists(operation));
     }
 
-    static void RunCrashProbe(string root, string checkpoint)
+    static void RunCrashProbe(string root, string checkpoint, bool large = false)
     {
         var start = new ProcessStartInfo("dotnet")
         {
@@ -599,6 +680,7 @@ public class PatchDatabaseImportCoreTests
         start.ArgumentList.Add("--Tests:FEBuilderGBA.Core.Tests.PatchDatabaseImportCoreTests.ChildCrashProbe");
         start.Environment["FEBUILDER_TEST_IMPORT_ROOT"] = root;
         start.Environment["FEBUILDER_TEST_IMPORT_CHECKPOINT"] = checkpoint;
+        start.Environment["FEBUILDER_TEST_IMPORT_LARGE"] = large ? "1" : "0";
         start.Environment["DOTNET_NOLOGO"] = "1";
         start.Environment["DOTNET_CLI_TELEMETRY_OPTOUT"] = "1";
         start.Environment["DOTNET_SKIP_FIRST_TIME_EXPERIENCE"] = "1";
@@ -606,7 +688,7 @@ public class PatchDatabaseImportCoreTests
         using var process = Process.Start(start)!;
         Task<string> stdout = process.StandardOutput.ReadToEndAsync();
         Task<string> stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(60_000))
+        if (!process.WaitForExit(large ? 600_000 : 60_000))
         {
             process.Kill(true);
             throw new TimeoutException("The disposable transaction process did not exit.");

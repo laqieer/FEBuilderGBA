@@ -8,6 +8,73 @@ namespace FEBuilderGBA
         internal const string WorkspaceName = ".patch2-import";
         internal const string LeaseName = "lease.lock";
 
+        internal sealed class ExistingLeaseProbe
+        {
+            internal string BaseDirectory { get; }
+            internal string Version { get; }
+            internal string SelectedDirectory { get; }
+            internal bool Managed { get; }
+            internal bool HasLock { get; }
+
+            ExistingLeaseProbe(string root, string version, string selected, bool managed, bool hasLock)
+                => (BaseDirectory, Version, SelectedDirectory, Managed, HasLock) = (root, version, selected, managed, hasLock);
+
+            internal static ExistingLeaseProbe Create(string baseDirectory, string version, string selectedDirectory)
+            {
+                string root = CanonicalBase(baseDirectory);
+                string selected = CanonicalBase(selectedDirectory);
+                var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                if (!PatchDatabaseImportCore.IsSupportedVersion(version) ||
+                    !string.Equals(Path.Combine(root, "config", "patch2", version), selected, comparison))
+                    throw new IOException("The selected patch library does not match its admitted application scope.");
+                EnsureSafeAncestry(selected);
+                string workspace = Path.Combine(root, WorkspaceName);
+                string lockPath = Path.Combine(workspace, LeaseName);
+                string marker = Path.Combine(selected, PatchDatabaseZipReaderCore.OwnershipFileName);
+                EnsureSafeAncestry(workspace);
+                EnsureSafeAncestry(lockPath, allowFileLeaf: true);
+                EnsureSafeAncestry(marker, allowFileLeaf: true);
+                bool workspacePresent = Present(workspace);
+                bool lockPresent = Present(lockPath);
+                bool markerPresent = Present(marker);
+                return new ExistingLeaseProbe(root, version, selected,
+                    workspacePresent || lockPresent || markerPresent, lockPresent);
+            }
+        }
+
+        static bool Present(string path)
+        {
+            try { File.GetAttributes(path); return true; }
+            catch (FileNotFoundException) { return false; }
+            catch (DirectoryNotFoundException) { return false; }
+        }
+
+        internal static ExistingLeaseProbe ProbeExisting(string expectedBaseDirectory, string version, string selectedPatchDirectory)
+            => ExistingLeaseProbe.Create(expectedBaseDirectory, version, selectedPatchDirectory);
+
+        internal static Lease AcquireExisting(ExistingLeaseProbe managedProbe)
+        {
+            ArgumentNullException.ThrowIfNull(managedProbe);
+            if (!managedProbe.Managed) throw new IOException("An unmanaged library has no existing lease.");
+            ProbeExisting(managedProbe.BaseDirectory, managedProbe.Version, managedProbe.SelectedDirectory);
+            string path = Path.Combine(managedProbe.BaseDirectory, WorkspaceName, LeaseName);
+            FileStream? stream = null;
+            try
+            {
+                stream = new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None, 1);
+                ProbeExisting(managedProbe.BaseDirectory, managedProbe.Version, managedProbe.SelectedDirectory);
+                if (!Present(path)) throw new IOException("The managed patch database lease disappeared.");
+                var lease = new Lease(managedProbe.BaseDirectory, stream);
+                stream = null;
+                return lease;
+            }
+            catch (IOException ex) when (IsLeaseContention(ex.HResult))
+            {
+                throw new BusyException(ex);
+            }
+            finally { stream?.Dispose(); }
+        }
+
         internal sealed class BusyException : IOException
         {
             internal BusyException(Exception inner)

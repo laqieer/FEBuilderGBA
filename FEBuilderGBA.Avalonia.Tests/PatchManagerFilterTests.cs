@@ -58,7 +58,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         [AvaloniaFact]
         public async Task ImportedLibraryIsActuallyReloadedWhenThePatchViewReopens()
         {
-            await WithImportedLibrary((rom, root) =>
+            await WithImportedLibrary(async (rom, root) =>
             {
                 for (int i = 0; i < 2; i++)
                 {
@@ -67,6 +67,7 @@ namespace FEBuilderGBA.Avalonia.Tests
                     try
                     {
                         host.Show();
+                        await view.RefreshTask;
                         Dispatcher.UIThread.RunJobs();
                         var list = view.FindControl<ListBox>("PatchListBox")!;
                         Assert.Equal(2, list.ItemCount);
@@ -76,9 +77,8 @@ namespace FEBuilderGBA.Avalonia.Tests
                         Dispatcher.UIThread.RunJobs();
                         Assert.Equal("Installed", view.FindControl<TextBlock>("DetailStatus")!.Text);
                     }
-                    finally { host.Close(); }
+                    finally { host.Close(); await view.RefreshTask; }
                 }
-                return Task.CompletedTask;
             });
         }
 

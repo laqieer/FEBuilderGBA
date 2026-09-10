@@ -5,6 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -107,16 +108,34 @@ namespace FEBuilderGBA
         public static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang)
             => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null);
 
+        internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            CancellationToken cancellationToken)
+            => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, cancellationToken);
+
+        static string[] DiscoverPatchFiles(string directory, CancellationToken token)
+        {
+            var files = new List<string>();
+            foreach (string file in Directory.EnumerateFiles(directory, "PATCH_*.txt", SearchOption.AllDirectories))
+            {
+                token.ThrowIfCancellationRequested();
+                files.Add(file);
+            }
+            token.ThrowIfCancellationRequested();
+            return files.ToArray();
+        }
+
         /// <summary>Internal read/listing seam for legacy per-file tolerance coverage.</summary>
         internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
-            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles)
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var patches = new List<PatchInfo>();
             if (string.IsNullOrEmpty(patchBaseDir))
                 return patches;
 
             Func<string, string[]> list = listPatchFiles
-                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+                ?? (dir => DiscoverPatchFiles(dir, cancellationToken));
 
             string[] patchFiles;
             try
@@ -135,8 +154,10 @@ namespace FEBuilderGBA
 
             foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string defaultName = GetDefaultPatchName(file);
                 PatchInfo info = ParsePatchFileTolerant(file, defaultName, rom, lang, readAllLines);
+                cancellationToken.ThrowIfCancellationRequested();
                 SetContainingDirectory(info, file);
                 patches.Add(info);
             }
@@ -154,6 +175,10 @@ namespace FEBuilderGBA
             out List<PatchInfo> patches, out string error)
             => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, out patches, out error);
 
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            CancellationToken cancellationToken, out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, out patches, out error, cancellationToken);
+
         /// <summary>Internal read seam for deterministic enumeration-failure coverage.</summary>
         internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             Func<string, string[]> readAllLines, out List<PatchInfo> patches, out string error)
@@ -167,8 +192,9 @@ namespace FEBuilderGBA
         /// </summary>
         internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
-            out List<PatchInfo> patches, out string error)
+            out List<PatchInfo> patches, out string error, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             patches = new List<PatchInfo>();
             error = "";
             // A null/empty patchBaseDir never touches the filesystem — legacy callers rely on
@@ -177,7 +203,7 @@ namespace FEBuilderGBA
                 return true;
 
             Func<string, string[]> list = listPatchFiles
-                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+                ?? (dir => DiscoverPatchFiles(dir, cancellationToken));
 
             string[] patchFiles;
             try
@@ -207,8 +233,10 @@ namespace FEBuilderGBA
                 // filename minus the PATCH_ prefix).
                 foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     string defaultName = GetDefaultPatchName(file);
                     var info = ParsePatchFileStrict(file, defaultName, rom, lang, readAllLines);
+                    cancellationToken.ThrowIfCancellationRequested();
                     SetContainingDirectory(info, file);
                     patches.Add(info);
                 }

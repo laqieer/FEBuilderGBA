@@ -160,6 +160,7 @@ public class PatchManagerOperationGuardTests
         try
         {
             host.Show();
+            await view.RefreshTask;
             var list = view.FindControl<ListBox>("PatchListBox")!;
             list.ItemsSource = new[] { fixture.CreateViewModel("install").SelectedPatch! };
             list.SelectedIndex = 0;
@@ -180,6 +181,7 @@ public class PatchManagerOperationGuardTests
         {
             if (ownsGate) ContentRepoGitService.Exit();
             host.Close();
+            await view.RefreshTask;
         }
     }
 

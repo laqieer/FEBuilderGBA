@@ -59,6 +59,19 @@ last few editors is lower-risk than leaving it half-applied.
 
 ## For reviewers & AI agents
 
+Interactive Avalonia startup uses an inert recovery root before constructing
+the shell. Desktop handoff assigns and shows the real main window before
+closing the loading window, retaining `OnMainWindowClose` shutdown behavior.
+Patch Manager metadata/status/filter work runs on detached ROM snapshots;
+only current results are bulk-published on the dispatcher. Import success
+is latched at commit, separately from refresh and cleanup outcomes. Existing
+synchronous helpers remain for non-interactive callers.
+
+Headless event-gated tests demonstrate scheduling, ownership and stale-result
+handling, not real application responsiveness. The large-fixture generation
+and separate Android/desktop proof requirements are described in
+[Android offline import](ANDROID.md#52-offline-patch-database-zip-import).
+
 When triaging an issue or scoping a PR:
 
 1. **Is it a new GUI feature?** → target `FEBuilderGBA.Avalonia`. Reject/redirect

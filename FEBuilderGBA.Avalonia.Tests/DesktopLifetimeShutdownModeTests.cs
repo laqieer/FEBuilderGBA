@@ -61,6 +61,54 @@ public sealed class DesktopLifetimeShutdownModeTests
         Assert.Equal(ShutdownMode.OnMainWindowClose, lifetime.ShutdownMode);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LoadingHandoffKeepsMainWindowShutdownPolicyAndClosesEditorsExactlyOnce(bool alreadyVisible)
+    {
+        WithClassicDesktopLifetime((lifetime, service) =>
+        {
+            var loading = new Window();
+            lifetime.MainWindow = loading;
+            int exits = 0;
+            lifetime.Exit += (_, _) => exits++;
+            if (alreadyVisible) loading.Show();
+            var shell = new Window();
+            PatchDatabaseStartupService.Handoff(lifetime, loading, () => shell);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(shell, lifetime.MainWindow);
+            Assert.True(shell.IsVisible);
+            Assert.False(loading.IsVisible);
+            Assert.Equal(0, exits);
+            Assert.Equal(ShutdownMode.OnMainWindowClose, lifetime.ShutdownMode);
+            WindowManager.Instance.MainWindow = shell;
+            var editor = service.Open<LifecycleEditorWindow>();
+            shell.Close();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, exits);
+            Assert.Equal(1, editor.ClosedCount);
+        });
+    }
+
+    [Fact]
+    public void LoadingHandoffConstructionFailureKeepsTheLiveLoadingWindow()
+    {
+        WithClassicDesktopLifetime((lifetime, _) =>
+        {
+            var loading = new Window();
+            lifetime.MainWindow = loading;
+            loading.Show();
+            int exits = 0;
+            lifetime.Exit += (_, _) => exits++;
+            Assert.Throws<IOException>(() => PatchDatabaseStartupService.Handoff(lifetime, loading,
+                () => throw new IOException("shell construction")));
+            Assert.Same(loading, lifetime.MainWindow);
+            Assert.True(loading.IsVisible);
+            Assert.Equal(0, exits);
+            loading.Close();
+        });
+    }
+
     static void WithClassicDesktopLifetime(Action<ClassicDesktopStyleApplicationLifetime, DesktopNavigationService> body)
     {
         using var session = HeadlessUnitTestSession.StartNew(

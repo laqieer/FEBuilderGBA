@@ -15,7 +15,11 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class PatchManagerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PatchManagerViewModel _vm = new();
-        bool _hasLoadedList;
+        readonly PatchManagerRefreshService _refresh = new();
+        bool _attached;
+        long _attachment;
+        int _pendingSelection = -1;
+        internal Task<bool> RefreshTask { get; private set; } = Task.FromResult(false);
         bool _importing;
         bool _gitRunning;
         bool _uninstalling;
@@ -29,6 +33,9 @@ namespace FEBuilderGBA.Avalonia.Views
         public event EventHandler? CloseRequested;
         public void RequestClose()
         {
+            _attached = false;
+            _attachment++;
+            _refresh.Invalidate();
             _importCancellation?.Cancel();
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
@@ -50,48 +57,88 @@ namespace FEBuilderGBA.Avalonia.Views
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            _attached = true;
+            _attachment++;
             _operationTimer.Start();
-            if (!_hasLoadedList)
-            {
-                _hasLoadedList = true;
-                LoadPatches();
-            }
+            if (!_importing) RefreshTask = LoadPatchesAsync();
             UpdateOperationControls();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
         {
             // An Android modal temporarily detaches the underlying editor without closing it.
+            _attached = false;
+            _attachment++;
+            _refresh.Invalidate();
             if (!_importDialogOpen) _importCancellation?.Cancel();
             _operationTimer.Stop();
             base.OnDetachedFromVisualTree(e);
         }
 
-        bool LoadPatches(bool imported = false)
+        async Task<bool> LoadPatchesAsync(PatchDatabaseImportCore.PreparedImport? owner = null)
         {
+            if (!_attached) return false;
+            long attachment = _attachment;
+            string filter = SearchBox.Text ?? "";
+            int selection = _pendingSelection;
+            _vm.SetPendingFilter(filter);
+            ClearDetails();
+            UpdateOperationControls();
             try
             {
-                bool refreshed = true;
-                if (imported) refreshed = _vm.ReloadImportedPatchList();
-                else _vm.LoadPatchList();
-                PatchListBox.ItemsSource = _vm.FilteredPatches;
-                UpdateSummary();
-                InitUpdatePatch2Button.Content = _vm.Patch2ButtonText;
-                ClearDetails();
-                UpdateOperationControls();
-                // Surface the VM's load-time status (e.g. the Android patch2-unavailable
-                // empty-state notice, #1641) into the status label. Always assign so a
-                // cleared StatusMessage ("") also resets the label — never leaves a stale notice.
                 StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
-                    ? R._(_vm.StatusMessage) : App.PatchDatabaseRecoveryNotice;
+                    ? "Working…" : App.PatchDatabaseRecoveryNotice;
+                if (!_attached) return false;
+                if (!PatchDatabaseImportService.CanImportLoadedRom)
+                {
+                    StatusMessageLabel.Text = PatchDatabaseImportService.AvailabilityMessage;
+                    _vm.IsLoaded = true;
+                    return false;
+                }
+                PatchManagerRefreshService.Request Capture(long generation) =>
+                    PatchManagerRefreshService.Capture(filter, selection, generation, owner != null);
+                bool Current(PatchManagerRefreshService.Request request) =>
+                    _attached && attachment == _attachment && request.Identity.IsCurrent &&
+                    string.Equals(SearchBox.Text ?? "", request.Filter, StringComparison.Ordinal);
+                void Publish(PatchManagerRefreshService.PatchListSnapshot snapshot)
+                {
+                    _vm.Publish(snapshot);
+                    PatchListBox.ItemsSource = _vm.FilteredPatches;
+                    UpdateSummary();
+                    InitUpdatePatch2Button.Content = snapshot.GitButton;
+                    ClearDetails();
+                    if (snapshot.Request.Selection >= 0 && snapshot.Filtered.Count > 0)
+                        PatchListBox.SelectedIndex = Math.Min(snapshot.Request.Selection, snapshot.Filtered.Count - 1);
+                    StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
+                        ? R._(snapshot.Message) : App.PatchDatabaseRecoveryNotice;
+                }
+                Task<bool> operation = owner == null
+                    ? _refresh.RefreshAsync(Capture, Current, Publish)
+                    : _refresh.RefreshCommittedAsync(owner, Capture, Current, Publish, _importCancellation?.Token ?? default);
+                UpdateOperationControls();
+                bool refreshed = await operation;
+                if (!refreshed && _attached && attachment == _attachment &&
+                    string.Equals(filter, SearchBox.Text ?? "", StringComparison.Ordinal))
+                {
+                    _vm.SetPendingFilter(filter);
+                    StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
+                        ? R._("The patch database could not be refreshed: {0}",
+                            _refresh.Failure.Length != 0 ? _refresh.Failure : "Reopen Patch Manager.")
+                        : App.PatchDatabaseRecoveryNotice;
+                }
                 return refreshed;
             }
             catch (Exception ex)
             {
                 Log.ErrorF("PatchManagerView.LoadPatches failed: {0}", ex.Message);
-                StatusMessageLabel.Text = R._("The patch database could not be refreshed: {0}", ex.Message);
+                if (_attached && attachment == _attachment)
+                {
+                    _vm.SetPendingFilter(filter);
+                    StatusMessageLabel.Text = R._("The patch database could not be refreshed: {0}", ex.Message);
+                }
                 return false;
             }
+            finally { if (_attached && attachment == _attachment) UpdateOperationControls(); }
         }
 
         void ClearDetails()
@@ -114,8 +161,9 @@ namespace FEBuilderGBA.Avalonia.Views
 
         void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
-            _vm.FilterText = SearchBox.Text ?? "";
-            UpdateSummary();
+            _vm.SetPendingFilter(SearchBox.Text ?? "");
+            if (_attached && !_importing) RefreshTask = LoadPatchesAsync();
+            else _refresh.Invalidate();
         }
 
         void OnPatchSelected(object? sender, SelectionChangedEventArgs e)
@@ -175,7 +223,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UninstallButton.IsEnabled = !PatchActionsBlocked && _vm.CanUninstall;
         }
 
-        bool PatchActionsBlocked => _importing || _gitRunning || _uninstalling || _vm.IsPatchDatabaseOperationRunning;
+        bool PatchActionsBlocked => _importing || _gitRunning || _uninstalling || _refresh.IsBusy || _vm.IsPatchDatabaseOperationRunning;
 
         bool RefuseBusyPatchAction()
         {
@@ -263,6 +311,7 @@ namespace FEBuilderGBA.Avalonia.Views
             UpdateOperationControls();
             InitUpdatePatch2Button.IsEnabled = false;   // synchronous re-entrancy guard
             string baseDir = CoreState.BaseDirectory ?? AppDomain.CurrentDomain.BaseDirectory;
+            long attachment = _attachment;
 
             long lastPost = 0;
             Action<string> progress = line =>
@@ -271,13 +320,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 long now = Environment.TickCount64;
                 if (now - Interlocked.Read(ref lastPost) < 150) return;   // throttle UI posts
                 Interlocked.Exchange(ref lastPost, now);
-                Dispatcher.UIThread.Post(() => StatusMessageLabel.Text = "Git: " + line);
+                Dispatcher.UIThread.Post(() =>
+                {
+                    if (_attached && attachment == _attachment) StatusMessageLabel.Text = "Git: " + line;
+                });
             };
 
             try
             {
                 StatusMessageLabel.Text = "Working…";
                 var result = await Task.Run(() => Patch2GitService.InitializeOrUpdate(baseDir, progress));
+                if (!_attached || attachment != _attachment) return;
                 switch (result.Kind)
                 {
                     case Patch2GitResultKind.GitNotFound:
@@ -291,21 +344,24 @@ namespace FEBuilderGBA.Avalonia.Views
                             result.WasClone ? "initialize" : "update", result.ExitCode, LastLogLine(result.Log));
                         break;
                     case Patch2GitResultKind.Success:
-                        LoadPatches();   // re-scan config/patch2 from disk so new patches appear immediately
-                        StatusMessageLabel.Text = "Patch database updated — list refreshed. Restart recommended for all changes to take full effect.";
+                        RefreshTask = LoadPatchesAsync();
+                        bool refreshed = await RefreshTask;
+                        if (_attached) StatusMessageLabel.Text = refreshed
+                            ? "Patch database updated — list refreshed. Restart recommended for all changes to take full effect."
+                            : "Patch database updated, but the list was not refreshed. Reopen Patch Manager.";
                         break;
                 }
             }
             catch (Exception ex)
             {
                 Log.Error("PatchManagerView", ex.ToString());
-                StatusMessageLabel.Text = "Patch database operation failed: " + ex.Message;
+                if (_attached && attachment == _attachment)
+                    StatusMessageLabel.Text = "Patch database operation failed: " + ex.Message;
             }
             finally
             {
                 _gitRunning = false;
-                InitUpdatePatch2Button.Content = _vm.Patch2ButtonText;
-                UpdateOperationControls();
+                if (_attached) UpdateOperationControls();
             }
         }
 
@@ -320,6 +376,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             _importing = true;
             using var cancellation = new CancellationTokenSource();
+            bool committed = false;
             _importCancellation = cancellation;
             UpdateOperationControls();
             try
@@ -336,12 +393,17 @@ namespace FEBuilderGBA.Avalonia.Views
                         return;
                     }
                     StatusMessageLabel.Text = R._("Validating the ZIP and staging the patch database…");
-                    var result = await PatchDatabaseImportService.ImportAsync(selected, identity,
-                        CoreState.BaseDirectory, ConfirmImport, cancellation.Token);
+                    var result = await PatchDatabaseImportService.ImportAndRefreshAsync(selected, identity,
+                        CoreState.BaseDirectory, ConfirmImport, owner =>
+                        {
+                            RefreshTask = LoadPatchesAsync(owner);
+                            return RefreshTask;
+                        }, cancellation.Token);
+                    committed = result.Imported;
+                    if (!_attached) return;
                     if (result.Imported)
                     {
-                        bool refreshed = identity.IsCurrent && this.GetVisualRoot() != null && LoadPatches(imported: true);
-                        StatusMessageLabel.Text = refreshed
+                        StatusMessageLabel.Text = result.Refreshed
                             ? R._("Imported patch database for {0}; list refreshed. No patches were applied. Restart recommended for cached data.", identity.Version)
                             : R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.", identity.Version);
                         if (!string.IsNullOrWhiteSpace(result.Message))
@@ -352,13 +414,16 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                StatusMessageLabel.Text = R._("Patch database import failed: {0}", ex.Message);
+                if (_attached) StatusMessageLabel.Text = committed
+                    ? R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.",
+                        identity.Version) + "\n" + ex.Message
+                    : R._("Patch database import failed: {0}", ex.Message);
             }
             finally
             {
                 _importCancellation = null;
                 _importing = false;
-                UpdateOperationControls();
+                if (_attached) UpdateOperationControls();
             }
         }
 
@@ -414,20 +479,10 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 if (string.IsNullOrWhiteSpace(patchNameFilter)) return;
-                if (!IsLoaded) LoadPatches();
+                _pendingSelection = Math.Max(0, subIndex);
+                bool changed = SearchBox.Text != patchNameFilter;
                 SearchBox.Text = patchNameFilter;
-                _vm.FilterText = patchNameFilter;
-                PatchListBox.ItemsSource = null;
-                PatchListBox.ItemsSource = _vm.FilteredPatches;
-                UpdateSummary();
-                if (_vm.FilteredPatches.Count > subIndex && subIndex >= 0)
-                {
-                    PatchListBox.SelectedIndex = subIndex;
-                }
-                else if (_vm.FilteredPatches.Count > 0)
-                {
-                    PatchListBox.SelectedIndex = 0;
-                }
+                if (!changed && _attached && !_importing) RefreshTask = LoadPatchesAsync();
             }
             catch (Exception ex)
             {

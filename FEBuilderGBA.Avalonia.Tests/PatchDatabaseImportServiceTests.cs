@@ -16,6 +16,122 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public class PatchDatabaseImportServiceTests
 {
     [Fact]
+    public async Task MatchedPreCommitCancellationKeepsPreviousDatabaseAndCancelledSemantics()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var selected = new PickedFile(Zip("FE8U"));
+        using var cancellation = new CancellationTokenSource();
+        int disposal = 0;
+        var result = await fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!,
+            _ => Task.FromResult(true), cancellation.Token, phase: phase =>
+            {
+                if (phase == PatchDatabaseImportService.ImportPhase.PreCommit) cancellation.Cancel();
+                if (phase == PatchDatabaseImportService.ImportPhase.Disposing) disposal++;
+            });
+        Assert.False(result.Imported);
+        Assert.True(result.Cancelled);
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.Equal(1, disposal);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [AvaloniaTheory]
+    [InlineData((int)PatchDatabaseImportService.ImportPhase.Committed)]
+    [InlineData((int)PatchDatabaseImportService.ImportPhase.Mapping)]
+    [InlineData((int)PatchDatabaseImportService.ImportPhase.Refresh)]
+    [InlineData((int)PatchDatabaseImportService.ImportPhase.Disposing)]
+    [InlineData((int)PatchDatabaseImportService.ImportPhase.Disposed)]
+    public async Task EveryPostCommitPhaseFaultAndCancellationKeepsSuccess(int injection)
+    {
+        using var fixture = new Fixture();
+        using var cancellation = new CancellationTokenSource();
+        using var selected = new PickedFile(Zip("FE8U"));
+        var newer = new PatchDatabaseImportCore.RecoveryException(fixture.Root, new IOException("newer notice"));
+        int disposalAttempts = 0;
+        var result = await fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!,
+            _ => Task.FromResult(true), cancellation.Token,
+            refresh: async owner =>
+            {
+                var refresh = new PatchManagerRefreshService();
+                return await refresh.RefreshCommittedAsync(owner, g => PatchManagerRefreshService.Capture("", 0, g, true),
+                    r => r.Identity.IsCurrent, _ => throw new ApplicationException("partial publication fault"), cancellation.Token);
+            },
+            phase: phase =>
+            {
+                if (phase == PatchDatabaseImportService.ImportPhase.Disposing) disposalAttempts++;
+                if ((int)phase != injection) return;
+                cancellation.Cancel();
+                App.RecordPatchDatabaseRecovery(newer);
+                throw new ApplicationException("phase fault: " + phase);
+            });
+        Assert.True(result.Imported, result.Message);
+        Assert.False(result.Cancelled);
+        Assert.False(result.Refreshed);
+        Assert.Contains("not refreshed", result.Message);
+        Assert.Equal(1, disposalAttempts);
+        Assert.Same(newer, App.PatchDatabaseRecoveryException);
+        Assert.False(ContentRepoGitService.IsRunning());
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+    }
+
+    [AvaloniaFact]
+    public async Task CommittedOwnerIsHeldThroughCancelledRefreshWorkerAndPublication()
+    {
+        using var fixture = new Fixture();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        using var selected = new PickedFile(Zip("FE8U"));
+        bool exited = false;
+        var refresh = new PatchManagerRefreshService((r, t) =>
+        {
+            entered.Set();
+            try { release.Wait(); return PatchManagerRefreshService.Read(r, default); }
+            finally { exited = true; }
+        });
+        var task = fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!, _ => Task.FromResult(true),
+            cancellation.Token, refresh: owner => refresh.RefreshCommittedAsync(owner,
+                g => PatchManagerRefreshService.Capture("", 0, g, true), r => r.Identity.IsCurrent,
+                _ => Assert.True(ContentRepoGitService.IsRunning()), cancellation.Token));
+        try
+        {
+            // Let preparation, validation and commit continue on the dispatcher.
+            while (!entered.IsSet && !task.IsCompleted) await Task.Delay(10);
+            Assert.True(entered.IsSet);
+            cancellation.Cancel();
+            refresh.Invalidate();
+            Assert.False(exited);
+            Assert.False(task.IsCompleted);
+            Assert.False(ContentRepoGitService.TryEnter());
+            Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() => PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+        }
+        finally { release.Set(); await task; }
+        Assert.True(exited);
+        Assert.True((await task).Imported);
+        Assert.False((await task).Refreshed);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Fact]
+    public async Task UnexpectedPostCommitCleanupFaultCannotBecomeNotImported()
+    {
+        using var fixture = new Fixture();
+        using var selected = new PickedFile(Zip("FE8U"));
+        var result = await fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!,
+            _ => Task.FromResult(true), checkpoint: point =>
+            {
+                if (point == PatchDatabaseImportCore.Checkpoint.BeforeCleanup)
+                    throw new ApplicationException("postcommit cleanup fault");
+            });
+        Assert.True(result.Imported, result.Message);
+        Assert.False(result.Cancelled);
+        Assert.True(result.RecoveryRequired);
+        Assert.True(File.Exists(Path.Combine(fixture.Root, "config", "patch2", "FE8U", "PATCH_test.txt")));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Fact]
     public void ZipPickerUsesStreamCompatibleZipTypesAndSingleSelection()
     {
         var options = FileDialogHelper.CreatePatchDatabaseZipOpenOptions();
@@ -178,10 +294,11 @@ public class PatchDatabaseImportServiceTests
             try
             {
                 host.Show();
+                await view.RefreshTask;
                 Dispatcher.UIThread.RunJobs();
                 Assert.Equal(result.Message, view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
             }
-            finally { host.Close(); }
+            finally { host.Close(); await view.RefreshTask; }
         }
         Assert.True(Directory.Exists(Assert.Single(Directory.GetDirectories(Path.Combine(fixture.Root, ".patch2-import")))));
     }
@@ -276,7 +393,7 @@ public class PatchDatabaseImportServiceTests
         Assert.False(Directory.Exists(operation));
         Assert.Empty(Directory.GetDirectories(Path.Combine(fixture.Root, ".patch2-import")));
         Assert.Empty(App.PatchDatabaseRecoveryNotice);
-        AssertReopenedNotice("");
+        await AssertReopenedNotice("");
         Assert.True(File.Exists(Path.Combine(fixture.Root, "config", "patch2", "FE8U", "PATCH_test.txt")));
     }
 
@@ -296,7 +413,7 @@ public class PatchDatabaseImportServiceTests
         Assert.False(result.Imported);
         Assert.Equal(previous.Message, App.PatchDatabaseRecoveryNotice);
         Assert.Equal("retain, do not delete", File.ReadAllText(Path.Combine(operation, "owned-unexpected.txt")));
-        AssertReopenedNotice(previous.Message);
+        await AssertReopenedNotice(previous.Message);
     }
 
     [AvaloniaTheory]
@@ -332,8 +449,8 @@ public class PatchDatabaseImportServiceTests
         Assert.DoesNotContain(oldOperation, result.Message);
         Assert.Equal(result.Message, App.PatchDatabaseRecoveryNotice);
         Assert.Contains(language == "ja" ? "保持された作業領域" : "保留的工作目录", result.Message);
-        AssertReopenedNotice(result.Message);
-        AssertReopenedNotice(result.Message);
+        await AssertReopenedNotice(result.Message);
+        await AssertReopenedNotice(result.Message);
     }
 
     [AvaloniaFact]
@@ -351,20 +468,21 @@ public class PatchDatabaseImportServiceTests
             afterRecovery: () => App.RecordPatchDatabaseRecovery(newer));
         Assert.Same(newer, App.PatchDatabaseRecoveryException);
         Assert.Equal(expected, App.PatchDatabaseRecoveryNotice);
-        AssertReopenedNotice(expected);
+        await AssertReopenedNotice(expected);
     }
 
-    static void AssertReopenedNotice(string expected)
+    static async Task AssertReopenedNotice(string expected)
     {
         var view = new PatchManagerView();
         var host = new Window { Content = view };
         try
         {
             host.Show();
+            await view.RefreshTask;
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(expected, view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
         }
-        finally { host.Close(); }
+        finally { host.Close(); await view.RefreshTask; }
     }
 
     [Fact]
@@ -539,7 +657,9 @@ public class PatchDatabaseImportServiceTests
         public Task<PatchDatabaseImportService.Outcome> Import(PickedFile selected,
             PatchDatabaseImportService.RomIdentity identity, Func<PatchDatabaseImportCore.PreparedImport, Task<bool>> confirm,
             CancellationToken cancellationToken = default, Action<PatchDatabaseImportCore.Checkpoint>? checkpoint = null,
-            Action? afterRecovery = null)
+            Action? afterRecovery = null,
+            Func<PatchDatabaseImportCore.PreparedImport, Task<bool>>? refresh = null,
+            Action<PatchDatabaseImportService.ImportPhase>? phase = null)
             => PatchDatabaseImportService.ImportForTestAsync(selected.File, identity, Root, confirm, cancellationToken,
                 async (stream, root, version, token, recovered) =>
                     lastPrepared = await PatchDatabaseImportCore.PrepareForTestAsync(stream, root, version, token, _ => false,
@@ -547,7 +667,7 @@ public class PatchDatabaseImportServiceTests
                         {
                             recovered();
                             afterRecovery?.Invoke();
-                        }));
+                        }), refresh, phase);
 
         public void AddUnexpectedWorkspaceFile()
         {
