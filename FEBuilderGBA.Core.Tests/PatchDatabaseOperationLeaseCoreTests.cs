@@ -6,6 +6,43 @@ namespace FEBuilderGBA.Core.Tests;
 [Collection("ContentRepoGitGuard")]
 public class PatchDatabaseOperationLeaseCoreTests
 {
+    [Theory]
+    [InlineData(11)]
+    [InlineData(35)]
+    [InlineData(unchecked((int)0x80070020))]
+    [InlineData(unchecked((int)0x80070021))]
+    public void IsLeaseContention_RecognizesOnlyCurrentPlatformCodes(int hr)
+    {
+        bool expected = hr switch
+        {
+            11 => OperatingSystem.IsLinux() || OperatingSystem.IsAndroid(),
+            35 => OperatingSystem.IsMacOS() || OperatingSystem.IsIOS(),
+            _ => OperatingSystem.IsWindows(),
+        };
+        Assert.Equal(expected, PatchDatabaseOperationLeaseCore.IsLeaseContention(hr));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(5)]
+    [InlineData(13)]
+    [InlineData(28)]
+    [InlineData(30)]
+    [InlineData(32)]
+    [InlineData(33)]
+    [InlineData(0x10006)]
+    [InlineData(unchecked((int)0x80070005))]
+    [InlineData(unchecked((int)0x8007000B))]
+    [InlineData(unchecked((int)0x80070023))]
+    [InlineData(unchecked((int)0x80070070))]
+    [InlineData(unchecked((int)0x80040020))]
+    [InlineData(unchecked((int)0x80040021))]
+    [InlineData(unchecked((int)0x80131620))]
+    public void IsLeaseContention_RejectsUnrelatedErrorsAndHResultAliases(int hr)
+    {
+        Assert.False(PatchDatabaseOperationLeaseCore.IsLeaseContention(hr));
+    }
+
     [Fact]
     public void GenericPatch2GitEntryPointHonorsTheBaseLease()
     {
@@ -43,8 +80,12 @@ public class PatchDatabaseOperationLeaseCoreTests
     {
         using var fixture = new Fixture();
         using var first = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
-        Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() =>
+        var busy = Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() =>
             PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+        var native = Assert.IsType<IOException>(busy.InnerException);
+        int expectedHResult = OperatingSystem.IsWindows() ? unchecked((int)0x80070020)
+            : OperatingSystem.IsMacOS() || OperatingSystem.IsIOS() ? 35 : 11;
+        Assert.Equal(expectedHResult, native.HResult);
         Assert.True(File.Exists(Path.Combine(fixture.Root, ".patch2-import", "lease.lock")));
     }
 

@@ -237,9 +237,27 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        [Fact]
+        public void FixtureDirectoriesAreProjectOwnedAndRemoved()
+        {
+            string root = NewTempDir();
+            try
+            {
+                string parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestResults"));
+                Assert.Equal(parent, Path.GetDirectoryName(root));
+                Assert.StartsWith("feb_extract_", Path.GetFileName(root));
+                Assert.True(Directory.Exists(root));
+                PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(root);
+            }
+            finally { Cleanup(root); }
+            Assert.False(Directory.Exists(root));
+        }
+
         static string NewTempDir()
         {
-            string d = Path.Combine(Path.GetTempPath(), "feb_extract_" + Guid.NewGuid().ToString("N"));
+            string d = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestResults",
+                "feb_extract_" + Guid.NewGuid().ToString("N")));
+            PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(d);
             Directory.CreateDirectory(d);
             return d;
         }

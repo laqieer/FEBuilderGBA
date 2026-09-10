@@ -54,10 +54,20 @@ namespace FEBuilderGBA
                 // two cooperating processes to lock different files bearing the same name.
                 return new Lease(root, new FileStream(lockPath, options));
             }
-            catch (IOException ex) when ((ex.HResult & 0xffff) is 11 or 32 or 33)
+            catch (IOException ex) when (IsLeaseContention(ex.HResult))
             {
                 throw new BusyException(ex);
             }
+        }
+
+        internal static bool IsLeaseContention(int hr)
+        {
+            // FileStream reports raw Unix errno, but HRESULT_FROM_WIN32 on Windows.
+            if (OperatingSystem.IsWindows())
+                return hr is unchecked((int)0x80070020) or unchecked((int)0x80070021);
+            if (OperatingSystem.IsMacOS() || OperatingSystem.IsIOS())
+                return hr == 35;
+            return (OperatingSystem.IsLinux() || OperatingSystem.IsAndroid()) && hr == 11;
         }
 
         internal static Lease? AcquireForPatch2Repository(string repoDirectory)
