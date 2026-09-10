@@ -10,6 +10,90 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchManagerOperationGuardTests
 {
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void TranslationPatchRefusesBusyGateBeforeDiscoveryAndMutation(bool invalidDiscoveryRoot)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedTranslationPatch();
+        var view = new ToolTranslateROMView();
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        var files = fixture.Snapshot();
+        if (invalidDiscoveryRoot) CoreState.BaseDirectory = "\0";
+        Assert.True(ContentRepoGitService.TryEnter());
+        try
+        {
+            Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, InstallTranslationPatch(view, fixture.Rom));
+            Assert.Equal(before, fixture.Rom.Data);
+            Assert.False(fixture.Rom.Modified);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+            fixture.AssertSnapshot(files);
+            Assert.True(ContentRepoGitService.IsRunning());
+        }
+        finally { ContentRepoGitService.Exit(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("success")]
+    [InlineData("missing")]
+    [InlineData("invalid-root")]
+    public void TranslationPatchReleasesGateAndPreservesExistingSuccessAndUndo(string outcome)
+    {
+        using var fixture = new Fixture();
+        if (outcome == "success") fixture.SeedTranslationPatch();
+        if (outcome == "invalid-root") CoreState.BaseDirectory = "\0";
+        var view = new ToolTranslateROMView();
+        string result = InstallTranslationPatch(view, fixture.Rom);
+        Assert.False(ContentRepoGitService.IsRunning());
+        if (outcome != "success")
+        {
+            Assert.Contains(outcome == "missing" ? "not found" : "local absolute", result);
+            Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        else
+        {
+            Assert.Equal(0xAAu, fixture.Rom.u8(0x200));
+            Assert.Single(CoreState.Undo.UndoBuffer);
+            CoreState.Undo.RunUndo();
+            Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+        }
+    }
+
+    static string InstallTranslationPatch(ToolTranslateROMView view, ROM rom)
+        => (string)typeof(ToolTranslateROMView).GetMethod("InstallChapterNameToTextPatch",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, new object[] { rom })!;
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AsyncUninstallRefusesInPlaceRomMutationDuringCleanRomPicker(bool rawArrayWrite)
+    {
+        using var fixture = new Fixture();
+        var vm = fixture.CreateViewModel("clean");
+        var selection = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<string> operation = vm.UninstallPatchAsync(() => selection.Task);
+        var data = fixture.Rom.Data;
+        if (rawArrayWrite) fixture.Rom.Data[0x300] = 0x42;
+        else fixture.Rom.write_u8(0x300, 0x42);
+        bool modified = fixture.Rom.Modified;
+        byte[] edited = (byte[])fixture.Rom.Data.Clone();
+        try
+        {
+            Assert.False(operation.IsCompleted);
+            Assert.True(ContentRepoGitService.IsRunning());
+            selection.SetResult(fixture.CleanRom);
+            Assert.Equal(R._("The loaded ROM or selected patch changed. Uninstall was cancelled."), await operation);
+            Assert.Same(data, fixture.Rom.Data);
+            Assert.Equal(edited, fixture.Rom.Data);
+            Assert.Equal(modified, fixture.Rom.Modified);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        finally { selection.TrySetResult(null); await operation; }
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [Theory]
     [InlineData("install")]
     [InlineData("force")]
@@ -278,6 +362,14 @@ public class PatchManagerOperationGuardTests
                     Status = installed ? PatchMetadataCore.PatchStatus.Installed : PatchMetadataCore.PatchStatus.NotInstalled,
                 },
             };
+        }
+
+        public void SeedTranslationPatch()
+        {
+            string library = Path.Combine(root, "config", "patch2", "FE8U");
+            File.WriteAllBytes(Path.Combine(library, "test.bin"), new byte[] { 0xAA });
+            File.WriteAllText(Path.Combine(library, "PATCH_chapter.txt"),
+                "NAME=Convert Chapter Titles to Text\nTYPE=BIN\nBIN:0x200=test.bin\nPATCHED_IF:0x200=0xAA");
         }
 
         public Dictionary<string, byte[]> Snapshot() => Directory.GetFiles(root, "*", SearchOption.AllDirectories)

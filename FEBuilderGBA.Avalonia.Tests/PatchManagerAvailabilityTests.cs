@@ -14,6 +14,66 @@ namespace FEBuilderGBA.Avalonia.Tests
     [Collection("SharedState")]
     public class PatchManagerAvailabilityTests
     {
+        [AvaloniaTheory]
+        [InlineData("ja", false, false)]
+        [InlineData("zh", false, false)]
+        [InlineData("ja", true, false)]
+        [InlineData("zh", true, false)]
+        [InlineData("ja", true, true)]
+        [InlineData("zh", true, true)]
+        public async Task IncompleteRefreshPublishesLocalizedDiagnosticAndRetainsRecoveryNotice(string language, bool retained, bool newerNotice)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            var translations = typeof(MyTranslateResource).GetField("Resource",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            object? previousTranslations = translations.GetValue(null);
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            var view = new PatchManagerView();
+            var host = new Window { Content = view };
+            try
+            {
+                MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (retained) App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(
+                    fixture.Root, new IOException("owned retained workspace")));
+                var noticeIdentity = App.CapturePatchDatabaseRecoveryNotice();
+                string notice = App.PatchDatabaseRecoveryNotice;
+                using var locked = new FileStream(Path.Combine(fixture.Library, "PATCH_owned.txt"),
+                    FileMode.Open, FileAccess.ReadWrite, FileShare.None);
+                Assert.False(PatchMetadataCore.TryEnumeratePatches(fixture.Library, fixture.Rom, "en", out _, out string diagnostic));
+                Assert.NotEmpty(diagnostic);
+                var refresh = new Services.PatchManagerRefreshService((request, token) =>
+                {
+                    var result = Services.PatchManagerRefreshService.Read(request with { Strict = true }, token);
+                    if (newerNotice) App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(
+                        fixture.Root, new IOException("owned retained workspace")));
+                    return result;
+                });
+                typeof(PatchManagerView).GetField("_refresh",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(view, refresh);
+                host.Show();
+                Assert.False(await view.RefreshTask);
+                string localized = R._("The installed database could not be refreshed: {0}", diagnostic);
+                string expected = retained ? notice + "\n" + localized : localized;
+                Assert.Equal(expected, view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+                Assert.Contains(diagnostic, expected);
+                Assert.Equal(Services.PatchManagerRefreshService.ImportedRefreshFailureTemplate, refresh.Failure!.Template);
+                Assert.Equal(diagnostic, refresh.Failure.Detail);
+                if (newerNotice) Assert.NotSame(noticeIdentity, App.CapturePatchDatabaseRecoveryNotice());
+                else Assert.Same(noticeIdentity, App.CapturePatchDatabaseRecoveryNotice());
+                Assert.False(ContentRepoGitService.IsRunning());
+            }
+            finally
+            {
+                host.Close();
+                await view.RefreshTask;
+                translations.SetValue(null, previousTranslations);
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+            }
+        }
+
         [Theory]
         [InlineData("", "Available", true)]
         [InlineData("BIN", "Available", true)]

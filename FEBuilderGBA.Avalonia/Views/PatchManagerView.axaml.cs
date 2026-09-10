@@ -121,10 +121,8 @@ namespace FEBuilderGBA.Avalonia.Views
                     string.Equals(filter, SearchBox.Text ?? "", StringComparison.Ordinal))
                 {
                     _vm.SetPendingFilter(filter);
-                    StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
-                        ? R._("The patch database could not be refreshed: {0}",
-                            _refresh.Failure.Length != 0 ? _refresh.Failure : "Reopen Patch Manager.")
-                        : App.PatchDatabaseRecoveryNotice;
+                    StatusMessageLabel.Text = WithRecoveryNotice(_refresh.Failure?.Localize() ??
+                        R._("The patch database could not be refreshed: {0}", "Reopen Patch Manager."));
                 }
                 return refreshed;
             }
@@ -134,11 +132,19 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (_attached && attachment == _attachment)
                 {
                     _vm.SetPendingFilter(filter);
-                    StatusMessageLabel.Text = R._("The patch database could not be refreshed: {0}", ex.Message);
+                    StatusMessageLabel.Text = WithRecoveryNotice(
+                        R._("The patch database could not be refreshed: {0}", ex.Message));
                 }
                 return false;
             }
             finally { if (_attached && attachment == _attachment) UpdateOperationControls(); }
+        }
+
+        static string WithRecoveryNotice(string message)
+        {
+            string notice = App.PatchDatabaseRecoveryNotice;
+            return notice.Length == 0 || message.Contains(notice, StringComparison.Ordinal)
+                ? message : notice + "\n" + message;
         }
 
         void ClearDetails()
@@ -346,9 +352,14 @@ namespace FEBuilderGBA.Avalonia.Views
                     case Patch2GitResultKind.Success:
                         RefreshTask = LoadPatchesAsync();
                         bool refreshed = await RefreshTask;
-                        if (_attached) StatusMessageLabel.Text = refreshed
-                            ? "Patch database updated — list refreshed. Restart recommended for all changes to take full effect."
-                            : "Patch database updated, but the list was not refreshed. Reopen Patch Manager.";
+                        if (_attached)
+                        {
+                            string message = refreshed
+                                ? "Patch database updated — list refreshed. Restart recommended for all changes to take full effect."
+                                : "Patch database updated, but the list was not refreshed. Reopen Patch Manager.";
+                            if (!refreshed && _refresh.Failure != null) message += "\n" + _refresh.Failure.Localize();
+                            StatusMessageLabel.Text = WithRecoveryNotice(message);
+                        }
                         break;
                 }
             }
@@ -408,6 +419,9 @@ namespace FEBuilderGBA.Avalonia.Views
                             : R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.", identity.Version);
                         if (!string.IsNullOrWhiteSpace(result.Message))
                             StatusMessageLabel.Text += "\n" + result.Message;
+                        if (!result.Refreshed && _refresh.Failure != null)
+                            StatusMessageLabel.Text += "\n" + _refresh.Failure.Localize();
+                        StatusMessageLabel.Text = WithRecoveryNotice(StatusMessageLabel.Text ?? "");
                     }
                     else StatusMessageLabel.Text = result.Message;
                 }

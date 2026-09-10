@@ -13,7 +13,7 @@ namespace FEBuilderGBA
     {
         static readonly Regex FgrepToken = new Regex(@"\$FGREP", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
             TimeSpan.FromSeconds(1));
-        static readonly Regex FgrepGrammar = new Regex(@"^\$FGREP([0-9]+)(ENDA|END)?\+?([0-9]+)? ",
+        static readonly Regex FgrepGrammar = new Regex(@"^\$FGREP([0-9]+)(ENDA|END)?(?:\+([0-9]+))? ",
             RegexOptions.CultureInvariant, TimeSpan.FromSeconds(1));
         static readonly HashSet<string> FileKeys = new HashSet<string>(
             new[] { "EA", "SYMBOL", "EDIT_PATCH", "BIN", "BINP", "BINAP", "BINF" },

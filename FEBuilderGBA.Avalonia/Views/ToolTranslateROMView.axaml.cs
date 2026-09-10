@@ -536,6 +536,7 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         string InstallChapterNameToTextPatch(ROM rom)
         {
+            if (!ContentRepoGitService.TryEnter()) return PatchManagerViewModel.PatchDatabaseBusyMessage;
             try
             {
                 string version = rom.RomInfo.VersionToFilename;
@@ -572,6 +573,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ToolTranslateROMView.InstallChapterNameToTextPatch: {0}", ex.Message);
                 return ex.Message;
             }
+            finally { ContentRepoGitService.Exit(); }
         }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }

@@ -5,6 +5,39 @@ namespace FEBuilderGBA.Core.Tests;
 public class PatchDatabaseMetadataAuditCoreTests
 {
     [Theory]
+    [InlineData("$FGREP4+")]
+    [InlineData("$FGREP4END10")]
+    [InlineData("$FGREP4ENDA10")]
+    [InlineData("$FGREP4END+")]
+    [InlineData("$FGREP4ENDA+")]
+    public void MalformedFgrepSkipUnitIsRejectedBeforeOperandConsumption(string macro)
+    {
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\nPATCHED_IF:" + macro + " ../shared/pattern.bin=01");
+        fixture.PutBytes("shared/pattern.bin", new byte[] { 1, 2, 3 });
+        Assert.Throws<InvalidDataException>(() => fixture.Audit());
+        Assert.Equal("patch/PATCH_test.txt", Assert.Single(fixture.Reads));
+    }
+
+    [Theory]
+    [InlineData("$FGREP4")]
+    [InlineData("$FGREP4END")]
+    [InlineData("$FGREP4ENDA")]
+    [InlineData("$FGREP4+1")]
+    [InlineData("$FGREP4END+10")]
+    [InlineData("$FGREP4ENDA+10")]
+    public void SupportedFgrepSkipUnitPreservesContainedReference(string macro)
+    {
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\nPATCHED_IF:" + macro + " ../shared/pattern.bin=01");
+        fixture.PutBytes("shared/pattern.bin", new byte[] { 1, 2, 3 });
+        var audit = fixture.Audit();
+        Assert.Equal(1, audit.DescriptorCount);
+        Assert.Contains(audit.References, reference => reference.Target == "shared/pattern.bin");
+        Assert.All(fixture.Reads, name => Assert.True(fixture.Files.ContainsKey(name)));
+    }
+
+    [Theory]
     [InlineData("PATCHED_IF:$FGREP4 {0}=01 02")]
     [InlineData("IF:$FGREP4 {0}=01 02")]
     [InlineData("IFNOT:$FGREP4END+1 {0}=01 02")]

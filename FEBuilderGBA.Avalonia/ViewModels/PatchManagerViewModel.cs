@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -506,12 +507,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 if (!SelectedPatchNeedsCleanRom) return UninstallPatchCore();
                 var data = rom.Data;
                 var info = rom.RomInfo;
+                byte[] fingerprint = SHA256.HashData(data);
                 // Keep the shared gate across the dialog so a completed Git/import operation
                 // cannot silently replace the selected descriptor while the user picks a ROM.
                 string? cleanRom = await selectCleanRom();
                 if (cleanRom == null) return StatusMessage = R._("Uninstall cancelled.");
                 if (!ReferenceEquals(patch, _selectedPatch) || !ReferenceEquals(rom, CoreState.ROM) ||
-                    !ReferenceEquals(data, rom.Data) || !ReferenceEquals(info, rom.RomInfo))
+                    !ReferenceEquals(data, rom.Data) || !ReferenceEquals(info, rom.RomInfo) ||
+                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data)))
                     return StatusMessage = R._("The loaded ROM or selected patch changed. Uninstall was cancelled.");
                 return UninstallPatchWithCleanRomCore(cleanRom);
             }

@@ -11,13 +11,21 @@ namespace FEBuilderGBA.Avalonia.Services;
 
 internal sealed class PatchManagerRefreshService
 {
+    internal const string RefreshFailureTemplate = "The patch database could not be refreshed: {0}";
+    internal const string ImportedRefreshFailureTemplate = "The installed database could not be refreshed: {0}";
+
+    internal sealed record RefreshFailure(string Template, string Detail)
+    {
+        internal string Localize() => R._(Template, Detail);
+    }
+
     internal sealed record Request(PatchDatabaseImportService.RomIdentity Identity, ROM Rom,
         PatchManagerViewModel.PatchLocation Location, string Language, string ScanLanguage,
         string Filter, int Selection, long Generation, bool Strict, bool Android);
 
     internal sealed record PatchListSnapshot(Request Request, List<PatchEntry> All,
         ObservableCollection<PatchEntry> Filtered, int Installed, string Message, string GitButton,
-        bool Complete, bool Transition = false);
+        bool Complete, bool Transition = false, RefreshFailure? Failure = null);
 
     internal static Request Capture(string filter, int selection, long generation, bool strict)
     {
@@ -46,7 +54,7 @@ internal sealed class PatchManagerRefreshService
     bool running;
     internal bool IsBusy => running;
     internal Task Completion { get; private set; } = Task.CompletedTask;
-    internal string Failure { get; private set; } = "";
+    internal RefreshFailure? Failure { get; private set; }
 
     internal void Invalidate()
     {
@@ -90,7 +98,7 @@ internal sealed class PatchManagerRefreshService
             {
                 pending = null;
                 bool published = false;
-                Failure = "";
+                Failure = null;
                 using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(intent.Token);
                 active = cancellation;
                 try
@@ -118,7 +126,7 @@ internal sealed class PatchManagerRefreshService
                         if (snapshot.Transition) continue;
                         if (!snapshot.Complete)
                         {
-                            Failure = snapshot.Message;
+                            Failure = snapshot.Failure ?? new RefreshFailure(RefreshFailureTemplate, snapshot.Message);
                             break;
                         }
                         intent.Publish(snapshot);
@@ -126,8 +134,7 @@ internal sealed class PatchManagerRefreshService
                         break;
                     }
                 }
-                catch (OperationCanceledException) { Failure = "The patch list was not refreshed."; }
-                catch (Exception ex) { Failure = "The patch list was not refreshed: " + ex.Message; }
+                catch (Exception ex) { Failure = new RefreshFailure(RefreshFailureTemplate, ex.Message); }
                 finally
                 {
                     active = null;
@@ -198,7 +205,8 @@ internal sealed class PatchManagerRefreshService
                  entry.Description.Contains(filter, StringComparison.OrdinalIgnoreCase));
             if (match) filtered.Add(entry);
         }
-        string message = complete ? "" : "The installed database could not be refreshed: " + error;
+        string message = "";
+        RefreshFailure? failure = complete ? null : new RefreshFailure(ImportedRefreshFailureTemplate, error);
         if (complete && all.Count == 0)
         {
             if (PatchMetadataCore.IsPatchLibraryEmpty(request.Location.Directory))
@@ -206,13 +214,13 @@ internal sealed class PatchManagerRefreshService
             else
             {
                 complete = false;
-                message = "The patch database could not be read. The list was not refreshed.";
+                failure = new RefreshFailure(RefreshFailureTemplate, request.Location.Directory);
             }
         }
         string gitButton = GitUtil.IsGitRepo(Patch2GitService.GetPatch2Dir(request.Location.BaseDirectory))
             ? "Update Patch Database" : "Initialize Patch Database";
         token.ThrowIfCancellationRequested();
         return new PatchListSnapshot(request, all, new ObservableCollection<PatchEntry>(filtered),
-            all.Count(p => p.Status == PatchMetadataCore.PatchStatus.Installed), message, gitButton, complete);
+            all.Count(p => p.Status == PatchMetadataCore.PatchStatus.Installed), message, gitButton, complete, Failure: failure);
     }
 }

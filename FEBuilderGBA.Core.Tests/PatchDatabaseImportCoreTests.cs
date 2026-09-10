@@ -9,6 +9,34 @@ namespace FEBuilderGBA.Core.Tests;
 [Collection("ContentRepoGitGuard")]
 public class PatchDatabaseImportCoreTests
 {
+    [Theory]
+    [InlineData("$FGREP4+")]
+    [InlineData("$FGREP4END10")]
+    public async Task MalformedFgrepSkipRejectsBeforePromotionAndPreservesInstalledDatabase(string macro)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("Malformed skip", "PATCHED_IF:" + macro + " pattern.bin=0xAA");
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Update, true))
+        using (var payload = archive.CreateEntry("FE8U/pattern.bin").Open())
+            payload.WriteByte(0xAA);
+        zip.Position = 0;
+        bool preparedReached = false;
+        PatchDatabaseImportCore.PreparedImport? unexpected = null;
+        try
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                unexpected = await fixture.Prepare(zip, checkpoint: point =>
+                    preparedReached |= point == PatchDatabaseImportCore.Checkpoint.Prepared));
+        }
+        finally { unexpected?.Dispose(); }
+        Assert.False(preparedReached);
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.Equal(new[] { fixture.OldFile }, Directory.GetFiles(fixture.Target, "*", SearchOption.AllDirectories));
+        Assert.Empty(fixture.OperationDirectories());
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [Fact]
     public async Task GeneratedResponsivenessFixtureHasRealFgrepAndRecoverableInventory()
     {

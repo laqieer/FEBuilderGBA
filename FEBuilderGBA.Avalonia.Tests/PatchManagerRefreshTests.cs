@@ -94,7 +94,7 @@ public class PatchManagerRefreshTests
                 throw new ApplicationException("partial publication");
             }));
         Assert.True(partial);
-        Assert.Contains("partial publication", service.Failure);
+        Assert.Equal("partial publication", service.Failure!.Detail);
         Assert.False(ContentRepoGitService.IsRunning());
         using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
     }
@@ -213,7 +213,7 @@ public class PatchManagerRefreshTests
         Assert.False(await service.RefreshAsync(g => PatchManagerRefreshService.Capture("", 0, g, false),
             _ => true, _ => throw new Exception("Must not publish")));
         Assert.Equal(0, reads);
-        Assert.Contains("not refreshed", service.Failure);
+        Assert.Equal(PatchManagerRefreshService.RefreshFailureTemplate, service.Failure!.Template);
         Assert.Empty(Directory.GetFileSystemEntries(Path.Combine(fixture.Root, ".patch2-import")));
         Assert.False(ContentRepoGitService.IsRunning());
     }
