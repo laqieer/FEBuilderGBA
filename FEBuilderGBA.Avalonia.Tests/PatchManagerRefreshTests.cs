@@ -46,14 +46,16 @@ public class PatchManagerRefreshTests
         string descriptor = Path.Combine(fixture.Library, "PATCH_owned.txt");
         var original = File.GetAttributes(descriptor);
         File.SetAttributes(descriptor, original | FileAttributes.ReadOnly);
+        var readOnlyAttributes = File.GetAttributes(descriptor);
         string[] inventory = Directory.GetFileSystemEntries(fixture.Root, "*", SearchOption.AllDirectories);
         try
         {
+            Assert.True((readOnlyAttributes & FileAttributes.ReadOnly) != 0);
             var service = new PatchManagerRefreshService();
             Assert.True(await service.RefreshAsync(g => PatchManagerRefreshService.Capture("", 0, g, false),
                 r => r.Identity.IsCurrent, s => Assert.Single(s.All)));
             Assert.Equal(inventory, Directory.GetFileSystemEntries(fixture.Root, "*", SearchOption.AllDirectories));
-            Assert.Equal(original | FileAttributes.ReadOnly, File.GetAttributes(descriptor));
+            Assert.Equal(readOnlyAttributes, File.GetAttributes(descriptor));
         }
         finally { File.SetAttributes(descriptor, original); }
     }
