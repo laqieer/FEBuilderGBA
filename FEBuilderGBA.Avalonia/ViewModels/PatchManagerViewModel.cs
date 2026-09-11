@@ -605,7 +605,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             if (_selectedPatch == null || CoreState.ROM?.RomInfo == null) return null;
             var rom = new PatchDatabaseImportService.RomIdentity(CoreState.ROM);
-            bool publicationCurrent = _snapshotCurrent && (_publication?.Scope?.Managed != true ||
+            bool publicationCurrent = _snapshotCurrent && (_publication == null ||
                 (_publication.Rom.IsCurrent && _allPatches.Contains(_selectedPatch) &&
                     _selectedPatch.SnapshotFilePath == _selectedPatch.PatchFilePath));
             return new(_selectedPatch, _selectedPatch.PatchFilePath, _publication, publicationCurrent, _generation, rom,
@@ -630,6 +630,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 var published = intent.Publication;
                 if (published != null)
                 {
+                    if (!intent.PublicationCurrent)
+                        return new(PatchDatabaseChangedTemplate, "");
                     string relative = Path.GetRelativePath(intent.Location.Directory, Path.GetFullPath(intent.PatchFilePath));
                     if (Path.IsPathRooted(relative) || relative == ".." ||
                         relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))

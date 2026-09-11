@@ -179,6 +179,90 @@ public class PatchManagerOperationGuardTests
         Assert.False(ContentRepoGitService.IsRunning());
     }
 
+    [Theory]
+    [InlineData("install")]
+    [InlineData("force")]
+    [InlineData("uninstall")]
+    [InlineData("clean")]
+    [InlineData("async-install")]
+    [InlineData("async-force")]
+    [InlineData("async-uninstall")]
+    [InlineData("async-clean")]
+    public async Task UnmanagedPublicationRefusesDifferentSameVersionRomBeforeAction(string action)
+    {
+        using var fixture = new Fixture();
+        string fixtureAction = action.StartsWith("async-", StringComparison.Ordinal) ? action[6..] : action;
+        var vm = fixture.CreateViewModel(fixtureAction);
+        byte[] publishedRom = (byte[])fixture.Rom.Data.Clone();
+        bool publishedModified = fixture.Rom.Modified;
+        byte[] replacementBytes = (byte[])publishedRom.Clone();
+        replacementBytes[0x210] ^= 1;
+        var replacement = new ROM();
+        replacement.LoadLow("replacement-owned-guard.gba", replacementBytes, "BE8E01");
+        Assert.Equal(fixture.Rom.RomInfo.GetType(), replacement.RomInfo.GetType());
+        CoreState.ROM = replacement;
+        byte[] before = (byte[])replacement.Data.Clone();
+        bool modified = replacement.Modified;
+        var files = fixture.Snapshot();
+        bool pickerOpened = false;
+
+        string message = action switch
+        {
+            "async-install" => await vm.InstallPatchAsync(false, CancellationToken.None),
+            "async-force" => await vm.InstallPatchAsync(true, CancellationToken.None),
+            "async-uninstall" or "async-clean" => await vm.UninstallPatchAsync(() =>
+            {
+                pickerOpened = true;
+                return Task.FromResult<string?>(fixture.CleanRom);
+            }),
+            _ => RunAction(vm, action, fixture.CleanRom),
+        };
+
+        Assert.Equal(R._("The patch database changed. Refresh the list and select the patch again."), message);
+        Assert.False(pickerOpened);
+        Assert.Same(replacement, CoreState.ROM);
+        Assert.Equal(before, replacement.Data);
+        Assert.Equal(modified, replacement.Modified);
+        Assert.Equal(publishedRom, fixture.Rom.Data);
+        Assert.Equal(publishedModified, fixture.Rom.Modified);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        fixture.AssertSnapshot(files);
+        Assert.False(Directory.Exists(Path.Combine(fixture.Root, ".patch2-import")));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UnmanagedPublicationRefusesUnpublishedSelectionOrChangedPath(bool changePath)
+    {
+        using var fixture = new Fixture();
+        var vm = fixture.CreateViewModel("install");
+        if (changePath)
+        {
+            string other = Path.Combine(fixture.Library, "PATCH_changed.txt");
+            File.Copy(fixture.Descriptor, other);
+            vm.SelectedPatch!.PatchFilePath = other;
+        }
+        else
+        {
+            vm.SelectedPatch = fixture.CreateViewModel("install").SelectedPatch;
+        }
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        bool modified = fixture.Rom.Modified;
+        var files = fixture.Snapshot();
+
+        Assert.Equal(R._("The patch database changed. Refresh the list and select the patch again."),
+            vm.InstallPatch());
+
+        Assert.Equal(before, fixture.Rom.Data);
+        Assert.Equal(modified, fixture.Rom.Modified);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        fixture.AssertSnapshot(files);
+        Assert.False(Directory.Exists(Path.Combine(fixture.Root, ".patch2-import")));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [Fact]
     public void ManagedActionExcludesNativeWriterThroughStatusAndInvalidatesOwnBackupSnapshot()
     {
