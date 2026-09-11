@@ -15,6 +15,73 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class PatchManagerAvailabilityTests
     {
         [AvaloniaTheory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task ManagedViewActionHonorsLatestIntentAndReattachmentBeforeRefreshing(bool reattach)
+        {
+            using var fixture = new PatchManagerOperationGuardTests.Fixture();
+            fixture.MakeManaged();
+            var view = new PatchManagerView();
+            var host = new Window { Content = view };
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                host.Show();
+                Assert.True(await view.RefreshTask);
+                var vm = (PatchManagerViewModel)typeof(PatchManagerView).GetField("_vm",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.GetValue(view)!;
+                PatchManagerRefreshTests.SetVerifier(vm, (snapshot, scope, token) =>
+                {
+                    Assert.False(Dispatcher.UIThread.CheckAccess());
+                    entered.TrySetResult();
+                    release.Wait();
+                    return snapshot.Matches(scope, token);
+                });
+                var list = view.FindControl<ListBox>("PatchListBox")!;
+                list.SelectedIndex = 0;
+                view.FindControl<Button>("InstallButton")!.RaiseEvent(
+                    new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.False(view.FindControl<Button>("InstallButton")!.IsEnabled);
+                if (reattach) { host.Content = null; host.Content = view; }
+                else view.FindControl<TextBox>("SearchBox")!.Text = "latest-no-match";
+                await Dispatcher.UIThread.InvokeAsync(() => Assert.False(view.ActionTask.IsCompleted));
+                Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() => PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+                release.Set();
+                await view.ActionTask;
+                Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+                Assert.Empty(CoreState.Undo.UndoBuffer);
+                Assert.True(await view.RefreshTask);
+                Assert.Equal(reattach ? "" : "latest-no-match", vm.FilterText);
+
+                view.FindControl<TextBox>("SearchBox")!.Text = "";
+                await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+                await view.RefreshTask;
+                list.SelectedIndex = 0;
+                Assert.NotNull(vm.SelectedPatch);
+                Assert.Same(list.SelectedItem, vm.SelectedPatch);
+                Assert.True(view.FindControl<Button>("InstallButton")!.IsEnabled);
+                view.FindControl<Button>("InstallButton")!.RaiseEvent(
+                    new global::Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                await view.ActionTask;
+                Assert.True(fixture.Rom.u8(0x200) == 0xAA,
+                    view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+                Assert.True(await view.RefreshTask);
+                list.SelectedIndex = 0;
+                Assert.True(view.FindControl<Button>("UninstallButton")!.IsEnabled);
+            }
+            finally
+            {
+                release.Set();
+                host.Close();
+                await view.ActionTask;
+                await view.RefreshTask;
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData("ja", false, false)]
         [InlineData("zh", false, false)]
         [InlineData("ja", true, false)]

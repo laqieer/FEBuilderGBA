@@ -451,6 +451,19 @@ Missing, inaccessible or read-only managed locks are reported, not repaired
 or bypassed. Legacy libraries remain readable without creating a workspace
 or changing permissions; a newly appearing managed state forces a locked reread.
 
+Install, forced install and both uninstall routes hold that lease through
+verification, any awaited clean-ROM picker, backups, ROM/undo and status work.
+The published identity hashes the whole admitted `config/patch2` tree's content,
+including shared files and other versions; a marker or unchanged timestamp is
+not sufficient. Full-tree verification runs on a worker. A replaced database
+requires refresh and reselection, and an action's own backup changes invalidate
+the old managed publication until its automatic refresh completes. Translation
+also holds scoped ownership from discovery through application and undo.
+Read verification refuses unsafe/unreadable entries or trees exceeding 200,010
+nodes or depth 32, without repair or an unlocked fallback. These are verification
+bounds, not changes to import/recovery quotas. External files/writers outside
+the admitted tree retain their existing legacy contract.
+
 For source-bound large-input proof, the existing Core test executable includes
 `PatchDatabaseImportCoreTests.GenerateResponsivenessProofFixtures`.
 Set `FEBUILDER_RESPONSIVENESS_PROOF` to a fresh 32-hex GUID, then run that exact
@@ -464,6 +477,13 @@ proof root. The helper does not install app test hooks or establish GUI
 responsiveness. Actual device/desktop proof must independently record loading,
 input responsiveness and final counts/recovery, with 600-second stages and
 a 30-minute owned session limit; do not reduce the fixture after a timeout.
+
+The large generator's header-only ROM is a metadata-scan fixture, not a valid
+ordinary text-initialization fixture. For actual GUI proof, use the existing
+functional `SyntheticFe8URom` fixture and a separately screened data-only
+adapter that writes a new owned 16-MiB file, changing only its last four bytes
+to `AB CD EF 12`. Preserve its header and finite Huffman tree, record pristine
+and adapted hashes, and leave the ZIP and complete recovery inventory unchanged.
 
 The `android-patch-import-smoke` job in
 [`android-emulator-parity.yml`](../.github/workflows/android-emulator-parity.yml)

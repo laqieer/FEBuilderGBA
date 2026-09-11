@@ -1,5 +1,9 @@
 using System;
+using System.Buffers.Binary;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -7,6 +11,100 @@ namespace FEBuilderGBA
     {
         internal const string WorkspaceName = ".patch2-import";
         internal const string LeaseName = "lease.lock";
+
+        internal sealed class ExistingReadSnapshot
+        {
+            internal ExistingLeaseProbe Scope { get; }
+            internal string ContentIdentity { get; }
+
+            ExistingReadSnapshot(ExistingLeaseProbe scope, string identity)
+                => (Scope, ContentIdentity) = (scope, identity);
+
+            // The caller owns this scope's existing reader lease or prepared-import lease.
+            internal static ExistingReadSnapshot Capture(ExistingLeaseProbe probe, CancellationToken token,
+                PatchDatabaseImportCore.InventoryLimits? limits = null)
+            {
+                var scope = ProbeExisting(probe.BaseDirectory, probe.Version, probe.SelectedDirectory);
+                if (!probe.Managed || !scope.Managed || !scope.HasLock)
+                    throw new IOException("The managed patch database is no longer available.");
+                limits ??= new PatchDatabaseImportCore.InventoryLimits();
+                limits.Validate();
+                token.ThrowIfCancellationRequested();
+                string root = Path.Combine(scope.BaseDirectory, "config", "patch2");
+                using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
+                Append(hash, "FEBuilderGBA.PatchReadSnapshot.v1");
+                bool exists;
+                try { File.GetAttributes(root); exists = true; }
+                catch (FileNotFoundException) { exists = false; }
+                catch (DirectoryNotFoundException) { exists = false; }
+                Append(hash, exists ? "directory" : "absent");
+                if (exists)
+                {
+                    if (!ProjectionFileSystemSafety.TryValidateDirectory(root, out string error))
+                        throw new IOException(error);
+                    byte[] buffer = new byte[64 * 1024];
+                    foreach (string path in PatchDatabaseImportCore.EnumerateReadSnapshotTree(root, limits.MaxOperationNodes, token))
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var attributes = File.GetAttributes(path);
+                        bool directory = (attributes & FileAttributes.Directory) != 0;
+                        EnsureSafeAncestry(path, allowFileLeaf: !directory);
+                        Append(hash, Path.GetRelativePath(root, path));
+                        Append(hash, directory ? "D" : "F");
+                        if (directory)
+                        {
+                            if (!ProjectionFileSystemSafety.TryValidateDirectory(path, out error))
+                                throw new IOException(error);
+                            continue;
+                        }
+                        using var file = ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+                        var before = ProjectionFileSystemSafety.InspectOpenedRegularFile(file.SafeFileHandle, path, false);
+                        AppendLength(hash, before.Length);
+                        long read = 0;
+                        int count;
+                        while ((count = file.Read(buffer)) != 0)
+                        {
+                            token.ThrowIfCancellationRequested();
+                            read = checked(read + count);
+                            if (read > before.Length) throw new IOException("A patch database file changed during verification.");
+                            hash.AppendData(buffer.AsSpan(0, count));
+                        }
+                        if (read != before.Length) throw new IOException("A patch database file changed during verification.");
+                        using var current = ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+                        if (!ProjectionFileSystemSafety.SameOpenedFile(file, current))
+                            throw new IOException("A patch database file was replaced during verification.");
+                        ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(file.SafeFileHandle, path, false, before);
+                    }
+                }
+                token.ThrowIfCancellationRequested();
+                var after = ProbeExisting(scope.BaseDirectory, scope.Version, scope.SelectedDirectory);
+                if (!after.Managed || !after.HasLock) throw new IOException("The managed patch database changed during verification.");
+                return new ExistingReadSnapshot(scope, Convert.ToHexString(hash.GetHashAndReset()));
+            }
+
+            internal bool Matches(ExistingLeaseProbe scope, CancellationToken token)
+            {
+                var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+                return scope.Managed && scope.Version == Scope.Version &&
+                    string.Equals(scope.BaseDirectory, Scope.BaseDirectory, comparison) &&
+                    string.Equals(scope.SelectedDirectory, Scope.SelectedDirectory, comparison) &&
+                    ContentIdentity == Capture(scope, token).ContentIdentity;
+            }
+
+            static void Append(IncrementalHash hash, string value)
+            {
+                byte[] bytes = Encoding.UTF8.GetBytes(value);
+                AppendLength(hash, bytes.LongLength);
+                hash.AppendData(bytes);
+            }
+
+            static void AppendLength(IncrementalHash hash, long value)
+            {
+                Span<byte> bytes = stackalloc byte[8];
+                BinaryPrimitives.WriteInt64LittleEndian(bytes, value);
+                hash.AppendData(bytes);
+            }
+        }
 
         internal sealed class ExistingLeaseProbe
         {

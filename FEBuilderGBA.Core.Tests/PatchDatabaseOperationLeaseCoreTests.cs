@@ -7,6 +7,140 @@ namespace FEBuilderGBA.Core.Tests;
 public class PatchDatabaseOperationLeaseCoreTests
 {
     [Theory]
+    [InlineData("descriptor")]
+    [InlineData("shared")]
+    [InlineData("other-version")]
+    [InlineData("backup")]
+    [InlineData("marker")]
+    [InlineData("git")]
+    [InlineData("rename")]
+    [InlineData("directory")]
+    [InlineData("delete")]
+    public void ExistingContentSnapshotDetectsWholeTreeChangesWithoutTrustingTimeOrLength(string change)
+    {
+        using var fixture = new Fixture();
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+        string tree = Path.Combine(fixture.Root, "config", "patch2");
+        string selected = Path.Combine(tree, "FE8U");
+        Directory.CreateDirectory(selected);
+        string path = change switch
+        {
+            "shared" => Path.Combine(tree, "shared.bin"),
+            "other-version" => Path.Combine(tree, "FE7U", "data.bin"),
+            "backup" => Path.Combine(selected, ".backup_PATCH_test.txt"),
+            "marker" => Path.Combine(selected, PatchDatabaseZipReaderCore.OwnershipFileName),
+            "git" => Path.Combine(tree, ".git"),
+            _ => Path.Combine(selected, "PATCH_test.txt"),
+        };
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllBytes(path, new byte[] { 1, 2, 3, 4 });
+        var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U", selected);
+        var before = PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default);
+        Assert.True(before.Matches(probe, default));
+        DateTime time = File.GetLastWriteTimeUtc(path);
+        if (change == "rename") File.Move(path, path + ".renamed");
+        else if (change == "directory") Directory.CreateDirectory(Path.Combine(selected, "empty"));
+        else if (change == "delete") File.Delete(path);
+        else
+        {
+            File.WriteAllBytes(path, new byte[] { 4, 3, 2, 1 });
+            File.SetLastWriteTimeUtc(path, time);
+            Assert.Equal(4, new FileInfo(path).Length);
+            Assert.Equal(time, File.GetLastWriteTimeUtc(path));
+        }
+        Assert.False(before.Matches(probe, default));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Fact]
+    public void ExistingContentSnapshotDistinguishesAbsenceEmptyRootsAndAdmittedScopes()
+    {
+        using var fixture = new Fixture();
+        using var other = new Fixture();
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+        string selected = Path.Combine(fixture.Root, "config", "patch2", "FE8U");
+        var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U", selected);
+        var absent = PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default);
+        Assert.False(Directory.Exists(Path.Combine(fixture.Root, "config")));
+        Directory.CreateDirectory(Path.GetDirectoryName(selected)!);
+        Assert.False(absent.Matches(probe, default));
+        var empty = PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default);
+        Directory.CreateDirectory(selected);
+        Assert.False(empty.Matches(probe, default));
+        var foreign = PatchDatabaseOperationLeaseCore.ProbeExisting(other.Root, "FE8U",
+            Path.Combine(other.Root, "config", "patch2", "FE8U"));
+        Assert.False(empty.Matches(foreign, default));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(other.Root));
+    }
+
+    [Fact]
+    public void ExistingContentSnapshotHonorsBoundsCancellationAndReadOnlyDataWithoutRepair()
+    {
+        using var fixture = new Fixture();
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+        string selected = Path.Combine(fixture.Root, "config", "patch2", "FE8U");
+        Directory.CreateDirectory(selected);
+        string path = Path.Combine(selected, "data.bin");
+        File.WriteAllBytes(path, new byte[] { 1, 2, 3 });
+        var original = File.GetAttributes(path);
+        File.SetAttributes(path, original | FileAttributes.ReadOnly);
+        var readOnly = File.GetAttributes(path);
+        var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U", selected);
+        try
+        {
+            var snapshot = PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default);
+            Assert.True(snapshot.Matches(probe, default));
+            Assert.Equal(readOnly, File.GetAttributes(path));
+            Assert.Equal(new byte[] { 1, 2, 3 }, File.ReadAllBytes(path));
+            Assert.Throws<IOException>(() => PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default,
+                new PatchDatabaseImportCore.InventoryLimits { MaxOperationNodes = 1 }));
+            Assert.Throws<OperationCanceledException>(() =>
+                PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, new CancellationToken(true)));
+            string deep = selected;
+            for (int i = 0; i < 33; i++) deep = Directory.CreateDirectory(Path.Combine(deep, "d")).FullName;
+            Assert.Throws<IOException>(() => PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default));
+        }
+        finally { File.SetAttributes(path, original); }
+    }
+
+    [SkippableFact]
+    public void ExistingContentSnapshotRejectsSymlinksWithoutFollowingThem()
+    {
+        using var fixture = new Fixture();
+        using var outside = new Fixture();
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+        string selected = Path.Combine(fixture.Root, "config", "patch2", "FE8U");
+        Directory.CreateDirectory(selected);
+        string link = Path.Combine(selected, "link");
+        try { Directory.CreateSymbolicLink(link, outside.Root); }
+        catch (UnauthorizedAccessException) { Skip.If(true, "Symbolic-link creation is unavailable to this account."); }
+        try
+        {
+            var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U", selected);
+            Assert.Throws<IOException>(() => PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default));
+            Assert.Empty(Directory.EnumerateFileSystemEntries(outside.Root));
+        }
+        finally { if (Directory.Exists(link)) Directory.Delete(link); }
+    }
+
+    [SkippableFact]
+    public void ExistingContentSnapshotRejectsUnixFifoInBoundedNativeChild()
+    {
+        Skip.IfNot(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(), "Unix FIFO validation requires Linux/macOS.");
+        using var fixture = new Fixture();
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root)) { }
+        string selected = Path.Combine(fixture.Root, "config", "patch2", "FE8U");
+        Directory.CreateDirectory(selected);
+        string fifo = Path.Combine(selected, "fifo");
+        Assert.Equal(0, CreateSnapshotFifo(fifo, 0x180));
+        Assert.Equal("refused", RunExistingProbe(fixture.Root, true, snapshot: true));
+        Assert.True(File.Exists(fifo));
+    }
+
+    [System.Runtime.InteropServices.DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    static extern int CreateSnapshotFifo(string path, uint mode);
+
+    [Theory]
     [InlineData("workspace")]
     [InlineData("marker")]
     public void ExistingIncompleteManagedStateIsNeverDowngradedOrRepaired(string state)
@@ -107,6 +241,11 @@ public class PatchDatabaseOperationLeaseCoreTests
             using var lease = Environment.GetEnvironmentVariable("FEBUILDER_TEST_EXISTING_LEASE_READER") == "1"
                 ? PatchDatabaseOperationLeaseCore.AcquireExisting(probe) : PatchDatabaseOperationLeaseCore.Acquire(root);
             result = "acquired";
+            if (Environment.GetEnvironmentVariable("FEBUILDER_TEST_EXISTING_LEASE_SNAPSHOT") == "1")
+            {
+                try { PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(probe, default); }
+                catch (IOException) { result = "refused"; }
+            }
         }
         catch (PatchDatabaseOperationLeaseCore.BusyException ex)
         {
@@ -116,7 +255,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         File.WriteAllText(Path.Combine(root, "existing-reader-result.txt"), result);
     }
 
-    static string RunExistingProbe(string root, bool reader)
+    static string RunExistingProbe(string root, bool reader, bool snapshot = false)
     {
         string result = Path.Combine(root, "existing-reader-result.txt");
         if (File.Exists(result)) File.Delete(result);
@@ -130,6 +269,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         start.ArgumentList.Add("--Tests:FEBuilderGBA.Core.Tests.PatchDatabaseOperationLeaseCoreTests.ChildExistingLeaseProbe");
         start.Environment["FEBUILDER_TEST_EXISTING_LEASE_ROOT"] = root;
         start.Environment["FEBUILDER_TEST_EXISTING_LEASE_READER"] = reader ? "1" : "0";
+        start.Environment["FEBUILDER_TEST_EXISTING_LEASE_SNAPSHOT"] = snapshot ? "1" : "0";
         using var process = Process.Start(start)!;
         var stdout = process.StandardOutput.ReadToEndAsync();
         var stderr = process.StandardError.ReadToEndAsync();

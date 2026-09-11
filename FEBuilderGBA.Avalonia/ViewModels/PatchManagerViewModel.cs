@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
-using System.Security.Cryptography;
+using System.Threading;
 using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -20,6 +20,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public string Type { get; set; } = "";
         public PatchMetadataCore.PatchStatus Status { get; set; } = PatchMetadataCore.PatchStatus.Unknown;
         public string PatchFilePath { get; set; } = "";
+        internal string SnapshotFilePath { get; private init; } = "";
         public int DependencyCount { get; set; }
         public int UnsatisfiedDependencyCount { get; set; }
         public List<PatchMetadataCore.PatchDependency> UnsatisfiedDependencies { get; set; } = new();
@@ -87,6 +88,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 Type = info.Type,
                 Status = info.Status,
                 PatchFilePath = info.PatchFilePath,
+                SnapshotFilePath = info.PatchFilePath,
                 DependencyCount = info.DependencyCount,
                 UnsatisfiedDependencyCount = info.UnsatisfiedDependencyCount,
                 UnsatisfiedDependencies = info.UnsatisfiedDependencies,
@@ -103,12 +105,22 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         int _totalCount;
         int _installedCount;
         string _statusMessage = "";
+        sealed record Publication(PatchLocation Location, PatchDatabaseOperationLeaseCore.ExistingLeaseProbe? Scope,
+            PatchDatabaseOperationLeaseCore.ExistingReadSnapshot? Library, PatchDatabaseImportService.RomIdentity Rom);
+        sealed record ActionIntent(PatchEntry Patch, string PatchFilePath, Publication? Publication, bool PublicationCurrent, long Generation,
+            PatchDatabaseImportService.RomIdentity Rom, PatchLocation Location, string Language, string ScanLanguage);
+        Publication? _publication;
+        long _generation;
+        readonly Func<PatchDatabaseOperationLeaseCore.ExistingReadSnapshot,
+            PatchDatabaseOperationLeaseCore.ExistingLeaseProbe, CancellationToken, bool> _verifySnapshot =
+            (snapshot, scope, token) => snapshot.Matches(scope, token);
 
         List<PatchEntry> _allPatches = new();
         ObservableCollection<PatchEntry> _filteredPatches = new();
 
         internal void SetPendingFilter(string filter)
         {
+            _generation++;
             _snapshotCurrent = false;
             SetField(ref _filterText, filter, nameof(FilterText));
             SelectedPatch = null;
@@ -117,6 +129,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         internal void Publish(PatchManagerRefreshService.PatchListSnapshot snapshot)
         {
+            _generation++;
+            _publication = new(snapshot.Request.Location, snapshot.Scope, snapshot.LibraryIdentity, snapshot.Request.Identity);
             _snapshotCurrent = true;
             _allPatches = snapshot.All;
             _filteredPatches = snapshot.Filtered;
@@ -133,6 +147,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool IsPatchDatabaseOperationRunning => ContentRepoGitService.IsRunning();
         public static string PatchDatabaseBusyMessage =>
             R._("A patch database operation is already running. Try again when it finishes.");
+        internal const string PatchDatabaseChangedTemplate = "The patch database changed. Refresh the list and select the patch again.";
+        public static string PatchDatabaseChangedMessage => R._(PatchDatabaseChangedTemplate);
 
         /// <summary>
         /// Label for the in-app patch2 Initialize/Update button (#1817). "Update Patch Database" when the
@@ -212,6 +228,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
         bool LoadPatchListCore(bool requireCompleteRead)
         {
+            using var ownership = new PatchManagerRefreshService.ReadOwnership();
+            if (!ownership.TryEnter())
+            {
+                StatusMessage = PatchDatabaseBusyMessage;
+                return false;
+            }
+            _generation++;
+            _publication = null;
             _snapshotCurrent = true;
             _allPatches.Clear();
             _filteredPatches.Clear();
@@ -228,7 +252,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             string version = rom.RomInfo.VersionToFilename;
-            string patchDir = ResolvePatchDirectory(version);
+            PatchLocation location;
+            PatchDatabaseOperationLeaseCore.ExistingReadSnapshot? identity;
+            try
+            {
+                location = ResolvePatchLocation(version);
+                ownership.Acquire(location, version);
+                identity = ownership.CaptureIdentity(default);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                _snapshotCurrent = false;
+                StatusMessage = R._(PatchManagerRefreshService.RefreshFailureTemplate, ex.Message);
+                IsLoaded = true;
+                return false;
+            }
+            string patchDir = location.Directory;
+            var romIdentity = new PatchDatabaseImportService.RomIdentity(rom);
             string lang = PatchMetadataCore.GetLanguageSuffix();
 
             List<PatchMetadataCore.PatchInfo> infos;
@@ -245,6 +285,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             {
                 infos = PatchMetadataCore.EnumeratePatches(patchDir, rom, lang);
             }
+            var after = PatchDatabaseOperationLeaseCore.ProbeExisting(location.BaseDirectory, version, patchDir);
+            if (!romIdentity.IsCurrent || ownership.Managed != after.Managed || (ownership.Managed && !after.HasLock))
+            {
+                _snapshotCurrent = false;
+                StatusMessage = PatchDatabaseChangedMessage;
+                return false;
+            }
+            _publication = new(location, ownership.Scope, identity, romIdentity);
             foreach (var info in infos)
                 _allPatches.Add(PatchEntry.FromPatchInfo(info));
 
@@ -328,6 +376,10 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// </summary>
         public string InstallPatch(bool forceIgnoreDependencies = false)
             => RunPatchAction(() => InstallPatchCore(forceIgnoreDependencies));
+
+        internal Task<string> InstallPatchAsync(bool forceIgnoreDependencies, CancellationToken token,
+            Func<bool>? current = null)
+            => RunPatchActionAsync(() => Task.FromResult(InstallPatchCore(forceIgnoreDependencies)), token, current);
 
         string InstallPatchCore(bool forceIgnoreDependencies)
         {
@@ -495,45 +547,136 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             return StatusMessage;
         }
 
-        public async Task<string> UninstallPatchAsync(Func<Task<string?>> selectCleanRom)
-        {
-            if (!ContentRepoGitService.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
-            try
+        public Task<string> UninstallPatchAsync(Func<Task<string?>> selectCleanRom,
+            CancellationToken token = default, Func<bool>? current = null)
+            => RunPatchActionAsync(async () =>
             {
                 var patch = _selectedPatch;
                 if (patch == null) return "No patch selected.";
                 ROM rom = CoreState.ROM;
                 if (rom == null) return "No ROM loaded.";
                 if (!SelectedPatchNeedsCleanRom) return UninstallPatchCore();
-                var data = rom.Data;
-                var info = rom.RomInfo;
-                byte[] fingerprint = SHA256.HashData(data);
-                // Keep the shared gate across the dialog so a completed Git/import operation
-                // cannot silently replace the selected descriptor while the user picks a ROM.
+                var intent = CaptureActionIntent();
                 string? cleanRom = await selectCleanRom();
                 if (cleanRom == null) return StatusMessage = R._("Uninstall cancelled.");
-                if (!ReferenceEquals(patch, _selectedPatch) || !ReferenceEquals(rom, CoreState.ROM) ||
-                    !ReferenceEquals(data, rom.Data) || !ReferenceEquals(info, rom.RomInfo) ||
-                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data)))
+                if (token.IsCancellationRequested || current?.Invoke() == false ||
+                    intent == null || !ActionIsCurrent(intent))
                     return StatusMessage = R._("The loaded ROM or selected patch changed. Uninstall was cancelled.");
                 return UninstallPatchWithCleanRomCore(cleanRom);
-            }
-            finally { ExitPatchAction(); }
-        }
+            }, token, current, "The loaded ROM or selected patch changed. Uninstall was cancelled.");
 
         string RunPatchAction(Func<string> action)
         {
-            if (!ContentRepoGitService.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
-            try { return action(); }
-            finally { ExitPatchAction(); }
+            var ownership = new PatchManagerRefreshService.ReadOwnership();
+            if (!ownership.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
+            try
+            {
+                var intent = CaptureActionIntent();
+                if (intent == null) return _selectedPatch == null ? "No patch selected." : "No ROM loaded.";
+                var refusal = VerifyAction(intent, ownership, default);
+                if (refusal != null) return StatusMessage = refusal.Localize();
+                if (!ActionIsCurrent(intent)) return StatusMessage = PatchDatabaseChangedMessage;
+                return action();
+            }
+            finally { ExitPatchAction(ownership, null); }
         }
 
-        void ExitPatchAction()
+        async Task<string> RunPatchActionAsync(Func<Task<string>> action, CancellationToken token, Func<bool>? current,
+            string changedTemplate = PatchDatabaseChangedTemplate)
         {
-            ContentRepoGitService.Exit();
-            OnPropertyChanged(nameof(CanInstall));
-            OnPropertyChanged(nameof(CanUninstall));
-            OnPropertyChanged(nameof(SelectedPatchNeedsCleanRom));
+            var ownership = new PatchManagerRefreshService.ReadOwnership();
+            if (!ownership.TryEnter()) return StatusMessage = PatchDatabaseBusyMessage;
+            try
+            {
+                var intent = CaptureActionIntent();
+                if (intent == null) return _selectedPatch == null ? "No patch selected." : "No ROM loaded.";
+                PatchManagerRefreshService.RefreshFailure? refusal;
+                try { refusal = await Task.Run(() => VerifyAction(intent, ownership, token), token); }
+                catch (OperationCanceledException) { return R._("Cancelled."); }
+                if (token.IsCancellationRequested || current?.Invoke() == false) return R._("Cancelled.");
+                if (refusal != null) return StatusMessage = refusal.Localize();
+                if (!ActionIsCurrent(intent)) return StatusMessage = R._(changedTemplate);
+                return await action();
+            }
+            finally { ExitPatchAction(ownership, current); }
+        }
+
+        ActionIntent? CaptureActionIntent()
+        {
+            if (_selectedPatch == null || CoreState.ROM?.RomInfo == null) return null;
+            var rom = new PatchDatabaseImportService.RomIdentity(CoreState.ROM);
+            bool publicationCurrent = _snapshotCurrent && (_publication?.Scope?.Managed != true ||
+                (_publication.Rom.IsCurrent && _allPatches.Contains(_selectedPatch) &&
+                    _selectedPatch.SnapshotFilePath == _selectedPatch.PatchFilePath));
+            return new(_selectedPatch, _selectedPatch.PatchFilePath, _publication, publicationCurrent, _generation, rom,
+                _publication?.Location ?? ResolvePatchLocation(rom.Version),
+                PatchMetadataCore.GetLanguageSuffix(), PatchFilterCore.ScanLang(CoreState.Language));
+        }
+
+        bool ActionIsCurrent(ActionIntent intent)
+            => intent.PublicationCurrent && ReferenceEquals(_selectedPatch, intent.Patch) &&
+                _selectedPatch.PatchFilePath == intent.PatchFilePath && ReferenceEquals(_publication, intent.Publication) &&
+                _generation == intent.Generation && intent.Rom.IsCurrent &&
+                PatchMetadataCore.GetLanguageSuffix() == intent.Language &&
+                PatchFilterCore.ScanLang(CoreState.Language) == intent.ScanLanguage;
+
+        PatchManagerRefreshService.RefreshFailure? VerifyAction(ActionIntent intent,
+            PatchManagerRefreshService.ReadOwnership ownership, CancellationToken token)
+        {
+            try
+            {
+                token.ThrowIfCancellationRequested();
+                ownership.Acquire(intent.Location, intent.Rom.Version);
+                var published = intent.Publication;
+                if (published != null)
+                {
+                    string relative = Path.GetRelativePath(intent.Location.Directory, Path.GetFullPath(intent.PatchFilePath));
+                    if (Path.IsPathRooted(relative) || relative == ".." ||
+                        relative.StartsWith(".." + Path.DirectorySeparatorChar, StringComparison.Ordinal))
+                        return new(PatchDatabaseChangedTemplate, "");
+                }
+                if (ownership.Managed)
+                {
+                    if (!intent.PublicationCurrent || published?.Scope?.Managed != true || published.Library == null ||
+                        !_verifySnapshot(published.Library, ownership.Scope!, token))
+                        return new(PatchDatabaseChangedTemplate, "");
+                }
+                else if (published?.Scope?.Managed == true)
+                    return new(PatchDatabaseChangedTemplate, "");
+                var after = PatchDatabaseOperationLeaseCore.ProbeExisting(intent.Location.BaseDirectory,
+                    intent.Rom.Version, intent.Location.Directory);
+                if (after.Managed != ownership.Managed || (ownership.Managed && !after.HasLock))
+                    return new(PatchDatabaseChangedTemplate, "");
+                return null;
+            }
+            catch (PatchDatabaseOperationLeaseCore.BusyException)
+            {
+                return new("A patch database operation is already running. Try again when it finishes.", "");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                return new(PatchManagerRefreshService.RefreshFailureTemplate, ex.Message);
+            }
+        }
+
+        void ExitPatchAction(PatchManagerRefreshService.ReadOwnership ownership, Func<bool>? current)
+        {
+            try
+            {
+                if (ownership.Managed || _publication?.Scope?.Managed == true)
+                {
+                    _snapshotCurrent = false;
+                    _generation++;
+                }
+                if (ownership.IsAcquired && current?.Invoke() != false)
+                    OnPropertyChanged(nameof(SelectedPatchNeedsCleanRom));
+            }
+            finally { ownership.Dispose(); }
+            if (current?.Invoke() != false)
+            {
+                OnPropertyChanged(nameof(CanInstall));
+                OnPropertyChanged(nameof(CanUninstall));
+            }
         }
 
         /// <summary>Re-check installation status of the selected patch and update counts.</summary>

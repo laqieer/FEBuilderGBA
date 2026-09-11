@@ -8,6 +8,157 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchManagerRefreshTests
 {
+    [AvaloniaTheory]
+    [InlineData("cancel")]
+    [InlineData("detach")]
+    [InlineData("generation")]
+    [InlineData("selection")]
+    [InlineData("in-place")]
+    [InlineData("replace")]
+    [InlineData("fault")]
+    [InlineData("callback")]
+    public async Task ManagedActionVerificationStaysOffDispatcherAndOwnsLeaseUntilRealExit(string change)
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.MakeManaged();
+        var vm = fixture.CreateViewModel("install");
+        using var release = new ManualResetEventSlim();
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        bool exited = false, attached = true, callbackFault = false;
+        SetVerifier(vm, (snapshot, scope, token) =>
+        {
+            Assert.False(Dispatcher.UIThread.CheckAccess());
+            entered.SetResult();
+            try
+            {
+                release.Wait();
+                if (change == "fault") throw new IOException("owned verification fault");
+                return snapshot.Matches(scope, token);
+            }
+            finally { exited = true; }
+        });
+        vm.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
+        var operation = vm.InstallPatchAsync(true, cancellation.Token,
+            () => callbackFault ? throw new InvalidOperationException("owned callback fault") : attached);
+        byte[] expected = (byte[])fixture.Rom.Data.Clone();
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            bool heartbeat = false;
+            await Dispatcher.UIThread.InvokeAsync(() => heartbeat = true);
+            Assert.True(heartbeat);
+            if (change == "cancel") cancellation.Cancel();
+            if (change == "detach") attached = false;
+            if (change == "generation") vm.SetPendingFilter("later");
+            if (change == "selection") vm.SelectedPatch = null;
+            if (change == "in-place") { fixture.Rom.Data[0x300] = 0x42; expected[0x300] = 0x42; }
+            if (change == "replace") CoreState.ROM = new ROM();
+            if (change == "callback") callbackFault = true;
+            Assert.False(operation.IsCompleted);
+            Assert.False(exited);
+            await Task.Run(() =>
+            {
+                using var child = new PatchManagerOperationGuardTests.NativeLeaseProcess(fixture.Root, hold: false);
+                Assert.Equal("busy", child.Result);
+            });
+            Assert.False(exited);
+            Assert.False(operation.IsCompleted);
+        }
+        finally
+        {
+            release.Set();
+            if (change == "callback") await Assert.ThrowsAsync<InvalidOperationException>(() => operation);
+            else await operation;
+        }
+        Assert.True(exited);
+        Assert.Equal(expected, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        Assert.False(ContentRepoGitService.IsRunning());
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+    }
+
+    internal static void SetVerifier(PatchManagerViewModel vm,
+        Func<PatchDatabaseOperationLeaseCore.ExistingReadSnapshot,
+            PatchDatabaseOperationLeaseCore.ExistingLeaseProbe, CancellationToken, bool> verify)
+        => typeof(PatchManagerViewModel).GetField("_verifySnapshot",
+            System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(vm, verify);
+
+    [AvaloniaFact]
+    public async Task ManagedPickerKeepsNativeOwnershipAcrossAwaitAndCancellation()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.MakeManaged();
+        var vm = fixture.CreateViewModel("clean");
+        using var cancellation = new CancellationTokenSource();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var selected = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = vm.UninstallPatchAsync(() => { entered.SetResult(); return selected.Task; }, cancellation.Token);
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            cancellation.Cancel();
+            await Task.Run(() =>
+            {
+                using var child = new PatchManagerOperationGuardTests.NativeLeaseProcess(fixture.Root, hold: false);
+                Assert.Equal("busy", child.Result);
+            });
+            Assert.False(operation.IsCompleted);
+        }
+        finally { selected.TrySetResult(fixture.CleanRom); await operation; }
+        Assert.Equal(0xAAu, fixture.Rom.u8(0x200));
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [AvaloniaTheory]
+    [InlineData("path")]
+    [InlineData("language")]
+    public async Task ManagedPickerRejectsChangedCapturedActionInputs(string change)
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.MakeManaged();
+        var vm = fixture.CreateViewModel("clean");
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var selected = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var operation = vm.UninstallPatchAsync(() => { entered.SetResult(); return selected.Task; });
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        try
+        {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            if (change == "path") vm.SelectedPatch!.PatchFilePath += ".stale";
+            else CoreState.Language = "ja";
+            selected.SetResult(fixture.CleanRom);
+            Assert.Equal(R._("The loaded ROM or selected patch changed. Uninstall was cancelled."), await operation);
+            Assert.Equal(before, fixture.Rom.Data);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        finally { selected.TrySetResult(null); await operation; }
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Theory]
+    [InlineData("transition")]
+    [InlineData("missing-lock")]
+    [InlineData("outside-selection")]
+    public void ManagedActionNeverDowngradesOrAuthorizesUnverifiedProvenance(string change)
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        if (change != "transition") fixture.MakeManaged();
+        var vm = fixture.CreateViewModel("install");
+        string lockPath = Path.Combine(fixture.Root, ".patch2-import", "lease.lock");
+        if (change == "transition") fixture.MakeManaged();
+        if (change == "missing-lock") File.Delete(lockPath);
+        if (change == "outside-selection") vm.SelectedPatch!.PatchFilePath = fixture.CleanRom;
+        var before = fixture.Snapshot();
+        vm.InstallPatch(true);
+        fixture.AssertSnapshot(before);
+        Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        if (change == "missing-lock") Assert.False(File.Exists(lockPath));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [AvaloniaFact]
     public async Task SnapshotPreservesPointerTextDependenciesAndCapturedScannerLanguage()
     {

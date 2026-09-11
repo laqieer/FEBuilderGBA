@@ -791,6 +791,9 @@ namespace FEBuilderGBA
             return Convert.ToHexString(hash.GetHashAndReset());
         }
 
+        internal static IEnumerable<string> EnumerateReadSnapshotTree(string root, int limit, CancellationToken cancellationToken)
+            => EnumerateSafeTree(root, limit, cancellationToken);
+
         static IEnumerable<string> EnumerateSafeTree(string root, int limit,
             CancellationToken cancellationToken = default, int maxDepth = 32)
         {

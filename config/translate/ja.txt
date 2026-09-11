@@ -14883,6 +14883,9 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 :A patch database operation is already running. Try again when it finishes.
 パッチデータベースの操作が実行中です。完了してから再試行してください。
 
+:The patch database changed. Refresh the list and select the patch again.
+パッチデータベースが変更されました。一覧を更新し、パッチを選択し直してください。
+
 :The loaded ROM or selected patch changed. Uninstall was cancelled.
 読み込まれたROMまたは選択されたパッチが変更されたため、アンインストールをキャンセルしました。
 

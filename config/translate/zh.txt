@@ -28713,6 +28713,9 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 :A patch database operation is already running. Try again when it finishes.
 补丁数据库操作正在进行中。请等待操作完成后重试。
 
+:The patch database changed. Refresh the list and select the patch again.
+补丁数据库已更改。请刷新列表并重新选择补丁。
+
 :The loaded ROM or selected patch changed. Uninstall was cancelled.
 加载的 ROM 或选中的补丁已更改。已取消卸载。
 

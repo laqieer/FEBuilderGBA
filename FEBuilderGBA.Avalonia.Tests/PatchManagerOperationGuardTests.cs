@@ -13,6 +13,290 @@ public class PatchManagerOperationGuardTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
+    public void TranslationHoldsNativeLeaseThroughUndoCommitAndRollback(bool failCommit)
+    {
+        using var fixture = new Fixture();
+        fixture.MakeManaged();
+        fixture.SeedTranslationPatch();
+        var view = new ToolTranslateROMView();
+        var vm = (ToolTranslateROMViewModel)typeof(ToolTranslateROMView).GetField("_vm",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+        var undo = new NativeUndoProbe(fixture.Root, failCommit);
+        vm.UndoService = undo;
+        InstallTranslationPatch(view, fixture.Rom);
+        Assert.Equal(failCommit ? 3 : 2, undo.Observations.Count);
+        Assert.All(undo.Observations, result => Assert.Equal("busy", result));
+        Assert.Equal(failCommit ? 0x11u : 0xAAu, fixture.Rom.u8(0x200));
+        Assert.False(ContentRepoGitService.IsRunning());
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+    }
+
+    sealed class NativeUndoProbe(string root, bool failCommit) : Services.UndoService
+    {
+        internal List<string> Observations { get; } = new();
+        void Probe()
+        {
+            using var process = new NativeLeaseProcess(root, false);
+            Observations.Add(process.Result);
+        }
+        public override void Begin(string name) { Probe(); base.Begin(name); }
+        public override void Commit()
+        {
+            Probe();
+            if (failCommit) throw new IOException("owned undo commit failure");
+            base.Commit();
+        }
+        public override void Rollback() { Probe(); base.Rollback(); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ManagedActionsUsePublishedFallbackScopeAndNeverRepairReadOnlyLocks(bool readOnly)
+    {
+        using var primary = new Fixture();
+        using var selected = new Fixture();
+        selected.MakeManaged();
+        var vm = selected.CreateViewModel("install");
+        CoreState.BaseDirectory = primary.Root;
+        string path = Path.Combine(selected.Root, ".patch2-import", "lease.lock");
+        var original = File.GetAttributes(path);
+        UnixFileMode mode = default;
+        try
+        {
+            if (readOnly)
+            {
+                if (OperatingSystem.IsWindows()) File.SetAttributes(path, original | FileAttributes.ReadOnly);
+                else { mode = File.GetUnixFileMode(path); File.SetUnixFileMode(path, UnixFileMode.UserRead); }
+                var attributes = File.GetAttributes(path);
+                Assert.NotEqual(PatchManagerViewModel.PatchDatabaseBusyMessage, vm.InstallPatch(true));
+                Assert.Equal(attributes, File.GetAttributes(path));
+                if (!OperatingSystem.IsWindows()) Assert.Equal(UnixFileMode.UserRead, File.GetUnixFileMode(path));
+            }
+            else
+            {
+                using var holder = new NativeLeaseProcess(selected.Root, true);
+                Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, vm.InstallPatch(true));
+            }
+            Assert.False(Directory.Exists(Path.Combine(primary.Root, ".patch2-import")));
+            Assert.Equal(0x11u, selected.Rom.u8(0x200));
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+            Assert.False(File.Exists(PatchMetadataCore.GetBackupFilePath(selected.Descriptor)));
+        }
+        finally
+        {
+            if (readOnly)
+            {
+                if (OperatingSystem.IsWindows()) File.SetAttributes(path, original);
+                else File.SetUnixFileMode(path, mode);
+            }
+        }
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [AvaloniaTheory]
+    [InlineData("install")]
+    [InlineData("force")]
+    [InlineData("uninstall")]
+    [InlineData("clean")]
+    [InlineData("async")]
+    [InlineData("translation")]
+    public async Task ManagedForeignWriterBlocksEveryActionBeforeAnyMutation(string action)
+    {
+        using var fixture = new Fixture();
+        fixture.MakeManaged();
+        if (action == "translation") fixture.SeedTranslationPatch();
+        var vm = fixture.CreateViewModel(action == "async" ? "clean" : action);
+        bool backupObserved = false;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(vm.SelectedPatchNeedsCleanRom))
+            {
+                backupObserved = true;
+                _ = vm.SelectedPatchNeedsCleanRom;
+            }
+        };
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        var files = fixture.Snapshot();
+        using (var holder = new NativeLeaseProcess(fixture.Root, hold: true))
+        {
+            Assert.False(ContentRepoGitService.IsRunning());
+            bool dialog = false;
+            string message = action switch
+            {
+                "translation" => InstallTranslationPatch(new ToolTranslateROMView(), fixture.Rom),
+                "async" => await vm.UninstallPatchAsync(() =>
+                {
+                    dialog = true;
+                    return Task.FromResult<string?>(fixture.CleanRom);
+                }),
+                _ => RunAction(vm, action, fixture.CleanRom),
+            };
+            Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, message);
+            Assert.False(dialog);
+            Assert.False(backupObserved);
+            Assert.Equal(before, fixture.Rom.Data);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        fixture.AssertSnapshot(files);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Theory]
+    [InlineData("descriptor")]
+    [InlineData("payload")]
+    [InlineData("shared")]
+    [InlineData("backup")]
+    public void ManagedCompletedReplacementRejectsPublishedSelectionEvenWithoutContention(string changed)
+    {
+        using var fixture = new Fixture();
+        fixture.MakeManaged();
+        string shared = Path.Combine(fixture.Root, "config", "patch2", "shared.bin");
+        File.WriteAllBytes(shared, new byte[] { 1 });
+        var vm = fixture.CreateViewModel(changed == "backup" ? "uninstall" : "install");
+        string path = changed switch
+        {
+            "descriptor" => fixture.Descriptor,
+            "payload" => Path.Combine(fixture.Library, "test.bin"),
+            "backup" => PatchMetadataCore.GetBackupFilePath(fixture.Descriptor),
+            _ => shared,
+        };
+        var time = File.GetLastWriteTimeUtc(path);
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root))
+        {
+            byte[] bytes = File.ReadAllBytes(path);
+            bytes[^1] ^= 1;
+            File.WriteAllBytes(path, bytes);
+            File.SetLastWriteTimeUtc(path, time);
+        }
+        var before = fixture.Snapshot();
+        byte[] rom = (byte[])fixture.Rom.Data.Clone();
+        string message = changed == "backup" ? vm.UninstallPatch() : vm.InstallPatch(true);
+        Assert.Equal(R._("The patch database changed. Refresh the list and select the patch again."), message);
+        Assert.Equal(rom, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        fixture.AssertSnapshot(before);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Fact]
+    public void ManagedActionExcludesNativeWriterThroughStatusAndInvalidatesOwnBackupSnapshot()
+    {
+        using var fixture = new Fixture();
+        fixture.MakeManaged();
+        var vm = fixture.CreateViewModel("install");
+        bool observed = false;
+        vm.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName != nameof(vm.StatusMessage) || !ContentRepoGitService.IsRunning()) return;
+            using var probe = new NativeLeaseProcess(fixture.Root, hold: false);
+            Assert.Equal("busy", probe.Result);
+            observed = true;
+        };
+        Assert.Contains("installed", vm.InstallPatch(true));
+        Assert.True(observed);
+        Assert.False(vm.CanUninstall);
+        vm.LoadPatchList();
+        vm.SelectedPatch = Assert.Single(vm.FilteredPatches);
+        Assert.True(vm.CanUninstall);
+        Assert.Contains("restored", vm.UninstallPatch());
+    }
+
+    [Fact]
+    public void NativeActionLeaseProbe()
+    {
+        string? root = Environment.GetEnvironmentVariable("FEBUILDER_ACTION_LEASE_ROOT");
+        if (root == null) return;
+        Assert.StartsWith(Path.Combine(AppContext.BaseDirectory, "TestResults") + Path.DirectorySeparatorChar,
+            Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            using var lease = PatchDatabaseOperationLeaseCore.Acquire(root);
+            PublishResult("acquired");
+            if (Environment.GetEnvironmentVariable("FEBUILDER_ACTION_LEASE_HOLD") == "1")
+                Assert.True(SpinWait.SpinUntil(() => File.Exists(Path.Combine(root, "native-action-release")), 60_000));
+        }
+        catch (PatchDatabaseOperationLeaseCore.BusyException)
+        {
+            PublishResult("busy");
+        }
+        void PublishResult(string result)
+        {
+            string path = Path.Combine(root, "native-action-result");
+            File.WriteAllText(path + ".pending", result);
+            File.Move(path + ".pending", path, true);
+        }
+    }
+
+    internal sealed class NativeLeaseProcess : IDisposable
+    {
+        readonly string root;
+        readonly System.Diagnostics.Process process;
+        readonly Task<string> stdout;
+        readonly Task<string> stderr;
+        internal string Result
+        {
+            get
+            {
+                var elapsed = System.Diagnostics.Stopwatch.StartNew();
+                while (true)
+                {
+                    try { return File.ReadAllText(Path.Combine(root, "native-action-result")); }
+                    // A renamed IPC file can become visible before Windows closes the rename handle.
+                    catch (IOException ex) when (PatchDatabaseOperationLeaseCore.IsLeaseContention(ex.HResult) &&
+                        elapsed.Elapsed < TimeSpan.FromSeconds(10))
+                    {
+                        Thread.Sleep(10);
+                    }
+                }
+            }
+        }
+        internal NativeLeaseProcess(string root, bool hold)
+        {
+            this.root = root;
+            File.Delete(Path.Combine(root, "native-action-result"));
+            File.Delete(Path.Combine(root, "native-action-release"));
+            var start = new System.Diagnostics.ProcessStartInfo("dotnet")
+            {
+                UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
+                WorkingDirectory = AppContext.BaseDirectory,
+            };
+            start.ArgumentList.Add("vstest");
+            start.ArgumentList.Add(typeof(PatchManagerOperationGuardTests).Assembly.Location);
+            start.ArgumentList.Add("--Tests:FEBuilderGBA.Avalonia.Tests.PatchManagerOperationGuardTests.NativeActionLeaseProbe");
+            start.Environment["FEBUILDER_ACTION_LEASE_ROOT"] = root;
+            start.Environment["FEBUILDER_ACTION_LEASE_HOLD"] = hold ? "1" : "0";
+            process = System.Diagnostics.Process.Start(start)!;
+            stdout = process.StandardOutput.ReadToEndAsync();
+            stderr = process.StandardError.ReadToEndAsync();
+            try
+            {
+                Assert.True(SpinWait.SpinUntil(() => File.Exists(Path.Combine(root, "native-action-result")) || process.HasExited, 60_000));
+                Assert.True(File.Exists(Path.Combine(root, "native-action-result")), stdout.IsCompleted ? stdout.Result + stderr.Result : "No native result");
+                if (hold) Assert.Equal("acquired", Result);
+            }
+            catch { Dispose(); throw; }
+        }
+        public void Dispose()
+        {
+            try
+            {
+                File.WriteAllText(Path.Combine(root, "native-action-release"), "release");
+                if (!process.WaitForExit(60_000))
+                {
+                    process.Kill(true);
+                    process.WaitForExit();
+                    throw new TimeoutException("Owned native action probe timed out.");
+                }
+                Assert.True(process.ExitCode == 0, stdout.Result + stderr.Result);
+            }
+            finally { process.Dispose(); }
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void TranslationPatchRefusesBusyGateBeforeDiscoveryAndMutation(bool invalidDiscoveryRoot)
     {
         using var fixture = new Fixture();
@@ -150,28 +434,40 @@ public class PatchManagerOperationGuardTests
     {
         using var fixture = new Fixture();
         var vm = fixture.CreateViewModel("clean");
+        var other = fixture.CreateViewModel("force");
         var selection = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         bool opened = false;
         Task<string> pending = vm.UninstallPatchAsync(() =>
         {
             opened = true;
+            entered.SetResult();
             Assert.True(ContentRepoGitService.IsRunning());
             return selection.Task;
         });
-        Assert.True(opened);
-        Assert.False(pending.IsCompleted);
-        Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage,
-            fixture.CreateViewModel("force").InstallPatch(true));
-        Assert.False(ContentRepoGitService.TryEnter());
-        if (throwFromDialog)
+        try
         {
-            selection.SetException(new IOException("Owned dialog failure"));
-            await Assert.ThrowsAsync<IOException>(() => pending);
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            Assert.True(opened);
+            Assert.False(pending.IsCompleted);
+            Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, other.InstallPatch(true));
+            Assert.False(ContentRepoGitService.TryEnter());
+            if (throwFromDialog)
+            {
+                selection.SetException(new IOException("Owned dialog failure"));
+                await Assert.ThrowsAsync<IOException>(() => pending);
+            }
+            else
+            {
+                selection.SetResult(null);
+                Assert.Equal(R._("Uninstall cancelled."), await pending);
+            }
         }
-        else
+        finally
         {
-            selection.SetResult(null);
-            Assert.Equal(R._("Uninstall cancelled."), await pending);
+            selection.TrySetResult(null);
+            try { await pending; }
+            catch (IOException) when (throwFromDialog) { }
         }
         Assert.False(ContentRepoGitService.IsRunning());
         Assert.Empty(CoreState.Undo.UndoBuffer);
@@ -222,10 +518,11 @@ public class PatchManagerOperationGuardTests
     {
         using var fixture = new Fixture();
         var vm = fixture.CreateViewModel("clean");
+        var replacement = fixture.CreateViewModel("clean").SelectedPatch;
         string message = await vm.UninstallPatchAsync(() =>
         {
             if (changeRom) CoreState.ROM = new ROM();
-            else vm.SelectedPatch = fixture.CreateViewModel("clean").SelectedPatch;
+            else vm.SelectedPatch = replacement;
             return Task.FromResult<string?>(fixture.CleanRom);
         });
         Assert.Equal(R._("The loaded ROM or selected patch changed. Uninstall was cancelled."), message);
@@ -321,7 +618,7 @@ public class PatchManagerOperationGuardTests
         _ => vm.UninstallPatchWithCleanRom(cleanRom),
     };
 
-    sealed class Fixture : IDisposable
+    internal sealed class Fixture : IDisposable
     {
         readonly ROM savedRom = CoreState.ROM;
         readonly Undo savedUndo = CoreState.Undo;
@@ -329,7 +626,9 @@ public class PatchManagerOperationGuardTests
         readonly string savedBase = CoreState.BaseDirectory;
         readonly string root = Path.Combine(AppContext.BaseDirectory, "TestResults", "patch-guard-" + Guid.NewGuid().ToString("N"));
         public ROM Rom { get; } = new();
-        public string Descriptor => Path.Combine(root, "PATCH_test.txt");
+        public string Root => root;
+        public string Library => Path.Combine(root, "config", "patch2", "FE8U");
+        public string Descriptor => Path.Combine(Library, "PATCH_test.txt");
         public string CleanRom => Path.Combine(root, "clean.gba");
 
         public Fixture()
@@ -337,10 +636,11 @@ public class PatchManagerOperationGuardTests
             Directory.CreateDirectory(root);
             Directory.CreateDirectory(Path.Combine(root, "config", "patch2", "FE8U"));
             var bytes = new byte[0x1000000];
+            System.Text.Encoding.ASCII.GetBytes("BE8E01").CopyTo(bytes, 0xAC);
             bytes[0x200] = 0x11;
             Rom.LoadLow("owned-guard.gba", bytes, "BE8E01");
             File.WriteAllBytes(CleanRom, bytes);
-            File.WriteAllBytes(Path.Combine(root, "test.bin"), new byte[] { 0xAA });
+            File.WriteAllBytes(Path.Combine(Library, "test.bin"), new byte[] { 0xAA });
             File.WriteAllText(Descriptor, "TYPE=BIN\nBIN:0x200=test.bin\nPATCHED_IF:0x200=0xAA");
             CoreState.ROM = Rom;
             CoreState.Undo = new Undo();
@@ -354,16 +654,13 @@ public class PatchManagerOperationGuardTests
             if (installed) Rom.Data[0x200] = 0xAA;
             if (action == "uninstall")
                 File.WriteAllText(PatchMetadataCore.GetBackupFilePath(Descriptor), "0x200:1:11");
-            return new PatchManagerViewModel
-            {
-                SelectedPatch = new PatchEntry
-                {
-                    Name = "Owned guard patch", Type = "BIN", PatchFilePath = Descriptor, DirectoryPath = root,
-                    Status = installed ? PatchMetadataCore.PatchStatus.Installed : PatchMetadataCore.PatchStatus.NotInstalled,
-                },
-            };
+            var vm = new PatchManagerViewModel();
+            vm.LoadPatchList();
+            vm.SelectedPatch = vm.FilteredPatches.Single(p => p.PatchFilePath == Descriptor);
+            return vm;
         }
 
+        public void MakeManaged() { using var lease = PatchDatabaseOperationLeaseCore.Acquire(root); }
         public void SeedTranslationPatch()
         {
             string library = Path.Combine(root, "config", "patch2", "FE8U");
@@ -373,6 +670,7 @@ public class PatchManagerOperationGuardTests
         }
 
         public Dictionary<string, byte[]> Snapshot() => Directory.GetFiles(root, "*", SearchOption.AllDirectories)
+            .Where(path => !Path.GetFileName(path).StartsWith("native-action-", StringComparison.Ordinal))
             .ToDictionary(path => path, File.ReadAllBytes);
         public void AssertSnapshot(Dictionary<string, byte[]> before)
         {

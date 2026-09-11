@@ -67,6 +67,15 @@ only current results are bulk-published on the dispatcher. Import success
 is latched at commit, separately from refresh and cleanup outcomes. Existing
 synchronous helpers remain for non-interactive callers.
 
+Managed patch actions verify the published content identity of the complete
+admitted `config/patch2` tree under its existing filesystem lease. This detects
+completed import/Git replacements, including unchanged-length payload edits,
+not just current contention. Verification runs off the dispatcher; ownership
+spans dependencies, clean-ROM dialogs, backups, ROM/undo and status work.
+After an action, managed entries require a fresh async publication before
+another action. Translation discovers and applies under the same scoped lease.
+No unmanaged workspace is created to obtain read ownership.
+
 Headless event-gated tests demonstrate scheduling, ownership and stale-result
 handling, not real application responsiveness. The large-fixture generation
 and separate Android/desktop proof requirements are described in

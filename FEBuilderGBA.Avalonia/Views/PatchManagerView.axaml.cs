@@ -23,6 +23,11 @@ namespace FEBuilderGBA.Avalonia.Views
         bool _importing;
         bool _gitRunning;
         bool _uninstalling;
+        bool _patchActionRunning;
+        bool _actionDialogOpen;
+        long _actionGeneration;
+        CancellationTokenSource? _actionCancellation;
+        internal Task ActionTask { get; private set; } = Task.CompletedTask;
         bool _importDialogOpen;
         CancellationTokenSource? _importCancellation;
         readonly DispatcherTimer _operationTimer = new() { Interval = TimeSpan.FromMilliseconds(150) };
@@ -37,6 +42,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _attachment++;
             _refresh.Invalidate();
             _importCancellation?.Cancel();
+            _actionGeneration++;
+            _actionCancellation?.Cancel();
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
@@ -60,7 +67,7 @@ namespace FEBuilderGBA.Avalonia.Views
             _attached = true;
             _attachment++;
             _operationTimer.Start();
-            if (!_importing) RefreshTask = LoadPatchesAsync();
+            if (!_importing && !_patchActionRunning) RefreshTask = LoadPatchesAsync();
             UpdateOperationControls();
         }
 
@@ -71,6 +78,11 @@ namespace FEBuilderGBA.Avalonia.Views
             _attachment++;
             _refresh.Invalidate();
             if (!_importDialogOpen) _importCancellation?.Cancel();
+            if (!_actionDialogOpen)
+            {
+                _actionGeneration++;
+                _actionCancellation?.Cancel();
+            }
             _operationTimer.Stop();
             base.OnDetachedFromVisualTree(e);
         }
@@ -168,6 +180,13 @@ namespace FEBuilderGBA.Avalonia.Views
         void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
             _vm.SetPendingFilter(SearchBox.Text ?? "");
+            if (_patchActionRunning)
+            {
+                _actionGeneration++;
+                _actionCancellation?.Cancel();
+                _refresh.Invalidate();
+                return;
+            }
             if (_attached && !_importing) RefreshTask = LoadPatchesAsync();
             else _refresh.Invalidate();
         }
@@ -229,7 +248,8 @@ namespace FEBuilderGBA.Avalonia.Views
             UninstallButton.IsEnabled = !PatchActionsBlocked && _vm.CanUninstall;
         }
 
-        bool PatchActionsBlocked => _importing || _gitRunning || _uninstalling || _refresh.IsBusy || _vm.IsPatchDatabaseOperationRunning;
+        bool PatchActionsBlocked => _importing || _gitRunning || _uninstalling || _patchActionRunning ||
+            _refresh.IsBusy || _vm.IsPatchDatabaseOperationRunning;
 
         bool RefuseBusyPatchAction()
         {
@@ -252,47 +272,75 @@ namespace FEBuilderGBA.Avalonia.Views
         void DoInstall(bool forceIgnoreDependencies)
         {
             if (RefuseBusyPatchAction()) return;
-            string msg = _vm.InstallPatch(forceIgnoreDependencies);
-            StatusMessageLabel.Text = msg;
-
-            // Refresh the detail display
-            if (_vm.SelectedPatch != null)
-            {
-                DetailStatus.Text = _vm.SelectedPatch.StatusText;
-                UpdateActionButtons();
-            }
-            UpdateSummary();
-
-            // Refresh the list to show updated status
-            PatchListBox.ItemsSource = null;
-            PatchListBox.ItemsSource = _vm.FilteredPatches;
+            ActionTask = ObserveActionAsync(RunViewActionAsync((token, current) =>
+                _vm.InstallPatchAsync(forceIgnoreDependencies, token, current)));
         }
 
-        async void OnUninstallClick(object? sender, RoutedEventArgs e)
+        void OnUninstallClick(object? sender, RoutedEventArgs e)
         {
             if (RefuseBusyPatchAction()) return;
             _uninstalling = true;
-            UpdateOperationControls();
-            try
+            ActionTask = ObserveActionAsync(RunViewActionAsync((token, current) => _vm.UninstallPatchAsync(async () =>
             {
-                StatusMessageLabel.Text = await _vm.UninstallPatchAsync(async () =>
+                _actionDialogOpen = true;
+                try
                 {
                     var dialog = await WindowManager.Instance.OpenModal<PatchFormUninstallDialogView>(
                         TopLevel.GetTopLevel(this) as Window, d => d.SeedPatchName(_vm.SelectedPatchName));
                     return dialog.UserConfirmed ? dialog.OriginalFilename : null;
-                });
+                }
+                finally { _actionDialogOpen = false; }
+            }, token, current)));
+        }
+
+        static async Task ObserveActionAsync(Task operation)
+        {
+            try { await operation; }
+            catch (Exception ex) { Log.Error("PatchManagerView", ex.ToString()); }
+        }
+
+        async Task RunViewActionAsync(Func<CancellationToken, Func<bool>, Task<string>> action)
+        {
+            _patchActionRunning = true;
+            var cancellation = new CancellationTokenSource();
+            _actionCancellation = cancellation;
+            long generation = _actionGeneration;
+            var root = TopLevel.GetTopLevel(this);
+            bool Current() => _attached && generation == _actionGeneration &&
+                ReferenceEquals(root, TopLevel.GetTopLevel(this));
+            string? message = null;
+            bool showResult = false;
+            try
+            {
+                UpdateOperationControls();
+                message = await action(cancellation.Token, Current);
+                showResult = Current();
+                if (showResult) StatusMessageLabel.Text = WithRecoveryNotice(message);
             }
             catch (Exception ex)
             {
                 Log.Error("PatchManagerView", ex.ToString());
-                StatusMessageLabel.Text = "Uninstall failed: " + ex.Message;
+                if (Current())
+                    StatusMessageLabel.Text = WithRecoveryNotice(R._(PatchManagerRefreshService.RefreshFailureTemplate, ex.Message));
             }
             finally
             {
                 _uninstalling = false;
-                if (_vm.SelectedPatch != null) DetailStatus.Text = _vm.SelectedPatch.StatusText;
-                UpdateSummary();
-                UpdateOperationControls();
+                _patchActionRunning = false;
+                _actionCancellation = null;
+                cancellation.Dispose();
+            }
+            if (_attached)
+            {
+                try
+                {
+                    var refresh = LoadPatchesAsync();
+                    RefreshTask = refresh;
+                    if (await refresh && showResult && Current() && ReferenceEquals(RefreshTask, refresh))
+                        StatusMessageLabel.Text = WithRecoveryNotice(message ?? "");
+                    if (_attached) UpdateOperationControls();
+                }
+                catch (Exception ex) { Log.Error("PatchManagerView", ex.ToString()); }
             }
         }
 
@@ -414,14 +462,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (!_attached) return;
                     if (result.Imported)
                     {
-                        StatusMessageLabel.Text = result.Refreshed
-                            ? R._("Imported patch database for {0}; list refreshed. No patches were applied. Restart recommended for cached data.", identity.Version)
-                            : R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.", identity.Version);
-                        if (!string.IsNullOrWhiteSpace(result.Message))
-                            StatusMessageLabel.Text += "\n" + result.Message;
-                        if (!result.Refreshed && _refresh.Failure != null)
-                            StatusMessageLabel.Text += "\n" + _refresh.Failure.Localize();
-                        StatusMessageLabel.Text = WithRecoveryNotice(StatusMessageLabel.Text ?? "");
+                        ShowImportedOutcome(result, identity.Version);
                     }
                     else StatusMessageLabel.Text = result.Message;
                 }
@@ -439,6 +480,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 _importing = false;
                 if (_attached) UpdateOperationControls();
             }
+        }
+
+        internal void ShowImportedOutcome(PatchDatabaseImportService.Outcome result, string version)
+        {
+            StatusMessageLabel.Text = result.Refreshed
+                ? R._("Imported patch database for {0}; list refreshed. No patches were applied. Restart recommended for cached data.", version)
+                : R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.", version);
+            if (!string.IsNullOrWhiteSpace(result.Message))
+                StatusMessageLabel.Text += "\n" + result.Message;
+            if (!result.Refreshed && _refresh.Failure != null)
+                StatusMessageLabel.Text += "\n" + _refresh.Failure.Localize();
+            StatusMessageLabel.Text = WithRecoveryNotice(StatusMessageLabel.Text ?? "");
         }
 
         async Task<bool> ConfirmImport(PatchDatabaseImportCore.PreparedImport prepared)
@@ -496,7 +549,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 _pendingSelection = Math.Max(0, subIndex);
                 bool changed = SearchBox.Text != patchNameFilter;
                 SearchBox.Text = patchNameFilter;
-                if (!changed && _attached && !_importing) RefreshTask = LoadPatchesAsync();
+                if (_patchActionRunning)
+                {
+                    _actionGeneration++;
+                    _actionCancellation?.Cancel();
+                    _vm.SetPendingFilter(SearchBox.Text ?? "");
+                    _refresh.Invalidate();
+                }
+                else if (!changed && _attached && !_importing) RefreshTask = LoadPatchesAsync();
             }
             catch (Exception ex)
             {

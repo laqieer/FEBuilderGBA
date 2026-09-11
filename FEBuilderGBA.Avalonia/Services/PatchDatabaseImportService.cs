@@ -224,8 +224,6 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (message.Length == 0 && receipt?.RecoveryRequired == true)
                     message = "The database is installed; recovery is required. Retained workspace: " +
                         receipt.RetainedPath + "\n" + receipt.Detail + "\n" + receipt.CleanupDetail;
-                if ((!refreshed && refresh != null) || failure != null)
-                    message = Append("The database was imported, but the list was not refreshed.", message);
                 if (failure != null) message = Append(message, failure.Message);
                 return new Outcome { Imported = true, Refreshed = refreshed, Receipt = receipt,
                     RecoveryRequired = receipt?.RecoveryRequired == true ||

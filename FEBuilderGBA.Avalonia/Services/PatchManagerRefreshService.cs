@@ -25,7 +25,9 @@ internal sealed class PatchManagerRefreshService
 
     internal sealed record PatchListSnapshot(Request Request, List<PatchEntry> All,
         ObservableCollection<PatchEntry> Filtered, int Installed, string Message, string GitButton,
-        bool Complete, bool Transition = false, RefreshFailure? Failure = null);
+        bool Complete, bool Transition = false, RefreshFailure? Failure = null,
+        PatchDatabaseOperationLeaseCore.ExistingLeaseProbe? Scope = null,
+        PatchDatabaseOperationLeaseCore.ExistingReadSnapshot? LibraryIdentity = null);
 
     internal static Request Capture(string filter, int selection, long generation, bool strict)
     {
@@ -112,7 +114,11 @@ internal sealed class PatchManagerRefreshService
                         var snapshot = await Task.Run(() =>
                         {
                             ownership.Acquire(request, intent.Owner);
-                            var result = read(request, cancellation.Token);
+                            var identity = ownership.CaptureIdentity(cancellation.Token);
+                            var result = read(request, cancellation.Token) with
+                            {
+                                Scope = ownership.Scope, LibraryIdentity = identity,
+                            };
                             cancellation.Token.ThrowIfCancellationRequested();
                             var after = PatchDatabaseOperationLeaseCore.ProbeExisting(request.Location.BaseDirectory,
                                 request.Identity.Version, request.Location.Directory);
@@ -145,34 +151,57 @@ internal sealed class PatchManagerRefreshService
         finally { running = false; }
     }
 
-    sealed class ReadOwnership : IDisposable
+    internal sealed class ReadOwnership : IDisposable
     {
         PatchDatabaseOperationLeaseCore.Lease? lease;
         bool gate;
-        internal bool Managed { get; private set; }
-        internal void Acquire(Request request, PatchDatabaseImportCore.PreparedImport? owner)
+        internal PatchDatabaseOperationLeaseCore.ExistingLeaseProbe? Scope { get; private set; }
+        internal bool IsAcquired { get; private set; }
+        internal bool Managed => Scope?.Managed == true;
+        internal bool TryEnter()
         {
+            if (gate) throw new InvalidOperationException("The patch activity gate is not reentrant.");
+            return gate = ContentRepoGitService.TryEnter();
+        }
+        internal void Acquire(Request request, PatchDatabaseImportCore.PreparedImport? owner)
+            => Acquire(request.Location, request.Identity.Version, owner);
+
+        internal void Acquire(PatchManagerViewModel.PatchLocation location, string version,
+            PatchDatabaseImportCore.PreparedImport? owner = null)
+        {
+            if (Scope != null) throw new InvalidOperationException("Read ownership was already acquired.");
             if (owner != null)
             {
                 var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
-                if (owner.Version != request.Identity.Version ||
-                    !string.Equals(owner.TargetDirectory, request.Location.Directory, comparison))
+                if (owner.Version != version ||
+                    !string.Equals(owner.TargetDirectory, location.Directory, comparison))
                     throw new IOException("The committed refresh does not match its prepared owner.");
-                Managed = true;
+                Scope = PatchDatabaseOperationLeaseCore.ProbeExisting(location.BaseDirectory, version, location.Directory);
+                if (!Managed || !Scope.HasLock) throw new IOException("The committed library is no longer managed.");
+                IsAcquired = true;
                 return;
             }
-            if (!ContentRepoGitService.TryEnter())
+            if (!gate && !TryEnter())
                 throw new IOException("A patch database operation is already running.");
-            gate = true;
-            var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(request.Location.BaseDirectory,
-                request.Identity.Version, request.Location.Directory);
-            Managed = probe.Managed;
-            if (probe.Managed) lease = PatchDatabaseOperationLeaseCore.AcquireExisting(probe);
+            Scope = PatchDatabaseOperationLeaseCore.ProbeExisting(location.BaseDirectory, version, location.Directory);
+            if (Managed) lease = PatchDatabaseOperationLeaseCore.AcquireExisting(Scope);
+            IsAcquired = true;
         }
+        internal PatchDatabaseOperationLeaseCore.ExistingReadSnapshot? CaptureIdentity(CancellationToken token)
+        {
+            if (!IsAcquired) throw new InvalidOperationException("Read ownership has not been acquired.");
+            return Managed ? PatchDatabaseOperationLeaseCore.ExistingReadSnapshot.Capture(Scope!, token) : null;
+        }
+
         public void Dispose()
         {
             try { lease?.Dispose(); }
-            finally { if (gate) ContentRepoGitService.Exit(); }
+            finally
+            {
+                lease = null;
+                IsAcquired = false;
+                if (gate) { gate = false; ContentRepoGitService.Exit(); }
+            }
         }
     }
 

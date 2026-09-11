@@ -15,6 +15,64 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchDatabaseImportServiceTests
 {
+    [AvaloniaTheory]
+    [InlineData("ja", "false")]
+    [InlineData("zh", "false")]
+    [InlineData("ja", "cancel")]
+    [InlineData("zh", "cancel")]
+    [InlineData("ja", "throw")]
+    [InlineData("zh", "throw")]
+    [InlineData("ja", "dispose")]
+    [InlineData("zh", "dispose")]
+    [InlineData("ja", "mapping")]
+    [InlineData("zh", "mapping")]
+    public async Task LocalizedPostCommitRefreshOutcomeHasNoLiteralEnglishDuplicate(string language, string failure)
+    {
+        using var fixture = new Fixture();
+        var resource = typeof(MyTranslateResource).GetField("Resource", BindingFlags.Static | BindingFlags.NonPublic)!;
+        object? previous = resource.GetValue(null);
+        try
+        {
+            MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+            using var selected = new PickedFile(Zip("FE8U"));
+            var retained = new PatchDatabaseImportCore.RecoveryException(fixture.Root, new IOException("owned retained notice"));
+            var newer = new PatchDatabaseImportCore.RecoveryException(fixture.Root, new IOException("owned retained notice"));
+            var result = await fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!,
+                _ => Task.FromResult(true), refresh: _ => failure switch
+                {
+                    "cancel" => Task.FromException<bool>(new OperationCanceledException("owned cancellation")),
+                    "throw" => Task.FromException<bool>(new IOException("owned read diagnostic")),
+                    _ => Task.FromResult(false),
+                }, phase: phase =>
+                {
+                    if (phase == PatchDatabaseImportService.ImportPhase.Committed) App.RecordPatchDatabaseRecovery(retained);
+                    if (phase == PatchDatabaseImportService.ImportPhase.Refresh) App.RecordPatchDatabaseRecovery(newer);
+                    if (failure == "dispose" && phase == PatchDatabaseImportService.ImportPhase.Disposing)
+                        throw new IOException("owned disposal diagnostic");
+                    if (failure == "mapping" && phase == PatchDatabaseImportService.ImportPhase.Mapping)
+                        throw new FormatException("owned localization mapping diagnostic");
+                });
+            Assert.True(result.Imported);
+            Assert.False(result.Cancelled);
+            Assert.False(result.Refreshed);
+            Assert.DoesNotContain("The database was imported, but the list was not refreshed.", result.Message);
+            if (failure == "throw") Assert.Contains("owned read diagnostic", result.Message);
+            if (failure == "dispose") Assert.Contains("owned disposal diagnostic", result.Message);
+            if (failure == "mapping") Assert.Contains("owned localization mapping diagnostic", result.Message);
+            var view = new PatchManagerView();
+            view.ShowImportedOutcome(result, "FE8U");
+            string expected = R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.", "FE8U");
+            string actual = view.FindControl<TextBlock>("StatusMessageLabel")!.Text!;
+            Assert.Contains(expected, actual);
+            Assert.Equal(actual.IndexOf(expected, StringComparison.Ordinal), actual.LastIndexOf(expected, StringComparison.Ordinal));
+            Assert.DoesNotContain("The database was imported, but the list was not refreshed.", actual);
+            Assert.Contains(App.PatchDatabaseRecoveryNotice, actual);
+            Assert.Same(newer, App.PatchDatabaseRecoveryException);
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+        finally { resource.SetValue(null, previous); }
+    }
+
     [Fact]
     public async Task MatchedPreCommitCancellationKeepsPreviousDatabaseAndCancelledSemantics()
     {
@@ -68,7 +126,7 @@ public class PatchDatabaseImportServiceTests
         Assert.True(result.Imported, result.Message);
         Assert.False(result.Cancelled);
         Assert.False(result.Refreshed);
-        Assert.Contains("not refreshed", result.Message);
+        Assert.Contains("phase fault: " + (PatchDatabaseImportService.ImportPhase)injection, result.Message);
         Assert.Equal(1, disposalAttempts);
         Assert.Same(newer, App.PatchDatabaseRecoveryException);
         Assert.False(ContentRepoGitService.IsRunning());
