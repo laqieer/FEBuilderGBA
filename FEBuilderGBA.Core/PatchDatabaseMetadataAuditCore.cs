@@ -190,9 +190,9 @@ namespace FEBuilderGBA
                         string operand = line.Substring(equals + 1);
                         if (operand.Length != 0)
                         {
+                            // SYMBOL contents are name/address data, not recursive patch metadata.
                             bool text = keyword.Equals("EDIT_PATCH", StringComparison.OrdinalIgnoreCase) ||
-                                keyword.Equals("EA", StringComparison.OrdinalIgnoreCase) ||
-                                keyword.Equals("SYMBOL", StringComparison.OrdinalIgnoreCase);
+                                keyword.Equals("EA", StringComparison.OrdinalIgnoreCase);
                             Record(edges, "value:" + keyword.ToUpperInvariant(), Resolve(source, operand, false), text, false);
                         }
                     }

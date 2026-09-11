@@ -2,8 +2,119 @@ using System.Text;
 
 namespace FEBuilderGBA.Core.Tests;
 
+[Collection("SharedState")]
 public class PatchDatabaseMetadataAuditCoreTests
 {
+    [Theory]
+    [InlineData("SYMBOL")]
+    [InlineData("symbol")]
+    [InlineData("SYMBOL.ja")]
+    [InlineData("{U}SYMBOL")]
+    public void SymbolSidecarsAreDataRatherThanRecursiveMetadata(string key)
+    {
+        const string contents = "EA=$08000100\nEDIT_PATCH=$08000104\nSYMBOL=$08000108\n";
+        var symbols = new List<Address>();
+        var previousRom = CoreState.ROM;
+        try
+        {
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("symbols.gba", new byte[0x1000000], "BE8E01"));
+            CoreState.ROM = rom;
+            // Relocate the symbols past the protected ROM header.
+            SymbolUtil.ProcessSymbolToList(symbols, "symbols.sym", contents, 0x1000);
+        }
+        finally { CoreState.ROM = previousRom; }
+        Assert.Equal(3, symbols.Count);
+        Assert.Equal(new[] { "EA@symbols.sym", "EDIT_PATCH@symbols.sym", "SYMBOL@symbols.sym" },
+            symbols.Select(symbol => symbol.Info));
+
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\n" + key + "=../shared/symbols.sym");
+        fixture.Put("shared/symbols.sym", contents);
+        var audit = fixture.Audit();
+        var reference = Assert.Single(audit.References);
+        Assert.Equal("shared/symbols.sym", reference.Target);
+        Assert.False(reference.Text);
+        Assert.False(reference.Optional);
+        Assert.Equal("patch/PATCH_test.txt", Assert.Single(fixture.Reads));
+    }
+
+    [Fact]
+    public void SymbolSidecarsUseDataBudgetsRatherThanMetadataTraversalBudgets()
+    {
+        const string descriptor = "TYPE=BIN\nSYMBOL=symbols.sym";
+        const string contents = "EA=$08000100\nEDIT_PATCH=$08000104\nSYMBOL=$08000108\n";
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", descriptor);
+        fixture.Put("patch/symbols.sym", contents);
+        var limits = new PatchDatabaseMetadataAuditCore.Limits
+        {
+            MaxTextFiles = 1, MaxDepth = 0, MaxFileBytes = descriptor.Length,
+            MaxTextBytes = descriptor.Length, MaxEdges = 1, MaxReferencedBytes = contents.Length,
+        };
+        var audit = fixture.Audit(limits);
+        Assert.Equal(descriptor.Length, audit.TextBytes);
+        Assert.False(Assert.Single(audit.References).Text);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void SymbolSidecarsStillConsumeEdgeAndReferencedByteBudgets(bool edgeLimit)
+    {
+        const string contents = "EA=$08000100\n";
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\nSYMBOL=symbols.sym");
+        fixture.Put("patch/symbols.sym", contents);
+        var limits = edgeLimit
+            ? new PatchDatabaseMetadataAuditCore.Limits { MaxEdges = 0 }
+            : new PatchDatabaseMetadataAuditCore.Limits { MaxReferencedBytes = contents.Length - 1 };
+        var error = Assert.Throws<InvalidDataException>(() => fixture.Audit(limits));
+        Assert.Contains(edgeLimit ? "reference-count" : "referenced-data", error.Message);
+        Assert.Equal("patch/PATCH_test.txt", Assert.Single(fixture.Reads));
+    }
+
+    [Theory]
+    [InlineData("missing.sym")]
+    [InlineData("../../outside.sym")]
+    [InlineData("C:\\outside.sym")]
+    [InlineData("\\\\never-contact.invalid\\share\\symbols.sym")]
+    [InlineData("https://never-contact.invalid/symbols.sym")]
+    [InlineData("symbols.sym:stream")]
+    public void SymbolTargetsRemainRequiredAndContained(string target)
+    {
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\nSYMBOL=" + target);
+        fixture.Put("patch/symbols.sym", "EA=$08000100\n");
+        Assert.Throws<InvalidDataException>(() => fixture.Audit());
+        Assert.Equal("patch/PATCH_test.txt", Assert.Single(fixture.Reads));
+    }
+
+    [Theory]
+    [InlineData("EA")]
+    [InlineData("EDIT_PATCH")]
+    public void SymbolReferenceDoesNotHideARecursiveMetadataRole(string recursiveKey)
+    {
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt",
+            "TYPE=BIN\nSYMBOL=shared.sym\n" + recursiveKey + "=shared.sym");
+        fixture.Put("patch/shared.sym", "EA=missing.event");
+        Assert.Throws<InvalidDataException>(() => fixture.Audit());
+        Assert.Contains("patch/shared.sym", fixture.Reads);
+    }
+
+    [Theory]
+    [InlineData("symbols.event")]
+    [InlineData("PATCH_symbols.txt")]
+    public void SymbolReferenceDoesNotHideAnIndependentMetadataRoot(string target)
+    {
+        using var fixture = new Fixture();
+        fixture.Put("patch/PATCH_test.txt", "TYPE=BIN\nSYMBOL=" + target);
+        fixture.Put("patch/" + target, "EA=missing.event");
+        Assert.Throws<InvalidDataException>(() => fixture.Audit());
+        Assert.Contains("patch/" + target, fixture.Reads);
+    }
+
     [Theory]
     [InlineData("$FGREP4+")]
     [InlineData("$FGREP4END10")]

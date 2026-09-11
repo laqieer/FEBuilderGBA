@@ -9,6 +9,62 @@ namespace FEBuilderGBA.Core.Tests;
 [Collection("ContentRepoGitGuard")]
 public class PatchDatabaseImportCoreTests
 {
+    [Fact]
+    public async Task SymbolSidecarImportsWithoutInterpretingSymbolNamesAsMetadata()
+    {
+        const string symbols = "EA=$08000100\nEDIT_PATCH=$08000104\nSYMBOL=$08000108\n";
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        byte[] rom = ResponsivenessRom();
+        string romPath = Path.Combine(fixture.Root, "source.gba");
+        File.WriteAllBytes(romPath, rom);
+        using var zip = Fixture.Zip("Symbols", "SYMBOL=symbols.sym");
+        using (var archive = new ZipArchive(zip, ZipArchiveMode.Update, true))
+        using (var writer = new StreamWriter(archive.CreateEntry("FE8U/symbols.sym").Open(),
+                   new UTF8Encoding(false)))
+            writer.Write(symbols);
+        byte[] originalZip = zip.ToArray();
+        zip.Position = 0;
+        using (var prepared = await fixture.Prepare(zip))
+        {
+            Assert.Equal(2, prepared.FileCount);
+            Assert.True(prepared.Commit().Success);
+        }
+        Assert.False(File.Exists(fixture.OldFile));
+        Assert.Equal(symbols, File.ReadAllText(Path.Combine(fixture.Target, "symbols.sym")));
+        Assert.Contains("SYMBOL=symbols.sym", File.ReadAllText(Path.Combine(fixture.Target, "PATCH_test.txt")));
+        Assert.Equal(originalZip, zip.ToArray());
+        Assert.Equal(rom, File.ReadAllBytes(romPath));
+        Assert.Empty(fixture.OperationDirectories());
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Theory]
+    [InlineData("missing.sym")]
+    [InlineData("../outside.sym")]
+    public async Task InvalidSymbolTargetRejectsBeforePromotionAndPreservesInstalledDatabase(string target)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("Invalid symbols", "SYMBOL=" + target);
+        byte[] originalZip = zip.ToArray();
+        bool preparedReached = false;
+        PatchDatabaseImportCore.PreparedImport? unexpected = null;
+        try
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                unexpected = await fixture.Prepare(zip, checkpoint: point =>
+                    preparedReached |= point == PatchDatabaseImportCore.Checkpoint.Prepared));
+        }
+        finally { unexpected?.Dispose(); }
+        Assert.False(preparedReached);
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.Equal(new[] { fixture.OldFile }, Directory.GetFiles(fixture.Target, "*", SearchOption.AllDirectories));
+        Assert.Equal(originalZip, zip.ToArray());
+        Assert.Empty(fixture.OperationDirectories());
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [Theory]
     [InlineData("$FGREP4+")]
     [InlineData("$FGREP4END10")]
