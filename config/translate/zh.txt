@@ -28724,3 +28724,9 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 
 :No patch database is installed for the loaded ROM. Choose Import Patch Database ZIP. Git-based initialization/update is unavailable on Android; patch data is not bundled in the APK.
 尚未安装当前 ROM 对应的补丁数据库。请选择“导入补丁数据库 ZIP”。Android 不支持通过 Git 初始化或更新数据库，APK 中也未包含补丁数据。
+
+:Recovering patch database…
+正在恢复补丁数据库…
+
+:Startup failed. The application could not finish starting.\r\n{0}
+启动失败。应用程序未能完成启动。\r\n{0}

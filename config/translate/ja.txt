@@ -14894,3 +14894,9 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 
 :No patch database is installed for the loaded ROM. Choose Import Patch Database ZIP. Git-based initialization/update is unavailable on Android; patch data is not bundled in the APK.
 読み込まれたROM用のパッチデータベースがインストールされていません。「パッチデータベースのZIPをインポート」を選択してください。AndroidではGitによる初期化・更新は利用できず、APKにパッチデータは同梱されていません。
+
+:Recovering patch database…
+パッチデータベースを復旧しています…
+
+:Startup failed. The application could not finish starting.\r\n{0}
+起動に失敗しました。アプリケーションの起動を完了できませんでした。\r\n{0}

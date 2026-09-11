@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -211,6 +212,8 @@ namespace FEBuilderGBA.Avalonia
         readonly PatchDatabaseStartupService patchDatabaseStartup = new();
         internal Task? StartupTask { get; private set; }
         bool frameworkInitialized;
+        bool startupLocalizationInitialized;
+        const string StartupFailureTemplate = "Startup failed. The application could not finish starting.\r\n{0}";
 
         internal static bool HasSynchronousStartupRoute =>
             GapSweepMode != null || !string.IsNullOrEmpty(RenderMainViewPath) ||
@@ -241,7 +244,14 @@ namespace FEBuilderGBA.Avalonia
                 (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime ||
                  ApplicationLifetime is ISingleViewApplicationLifetime))
             {
-                var status = new TextBlock { Text = "Recovering patch database…", Margin = new Thickness(24) };
+                Exception? localizationFailure = null;
+                try { InitializeStartupLocalization(baseDir); }
+                catch (Exception ex) { localizationFailure = ex; }
+                var status = new TextBlock
+                {
+                    Text = localizationFailure == null ? R._("Recovering patch database…") : FormatStartupFailure(localizationFailure),
+                    Margin = new Thickness(24),
+                };
                 var root = new Border { Child = status };
                 if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime interactive)
                 {
@@ -249,7 +259,7 @@ namespace FEBuilderGBA.Avalonia
                     bool closed = false;
                     loading.Closed += (_, _) => closed = true;
                     interactive.MainWindow = loading;
-                    StartupTask = patchDatabaseStartup.CompleteAsync(baseDir,
+                    StartupTask = localizationFailure != null ? Task.CompletedTask : patchDatabaseStartup.CompleteAsync(baseDir,
                         () => !closed && ReferenceEquals(ApplicationLifetime, interactive) &&
                               ReferenceEquals(interactive.MainWindow, loading),
                         result =>
@@ -258,19 +268,19 @@ namespace FEBuilderGBA.Avalonia
                             ParseArgs(interactive.Args);
                             PatchDatabaseStartupService.Handoff(interactive, loading, () => new Views.MainWindow());
                         },
-                        ex => status.Text = "Startup failed. No patch database consumers were opened.\n" + ex.Message);
+                        ex => status.Text = FormatStartupFailure(ex));
                 }
                 else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
                 {
                     single.MainView = root;
-                    StartupTask = patchDatabaseStartup.CompleteAsync(baseDir,
+                    StartupTask = localizationFailure != null ? Task.CompletedTask : patchDatabaseStartup.CompleteAsync(baseDir,
                         () => ReferenceEquals(ApplicationLifetime, single) && ReferenceEquals(single.MainView, root),
                         result =>
                         {
                             InitializeConsumers(baseDir, result);
                             single.MainView = new Views.MainView();
                         },
-                        ex => status.Text = "Startup failed. No patch database consumers were opened.\n" + ex.Message);
+                        ex => status.Text = FormatStartupFailure(ex));
                 }
                 base.OnFrameworkInitializationCompleted();
                 return;
@@ -280,6 +290,15 @@ namespace FEBuilderGBA.Avalonia
             InitializeConsumers(baseDir, recovery);
             InitializeSynchronousShell();
             base.OnFrameworkInitializationCompleted();
+        }
+
+        static string FormatStartupFailure(Exception exception)
+        {
+            try { return R._(StartupFailureTemplate, exception.Message); }
+            catch (FormatException)
+            {
+                return string.Format(CultureInfo.InvariantCulture, StartupFailureTemplate, exception.Message);
+            }
         }
 
         void InitializeConsumers(string baseDir, PatchDatabaseImportCore.Result recovery)
@@ -315,6 +334,15 @@ namespace FEBuilderGBA.Avalonia
             // CLI + tests via the Core helper.
             CoreState.WireHeadlessAppendBinaryData();
 
+            InitializeStartupLocalization(baseDir);
+
+            // Apply saved theme preference
+            ApplySavedTheme();
+        }
+
+        void InitializeStartupLocalization(string baseDir)
+        {
+            if (startupLocalizationInitialized) return;
             // Load config
             // #1124: baseDir is the exe dir on desktop and Context.FilesDir (app-private) on Android (#1123), so config.xml is already redirected to app-private storage on Android.
             // #1799: always create the Config (even when config.xml doesn't exist yet on a
@@ -331,9 +359,7 @@ namespace FEBuilderGBA.Avalonia
                 CoreState.Language = lang;
             }
             ViewModels.OptionsViewModel.ReloadTranslations();
-
-            // Apply saved theme preference
-            ApplySavedTheme();
+            startupLocalizationInitialized = true;
         }
 
         void InitializeSynchronousShell()
