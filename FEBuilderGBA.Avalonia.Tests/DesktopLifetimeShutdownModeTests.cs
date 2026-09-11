@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.ExceptionServices;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -19,13 +20,6 @@ public sealed class DesktopLifetimeShutdownModeTests
 {
     sealed class ClassicDesktopLifetimeApp : Application
     {
-        public ClassicDesktopLifetimeApp()
-        {
-            var lifetime = new ClassicDesktopStyleApplicationLifetime();
-            Program.ConfigureDesktopLifetime(lifetime);
-            ApplicationLifetime = lifetime;
-        }
-
         public override void Initialize() { }
     }
 
@@ -109,6 +103,15 @@ public sealed class DesktopLifetimeShutdownModeTests
         });
     }
 
+    [Fact]
+    public void LifetimeTestHelperPropagatesBodyFailures()
+    {
+        var expected = new InvalidOperationException("Owned lifetime test failure");
+        var actual = Assert.Throws<InvalidOperationException>(() =>
+            WithClassicDesktopLifetime((_, _) => throw expected));
+        Assert.Same(expected, actual);
+    }
+
     static void WithClassicDesktopLifetime(Action<ClassicDesktopStyleApplicationLifetime, DesktopNavigationService> body)
     {
         using var session = HeadlessUnitTestSession.StartNew(
@@ -117,16 +120,30 @@ public sealed class DesktopLifetimeShutdownModeTests
 
         session.Dispatch(() =>
         {
+            using var lifetime = new ClassicDesktopStyleApplicationLifetime();
+            Program.ConfigureDesktopLifetime(lifetime);
             var originalService = WindowManager.Instance.Service;
             var originalMainWindow = WindowManager.Instance.MainWindow;
+            int originalExitCode = Environment.ExitCode;
             var service = new DesktopNavigationService();
             WindowManager.Instance.SetService(service);
+            bool exited = false;
+            lifetime.Exit += (_, _) => exited = true;
+            ExceptionDispatchInfo? failure = null;
+            Dispatcher.UIThread.Post(() =>
+            {
+                try { body(lifetime, service); }
+                catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
+                finally
+                {
+                    if (!exited) lifetime.Shutdown();
+                }
+            });
 
             try
             {
-                var lifetime = Assert.IsType<ClassicDesktopStyleApplicationLifetime>(
-                    Application.Current!.ApplicationLifetime);
-                body(lifetime, service);
+                lifetime.Start(Array.Empty<string>());
+                failure?.Throw();
             }
             finally
             {
@@ -149,8 +166,9 @@ public sealed class DesktopLifetimeShutdownModeTests
 
                 WindowManager.Instance.SetService(originalService);
                 WindowManager.Instance.MainWindow = originalMainWindow;
+                Environment.ExitCode = originalExitCode;
             }
-        }, default);
+        }, default).GetAwaiter().GetResult();
     }
 
     [Fact]
