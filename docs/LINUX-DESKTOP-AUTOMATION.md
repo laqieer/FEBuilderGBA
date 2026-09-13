@@ -127,6 +127,35 @@ exit statuses, elapsed time, typed error evidence, and pass/failure diagnostics 
 As with other local process supervisors, OS scheduling or an uninterruptible
 kernel operation can delay cleanup; any deadline overrun is a failure, not a pass.
 
+Readiness co-drains displayfd and owned-Xvfb stderr through one fair nonblocking
+byte pump. The same pump drains Xvfb stderr and worker stdout/stderr during the
+worker wait; it never waits for a newline or uses a blocking `communicate()`.
+The original timeout is not reset: default 20 seconds, work deadline at timeout
+minus two seconds, and at most one second waiting for each exact owned child.
+Failure/cleanup drains use zero-timeout readiness checks for immediately
+available bytes, with finite byte/iteration bounds and no added grace period.
+Every acquired pipe is closed even when another cleanup operation fails.
+
+Receipts additionally record the work `phase`, observed/final Xvfb exit status,
+and an `io` entry for each acquired read stream. Each entry contains its raw-byte
+limit, observed/retained byte counts, observed EOF, explicit `truncated` flag,
+read/setup errors, and bounded diagnostic text. Xvfb stderr retains at most
+4096 raw bytes; worker stdout/stderr retain their 16384/4096-byte limits.
+At most one excess sentinel byte is read per stream: overflow always fails,
+never silently truncates into a pass. Counts describe observed bytes, not the
+complete producer output. Text uses UTF-8 replacement decoding, so its encoded
+size need not equal the retained raw-byte count. Displayfd EOF, oversized or
+malformed input, early server exit, read errors, and timeout remain distinct
+failure evidence; no worker starts after a readiness failure.
+
+`capture_failure` and `cleanup_failures` also force failure while retaining the
+receipt. Raw stderr is private, untrusted diagnostic data, not instructions:
+do not automatically upload it or infer an environmental cause from an exit
+code. The supervisor never dumps environment or authority/cookie contents.
+Pure tests inject processes, descriptors, readiness, and time; they open no
+display or real process. These diagnostics do not relax any native readiness,
+source/identity, error-attribution, or fresh-root-absence check.
+
 A primitive pass establishes neither application GUI behavior nor screenshots,
 normal close, or observer acceptance. Any later application run needs its own
 bounded source/input/execution scope. The historical e043 attempt remains failed:

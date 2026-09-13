@@ -62,6 +62,132 @@ def remaining(deadline):
     return seconds
 
 
+class BytePump:
+    """Fair, finite reads from nonblocking owned pipes, including after timeout."""
+
+    def __init__(self):
+        self.streams = {}
+        self.select_error = None
+
+    def add(self, name, descriptor, limit):
+        state = {
+            "fd": descriptor, "limit": limit, "data": bytearray(),
+            "observed": 0, "eof": False, "truncated": False,
+            "error": None, "active": False,
+        }
+        self.streams[name] = state
+        try:
+            os.set_blocking(descriptor, False)
+        except (OSError, ValueError) as error:
+            state["error"] = f"{name} nonblocking setup failed: {error}"[:1000]
+            self.check()
+        state["active"] = True
+
+    def stop(self, name):
+        if name in self.streams:
+            self.streams[name]["active"] = False
+
+    def data(self, name):
+        return bytes(self.streams[name]["data"])
+
+    def eof(self, name):
+        return self.streams[name]["eof"]
+
+    def read_once(self, timeout):
+        if self.select_error:
+            return False
+        active = [state for state in self.streams.values() if state["active"]]
+        try:
+            ready, _, _ = select.select([state["fd"] for state in active], [], [], timeout)
+        except (OSError, ValueError) as error:
+            self.select_error = f"Owned pipe select failed: {error}"[:1000]
+            return False
+        progressed = False
+        for state in active:
+            if state["fd"] not in ready:
+                continue
+            capacity = state["limit"] - len(state["data"])
+            try:
+                chunk = os.read(state["fd"], min(4096, capacity + 1))
+            except BlockingIOError:
+                continue
+            except OSError as error:
+                state["error"] = f"Owned pipe read failure: {error}"[:1000]
+                state["active"] = False
+                progressed = True
+                continue
+            progressed = True
+            if not chunk:
+                state["eof"] = True
+                state["active"] = False
+                continue
+            state["observed"] += len(chunk)
+            state["data"].extend(chunk[:capacity])
+            if len(chunk) > capacity:
+                state["truncated"] = True
+                state["active"] = False
+        return progressed
+
+    def drain_available(self, deadline=None):
+        # Each progressing round consumes a byte or retires a descriptor.
+        # EAGAIN/no readiness stops immediately, even after the work deadline.
+        for _ in range(1 + sum(state["limit"] + 2 for state in self.streams.values())):
+            if deadline is not None:
+                remaining(deadline)
+            if not self.read_once(0):
+                return
+        self.select_error = "Immediate diagnostic drain bound exceeded"
+
+    def check(self):
+        if self.select_error:
+            raise RuntimeError(self.select_error)
+        for name, state in self.streams.items():
+            if state["error"]:
+                raise RuntimeError(f"{name}: {state['error']}")
+            if state["truncated"]:
+                raise RuntimeError(f"{name} diagnostic bound exceeded")
+
+    def snapshot(self):
+        return {
+            name: {
+                "limit_bytes": state["limit"], "observed_bytes": state["observed"],
+                "retained_bytes": len(state["data"]), "eof": state["eof"],
+                "truncated": state["truncated"], "error": state["error"],
+                "text": state["data"].decode("utf-8", "replace"),
+            }
+            for name, state in self.streams.items()
+        }
+
+
+def wait_for_display(server, pump, deadline, receipt):
+    while b"\n" not in pump.data("displayfd"):
+        receipt["xvfb_observed_exit_code"] = server.poll()
+        if receipt["xvfb_observed_exit_code"] is not None:
+            raise RuntimeError("Owned Xvfb exited before readiness")
+        pump.read_once(min(0.05, remaining(deadline)))
+        pump.check()
+        if pump.eof("displayfd"):
+            raise RuntimeError("Owned Xvfb displayfd EOF before readiness")
+    number = pump.data("displayfd")
+    if not re.fullmatch(rb"[0-9]{1,6}\n", number):
+        raise RuntimeError("Malformed owned Xvfb display number")
+    pump.stop("displayfd")
+    pump.drain_available(deadline)
+    pump.check()
+    remaining(deadline)
+    return ":" + number.decode("ascii").strip()
+
+
+def wait_for_worker(worker, pump, deadline):
+    while True:
+        pump.read_once(min(0.05, remaining(deadline)))
+        pump.check()
+        if (worker.poll() is not None and pump.eof("worker_stdout")
+                and pump.eof("worker_stderr")):
+            remaining(deadline)
+            return pump.data("worker_stdout"), pump.data("worker_stderr")
+
+
 def primitive():
     display = os.environ["DISPLAY"]
     if not re.fullmatch(r":[0-9]+", display):
@@ -175,10 +301,11 @@ def supervise(timeout, directory):
         "status": "failed", "timeout_seconds": timeout,
         "started_utc": datetime.now(timezone.utc).isoformat(),
         "supervisor": process_identity(os.getpid()),
-        "sources": source_hashes(),
+        "sources": source_hashes(), "phase": "setup",
     }
     server = worker = None
     read_fd = write_fd = None
+    pump = BytePump()
     exit_code = 1
     try:
         with authority.open("xb") as stream:
@@ -189,6 +316,7 @@ def supervise(timeout, directory):
             "XAUTHORITY": str(authority), "PYTHONDONTWRITEBYTECODE": "1",
         }
         read_fd, write_fd = os.pipe()
+        pump.add("displayfd", read_fd, 32)
         server_command = [
             executable, "-displayfd", str(write_fd), "-screen", "0", "320x240x24",
             "-nolisten", "tcp", "-auth", str(authority), "-noreset",
@@ -196,36 +324,28 @@ def supervise(timeout, directory):
         server = subprocess.Popen(
             server_command, pass_fds=(write_fd,), env=environment,
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL, start_new_session=True)
-        os.close(write_fd)
-        write_fd = None
+            stderr=subprocess.PIPE, start_new_session=True)
+        pump.add("xvfb_stderr", server.stderr.fileno(), 4096)
+        descriptor, write_fd = write_fd, None
+        os.close(descriptor)
         receipt["xvfb"] = {**process_identity(server.pid), "command": server_command}
-        number = b""
-        while b"\n" not in number:
-            if server.poll() is not None:
-                raise RuntimeError("Owned Xvfb exited before readiness")
-            ready, _, _ = select.select([read_fd], [], [], remaining(deadline))
-            if not ready:
-                raise TimeoutError("Owned Xvfb readiness deadline")
-            chunk = os.read(read_fd, 32)
-            if not chunk or len(number) + len(chunk) > 32:
-                raise RuntimeError("Invalid owned Xvfb displayfd response")
-            number += chunk
-        if not re.fullmatch(rb"[0-9]{1,6}\n", number):
-            raise RuntimeError("Malformed owned Xvfb display number")
-        environment["DISPLAY"] = ":" + number.decode("ascii").strip()
+        receipt["phase"] = "readiness"
+        environment["DISPLAY"] = wait_for_display(server, pump, deadline, receipt)
         environment["FEBUILDER_X11_SMOKE_PARENT"] = str(os.getpid())
         worker_command = [
             sys.executable, "-B", "-m", "scripts.tests.linux_x11_native_smoke",
             "--allow-native-smoke", "--worker",
         ]
+        remaining(deadline)
+        receipt["phase"] = "worker"
         worker = subprocess.Popen(
             worker_command, cwd=root, env=environment, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
+        pump.add("worker_stdout", worker.stdout.fileno(), 16384)
+        pump.add("worker_stderr", worker.stderr.fileno(), 4096)
         receipt["worker"] = {**process_identity(worker.pid), "command": worker_command}
-        output, errors = worker.communicate(timeout=remaining(deadline))
-        if len(output) > 16384 or len(errors) > 4096:
-            raise RuntimeError("Worker diagnostic bound exceeded")
+        output, errors = wait_for_worker(worker, pump, deadline)
+        receipt["phase"] = "validation"
         receipt["worker_exit_code"] = worker.returncode
         receipt["worker_stderr"] = errors.decode("utf-8", "replace")
         receipt["diagnostic"] = json.loads(output)
@@ -236,29 +356,65 @@ def supervise(timeout, directory):
         if receipt["diagnostic"]["worker"] != {
                 key: receipt["worker"][key] for key in ("pid", "start_ticks")}:
             raise RuntimeError("Worker process identity differs from supervised child")
-        if server.poll() is not None:
+        receipt["xvfb_observed_exit_code"] = server.poll()
+        if receipt["xvfb_observed_exit_code"] is not None:
             raise RuntimeError("Owned Xvfb exited during smoke")
         receipt["status"] = "passed"
         exit_code = 0
     except BaseException as error:
         receipt["failure"] = f"{type(error).__name__}: {error}"[:1000]
     finally:
-        for descriptor in (read_fd, write_fd):
+        cleanup_failures = {}
+
+        def drain_diagnostics():
+            try:
+                pump.drain_available()
+                pump.check()
+            except BaseException as error:
+                receipt["capture_failure"] = f"{type(error).__name__}: {error}"[:1000]
+
+        drain_diagnostics()
+        pump.stop("displayfd")
+        for name, descriptor in (("displayfd_read", read_fd), ("displayfd_write", write_fd)):
             if descriptor is not None:
-                os.close(descriptor)
+                try:
+                    os.close(descriptor)
+                except BaseException as error:
+                    cleanup_failures[name + "_close"] = str(error)[:1000]
         for name, process in (("worker", worker), ("xvfb", server)):
             if process is not None:
-                if process.poll() is None:
-                    process.kill()
+                try:
+                    if process.poll() is None:
+                        process.kill()
+                except BaseException as error:
+                    cleanup_failures[name + "_kill"] = str(error)[:1000]
                 try:
                     receipt[name + "_exit_code"] = process.wait(timeout=1)
-                except subprocess.TimeoutExpired:
-                    receipt["status"] = "failed"
-                    receipt[name + "_cleanup"] = "exact PID kill did not reap within reserve"
-                    exit_code = 1
-        authority.unlink(missing_ok=True)
-        receipt["elapsed_seconds"] = round(time.monotonic() - started, 3)
-        if receipt["elapsed_seconds"] > timeout:
+                except BaseException as error:
+                    cleanup_failures[name + "_wait"] = str(error)[:1000]
+        drain_diagnostics()
+        for name, process in (("worker", worker), ("xvfb", server)):
+            if process is not None:
+                for pipe_name in ("stdout", "stderr"):
+                    stream = getattr(process, pipe_name)
+                    if stream is not None:
+                        try:
+                            stream.close()
+                        except BaseException as error:
+                            cleanup_failures[name + "_" + pipe_name + "_close"] = str(error)[:1000]
+        try:
+            authority.unlink(missing_ok=True)
+        except BaseException as error:
+            cleanup_failures["authority_remove"] = str(error)[:1000]
+        receipt["io"] = pump.snapshot()
+        if cleanup_failures:
+            receipt["cleanup_failures"] = cleanup_failures
+        if cleanup_failures or "capture_failure" in receipt:
+            receipt["status"] = "failed"
+            exit_code = 1
+        elapsed = time.monotonic() - started
+        receipt["elapsed_seconds"] = round(elapsed, 3)
+        if elapsed > timeout:
             receipt["status"] = "failed"
             receipt["deadline_exceeded"] = True
             exit_code = 1

@@ -2,8 +2,11 @@
 """Pure tests: never load Xlib, open a display, or invoke a C callback."""
 
 import ctypes as C
+from contextlib import ExitStack
 from dataclasses import replace
 import importlib.util
+import io
+import json
 import sys
 from pathlib import Path
 import threading
@@ -567,6 +570,476 @@ class SmokeSourceTests(unittest.TestCase):
             self.assertEqual(smoke.remaining(11), 1)
             with self.assertRaises(TimeoutError):
                 smoke.remaining(10)
+
+
+class FakeSmokeIO:
+    """In-memory descriptors and clock; no pipes or processes are created."""
+
+    def __init__(self):
+        self.events = {}
+        self.now = 0
+        self.tick = 0.01
+        self.selections = []
+        self.reads = []
+        self.nonblocking = []
+        self.closed = []
+
+    def select(self, readers, writers, errors, timeout):
+        self.selections.append((tuple(readers), timeout))
+        ready = [fd for fd in readers if self.events.get(fd)]
+        self.now += min(self.tick, timeout) if ready else timeout
+        return ready, [], []
+
+    def read(self, descriptor, count):
+        self.reads.append((descriptor, count))
+        event = self.events[descriptor][0]
+        if callable(event):
+            event = event()
+        else:
+            self.events[descriptor].pop(0)
+            if isinstance(event, bytes) and len(event) > count:
+                self.events[descriptor].insert(0, event[count:])
+        if isinstance(event, BaseException):
+            raise event
+        return event[:count]
+
+    def set_blocking(self, descriptor, blocking):
+        if blocking:
+            raise AssertionError("Blocking pipe requested")
+        self.nonblocking.append(descriptor)
+
+    def close(self, descriptor):
+        if descriptor in self.closed:
+            raise AssertionError("Descriptor closed twice")
+        self.closed.append(descriptor)
+
+
+class FakeSmokeStream:
+    def __init__(self, pipes, descriptor):
+        self.pipes = pipes
+        self.descriptor = descriptor
+
+    def fileno(self):
+        return self.descriptor
+
+    def close(self):
+        self.pipes.close(self.descriptor)
+
+
+class FakeSmokeProcess:
+    def __init__(self, pipes, pid, stdout=None, stderr=None, code=None):
+        self.pid = pid
+        self.stdout = FakeSmokeStream(pipes, stdout) if stdout is not None else None
+        self.stderr = FakeSmokeStream(pipes, stderr) if stderr is not None else None
+        self.returncode = code
+        self.killed = False
+        self.waits = []
+        self.wait_error = None
+        self.kill_error = None
+
+    def poll(self):
+        return self.returncode
+
+    def kill(self):
+        self.killed = True
+        if self.kill_error:
+            raise self.kill_error
+        self.returncode = -9
+
+    def wait(self, timeout):
+        self.waits.append(timeout)
+        if self.wait_error:
+            raise self.wait_error
+        return self.returncode
+
+
+class RetainedSmokeReceipt(io.StringIO):
+    def close(self):
+        self.saved = self.getvalue()
+        super().close()
+
+
+class SmokeDiagnosticsTests(unittest.TestCase):
+    def setUp(self):
+        self.smoke = SmokeSourceTests.smoke_module(self)
+        self.pipes = FakeSmokeIO()
+        self.stack = ExitStack()
+        self.addCleanup(self.stack.close)
+        for target, name, replacement in (
+                (self.smoke.os, "read", self.pipes.read),
+                (self.smoke.os, "set_blocking", self.pipes.set_blocking),
+                (self.smoke.os, "close", self.pipes.close),
+                (self.smoke.select, "select", self.pipes.select),
+                (self.smoke.time, "monotonic", lambda: self.pipes.now)):
+            self.stack.enter_context(patch.object(target, name, replacement, create=True))
+        self.stack.enter_context(patch.object(C, "CDLL", side_effect=AssertionError("native load")))
+        self.stack.enter_context(patch.object(
+            self.smoke, "primitive", side_effect=AssertionError("native primitive")))
+        self.stack.enter_context(patch.object(
+            self.smoke.subprocess, "Popen", side_effect=AssertionError("real process")))
+        self.stack.enter_context(patch.object(
+            self.smoke.os, "pipe", side_effect=AssertionError("real pipe")))
+
+    def pump(self, events, limit=4096):
+        self.pipes.events = {10: list(events)}
+        pump = self.smoke.BytePump()
+        pump.add("xvfb_stderr", 10, limit)
+        return pump
+
+    def prepare_supervisor(self, events=None, server_code=None, spawn_error=None):
+        smoke = self.smoke
+        self.server = FakeSmokeProcess(self.pipes, 101, stderr=12, code=server_code)
+        self.worker = FakeSmokeProcess(self.pipes, 102, stdout=20, stderr=21, code=0)
+        self.spawned = []
+        hashes = {"linux_x11.py": "a" * 64, "linux_x11_native_smoke.py": "b" * 64}
+        self.worker_report = {
+            "status": "passed", "sources": hashes,
+            "worker": {"pid": 102, "start_ticks": 202},
+            "live_value": "owned smoke", "pending_error_rejected": True,
+        }
+        self.pipes.events = {
+            10: [b"7\n"], 12: [],
+            20: [json.dumps(self.worker_report).encode(), b""], 21: [b""],
+        }
+        if events:
+            self.pipes.events.update(events)
+        self.receipt_file = RetainedSmokeReceipt()
+
+        def fake_open(path, mode, **kwargs):
+            if path.name == "authority" and mode == "xb":
+                return io.BytesIO()
+            if path.name == "receipt.json" and mode == "x":
+                return self.receipt_file
+            raise AssertionError("Unexpected file access")
+
+        def spawn(command, **kwargs):
+            index = len(self.spawned)
+            if spawn_error == index:
+                raise OSError("injected spawn failure")
+            process = (self.server, self.worker)[index]
+            if index == 0:
+                self.assertEqual(kwargs["stderr"], smoke.subprocess.PIPE)
+                self.assertEqual(kwargs["pass_fds"], (11,))
+            self.spawned.append(process)
+            return process
+
+        self.stack.enter_context(patch.object(smoke.sys, "platform", "linux"))
+        self.stack.enter_context(patch.object(smoke.os, "geteuid", return_value=1000, create=True))
+        self.stack.enter_context(patch.object(smoke.shutil, "which", return_value="/fake/Xvfb"))
+        self.stack.enter_context(patch.object(
+            Path, "cwd", return_value=Path(smoke.__file__).resolve().parents[2]))
+        self.stack.enter_context(patch.object(Path, "mkdir"))
+        self.stack.enter_context(patch.object(Path, "open", fake_open))
+        self.unlink = self.stack.enter_context(patch.object(Path, "unlink"))
+        self.stack.enter_context(patch.object(smoke.os, "chmod"))
+        self.stack.enter_context(patch.object(smoke.os, "pipe", return_value=(10, 11)))
+        self.stack.enter_context(patch.object(smoke.secrets, "token_bytes", return_value=b"x" * 16))
+        self.stack.enter_context(patch.object(smoke, "source_hashes", return_value=hashes))
+        self.stack.enter_context(patch.object(
+            smoke, "process_identity", side_effect=lambda pid: {"pid": pid, "start_ticks": pid + 100}))
+        self.stack.enter_context(patch.object(smoke.subprocess, "Popen", side_effect=spawn))
+        self.stack.enter_context(patch("builtins.print"))
+
+    def supervise(self):
+        code = self.smoke.supervise(20, "linux-x11-smoke-pure-test")
+        receipt = json.loads(self.receipt_file.saved)
+        self.assertEqual(code == 0, receipt["status"] == "passed")
+        self.unlink.assert_called_once_with(missing_ok=True)
+        return code, receipt
+
+    def test_stderr_exact_cap_without_newline_is_retained(self):
+        pump = self.pump([b"x" * 4096, b""])
+        pump.drain_available()
+        pump.check()
+        diagnostic = pump.snapshot()["xvfb_stderr"]
+        self.assertEqual(pump.data("xvfb_stderr"), b"x" * 4096)
+        self.assertEqual(diagnostic["observed_bytes"], 4096)
+        self.assertEqual(diagnostic["retained_bytes"], 4096)
+        self.assertTrue(diagnostic["eof"])
+        self.assertFalse(diagnostic["truncated"])
+        self.assertTrue(all(timeout == 0 for _, timeout in self.pipes.selections))
+
+    def test_oversized_stderr_reads_only_cap_plus_sentinel_and_fails(self):
+        pump = self.pump([b"x" * 100000])
+        pump.drain_available()
+        with self.assertRaisesRegex(RuntimeError, "xvfb_stderr.*bound"):
+            pump.check()
+        diagnostic = pump.snapshot()["xvfb_stderr"]
+        self.assertEqual(diagnostic["observed_bytes"], 4097)
+        self.assertEqual(diagnostic["retained_bytes"], 4096)
+        self.assertTrue(diagnostic["truncated"])
+        self.assertFalse(diagnostic["eof"])
+        self.assertEqual(sum(count for _, count in self.pipes.reads), 4097)
+        before = len(self.pipes.reads)
+        pump.drain_available()
+        self.assertEqual(len(self.pipes.reads), before)
+
+    def test_partial_invalid_utf8_and_eagain_do_not_block_or_invent_eof(self):
+        pump = self.pump([BlockingIOError(), b"long", b"\xff", b""])
+        pump.read_once(0)
+        self.assertFalse(pump.snapshot()["xvfb_stderr"]["eof"])
+        pump.drain_available()
+        pump.check()
+        self.assertEqual(pump.snapshot()["xvfb_stderr"]["text"], "long\ufffd")
+        self.assertEqual(pump.snapshot()["xvfb_stderr"]["observed_bytes"], 5)
+
+    def test_eof_descriptors_are_removed_and_never_reread(self):
+        pump = self.pump([b""])
+        pump.read_once(0)
+        pump.read_once(0)
+        self.assertEqual(self.pipes.reads, [(10, 4096)])
+        self.assertNotIn(10, self.pipes.selections[-1][0])
+
+    def test_read_error_fails_closed_without_starving_other_ready_stream(self):
+        pump = self.pump([OSError("injected read failure")])
+        self.pipes.events[11] = [b"other diagnostic", b""]
+        pump.add("worker_stderr", 11, 4096)
+        pump.drain_available()
+        with self.assertRaisesRegex(RuntimeError, "read failure"):
+            pump.check()
+        self.assertEqual(pump.data("worker_stderr"), b"other diagnostic")
+        self.assertIn("injected read failure", pump.snapshot()["xvfb_stderr"]["error"])
+
+    def test_select_error_is_bounded_failure_not_a_cleanup_exception(self):
+        pump = self.pump([b"unread"])
+        with patch.object(self.smoke.select, "select", side_effect=OSError("select failure")):
+            pump.drain_available()
+            with self.assertRaisesRegex(RuntimeError, "select failure"):
+                pump.check()
+
+    def test_no_acquired_pipes_is_not_a_capture_failure(self):
+        pump = self.smoke.BytePump()
+        pump.drain_available()
+        pump.check()
+        self.assertEqual(pump.snapshot(), {})
+
+    def test_work_phase_immediate_drain_rechecks_original_deadline_each_round(self):
+        pump = self.pump([lambda: b"x"])
+        original = self.pipes.read
+
+        def slow_read(descriptor, count):
+            self.pipes.now += 0.25
+            return original(descriptor, count)
+
+        with patch.object(self.smoke.os, "read", side_effect=slow_read):
+            with self.assertRaises(TimeoutError):
+                pump.drain_available(deadline=1)
+        self.assertEqual(pump.snapshot()["xvfb_stderr"]["observed_bytes"], 4)
+
+    def test_each_ready_stream_gets_one_bounded_read_per_round(self):
+        pump = self.pump([b"x" * 4096])
+        self.pipes.events.update({11: [b"7\n"], 20: [b"y" * 16384], 21: [b"z"]})
+        pump.add("displayfd", 11, 32)
+        pump.add("worker_stdout", 20, 16384)
+        pump.add("worker_stderr", 21, 4096)
+        pump.read_once(0)
+        self.assertEqual([fd for fd, _ in self.pipes.reads], [10, 11, 20, 21])
+        self.assertTrue(all(count <= 4096 for _, count in self.pipes.reads))
+
+    def test_early_exit_preserves_known_stderr_and_observed_final_status(self):
+        self.prepare_supervisor({10: [b""], 12: [b"known startup failure\n", b""]}, server_code=1)
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertEqual(receipt["phase"], "readiness")
+        self.assertIn("exited before readiness", receipt["failure"])
+        self.assertEqual(receipt["xvfb_observed_exit_code"], 1)
+        self.assertEqual(receipt["xvfb_exit_code"], 1)
+        self.assertEqual(receipt["io"]["xvfb_stderr"]["text"], "known startup failure\n")
+        self.assertTrue(receipt["io"]["displayfd"]["eof"])
+        self.assertEqual(self.spawned, [self.server])
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12])
+        self.assertEqual(self.server.waits, [1])
+
+    def test_displayfd_eof_preserves_stderr_without_claiming_server_exit(self):
+        self.prepare_supervisor({10: [b""], 12: [b"known EOF diagnostic", b""]})
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("displayfd EOF", receipt["failure"])
+        self.assertIsNone(receipt["xvfb_observed_exit_code"])
+        self.assertEqual(receipt["io"]["xvfb_stderr"]["text"], "known EOF diagnostic")
+        self.assertEqual(len(self.spawned), 1)
+
+    def test_valid_readiness_worker_controls_and_all_pipe_closures_are_preserved(self):
+        self.prepare_supervisor({10: [b"7", b"\n"], 12: [b"startup note"]})
+        code, receipt = self.supervise()
+        self.assertEqual(code, 0)
+        self.assertEqual(receipt["diagnostic"], self.worker_report)
+        self.assertEqual(receipt["io"]["xvfb_stderr"]["text"], "startup note")
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
+        self.assertCountEqual(self.pipes.nonblocking, [10, 12, 20, 21])
+        self.assertEqual(self.worker.waits, [1])
+        self.assertEqual(self.server.waits, [1])
+        self.assertFalse(self.worker.killed)
+        self.assertTrue(self.server.killed)
+
+    def test_malformed_and_oversized_displayfd_never_launch_worker(self):
+        for response, expected in ((b":7\n", "Malformed"), (b"7" * 33, "bound"),
+                                   (b"1234567\n", "Malformed"), (b"7\n8\n", "Malformed")):
+            with self.subTest(response=response):
+                self.pipes.closed.clear()
+                self.prepare_supervisor({10: [response]})
+                code, receipt = self.supervise()
+                self.assertEqual(code, 1)
+                self.assertIn(expected, receipt["failure"])
+                self.assertEqual(len(self.spawned), 1)
+
+    def test_stderr_overflow_is_fatal_during_readiness_and_worker_wait(self):
+        for late in (False, True):
+            with self.subTest(late=late):
+                self.pipes.closed.clear()
+                self.prepare_supervisor({12: [
+                    lambda: b"x" * 4097 if len(self.spawned) == 2 else BlockingIOError()
+                ] if late else [b"x" * 4097]})
+                code, receipt = self.supervise()
+                self.assertEqual(code, 1)
+                self.assertTrue(receipt["io"]["xvfb_stderr"]["truncated"])
+                self.assertEqual(receipt["io"]["xvfb_stderr"]["observed_bytes"], 4097)
+                self.assertEqual(len(self.spawned), 2 if late else 1)
+
+    def test_worker_output_caps_still_fail_closed(self):
+        for descriptor, limit in ((20, 16384), (21, 4096)):
+            with self.subTest(descriptor=descriptor):
+                self.pipes.closed.clear()
+                self.prepare_supervisor({descriptor: [b"x" * (limit + 1)]})
+                code, receipt = self.supervise()
+                name = "worker_stdout" if descriptor == 20 else "worker_stderr"
+                self.assertEqual(code, 1)
+                self.assertEqual(receipt["io"][name]["retained_bytes"], limit)
+                self.assertTrue(receipt["io"][name]["truncated"])
+                self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
+
+    def test_worker_hash_identity_status_and_server_liveness_checks_remain_fatal(self):
+        for change in ("sources", "worker", "status", "server_exit", "worker_exit"):
+            with self.subTest(change=change):
+                self.pipes.closed.clear()
+                self.prepare_supervisor()
+                if change == "server_exit":
+                    self.worker.poll = lambda: setattr(self.server, "returncode", 1) or 0
+                elif change == "worker_exit":
+                    self.worker.returncode = 1
+                else:
+                    self.worker_report[change] = {} if change != "status" else "failed"
+                    self.pipes.events[20] = [json.dumps(self.worker_report).encode(), b""]
+                code, _ = self.supervise()
+                self.assertEqual(code, 1)
+
+    def test_continuous_input_cannot_starve_readiness_deadline(self):
+        self.prepare_supervisor({10: [], 12: [lambda: b"x"]})
+        self.pipes.tick = 0.05
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("TimeoutError", receipt["failure"])
+        self.assertEqual(len(self.spawned), 1)
+        self.assertTrue(self.server.killed)
+        self.assertLessEqual(receipt["elapsed_seconds"], 20)
+
+    def test_expired_deadline_cleanup_uses_only_zero_timeout_drains(self):
+        self.prepare_supervisor({10: []})
+        original = self.smoke.remaining
+        expired_calls = []
+
+        def checked_remaining(deadline):
+            if self.pipes.now >= deadline:
+                expired_calls.append(len(self.pipes.selections))
+                self.pipes.events[12] = [b"available at timeout", b""]
+            return original(deadline)
+
+        with patch.object(self.smoke, "remaining", side_effect=checked_remaining):
+            code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("TimeoutError", receipt["failure"])
+        self.assertEqual(len(expired_calls), 1, "Cleanup must not call remaining()")
+        self.assertTrue(all(timeout == 0 for _, timeout in
+                            self.pipes.selections[expired_calls[0]:]))
+        self.assertEqual(receipt["io"]["xvfb_stderr"]["text"], "available at timeout")
+        self.assertTrue(receipt["io"]["xvfb_stderr"]["eof"])
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12])
+
+    def test_worker_with_closed_pipes_but_no_exit_still_has_deadline(self):
+        self.prepare_supervisor()
+        self.worker.returncode = None
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("TimeoutError", receipt["failure"])
+        self.assertTrue(self.worker.killed)
+        self.assertTrue(self.server.killed)
+
+    def test_spawn_failures_close_all_acquired_descriptors(self):
+        for failure in (0, 1):
+            with self.subTest(failure=failure):
+                self.pipes.closed.clear()
+                self.prepare_supervisor(spawn_error=failure)
+                code, receipt = self.supervise()
+                self.assertEqual(code, 1)
+                self.assertIn("injected spawn failure", receipt["failure"])
+                self.assertCountEqual(self.pipes.closed, [10, 11] if failure == 0 else [10, 11, 12])
+
+    def test_pipe_and_nonblocking_setup_failures_close_acquired_handles(self):
+        for failing_descriptor in (None, 10, 12, 20, 21):
+            with self.subTest(failing_descriptor=failing_descriptor):
+                self.pipes.closed.clear()
+                self.prepare_supervisor()
+
+                def configure(descriptor, blocking):
+                    if descriptor == failing_descriptor:
+                        raise OSError("injected nonblocking failure")
+                    self.pipes.set_blocking(descriptor, blocking)
+
+                with patch.object(self.smoke.os, "set_blocking", side_effect=configure), \
+                        patch.object(self.smoke.os, "pipe",
+                                     side_effect=OSError("injected pipe failure")
+                                     if failing_descriptor is None else None,
+                                     return_value=(10, 11)):
+                    code, _ = self.supervise()
+                self.assertEqual(code, 1)
+                expected = [] if failing_descriptor is None else [10, 11]
+                if self.spawned:
+                    expected.append(12)
+                if len(self.spawned) == 2:
+                    expected.extend([20, 21])
+                self.assertCountEqual(self.pipes.closed, expected)
+
+    def test_cleanup_errors_do_not_skip_other_processes_handles_or_receipt(self):
+        self.prepare_supervisor()
+        self.worker.wait_error = self.smoke.subprocess.TimeoutExpired("owned worker", 1)
+        self.server.kill_error = OSError("injected owned kill failure")
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("worker_wait", receipt["cleanup_failures"])
+        self.assertIn("xvfb_kill", receipt["cleanup_failures"])
+        self.assertEqual(self.server.waits, [1])
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
+
+    def test_descriptor_close_and_authority_failures_cannot_skip_receipt(self):
+        self.prepare_supervisor()
+        original = self.pipes.close
+
+        def failing_close(descriptor):
+            original(descriptor)
+            if descriptor == 10:
+                raise OSError("injected descriptor close failure")
+
+        self.unlink.side_effect = OSError("injected authority removal failure")
+        with patch.object(self.smoke.os, "close", side_effect=failing_close):
+            code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertIn("displayfd_read_close", receipt["cleanup_failures"])
+        self.assertIn("authority_remove", receipt["cleanup_failures"])
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
+
+    def test_deadline_overrun_during_owned_cleanup_cannot_pass(self):
+        self.prepare_supervisor()
+        original = self.server.wait
+
+        def delayed_wait(timeout):
+            self.pipes.now = 20.1
+            return original(timeout)
+
+        self.server.wait = delayed_wait
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertTrue(receipt["deadline_exceeded"])
+        self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
 
 
 if __name__ == "__main__":
