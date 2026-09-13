@@ -82,20 +82,31 @@ not proof of correct rendering or interaction. Application-internal
 `DrawToBitmap`/`RenderTargetBitmap` paths receive prelaunch admission only, not
 per-capture checks. Optional diagnostic output is not GUI-interaction proof.
 
+The startup termination test reports direct optional capture refusals and
+continues other diagnostic windows. Readiness rejection, wrapped unexpected
+capture errors, and enumeration/reporting failures still fail after cleanup.
+Its fallback and fixture disposal share one retained-process cleanup attempt:
+no tree kill or PID reacquisition, one finite wait, and no retry after failure.
+`App_StartupProcessExitsAfterCloseOrOwnedCleanup` checks termination after a close
+request or owned cleanup; a pass is not proof of normal application shutdown.
+Synchronous capture can still block; this helper is not a hard-timeout supervisor.
+
 ## Validation boundary
 
 Build and run only injected tests before independent source/security review:
 
 ```powershell
 dotnet build FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj -c Release -p:Platform=x86 --no-restore
-dotnet test FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj --no-build -c Release -p:Platform=x86 --filter "FullyQualifiedName~DesktopReadinessTests|FullyQualifiedName~DesktopProbeCommandTests"
+dotnet test FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj --no-build -c Release -p:Platform=x86 --filter "FullyQualifiedName~StartupCloseDiagnosticsTests|FullyQualifiedName~DesktopReadinessTests|FullyQualifiedName~DesktopProbeCommandTests"
 ```
 
 Restore existing dependencies only if the build explicitly reports them missing.
 The focused suite injects observations, process dispatch and capture surfaces;
 it invokes no actual readiness, window-capture or GUI APIs. It checks rejection,
 CLI preservation, resource ownership, native-return handling, failure propagation
-and removal of direct workflow GUI diagnostics.
+and removal of direct workflow GUI diagnostics. Startup cleanup tests inject
+process liveness, termination and waits, including failed and repeated cleanup;
+they neither launch nor inspect a real process.
 
 ## Opt-in probe command
 

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Threading;
 using FEBuilderGBA.E2ETests.Helpers;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace FEBuilderGBA.E2ETests.Tests
 {
@@ -12,7 +13,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// appears with the expected controls. These tests require an active input
     /// desktop; a Windows CI runner alone does not establish readiness.
     ///
-    /// The tests are isolated: each test launches a fresh process and kills it when done.
+    /// Each test retains its fresh process for one bounded, nonrecursive cleanup attempt.
     ///
     /// Note on localization: FEBuilderGBA's startup form title is localized
     /// (English: "Welcome to the FEBuilderGBA", Chinese: "初始设置向导", etc.).
@@ -21,31 +22,38 @@ namespace FEBuilderGBA.E2ETests.Tests
     public class GuiStartupTests : IDisposable
     {
         private static readonly string ExePath = AppRunner.FindExePath();
+        private readonly ITestOutputHelper _output;
         private Process? _process;
+        private OwnedProcessCleanup? _cleanup;
+
+        public GuiStartupTests(ITestOutputHelper output)
+        {
+            _output = output;
+        }
 
         public void Dispose()
         {
-            KillProcess();
-        }
-
-        private void KillProcess()
-        {
-            if (_process == null) return;
             try
             {
-                if (!_process.HasExited)
-                    _process.Kill(entireProcessTree: true);
-                _process.WaitForExit(3_000);
+                if (_cleanup != null && !_cleanup.TryCleanup(3_000))
+                    throw new InvalidOperationException(
+                        "Owned application exit was not confirmed; cleanup will not be retried.");
             }
-            catch { }
             finally
             {
-                _process.Dispose();
+                _process?.Dispose();
                 _process = null;
+                _cleanup = null;
             }
         }
 
         // ------------------------------------------------------------------ Helpers
+
+        private void LaunchApp()
+        {
+            _process = AppRunner.Launch(ExePath);
+            _cleanup = new OwnedProcessCleanup(_process);
+        }
 
         /// <summary>
         /// Launch the app and wait for any startup window to appear.
@@ -53,8 +61,8 @@ namespace FEBuilderGBA.E2ETests.Tests
         /// </summary>
         private IntPtr LaunchAndWaitForStartup(int timeoutMs = 30_000)
         {
-            _process = AppRunner.Launch(ExePath);
-            return WinAutomation.WaitForAnyAppWindow(_process, timeoutMs);
+            LaunchApp();
+            return WinAutomation.WaitForAnyAppWindow(_process!, timeoutMs);
         }
 
         // ------------------------------------------------------------------ Tests
@@ -136,7 +144,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
-        public void App_StartupWindowClosesOnWMClose()
+        public void App_StartupProcessExitsAfterCloseOrOwnedCleanup()
         {
             IntPtr hWnd = LaunchAndWaitForStartup();
             Assert.NotEqual(IntPtr.Zero, hWnd);
@@ -151,24 +159,23 @@ namespace FEBuilderGBA.E2ETests.Tests
                 WinAutomation.CloseWindow(w);
 
             // Give the app up to 8 seconds to process the close message gracefully
-            bool exited = _process.WaitForExit(8_000);
+            bool exitedAfterClose = _process.WaitForExit(8_000);
+            bool exitConfirmed = exitedAfterClose;
 
-            if (!exited)
+            if (!exitedAfterClose)
             {
-                // Screenshot for diagnostics — Init Wizard may have raised a
-                // confirmation dialog in response to WM_CLOSE
-                wins = WinAutomation.GetProcessWindows(_process.Id);
-                foreach (var w in wins)
-                    ScreenshotHelper.CaptureWindow(_process, w, "StartupWindow_close_stuck");
-
-                // Force-terminate as a fallback: we've already verified WM_CLOSE
-                // was delivered and at least one window existed. Now confirm the
-                // process itself is fully terminable (no zombie / stuck state).
-                try { _process.Kill(entireProcessTree: true); } catch { }
-                exited = _process.WaitForExit(5_000);
+                exitConfirmed = StartupCloseDiagnostics.CaptureAndCleanup(
+                    () => WinAutomation.GetProcessWindows(_process.Id),
+                    window => ScreenshotHelper.CaptureWindow(
+                        _process, window, "StartupWindow_close_stuck"),
+                    message => _output.WriteLine(message),
+                    _cleanup!);
             }
 
-            Assert.True(exited, "App process could not be terminated even by Kill()");
+            _output.WriteLine(
+                "Exit observed after close wait: {0}; final exit confirmed: {1}. " +
+                "Owned cleanup is not graceful-close evidence.", exitedAfterClose, exitConfirmed);
+            Assert.True(exitConfirmed, "Owned application exit was not confirmed after close or cleanup.");
         }
 
         // ------------------------------------------------------------------ No crash on no ROM
@@ -176,10 +183,10 @@ namespace FEBuilderGBA.E2ETests.Tests
         [Fact]
         public void App_DoesNotCrashOnStartupWithoutROM()
         {
-            _process = AppRunner.Launch(ExePath);
+            LaunchApp();
 
             // Either a window appears, or the app exits quickly — both acceptable.
-            IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 20_000);
+            IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process!, timeoutMs: 20_000);
 
             bool wellBehaved = hWnd != IntPtr.Zero || _process.HasExited;
             Assert.True(wellBehaved,
@@ -191,12 +198,12 @@ namespace FEBuilderGBA.E2ETests.Tests
         [Fact]
         public void WelcomeForm_OrAnyAppWindow_AppearsWithin30s()
         {
-            _process = AppRunner.Launch(ExePath);
+            LaunchApp();
 
             // Look for "Welcome to the FEBuilderGBA" (English default) first,
             // then fall back to any startup window
             IntPtr hWnd = WinAutomation.WaitForWindow(
-                _process, "Welcome to the FEBuilderGBA", timeoutMs: 5_000);
+                _process!, "Welcome to the FEBuilderGBA", timeoutMs: 5_000);
 
             if (hWnd == IntPtr.Zero)
             {
