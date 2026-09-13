@@ -341,8 +341,17 @@ def supervise(timeout, directory):
         worker = subprocess.Popen(
             worker_command, cwd=root, env=environment, stdin=subprocess.DEVNULL,
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
-        pump.add("worker_stdout", worker.stdout.fileno(), 16384)
-        pump.add("worker_stderr", worker.stderr.fileno(), 4096)
+        setup_error = None
+        for name, stream, limit in (
+                ("worker_stdout", worker.stdout, 16384),
+                ("worker_stderr", worker.stderr, 4096)):
+            try:
+                pump.add(name, stream.fileno(), limit)
+            except RuntimeError as error:
+                if setup_error is None:
+                    setup_error = error
+        if setup_error is not None:
+            raise setup_error
         receipt["worker"] = {**process_identity(worker.pid), "command": worker_command}
         output, errors = wait_for_worker(worker, pump, deadline)
         receipt["phase"] = "validation"

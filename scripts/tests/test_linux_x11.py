@@ -975,28 +975,58 @@ class SmokeDiagnosticsTests(unittest.TestCase):
                 self.assertCountEqual(self.pipes.closed, [10, 11] if failure == 0 else [10, 11, 12])
 
     def test_pipe_and_nonblocking_setup_failures_close_acquired_handles(self):
-        for failing_descriptor in (None, 10, 12, 20, 21):
-            with self.subTest(failing_descriptor=failing_descriptor):
+        for failing_descriptors in ((), (10,), (12,), (20,), (21,), (20, 21)):
+            with self.subTest(failing_descriptors=failing_descriptors):
                 self.pipes.closed.clear()
-                self.prepare_supervisor()
+                self.pipes.reads.clear()
+                diagnostics = {20: b"known worker stdout", 21: b"known worker stderr"}
+                self.prepare_supervisor({
+                    descriptor: [text, b""] for descriptor, text in diagnostics.items()
+                })
 
                 def configure(descriptor, blocking):
-                    if descriptor == failing_descriptor:
-                        raise OSError("injected nonblocking failure")
+                    if descriptor in failing_descriptors:
+                        raise OSError(f"injected nonblocking failure on fd {descriptor}")
                     self.pipes.set_blocking(descriptor, blocking)
 
                 with patch.object(self.smoke.os, "set_blocking", side_effect=configure), \
                         patch.object(self.smoke.os, "pipe",
                                      side_effect=OSError("injected pipe failure")
-                                     if failing_descriptor is None else None,
-                                     return_value=(10, 11)):
-                    code, _ = self.supervise()
+                                     if not failing_descriptors else None,
+                                     return_value=(10, 11)), \
+                        patch.object(self.smoke, "wait_for_worker") as wait_for_worker:
+                    code, receipt = self.supervise()
                 self.assertEqual(code, 1)
-                expected = [] if failing_descriptor is None else [10, 11]
+                wait_for_worker.assert_not_called()
+                self.assertLessEqual(receipt["elapsed_seconds"], 20)
+                expected = [10, 11] if failing_descriptors else []
                 if self.spawned:
                     expected.append(12)
+                    self.assertEqual(self.server.waits, [1])
                 if len(self.spawned) == 2:
                     expected.extend([20, 21])
+                    self.assertEqual(self.worker.waits, [1])
+                    self.assertEqual(receipt["phase"], "worker")
+                    self.assertIn(
+                        f"failure on fd {failing_descriptors[0]}", receipt["failure"])
+                    for descriptor, name, limit in (
+                            (20, "worker_stdout", 16384), (21, "worker_stderr", 4096)):
+                        self.assertIn(name, receipt["io"])
+                        diagnostic = receipt["io"][name]
+                        failed = descriptor in failing_descriptors
+                        retained = b"" if failed else diagnostics[descriptor]
+                        self.assertEqual(diagnostic["limit_bytes"], limit)
+                        self.assertEqual(diagnostic["text"], retained.decode())
+                        self.assertEqual(diagnostic["retained_bytes"], len(retained))
+                        self.assertEqual(diagnostic["observed_bytes"], len(retained))
+                        self.assertEqual(diagnostic["eof"], not failed)
+                        self.assertFalse(diagnostic["truncated"])
+                        if failed:
+                            self.assertIn(f"failure on fd {descriptor}", diagnostic["error"])
+                        else:
+                            self.assertIsNone(diagnostic["error"])
+                for descriptor in failing_descriptors:
+                    self.assertNotIn(descriptor, [fd for fd, _ in self.pipes.reads])
                 self.assertCountEqual(self.pipes.closed, expected)
 
     def test_cleanup_errors_do_not_skip_other_processes_handles_or_receipt(self):
