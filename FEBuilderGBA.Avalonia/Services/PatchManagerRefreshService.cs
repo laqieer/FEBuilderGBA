@@ -238,7 +238,7 @@ internal sealed class PatchManagerRefreshService
         RefreshFailure? failure = complete ? null : new RefreshFailure(ImportedRefreshFailureTemplate, error);
         if (complete && all.Count == 0)
         {
-            if (PatchMetadataCore.IsPatchLibraryEmpty(request.Location.Directory))
+            if (PatchMetadataCore.IsPatchLibraryEmpty(request.Location.Directory, token))
                 message = request.Android ? AndroidResourceNoticeCore.PatchLibraryUnavailableMessage : PatchMetadataCore.NotInitializedMessage;
             else
             {

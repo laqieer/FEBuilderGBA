@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -76,16 +77,9 @@ namespace FEBuilderGBA
         /// <param name="patchBaseDir">The <c>config/patch2/{version}</c> directory.</param>
         public static bool IsPatchLibraryEmpty(string patchBaseDir)
         {
-            if (string.IsNullOrEmpty(patchBaseDir))
-                return true;
             try
             {
-                return Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories).Length == 0;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                // Genuinely missing directory -> the fresh-install / not-initialized state.
-                return true;
+                return IsPatchLibraryEmpty(patchBaseDir, CancellationToken.None);
             }
             catch
             {
@@ -94,6 +88,26 @@ namespace FEBuilderGBA
                 // with the not-downloaded-yet notice and mask the actual failure. (Directory.Exists is
                 // deliberately NOT used to gate this: it also returns false on an existence-probe error,
                 // which would misclassify an inaccessible dir as "not initialized".)
+                return false;
+            }
+        }
+
+        internal static bool IsPatchLibraryEmpty(string patchBaseDir, CancellationToken token,
+            Action<string> visit = null)
+        {
+            token.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+            try
+            {
+                return !EnumeratePatchFiles(patchBaseDir, token, visit).Any();
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
                 return false;
             }
         }
@@ -112,16 +126,35 @@ namespace FEBuilderGBA
             CancellationToken cancellationToken)
             => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, cancellationToken);
 
-        static string[] DiscoverPatchFiles(string directory, CancellationToken token)
+        internal static string[] DiscoverPatchFiles(string directory, CancellationToken token,
+            Action<string> visit = null)
+            => EnumeratePatchFiles(directory, token, visit).ToArray();
+
+        static IEnumerable<string> EnumeratePatchFiles(string directory, CancellationToken token,
+            Action<string> visit)
         {
-            var files = new List<string>();
-            foreach (string file in Directory.EnumerateFiles(directory, "PATCH_*.txt", SearchOption.AllDirectories))
+            token.ThrowIfCancellationRequested();
+            string pattern = FileSystemName.TranslateWin32Expression("PATCH_*.txt");
+            // Preserve Directory's SearchOption defaults, including access-error reporting.
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = false,
+                AttributesToSkip = 0,
+                MatchType = MatchType.Win32,
+            };
+            var entries = new FileSystemEnumerable<(string Path, bool IsDirectory)>(directory,
+                (ref FileSystemEntry entry) => (entry.ToSpecifiedFullPath(), entry.IsDirectory), options);
+            foreach (var entry in entries)
             {
                 token.ThrowIfCancellationRequested();
-                files.Add(file);
+                visit?.Invoke(entry.Path);
+                token.ThrowIfCancellationRequested();
+                if (!entry.IsDirectory && FileSystemName.MatchesWin32Expression(pattern,
+                    Path.GetFileName(entry.Path), ignoreCase: OperatingSystem.IsWindows()))
+                    yield return entry.Path;
             }
             token.ThrowIfCancellationRequested();
-            return files.ToArray();
         }
 
         /// <summary>Internal read/listing seam for legacy per-file tolerance coverage.</summary>

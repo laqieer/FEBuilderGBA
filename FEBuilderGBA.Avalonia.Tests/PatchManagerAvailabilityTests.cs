@@ -15,6 +15,52 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class PatchManagerAvailabilityTests
     {
         [AvaloniaTheory]
+        [InlineData("en", false, "Initialize Patch Database")]
+        [InlineData("en", true, "Update Patch Database")]
+        [InlineData("ja", false, "パッチデータベースを初期化")]
+        [InlineData("ja", true, "パッチデータベースを更新")]
+        [InlineData("zh", false, "初始化补丁数据库")]
+        [InlineData("zh", true, "更新补丁数据库")]
+        public async Task CompletedRefreshKeepsGitButtonLocalized(string language, bool repository, string expected)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            var translations = typeof(MyTranslateResource).GetField("Resource",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            object? previousTranslations = translations.GetValue(null);
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            PatchManagerView? view = null;
+            Window? host = null;
+            try
+            {
+                if (repository) Directory.CreateDirectory(Path.Combine(fixture.Root, "config", "patch2", ".git"));
+                translations.SetValue(null, new MyTranslateResourceLow());
+                MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+                App.ClearPatchDatabaseRecoveryNotice();
+                view = new PatchManagerView();
+                host = new Window { Content = view };
+                host.Show();
+                Assert.True(await view.RefreshTask);
+                Assert.Equal(expected, view.FindControl<Button>("InitUpdatePatch2Button")!.Content);
+            }
+            finally
+            {
+                try
+                {
+                    host?.Close();
+                    if (view != null) await view.RefreshTask;
+                }
+                finally
+                {
+                    translations.SetValue(null, previousTranslations);
+                    App.ClearPatchDatabaseRecoveryNotice();
+                    if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                    if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+                }
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData("en", "Working…", false)]
         [InlineData("ja", "処理中…", false)]
         [InlineData("zh", "正在处理…", false)]
@@ -35,6 +81,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try
             {
+                translations.SetValue(null, new MyTranslateResourceLow());
                 MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
                 Assert.Equal(expectedProgress, R._("Working…"));
                 App.ClearPatchDatabaseRecoveryNotice();
@@ -162,6 +209,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             var host = new Window { Content = view };
             try
             {
+                translations.SetValue(null, new MyTranslateResourceLow());
                 MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
                 App.ClearPatchDatabaseRecoveryNotice();
                 if (retained) App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(

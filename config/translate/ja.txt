@@ -14262,6 +14262,9 @@ ROM（.gba）は絶対に添付しないでください。
 :Initialize Patch Database
 パッチデータベースを初期化
 
+:Update Patch Database
+パッチデータベースを更新
+
 :Initialize / Update Patch Database Now
 パッチデータベースを今すぐ初期化／更新
 

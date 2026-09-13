@@ -11,6 +11,137 @@ namespace FEBuilderGBA.Core.Tests
     public class PatchMetadataCoreTests : IDisposable
     {
         [Theory]
+        [InlineData(false, false)]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(true, true)]
+        public void DiscoveryCancelsAtFirstNonmatchingEntryWithoutPartialPublication(bool strict, bool directories)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "patch-discovery-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            int visits = 0, reads = 0;
+            try
+            {
+                for (int i = 0; i < 4; i++)
+                {
+                    string path = Path.Combine(root, "payload-" + i + ".bin");
+                    if (directories) Directory.CreateDirectory(path);
+                    else File.WriteAllText(path, "inert payload");
+                }
+                string[] List(string directory) => PatchMetadataCore.DiscoverPatchFiles(directory,
+                    cancellation.Token, _ => { visits++; cancellation.Cancel(); });
+                string[] Read(string _) { reads++; return new[] { "NAME=Unexpected descriptor" }; }
+                var published = new List<PatchMetadataCore.PatchInfo>();
+                List<PatchMetadataCore.PatchInfo>? result = null;
+                Assert.Throws<OperationCanceledException>(() =>
+                {
+                    if (strict) PatchMetadataCore.TryEnumeratePatches(root, new ROM(), "en",
+                        Read, List, out published, out _, cancellation.Token);
+                    else result = PatchMetadataCore.EnumeratePatches(root, new ROM(), "en",
+                        Read, List, cancellation.Token);
+                });
+                Assert.Equal(1, visits);
+                Assert.Equal(0, reads);
+                Assert.Empty(published);
+                Assert.Null(result);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void EmptyProbeCancelsAtFirstNonmatchingEntry(bool directories)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "patch-empty-cancel-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            int visits = 0;
+            try
+            {
+                string path = Path.Combine(root, "payload.bin");
+                if (directories) Directory.CreateDirectory(path);
+                else File.WriteAllText(path, "inert payload");
+                Assert.Throws<OperationCanceledException>(() => PatchMetadataCore.IsPatchLibraryEmpty(
+                    root, cancellation.Token, _ => { visits++; cancellation.Cancel(); }));
+                Assert.Equal(1, visits);
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Fact]
+        public void DiscoveryAndEmptyProbeRejectPreCancellationBeforeFilesystemAccess()
+        {
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            cancellation.Cancel();
+            string missing = Path.Combine(Path.GetTempPath(), "missing-patch-" + Guid.NewGuid().ToString("N"));
+            Assert.Throws<OperationCanceledException>(() =>
+                PatchMetadataCore.DiscoverPatchFiles(missing, cancellation.Token, _ => Assert.Fail("Unexpected visit")));
+            Assert.Throws<OperationCanceledException>(() =>
+                PatchMetadataCore.IsPatchLibraryEmpty(missing, cancellation.Token, _ => Assert.Fail("Unexpected visit")));
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void DescriptorDisappearingAfterDiscoveryPreservesPerFileFailureSemantics(bool strict)
+        {
+            string root = Path.Combine(Path.GetTempPath(), "patch-discovery-race-" + Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(root);
+            string removed = Path.Combine(root, "PATCH_removed.txt");
+            try
+            {
+                File.WriteAllText(Path.Combine(root, "PATCH_healthy.txt"), "NAME=Healthy descriptor");
+                File.WriteAllText(removed, "NAME=Removed descriptor");
+                string[] List(string directory) => PatchMetadataCore.DiscoverPatchFiles(directory,
+                    default, path => { if (path == removed) File.Delete(path); });
+                if (strict)
+                {
+                    Assert.False(PatchMetadataCore.TryEnumeratePatches(root, new ROM(), "en",
+                        File.ReadAllLines, List, out var patches, out var error));
+                    Assert.Empty(patches);
+                    Assert.False(string.IsNullOrEmpty(error));
+                }
+                else
+                {
+                    var patches = PatchMetadataCore.EnumeratePatches(root, new ROM(), "en",
+                        File.ReadAllLines, List);
+                    Assert.Equal(2, patches.Count);
+                    Assert.Contains(patches, patch => patch.Name == "Healthy descriptor");
+                    Assert.Contains(patches, patch => patch.PatchFilePath == removed);
+                }
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Fact]
+        public void DiscoveryPreservesPlatformWildcardResultsAndExcludesMatchingDirectories()
+        {
+            string root = Path.Combine(Path.GetTempPath(), "patch-pattern-" + Guid.NewGuid().ToString("N"));
+            string nested = Path.Combine(root, "nested", "PATCH_directory.txt");
+            Directory.CreateDirectory(nested);
+            try
+            {
+                Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(root, default));
+                foreach (string name in new[] { "PATCH_.txt", "PATCH_upper.TXT", "patch_lower.txt",
+                    "PATCH_multiple.dots.txt", "PATCH_extra.txt.bak", "other.txt", "payload.bin" })
+                    File.WriteAllText(Path.Combine(root, name), "inert metadata");
+                File.WriteAllText(Path.Combine(nested, "PATCH_nested.txt"), "inert metadata");
+                var expected = Directory.GetFiles(root, "PATCH_*.txt", SearchOption.AllDirectories)
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+                var actual = PatchMetadataCore.DiscoverPatchFiles(root, default)
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+                Assert.Equal(expected, actual);
+                Assert.False(PatchMetadataCore.IsPatchLibraryEmpty(root, default));
+                string missing = Path.Combine(root, "missing");
+                Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing));
+                Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing, default));
+            }
+            finally { Directory.Delete(root, true); }
+        }
+
+        [Theory]
         [InlineData(false)]
         [InlineData(true)]
         public void CancellationIsObservedAfterTheCurrentFileReadWithoutPartialPublication(bool strict)

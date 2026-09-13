@@ -117,7 +117,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.Publish(snapshot);
                     PatchListBox.ItemsSource = _vm.FilteredPatches;
                     UpdateSummary();
-                    InitUpdatePatch2Button.Content = snapshot.GitButton;
+                    InitUpdatePatch2Button.Content = R._(snapshot.GitButton);
                     ClearDetails();
                     if (snapshot.Request.Selection >= 0 && snapshot.Filtered.Count > 0)
                         PatchListBox.SelectedIndex = Math.Min(snapshot.Request.Selection, snapshot.Filtered.Count - 1);
