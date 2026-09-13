@@ -99,7 +99,7 @@ namespace FEBuilderGBA.Avalonia.Views
             try
             {
                 StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
-                    ? "Working…" : App.PatchDatabaseRecoveryNotice;
+                    ? R._("Working…") : App.PatchDatabaseRecoveryNotice;
                 if (!_attached) return false;
                 if (!PatchDatabaseImportService.CanImportLoadedRom)
                 {

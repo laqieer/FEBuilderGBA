@@ -15,6 +15,69 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class PatchManagerAvailabilityTests
     {
         [AvaloniaTheory]
+        [InlineData("en", "Working…", false)]
+        [InlineData("ja", "処理中…", false)]
+        [InlineData("zh", "正在处理…", false)]
+        [InlineData("en", "Working…", true)]
+        [InlineData("ja", "処理中…", true)]
+        [InlineData("zh", "正在处理…", true)]
+        public async Task PendingRefreshLocalizesProgressAndPreservesRecoveryNotice(
+            string language, string expectedProgress, bool retained)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            var translations = typeof(MyTranslateResource).GetField("Resource",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            object? previousTranslations = translations.GetValue(null);
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            var view = new PatchManagerView();
+            var host = new Window { Content = view };
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            try
+            {
+                MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+                Assert.Equal(expectedProgress, R._("Working…"));
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (retained) App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(
+                    fixture.Root, new IOException("owned retained workspace")));
+                var noticeIdentity = App.CapturePatchDatabaseRecoveryNotice();
+                string expected = retained ? App.PatchDatabaseRecoveryNotice : expectedProgress;
+                var refresh = new Services.PatchManagerRefreshService((request, token) =>
+                {
+                    entered.TrySetResult();
+                    release.Wait(token);
+                    return Services.PatchManagerRefreshService.Read(request, token);
+                });
+                typeof(PatchManagerView).GetField("_refresh",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(view, refresh);
+                host.Show();
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.False(view.RefreshTask.IsCompleted);
+                Assert.Equal(expected, view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+                Assert.Same(noticeIdentity, App.CapturePatchDatabaseRecoveryNotice());
+                release.Set();
+                Assert.True(await view.RefreshTask);
+            }
+            finally
+            {
+                release.Set();
+                try
+                {
+                    host.Close();
+                    await view.RefreshTask;
+                }
+                finally
+                {
+                    translations.SetValue(null, previousTranslations);
+                    App.ClearPatchDatabaseRecoveryNotice();
+                    if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                    if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+                }
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData(false)]
         [InlineData(true)]
         public async Task ManagedViewActionHonorsLatestIntentAndReattachmentBeforeRefreshing(bool reattach)
