@@ -6,6 +6,145 @@ function Assert-ProofTestThrows([scriptblock]$Action) {
     }
     Assert-Proof $failed 'Expected refusal.'
 }
+function Invoke-ProofPureCase($Case) {
+    if($Case.name -cin @('inventory-json-depth-bound','receipt-completion-depth-bound')){
+        $null=& $Case.run 3>&1
+    }else{
+        & $Case.run
+    }
+}
+function Assert-TestReceiptRetention([double]$External=100,[double]$Execution=105,[double]$Observed=105,[double]$ReceiptStart=105.25,[double]$ReceiptNow=105.5,[string]$FailureAt='',[switch]$Unknown,[switch]$FailedTerminal) {
+    $memory=@{events=[Collections.Generic.List[string]]::new();terminal=$null;receipt=$null;error=$null;receiptAttempts=0}
+    $observations=if($Unknown){@{}}else{
+        @{pid=1;startTicks=1L;image='host';exitCode=0;exitConfirmed=$true;outputConfirmed=$true
+          timedOut=$false;killAttempts=0;environmentCleared=$true;stdinClosed=$true
+          drainingBeforeImageObservation=$true;failure=$null}
+    }
+    if($FailedTerminal){$observations.failure='Original process failure.';$observations.timedOut=$true;$observations.killAttempts=1;$observations.exitConfirmed=$null;$observations.exitCode=$null}
+    $arguments=@{
+        Bindings=@{schema='receipt-retention-test';exe='host';hostSha256=$sha}
+        Observations=$observations
+        WriteTerminal={
+            param([byte[]]$Bytes)
+            $memory.events.Add('terminal')
+            Assert-RTerminalRetentionAdmission $Observed (Get-RTerminalRetentionDeadline $Observed) $Observed $Observed $Bytes.Length
+            $memory.terminal=$Bytes.Clone()
+            return $true
+        }
+        VerifyOutput={
+            $memory.events.Add('verify')
+            Assert-R ($null -ne $memory.terminal) 'Optional work preceded retained facts.'
+            Assert-ROptionalPublicationAdmission $Execution $External
+            throw 'Injected optional verifier failure.'
+        }
+        WriteInventory={param([byte[]]$Bytes) throw 'Failed verification must not publish an inventory.'}
+        CompleteReceipt={
+            param($Receipt)
+            $memory.events.Add('complete')
+            Assert-ROptionalPublicationAdmission $Execution $External
+            throw 'Injected optional completion failure.'
+        }
+        WriteReceipt={
+            param([byte[]]$Bytes)
+            $memory.events.Add('receipt')
+            $memory.receiptAttempts++
+            Assert-R ($memory.receiptAttempts -eq 1) 'Receipt retry is prohibited.'
+            $deadline=Get-RReceiptRetentionDeadline $Observed $ReceiptStart
+            Assert-RReceiptRetentionAdmission $Observed $ReceiptStart $deadline $ReceiptStart $ReceiptNow $Bytes.Length
+            $memory.receipt=$Bytes.Clone()
+            if($FailureAt -ceq 'overrun'){Assert-RReceiptRetentionAdmission $Observed $ReceiptStart $deadline $ReceiptNow $deadline $Bytes.Length}
+            if($FailureAt -ceq 'throw'){throw 'Injected receipt acknowledgment failure.'}
+            if($FailureAt -ceq 'missing'){return}
+            if($FailureAt -ceq 'extra'){return @($true,$true)}
+            return ($FailureAt -cne 'false')
+        }
+    }
+    try{$null=Invoke-RTerminalPublication @arguments}catch{$memory.error=[string]$_.Exception.Message}
+    $expected=if($Unknown -or $FailedTerminal){@('terminal','complete','receipt')}else{@('terminal','verify','complete','receipt')}
+    Assert-REqual $memory.events.ToArray() $expected 'retained facts, optional attempts, final failure receipt ordering'
+    Assert-R ($memory.receiptAttempts -eq 1 -and $null -ne $memory.error -and $null -ne $memory.terminal -and $null -ne $memory.receipt) 'Failure receipt retention/throw required.'
+    $terminal=Read-TestPublication $memory.terminal;$final=Read-TestPublication $memory.receipt
+    Assert-R (!$terminal.passed -and $terminal.terminalEvidenceOnly -and !$final.passed -and $final.terminalPublicationConfirmed -and !$final.outputVerificationConfirmed -and !$final.inventoryPublicationConfirmed -and $null -ne $final.receiptCompletionFailure) 'False verification/completion success.'
+    Assert-R ($final.terminalEvidenceSha256 -ceq [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($memory.terminal)).ToLowerInvariant()) 'Retained terminal bytes changed.'
+    foreach($key in $observations.Keys){if($key -cne 'failure'){Assert-REqual $terminal[$key] $final[$key] 'observed receipt facts unchanged'}}
+    if($FailedTerminal){Assert-R ($final.failure -ceq 'Original process failure.') 'Optional exhaustion replaced original failure.'}
+    if($Unknown){foreach($key in @('pid','startTicks','exitCode','exitConfirmed','outputConfirmed','timedOut')){Assert-R ($null -eq $final[$key]) 'Unknown no-child facts reconstructed.'}}
+    if($Execution -ge $External+5){Assert-R ($final.receiptCompletionFailure -ceq 'Optional publication deadline exhausted.') 'Optional exhaustion missing from final receipt.'}
+    if($FailureAt -cin @('false','missing','extra')){Assert-R ($memory.error -ceq 'Durable final receipt publication was not acknowledged.') 'Invalid acknowledgment accepted.'}
+    if($FailureAt -ceq 'throw'){Assert-R ($memory.error -ceq 'Injected receipt acknowledgment failure.') 'Thrown acknowledgment replaced.'}
+    if($FailureAt -ceq 'overrun'){Assert-R ($memory.error -ceq 'Terminal retention deadline/backward time.') 'Reporting overrun accepted.'}
+}
+function Get-LaterRestageCases {
+    @(
+        @{name='receipt-retention-deadline-zero';reject=$false;run={Assert-R ((Get-RReceiptRetentionDeadline 0 0) -eq 5) 'No-child receipt deadline.'}}
+        @{name='receipt-retention-deadline-pure-105';reject=$false;run={Assert-R ((Get-RReceiptRetentionDeadline 105 105) -eq 110) 'Pure failure receipt deadline.'}}
+        @{name='receipt-retention-deadline-compatibility-315';reject=$false;run={Assert-R ((Get-RReceiptRetentionDeadline 315 315) -eq 320) 'Compatibility failure receipt deadline.'}}
+        @{name='receipt-retention-negative-terminal-time';reject=$true;run={Get-RReceiptRetentionDeadline -1 0}}
+        @{name='receipt-retention-nan-terminal-time';reject=$true;run={Get-RReceiptRetentionDeadline ([double]::NaN) 0}}
+        @{name='receipt-retention-infinite-terminal-time';reject=$true;run={Get-RReceiptRetentionDeadline ([double]::PositiveInfinity) 0}}
+        @{name='receipt-retention-backward-start';reject=$true;run={Get-RReceiptRetentionDeadline 105 104}}
+        @{name='receipt-retention-nan-start';reject=$true;run={Get-RReceiptRetentionDeadline 0 ([double]::NaN)}}
+        @{name='receipt-retention-infinite-start';reject=$true;run={Get-RReceiptRetentionDeadline 0 ([double]::PositiveInfinity)}}
+        @{name='receipt-retention-cutoff-equality';reject=$true;run={Assert-RReceiptRetentionAdmission 105 106 111 110 111 1}}
+        @{name='receipt-retention-before-cutoff';reject=$false;run={Assert-RReceiptRetentionAdmission 105 106 111 110 110.999 1048576}}
+        @{name='receipt-retention-deadline-extension';reject=$true;run={Assert-RReceiptRetentionAdmission 105 106 112 106 107 1}}
+        @{name='receipt-retention-negative-bytes';reject=$true;run={Assert-RReceiptRetentionAdmission 0 0 5 0 1 -1}}
+        @{name='receipt-retention-oversize-bytes';reject=$true;run={Assert-RReceiptRetentionAdmission 0 0 5 0 1 1048577}}
+        @{name='receipt-retention-backward-now';reject=$true;run={Assert-RReceiptRetentionAdmission 105 106 111 108 107 1}}
+        @{name='receipt-retention-nan-now';reject=$true;run={Assert-RReceiptRetentionAdmission 0 0 5 0 ([double]::NaN) 1}}
+        @{name='receipt-retention-expired-pure-105';reject=$false;run={Assert-TestReceiptRetention}}
+        @{name='receipt-retention-expired-compatibility-315';reject=$false;run={Assert-TestReceiptRetention -External 310 -Execution 315 -Observed 315 -ReceiptStart 315.25 -ReceiptNow 315.5}}
+        @{name='receipt-retention-after-optional-consumed-terminal-window';reject=$false;run={Assert-TestReceiptRetention -Observed 10 -ReceiptStart 120 -ReceiptNow 120.25}}
+        @{name='receipt-retention-no-child-unstarted-execution';reject=$false;run={Assert-TestReceiptRetention -Execution 0 -Observed 12 -ReceiptStart 12.25 -ReceiptNow 12.5 -Unknown}}
+        @{name='receipt-retention-original-process-failure-preserved';reject=$false;run={Assert-TestReceiptRetention -FailedTerminal}}
+        @{name='receipt-retention-false-ack';reject=$false;run={Assert-TestReceiptRetention -FailureAt 'false'}}
+        @{name='receipt-retention-missing-ack';reject=$false;run={Assert-TestReceiptRetention -FailureAt 'missing'}}
+        @{name='receipt-retention-extra-ack';reject=$false;run={Assert-TestReceiptRetention -FailureAt 'extra'}}
+        @{name='receipt-retention-thrown-ack';reject=$false;run={Assert-TestReceiptRetention -FailureAt 'throw'}}
+        @{name='receipt-retention-io-overrun-after-bytes';reject=$false;run={Assert-TestReceiptRetention -FailureAt 'overrun'}}
+        @{name='external-deadline-zero';reject=$false;run={Assert-R (!(Test-RExternalDeadlineExceeded 0 310)) 'Zero elapsed deadline.'}}
+        @{name='external-deadline-pure-before';reject=$false;run={Assert-R (!(Test-RExternalDeadlineExceeded 99.999 100)) 'Pure before deadline.'}}
+        @{name='external-deadline-pure-equal';reject=$false;run={Assert-R (Test-RExternalDeadlineExceeded 100 100) 'Pure equality deadline.'}}
+        @{name='external-deadline-stage-before';reject=$false;run={Assert-R (!(Test-RExternalDeadlineExceeded 309.999 310)) 'Stage before deadline.'}}
+        @{name='external-deadline-stage-equal';reject=$false;run={Assert-R (Test-RExternalDeadlineExceeded 310 310) 'Stage equality deadline.'}}
+        @{name='external-deadline-stage-after';reject=$false;run={Assert-R (Test-RExternalDeadlineExceeded 310.001 310) 'Stage after deadline.'}}
+        @{name='external-deadline-negative';reject=$true;run={Test-RExternalDeadlineExceeded -1 310}}
+        @{name='external-deadline-nan';reject=$true;run={Test-RExternalDeadlineExceeded ([double]::NaN) 310}}
+        @{name='external-deadline-infinite';reject=$true;run={Test-RExternalDeadlineExceeded ([double]::PositiveInfinity) 310}}
+        @{name='external-deadline-invalid-bound';reject=$true;run={Test-RExternalDeadlineExceeded 0 311}}
+    )
+}
+function Invoke-LaterProductionTests([string]$Root) {
+    . (Join-Path $PSScriptRoot 'supervision\NonCopySupervisor.ps1')
+    . (Join-Path $PSScriptRoot 'supervision\RestageSupervisor.ps1')
+    $cases=0
+    foreach($writer in @('Write-NonCopyReceipt','Write-RestageReceipt')){
+        foreach($previous in @(-1,[double]::NaN,[double]::PositiveInfinity,106)){
+            $path=Join-Path $Root ($writer+'-clock-bridge-'+$cases+'.json')
+            $window=@{terminalPrevious=[double]$previous;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+            Assert-ProofTestThrows {
+                & $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100
+            }
+            Assert-Proof (![IO.File]::Exists($path)) 'Invalid clock bridge allocated a final receipt.'
+            $cases++
+        }
+        $path=Join-Path $Root ($writer+'-after-consumed-terminal.json')
+        $window=@{terminalPrevious=10.0;start=120.0;deadline=125.0;previous=120.0;attempted=$false}
+        $ack=& $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {120.25} -Phase Final -ExternalSeconds 100
+        Assert-Proof ($ack -is [bool] -and $ack -and [IO.File]::ReadAllText($path) -ceq '{}') 'Optional work consumed failure-report retention.'
+        $cases++
+    }
+    foreach($name in @('inventory-json-depth-bound','receipt-completion-depth-bound')){
+        $output=@(Invoke-ProofPureCase @{name=$name;run={Write-Warning 'Deliberate depth fixture'}} 3>&1)
+        Assert-Proof ($output.Count -eq 0) 'Expected case-local warning leaked.'
+        $cases++
+    }
+    $output=@(Invoke-ProofPureCase @{name='unexpected-warning';run={Write-Warning 'Unexpected warning fixture'}} 3>&1)
+    Assert-Proof ($output.Count -eq 1 -and $output[0] -is [Management.Automation.WarningRecord] -and
+        $output[0].Message -ceq 'Unexpected warning fixture') 'Unexpected warnings were suppressed.'
+    $cases++
+    return $cases
+}
 function Invoke-ProofBooleanTests {
     . (Join-Path $PSScriptRoot 'Configuration.ps1')
     Assert-ProofBooleanFields @{yes=$true;no=$false} @('yes') @('no')
@@ -32,7 +171,7 @@ function Write-ProofTestBytes([string]$Path,[byte[]]$Bytes) {
 function Write-ProofTestJson([string]$Path,$Value) {
     Write-ProofTestBytes $Path ([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $Value -Depth 32 -Compress)))
 }
-function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed','CompilePassed','BindingAccepted','OuterSource')][string]$InvalidType='None') {
+function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed','CompilePassed','BindingAccepted','OuterSource','HistoryExtra','HistoryMissing')][string]$InvalidType='None') {
     $prior='1'*32;$head='2'*40;$tree='3'*40
     $b=Join-Path $Root 'build';$d=Join-Path $Root 'desktop';$r=Join-Path $Root 'history'
     $donor=Join-Path $d ('inputs-'+$prior)
@@ -141,8 +280,13 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
     $historyEvidence.handoff=Write-ProofTestJson (Join-Path $r 'handoff.json') @{runId=$prior;stages=$stages.ToArray()}
     $historyEvidence.refused=Write-ProofTestJson (Join-Path $r 'refused.json') @{
         run_id=$prior;passed=$false;input_manifest_sha256=$manifestPin.sha256;source_manifest_sha256=$historyEvidence.dSource.sha256;readiness=@{Ready=$false}}
-    $historyPin=Write-ProofTestJson (Join-Path $r 'history.json') @{
-        priorId=$prior;applicationHead=$head;applicationTree=$tree;priorSourceGate=$gate;files=@();evidence=$historyEvidence}
+    $history=[ordered]@{schema='windows-desktop-restage-source-v1';status='synthetic-history';root=$r;
+        planReference=$gate;planGateReference=$grant;planBoardSha256=('0'*64);priorId=$prior;
+        applicationHead=$head;applicationTree=$tree;priorSourceGate=$gate;files=@();evidence=$historyEvidence;
+        pureCaseNames=@('synthetic-history');limits=@{stageSeconds=300};externalClosureRule='Synthetic evidence only; never executed.'}
+    if($InvalidType -ceq 'HistoryExtra'){$history.unexpected=$true}
+    if($InvalidType -ceq 'HistoryMissing'){$history.Remove('status')}
+    $historyPin=Write-ProofTestJson (Join-Path $r 'history.json') $history
     $sourceRows=@(foreach($name in @('Desktop.cs','Policy.cs','Policy.Tests.cs','Readiness.cs','RuntimeBinding.ps1','RuntimeBinding.Tests.ps1',
         'ProcessImage.ps1','ProcessImage.Tests.ps1','prepare.ps1','validate-helper.ps1','run.ps1','launch.ps1','test-pure.ps1',
         'Configuration.ps1','Configuration.Tests.ps1','restage\RestagePolicy.ps1','restage\restage.ps1','restage\test-pure.ps1',
@@ -170,7 +314,7 @@ function Invoke-ReportingWriterTests([string]$Root) {
             foreach($failureAt in @('verify','inventory','completion')){
                 $prefix=Join-Path $Root ($writer+'-orchestration-'+$external+'-'+$failureAt)
                 $testTime=@{now=10.0}
-                $terminalWindow=@{start=10.0;deadline=15.0;previous=10.0;attempted=$false}
+                $terminalWindow=@{terminalPrevious=0.0;start=10.0;deadline=15.0;previous=10.0;attempted=$false}
                 $observations=@{pid=1;startTicks=1L;image='synthetic';exitCode=0;exitConfirmed=$true;outputConfirmed=$true;timedOut=$false;
                     killAttempts=0;environmentCleared=$true;stdinClosed=$true;drainingBeforeImageObservation=$true;failure=$null}
                 Assert-ProofTestThrows {
@@ -195,7 +339,7 @@ function Invoke-ReportingWriterTests([string]$Root) {
                         @{}
                     } -WriteReceipt {
                         param($Bytes)
-                        $window=@{start=[double]$testTime.now;deadline=([double]$testTime.now+5);previous=[double]$testTime.now;attempted=$false}
+                        $window=@{terminalPrevious=$terminalWindow.previous;start=[double]$testTime.now;deadline=([double]$testTime.now+5);previous=[double]$testTime.now;attempted=$false}
                         & $writer -Path ($prefix+'-receipt.json') -Bytes $Bytes -Window $window -ReadClock {$testTime.now} -Phase Final -ExternalSeconds $external
                     }
                 }
@@ -210,21 +354,21 @@ function Invoke-ReportingWriterTests([string]$Root) {
             foreach($phase in @('Terminal','Final')) {
                 $path=Join-Path $Root ($writer+'-'+$elapsed+'-'+$phase+'.json')
                 $bytes=ConvertTo-RPublicationBytes @{passed=$false;failure='optional completion expired';exitCode=$null;timedOut=$true}
-                $window=@{start=[double]$elapsed;deadline=([double]$elapsed+5);previous=[double]$elapsed;attempted=$false}
+                $window=@{terminalPrevious=0.0;start=[double]$elapsed;deadline=([double]$elapsed+5);previous=[double]$elapsed;attempted=$false}
                 $operations=[Collections.Generic.List[string]]::new()
                 $ack=& $writer -Path $path -Bytes $bytes -Window $window -ReadClock {$elapsed} -Phase $phase -ExternalSeconds ($elapsed-5) -CheckOperation {param($step) $operations.Add($step);$true}
                 Assert-Proof ($ack -is [bool] -and $ack) 'Writer must acknowledge exactly Boolean true.'
                 Assert-Proof (([Convert]::ToHexString([IO.File]::ReadAllBytes($path))) -ceq [Convert]::ToHexString($bytes)) 'Writer changed exact bytes.'
                 Assert-Proof (($operations -join ',') -ceq 'admission,write,flush,close,hash,acknowledgement') 'Durability/verification order.'
                 Assert-ProofTestThrows { & $writer -Path $path -Bytes $bytes -Window $window -ReadClock {$elapsed} -Phase $phase -ExternalSeconds ($elapsed-5) }
-                $fresh=@{start=[double]$elapsed;deadline=([double]$elapsed+5);previous=[double]$elapsed;attempted=$false}
+                $fresh=@{terminalPrevious=0.0;start=[double]$elapsed;deadline=([double]$elapsed+5);previous=[double]$elapsed;attempted=$false}
                 Assert-ProofTestThrows { & $writer -Path $path -Bytes $bytes -Window $fresh -ReadClock {$elapsed} -Phase $phase -ExternalSeconds ($elapsed-5) }
                 $cases++
             }
         }
         foreach($failure in @('write','flush','hash','acknowledgement')) {
             $path=Join-Path $Root ($writer+'-'+$failure+'.json')
-            $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+            $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
             Assert-ProofTestThrows {
                 & $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100 -CheckOperation {param($step) $step -cne $failure}
             }
@@ -233,7 +377,7 @@ function Invoke-ReportingWriterTests([string]$Root) {
         }
         foreach($kind in @('missing','string','extra')){
             $path=Join-Path $Root ($writer+'-ack-'+$kind+'.json')
-            $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+            $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
             Assert-ProofTestThrows {
                 & $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100 -CheckOperation {
                     param($step)
@@ -245,7 +389,7 @@ function Invoke-ReportingWriterTests([string]$Root) {
             Assert-Proof ([IO.File]::ReadAllText($path) -ceq '{}') 'Failed acknowledgement discarded written evidence.';$cases++
         }
         $path=Join-Path $Root ($writer+'-real-hash-mismatch.json')
-        $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+        $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
         Assert-ProofTestThrows {
             & $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100 -CheckOperation {
                 param($step)
@@ -254,14 +398,14 @@ function Invoke-ReportingWriterTests([string]$Root) {
             }
         };$cases++
         $path=Join-Path $Root ($writer+'-maximum.json')
-        $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+        $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
         $ack=& $writer -Path $path -Bytes ([byte[]]::new(1048576)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100
         Assert-Proof ($ack -is [bool] -and $ack -and ([IO.FileInfo]$path).Length -eq 1048576) 'Inclusive reporting byte cap.';$cases++
         $path=Join-Path $Root ($writer+'-deadline.json')
-        $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+        $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
         Assert-ProofTestThrows { & $writer -Path $path -Bytes ([byte[]]@(123,125)) -Window $window -ReadClock {110} -Phase Final -ExternalSeconds 100 }
         $cases++
-        $window=@{start=105.0;deadline=110.0;previous=105.0;attempted=$false}
+        $window=@{terminalPrevious=0.0;start=105.0;deadline=110.0;previous=105.0;attempted=$false}
         Assert-ProofTestThrows { & $writer -Path $path -Bytes ([byte[]]::new(1048577)) -Window $window -ReadClock {105} -Phase Final -ExternalSeconds 100 }
         $cases++
     }
@@ -306,6 +450,17 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     $readOnly=& (Join-Path $relocated 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -ReadOnlyPrerequisites | ConvertFrom-Json -AsHashtable
     Assert-Proof ($readOnly.passed -and !$readOnly.copiesPerformed) 'Relocated production prerequisites.';$cases++
     $null=Confirm-ProofChildResult $config $pin.sha256 'ReadOnlyPrerequisites' '' $readOnly {};$cases++
+    $stringProjection=$readOnly.Clone()
+    foreach($key in @('startedUtc','completedUtc')){$stringProjection[$key]=([DateTime]$readOnly[$key]).ToString('o')}
+    $null=Confirm-ProofChildResult $config $pin.sha256 'ReadOnlyPrerequisites' '' $stringProjection {};$cases++
+    $dateProjection=$readOnly.Clone()
+    foreach($key in @('startedUtc','completedUtc')){$dateProjection[$key]=[DateTime]$readOnly[$key]}
+    $null=Confirm-ProofChildResult $config $pin.sha256 'ReadOnlyPrerequisites' '' $dateProjection {};$cases++
+    foreach($value in @($null,1,$true,'not a timestamp')){
+        $badTiming=$readOnly.Clone();$badTiming.startedUtc=$value
+        Assert-ProofTestThrows {Confirm-ProofChildResult $config $pin.sha256 'ReadOnlyPrerequisites' '' $badTiming {}}
+        $cases++
+    }
     $newId='8'*32
     New-ProofRestageClaim $config $pin.sha256 $newId
     $report=& (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -NewGuiId $newId | ConvertFrom-Json -AsHashtable
@@ -332,7 +487,7 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     $failed=Read-ProofJsonFile (Join-Path $config.evidenceRoot ('restage-'+$failedId+'.result.json'))
     Assert-Proof (!$failed.passed -and !$failed.copiesPerformed -and $failed.failure -and
         ![IO.Path]::Exists((Join-Path $config.outputRoot ('inputs-'+$failedId)))) 'Production failure output/admission preservation.';$cases++
-    foreach($invalidType in @('PurePassed','CompilePassed','BindingAccepted','OuterSource')){
+    foreach($invalidType in @('PurePassed','CompilePassed','BindingAccepted','OuterSource','HistoryExtra','HistoryMissing')){
         $badFixture=New-ProofRestageFixture (Join-Path $Root ('bad-history-'+$invalidType)) $invalidType
         Assert-ProofTestThrows {
             & (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $badFixture.pin.path -ConfigurationSha256 $badFixture.pin.sha256 `

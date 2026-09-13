@@ -32,9 +32,10 @@ if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw
 . (Join-Path $PSScriptRoot 'Configuration.ps1')
 . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
 $writerCases=Invoke-ReportingWriterTests $root
+$laterProductionCases=Invoke-LaterProductionTests $root
 $configurationCases=Invoke-ConfigurationIntegrationTests $root
 $restage=& (Join-Path $PSScriptRoot 'restage\test-pure.ps1') | ConvertFrom-Json
-if(!$restage.passed -or $restage.executed -ne 286 -or $restage.failed -ne 0 -or $restage.skipped -ne 0){throw 'Restage inventory incomplete.'}
+if(!$restage.passed -or $restage.executed -ne 322 -or $restage.failed -ne 0 -or $restage.skipped -ne 0){throw 'Restage inventory incomplete.'}
 . (Join-Path $PSScriptRoot '..\WindowsDesktopProof\PinnedLoader.Tests.ps1')
 $loaderCases=Invoke-PinnedLoaderTests $root
 [pscustomobject]@{
@@ -43,6 +44,7 @@ $loaderCases=Invoke-PinnedLoaderTests $root
     runtimeBindingCases = $bindingCases
     windowsLexicalCases = $lexicalCases
     reportingWriterCases = $writerCases
+    laterProductionCases = $laterProductionCases
     configurationIntegrationCases = $configurationCases
     restageCases = $restage.executed
     loaderCases = $loaderCases

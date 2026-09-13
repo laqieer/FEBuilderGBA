@@ -51,8 +51,14 @@ function Invoke-PinnedLoaderTests([string]$Root) {
         Reject {Invoke-PinnedProof @bad};$cases++
     }
     [IO.File]::WriteAllText($bindingPath,$json,[Text.UTF8Encoding]::new($false))
-    $result=Invoke-PinnedProof @spec | ConvertFrom-Json
-    if(!$result.passed -or $result.executed -ne 286 -or $result.nativeCalls){throw 'Fixed pure fixture invocation failed.'}
+    $result=& {
+        function Invoke-ProofShortAliasTrap { throw 'Short r alias must not execute.' }
+        Set-Alias -Name r -Value Invoke-ProofShortAliasTrap -Scope Local -Force
+        if((Get-Alias -Name r -ErrorAction Stop).Definition -cne 'Invoke-ProofShortAliasTrap'){throw 'Alias trap not established.'}
+        Invoke-PinnedProof @spec | ConvertFrom-Json
+    }
+    $cases++
+    if(!$result.passed -or $result.executed -ne 322 -or $result.nativeCalls){throw 'Fixed pure fixture invocation failed.'}
     $cases++
     return $cases
 }

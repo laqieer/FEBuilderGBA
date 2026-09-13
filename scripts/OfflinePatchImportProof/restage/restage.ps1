@@ -24,11 +24,12 @@ $compatibility=$PSCmdlet.ParameterSetName -ceq 'Compatibility'
 if(!$compatibility){Assert-RIds $PriorId $NewGuiId}
 $owned=$false;$claimHandle=$null;$resultPath=$null
 $report=[ordered]@{schema='windows-desktop-restage-result-v1';stage=$(if($compatibility){'ReadOnlyPrerequisites'}else{'Restage'});
+    startedUtc=[DateTime]::UtcNow.ToString('o');completedUtc=$null
     passed=$false;reusedPreparationId=$PriorId;freshGuiRunId=$NewGuiId;configurationSha256=$ConfigurationSha256
     sourceManifestSha256=$config.sourceManifest.sha256;sourceGateReference=$config.approval.sourceGateReference
     authorizationReference=$config.approval.authorizationReference;authorizationSha256=$config.approval.authorizationSha256
     copiesOnly=(!$compatibility);copiesPerformed=$false;guiPassed=$false;nativeReadinessClaimed=$false;freshBuildClaimed=$false;failure=$null}
-$freeze=Read-ProofPinnedJson $config.restage.history
+$freeze=Read-ProofHistory $config.restage.history
 Assert-R ($freeze -is [Collections.IDictionary] -and $freeze.priorId -ceq $PriorId -and $freeze.applicationHead -ceq $config.applicationSource) 'Historical source configuration.'
 Assert-REqual $freeze.evidence.inputManifest $config.restage.manifest 'historical donor manifest'
 Assert-REqual $freeze.evidence.metadata $config.restage.metadata 'historical tool metadata'
@@ -328,10 +329,11 @@ try {
     $state.failed=$true;$report.passed=$false;$report.failure=([string]$_.Exception.Message).Substring(0,[Math]::Min(2048,([string]$_.Exception.Message).Length))
 } finally {
     if($claimHandle){$claimHandle.Dispose()}
+    $report.completedUtc=[DateTime]::UtcNow.ToString('o')
     $report.elapsedSeconds=$clock.Elapsed.TotalSeconds
     if($owned){
         $start=$clock.Elapsed.TotalSeconds
-        $window=@{start=$start;deadline=(Get-RTerminalRetentionDeadline $start);previous=$start;attempted=$false}
+        $window=@{terminalPrevious=$report.elapsedSeconds;start=$start;deadline=(Get-RReceiptRetentionDeadline $report.elapsedSeconds $start);previous=$start;attempted=$false}
         $null=Write-RReportingFile -Path $resultPath -Bytes (ConvertTo-RPublicationBytes $report) -Window $window -ReadClock {$clock.Elapsed.TotalSeconds} -Phase Final -ExternalSeconds 310
     }
 }

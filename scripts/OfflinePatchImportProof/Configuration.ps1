@@ -184,6 +184,54 @@ function Read-ProofConfiguration {
     Assert-Proof ($Purpose -cne 'Restage' -or $null -ne $value.restage) 'Restage configuration required.'
     return ,$value
 }
+function Read-ProofHistory($Pin) {
+    $history=Read-ProofPinnedJson $Pin
+    Assert-ProofKeys $history @('schema','status','root','planReference','planGateReference','planBoardSha256','priorId',
+        'applicationHead','applicationTree','priorSourceGate','files','evidence','pureCaseNames','limits','externalClosureRule')
+    Assert-Proof ($history.schema -ceq 'windows-desktop-restage-source-v1') 'Historical manifest schema.'
+    foreach($key in @('status','root','planReference','planGateReference','priorSourceGate','externalClosureRule')){
+        Assert-Proof ($history[$key] -is [string] -and ![string]::IsNullOrWhiteSpace($history[$key]) -and
+            $history[$key].Length -le 4096) 'Historical manifest text/type bound.'
+    }
+    Assert-Proof ($history.planBoardSha256 -is [string] -and $history.planBoardSha256 -cmatch '^[0-9a-f]{64}$' -and
+        $history.priorId -is [string] -and $history.priorId -cmatch '^[0-9a-f]{32}$') 'Historical manifest identity.'
+    foreach($key in @('applicationHead','applicationTree')){
+        Assert-Proof ($history[$key] -is [string] -and $history[$key] -cmatch '^[0-9a-f]{40}$') 'Historical source identity.'
+    }
+    Assert-Proof ($history.files -is [array] -and $history.files.Count -le 10000 -and
+        $history.evidence -is [Collections.IDictionary] -and $history.evidence.Count -ge 1 -and $history.evidence.Count -le 64 -and
+        $history.limits -is [Collections.IDictionary] -and $history.limits.Count -ge 1 -and $history.limits.Count -le 64) 'Historical closure shape.'
+    foreach($row in $history.evidence.Values){Assert-ProofPin $row}
+    Assert-Proof ($history.pureCaseNames -is [array] -and $history.pureCaseNames.Count -ge 1 -and $history.pureCaseNames.Count -le 1000) 'Historical case inventory bound.'
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($name in $history.pureCaseNames){
+        Assert-Proof ($name -is [string] -and $name.Length -ge 1 -and $name.Length -le 256 -and $seen.Add($name)) 'Historical case inventory entry.'
+    }
+    return ,$history
+}
+function Assert-ProofTiming($Report) {
+    Assert-Proof (($Report.elapsedSeconds -is [double] -or $Report.elapsedSeconds -is [decimal] -or
+        $Report.elapsedSeconds -is [int] -or $Report.elapsedSeconds -is [long]) -and
+        [double]::IsFinite([double]$Report.elapsedSeconds) -and $Report.elapsedSeconds -ge 0) 'Report elapsed time shape.'
+    foreach($key in @('startedUtc','completedUtc')){
+        $value=$Report[$key]
+        if($value -is [DateTime]){continue}
+        $parsed=[DateTime]::MinValue
+        Assert-Proof ($value -is [string] -and $value.Length -le 64 -and
+            [DateTime]::TryParse($value,[Globalization.CultureInfo]::InvariantCulture,
+                [Globalization.DateTimeStyles]::RoundtripKind,[ref]$parsed)) 'Report timestamp projection shape.'
+    }
+}
+function Get-ProofRestageCaseNames([string]$Root=$PSScriptRoot) {
+    foreach($name in @('restage\test-pure.ps1','Configuration.Tests.ps1')){
+        $path=Join-Path $Root $name
+        Assert-ProofPath $path -Existing
+        Assert-Proof (([IO.FileInfo]$path).Length -le 1048576) 'Case-source byte bound.'
+        foreach($match in [regex]::Matches([IO.File]::ReadAllText($path),"(?m)^\s+@\{name='([^']+)';reject=")){
+            $match.Groups[1].Value
+        }
+    }
+}
 function Assert-ProofSource($Configuration,[string]$Root) {
     $manifest=Read-ProofPinnedJson $Configuration.sourceManifest
     Assert-ProofKeys $manifest @('files')

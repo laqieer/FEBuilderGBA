@@ -16,7 +16,7 @@ not depend on another GUI-readiness PR. Pure tests are **not GUI acceptance**.
 | `prepare.ps1`, `validate-helper.ps1` | Fixed Build/Validate/Inputs operations, pinned local tools, fixture tests and output-only compilation. The existing `scripts\SyntheticProofFixtures` project remains the only ROM fixture generator. |
 | `run.ps1`, `launch.ps1` | Ordinary GUI runner and retained-runner/application supervisor. No global input, focus manipulation, PID enumeration, recursive kill, screenshot fallback, or timeout promotion. |
 | `Configuration*`, `configuration.example.json` | Bounded data-only inputs, source closure, relocation/no-effect tests, and real staging/writer integration fixtures. |
-| `restage\*` | Strict historical preparation verification, exclusive claim, CreateNew copy, physical inventory, receipts, and the 286 archived pure cases. |
+| `restage\*` | Strict historical preparation verification, exclusive claim, CreateNew copy, physical inventory, receipts, and the 286 original plus 36 later policy regressions. |
 | `supervision\*` | One shared fixed-mode supervisor, separate restage adapter, raw bounded logs and production terminal/final writers. |
 
 `scripts\WindowsDesktopProof\PinnedLoader*` is the separate shared loader package,
@@ -42,6 +42,13 @@ inventory verifier. The fake ROM/ZIP/runtime filenames contain inert test data;
 they are never opened by an application, native helper, archive reader or runtime.
 Successful test data is removed; failed evidence is retained.
 
+The restager executes 322 named cases: the original 286 in their original order,
+followed by 26 receipt-retention and 10 external-deadline cases. The later cases
+and their helper live in `Configuration.Tests.ps1`, keeping the fixed pure
+entrypoint below the loader's unchanged 65,536-byte ceiling. Both the runner and
+supervisor require the complete combined inventory. Private execution results
+are historical evidence, not substitutes for running this public suite.
+
 Windows additionally compiles both original output-only shapes using existing
 PowerShell reference assemblies. It does not load or invoke the resulting desktop
 assembly. No full GUI-containing E2E suite is run.
@@ -52,6 +59,14 @@ expiry. Terminal evidence is written first. Final reporting has one separate
 interval of at most five seconds and 1 MiB on the same already-running clock.
 This is **not** additional process, EOF, cleanup or retry time. Failure remains
 failure even when a final receipt is successfully retained.
+The final interval must begin at or after the terminal writer's last admitted
+observation on that same clock. Nonfinite/backward observations are refused.
+The supervisor checks its external deadline before accepting completed exit/EOF
+observations, so a late natural exit remains a failure.
+
+Only the two deliberate depth-warning cases capture their warning stream.
+Unexpected warnings remain visible. Loader tests establish a local `r` alias
+trap and invoke the real fixed entrypoint without invoking that alias.
 
 ## Local configuration and provenance
 
@@ -88,9 +103,13 @@ Preparation retains the reviewed input/metadata protocols as pinned JSON:
   worktree-relative pinned `assets`. Required executable tools must have exactly
   one matching row. Commands, arguments and child environments stay fixed in code.
 * Restaging preserves the historical preparation protocol rather than accepting
-  an arbitrary directory: `history` pins the original closure with `priorId`,
-  `applicationHead`, `applicationTree`, `priorSourceGate`, relative `files`, and
-  an `evidence` pin map containing `preflight`, `bSource`, `dSource`, `handoff`,
+  an arbitrary directory. `history` is the closed 15-key
+  `windows-desktop-restage-source-v1` object: `schema`, `status`, `root`,
+  `planReference`, `planGateReference`, `planBoardSha256`, `priorId`,
+  `applicationHead`, `applicationTree`, `priorSourceGate`, relative `files`,
+  `evidence`, `pureCaseNames`, `limits`, and `externalClosureRule`. A partial
+  projection or an extra top-level field is refused. Its `evidence` pin map
+  contains `preflight`, `bSource`, `dSource`, `handoff`,
   `metadata`, `inputManifest`, `validate`, `build`, `inputs`, `outputs`,
   `projection`, and `refused`. Those historical pins bind three stage receipts,
   grant/outer links, unchanged HEAD/tree, 99 preflight rows/46 installed pins,
@@ -101,6 +120,12 @@ Preparation retains the reviewed input/metadata protocols as pinned JSON:
   never executed or rewritten. The exact original bytes are authenticated before
   consuming exactly one leading UTF-8 BOM at the XML-only boundary; DTDs and
   external resolvers are prohibited.
+
+Production results include `startedUtc`, `completedUtc` and `elapsedSeconds`.
+The supervisor accepts valid timestamp strings or the `DateTime` values produced
+by PowerShell's existing JSON decoder. It does not change the decoder or
+normalize authenticated input bytes. Calendar timestamps are descriptive;
+execution and reporting budgets use the existing monotonic clocks.
 
 Do not edit a frozen manifest or donor to make a refusal pass. Retain the failed
 evidence and obtain a new independently approved source/configuration/run binding.

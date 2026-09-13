@@ -16,7 +16,12 @@ function Write-RReportingFile {
     $check={
         param([string]$Operation)
         $now=[double](& $ReadClock)
-        Assert-RTerminalRetentionAdmission $Window.start $Window.deadline $Window.previous $now $Bytes.Length
+        if($Phase -ceq 'Final'){
+            Assert-R ($Window.Contains('terminalPrevious')) 'Final reporting requires the preceding total-clock observation.'
+            Assert-RReceiptRetentionAdmission $Window.terminalPrevious $Window.start $Window.deadline $Window.previous $now $Bytes.Length
+        }else{
+            Assert-RTerminalRetentionAdmission $Window.start $Window.deadline $Window.previous $now $Bytes.Length
+        }
         $Window.previous=$now
         $ack=& $CheckOperation $Operation
         Assert-R ($ack -is [bool] -and $ack) "Reporting operation unconfirmed: $Operation"
@@ -251,6 +256,20 @@ function ConvertTo-RPublicationBytes($Value) {
     $bytes=[Text.UTF8Encoding]::new($false,$true).GetBytes($json)
     Assert-R ($bytes.Length -le 1048576) 'Terminal publication byte bound.'
     return ,$bytes
+}
+function Get-RReceiptRetentionDeadline([double]$TerminalPrevious,[double]$ReceiptStartedSeconds) {
+    Assert-R ([double]::IsFinite($TerminalPrevious) -and $TerminalPrevious -ge 0 -and
+        [double]::IsFinite($ReceiptStartedSeconds) -and $ReceiptStartedSeconds -ge $TerminalPrevious) 'Receipt retention must follow terminal acknowledgment on the same total clock.'
+    return (Get-RTerminalRetentionDeadline $ReceiptStartedSeconds)
+}
+function Assert-RReceiptRetentionAdmission([double]$TerminalPrevious,[double]$Start,[double]$Deadline,[double]$Previous,[double]$Now,[long]$Bytes) {
+    $expected=Get-RReceiptRetentionDeadline $TerminalPrevious $Start
+    Assert-R ($Deadline -eq $expected) 'Receipt retention deadline changed.'
+    Assert-RTerminalRetentionAdmission $Start $Deadline $Previous $Now $Bytes
+}
+function Test-RExternalDeadlineExceeded([double]$Elapsed,[double]$External) {
+    Assert-R ([double]::IsFinite($Elapsed) -and $Elapsed -ge 0 -and $External -cin @(100,310)) 'Invalid external deadline observation.'
+    return ($Elapsed -ge $External)
 }
 function New-RTerminalRecord([Collections.IDictionary]$Bindings,[Collections.IDictionary]$Observations) {
     Assert-R ($null -ne $Bindings -and $null -ne $Observations) 'Explicit terminal bindings and observations required.'

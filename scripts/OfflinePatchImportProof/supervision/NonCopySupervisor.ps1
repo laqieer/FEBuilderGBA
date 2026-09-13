@@ -50,9 +50,8 @@ function Confirm-ProofChildResult($Config,[string]$ConfigurationSha256,[string]$
     & $Admission
     Assert-Proof ($Report.passed -is [bool] -and $Report.passed) 'Child result not passed.'
     if($Mode -ceq 'Pure'){
-        $source=[IO.File]::ReadAllText((Join-Path $PSScriptRoot '..\restage\test-pure.ps1'))
-        $names=@([regex]::Matches($source,"(?m)^\s+@\{name='([^']+)';reject=")|ForEach-Object {$_.Groups[1].Value})
-        Assert-Proof ($names.Count -eq 286 -and $Report.schema -ceq 'windows-desktop-restage-pure-v1' -and
+        $names=@(Get-ProofRestageCaseNames ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))))
+        Assert-Proof ($names.Count -eq 322 -and $Report.schema -ceq 'windows-desktop-restage-pure-v1' -and
             $Report.nativeCalls -is [bool] -and !$Report.nativeCalls -and $Report.appLaunched -is [bool] -and !$Report.appLaunched) 'Pure report contract.'
         Assert-RTestResult $Report $names
         return @()
@@ -67,6 +66,7 @@ function Confirm-ProofChildResult($Config,[string]$ConfigurationSha256,[string]$
     }
     Assert-Proof ($Report.schema -ceq 'windows-desktop-restage-result-v1' -and $Report.stage -ceq $Mode -and
         $Report.reusedPreparationId -ceq $Config.restage.priorId -and $null -eq $Report.failure) 'Child stage identity.'
+    Assert-ProofTiming $Report
     foreach($key in @('guiPassed','nativeReadinessClaimed','freshBuildClaimed')){
         Assert-Proof ($Report[$key] -is [bool] -and !$Report[$key]) 'Restage cannot promote native/GUI/build evidence.'
     }
@@ -208,7 +208,7 @@ function Invoke-ProofSupervision {
                     if($child.ExitCode -ne 0 -and !$observed.failure){$observed.failure='Nonzero child exit.'} }
             } catch { if(!$observed.failure){$observed.failure=[string]$_.Exception.Message} }
             $observed.outputConfirmed=$streams.Count -eq 2 -and $streams[0].eof -eq $true -and $streams[1].eof -eq $true -and !$streams[0].failed -and !$streams[1].failed
-            if($executionClock.Elapsed.TotalSeconds -ge $external) { $observed.timedOut=$true;if(!$observed.failure){$observed.failure='External exit/output deadline.'} }
+            if(Test-RExternalDeadlineExceeded $executionClock.Elapsed.TotalSeconds $external) { $observed.timedOut=$true;if(!$observed.failure){$observed.failure='External exit/output deadline.'} }
             if($observed.exitConfirmed -and $observed.outputConfirmed) {
                 if(!$observed.failure){$observed.timedOut=$false};break
             }
@@ -249,7 +249,7 @@ function Invoke-ProofSupervision {
     $writeReceipt={
         param([byte[]]$Bytes)
         $start=$totalClock.Elapsed.TotalSeconds
-        $finalWindow=@{start=$start;deadline=(Get-RTerminalRetentionDeadline $start);previous=$start;attempted=$false}
+        $finalWindow=@{terminalPrevious=$terminalWindow.previous;start=$start;deadline=(Get-RReceiptRetentionDeadline $terminalWindow.previous $start);previous=$start;attempted=$false}
         & $writer -Path (Join-Path $outer 'receipt.json') -Bytes $Bytes -Window $finalWindow -ReadClock {$totalClock.Elapsed.TotalSeconds} -Phase Final -ExternalSeconds $external
     }
     try {

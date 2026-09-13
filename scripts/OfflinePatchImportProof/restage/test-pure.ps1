@@ -631,13 +631,16 @@ $cases = @(
         Assert-RTerminalRetentionAdmission 3.8 $deadline 3.8 3.8 1
     }}
 )
+. (Join-Path $PSScriptRoot '..\Configuration.Tests.ps1')
+$cases+=@(Get-LaterRestageCases)
+Assert-R ($cases.Count -eq 322) 'Complete original and later case inventory required.'
 $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
 $done=[Collections.Generic.List[string]]::new()
 foreach($case in $cases) {
     if($clock.Elapsed.TotalSeconds -ge 90) { throw 'Pure-test deadline; never retry.' }
     if(!$seen.Add($case.name)) { throw 'Duplicate test name.' }
     $rejected=$false
-    try { & $case.run 3>$null } catch { $rejected=$true }
+    try { Invoke-ProofPureCase $case } catch { $rejected=$true }
     if($rejected -ne $case.reject) { throw "Pure case failed: $($case.name). Never retry." }
     $done.Add($case.name)
 }
