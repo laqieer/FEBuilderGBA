@@ -464,7 +464,7 @@ nodes or depth 32, without repair or an unlocked fallback. These are verificatio
 bounds, not changes to import/recovery quotas. External files/writers outside
 the admitted tree retain their existing legacy contract.
 
-For source-bound large-input proof, the existing Core test executable includes
+For the optional source-bound large-input experiment, the existing Core test executable includes
 `PatchDatabaseImportCoreTests.GenerateResponsivenessProofFixtures`.
 Set `FEBUILDER_RESPONSIVENESS_PROOF` to a fresh 32-hex GUID, then run that exact
 test with `dotnet vstest` against the built Core.Tests DLL. It writes only to
@@ -474,16 +474,31 @@ ROM, `large-fgrep.zip` (10,000 descriptors, expected Installed), and
 user-data descendants (20,001 including the owned marker). Keep the complete
 workspace and fixed lock together when copying into an owned app-private
 proof root. The helper does not install app test hooks or establish GUI
-responsiveness. Actual device/desktop proof must independently record loading,
-input responsiveness and final counts/recovery, with 600-second stages and
-a 30-minute owned session limit; do not reduce the fixture after a timeout.
+responsiveness. When claiming this experiment on a device or desktop,
+independently record loading, input responsiveness and final counts/recovery,
+with 600-second stages and a 30-minute owned session limit; do not reduce the
+fixture after a timeout. These experiment limits are not an ordinary desktop
+regression checklist, nor does one platform establish results for another.
 
 The large generator's header-only ROM is a metadata-scan fixture, not a valid
-ordinary text-initialization fixture. For actual GUI proof, use the existing
+ordinary text-initialization fixture. For this experiment's actual GUI proof, use the existing
 functional `SyntheticFe8URom` fixture and a separately screened data-only
 adapter that writes a new owned 16-MiB file, changing only its last four bytes
 to `AB CD EF 12`. Preserve its header and finite Huffman tree, record pristine
 and adapted hashes, and leave the ZIP and complete recovery inventory unchanged.
+
+For ordinary desktop regression validation, use a legal functional
+`SyntheticFe8URom` and an isolated application root. Launch without smoke,
+render or test hooks; observe the actual loading-window-to-main-window handoff,
+then use the real Patch Manager picker and confirmation to import a small valid
+ZIP and verify its row/status. Reject a small invalid ZIP, preserving the
+installed row/database and original ROM/ZIP hashes. Capture the affected editor,
+then close the main window normally with the editor open and verify both exit.
+One usable owned desktop environment covers this manual smoke; it does not
+replace native Windows/Linux/macOS contention tests or prove every picker and
+filesystem. Headless tests establish internal ownership/ROM/undo assertions,
+not rendered behavior; screenshots and file hashes alone do not prove exact
+in-memory ROM/undo/modified state or responsiveness under large inputs.
 
 The `android-patch-import-smoke` job in
 [`android-emulator-parity.yml`](../.github/workflows/android-emulator-parity.yml)

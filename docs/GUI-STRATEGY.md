@@ -77,8 +77,9 @@ another action. Translation discovers and applies under the same scoped lease.
 No unmanaged workspace is created to obtain read ownership.
 
 Headless event-gated tests demonstrate scheduling, ownership and stale-result
-handling, not real application responsiveness. The large-fixture generation
-and separate Android/desktop proof requirements are described in
+handling, not real application responsiveness or the actual desktop window
+handoff and shutdown. Ordinary desktop regression validation and the separate
+optional large-fixture experiment (with its original size/time limits) are described in
 [Android offline import](ANDROID.md#52-offline-patch-database-zip-import).
 
 When triaging an issue or scoping a PR:
