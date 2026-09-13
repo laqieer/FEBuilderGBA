@@ -88,7 +88,7 @@ Build and run only injected tests before independent source/security review:
 
 ```powershell
 dotnet build FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj -c Release -p:Platform=x86 --no-restore
-dotnet test FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj --no-build -c Release -p:Platform=x86 --filter FullyQualifiedName~DesktopReadinessTests
+dotnet test FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj --no-build -c Release -p:Platform=x86 --filter "FullyQualifiedName~DesktopReadinessTests|FullyQualifiedName~DesktopProbeCommandTests"
 ```
 
 Restore existing dependencies only if the build explicitly reports them missing.
@@ -96,6 +96,67 @@ The focused suite injects observations, process dispatch and capture surfaces;
 it invokes no actual readiness, window-capture or GUI APIs. It checks rejection,
 CLI preservation, resource ownership, native-return handling, failure propagation
 and removal of direct workflow GUI diagnostics.
+
+## Opt-in probe command
+
+The standalone `tools\DesktopReadinessProbe` console project references the built
+Release/x86 E2E DLL, not its project or native helper source. Build the E2E project
+first, then the command:
+
+```powershell
+dotnet build tools\DesktopReadinessProbe\DesktopReadinessProbe.csproj -c Release -p:Platform=x86 --no-restore
+```
+
+Restore only after an explicit missing-assets/dependency failure. The tool adds
+no packages and does not build E2E, discover tests, launch an application or
+capture a window. `DesktopProbeCommandTests` links only the pure dispatcher and
+injects its callback/writer; it checks rejection before invocation, exact call
+counts, result/exit mapping, bounded output and exception-detail suppression.
+
+The resulting `tools\DesktopReadinessProbe\bin\x86\Release\net10.0-windows\DesktopReadinessProbe.dll`
+requires an x86 .NET 10 host with `Microsoft.NETCore.App` and
+`Microsoft.WindowsDesktop.App`. It is not loadable into an x64 PowerShell process.
+There is no apphost executable. The following is only the child-command template
+for a separately approved, externally supervised native execution:
+
+```powershell
+& $ApprovedX86Dotnet $ReviewedHarnessDll --probe-own-desktop
+```
+
+Do not run that command without independent source review and a distinct bounded
+native grant. Pin the exact host, runtime, harness/E2E binaries and runtime
+metadata in that grant/session evidence, not in committed machine-specific
+configuration. Its external supervisor must retain the exact child process,
+bound output and elapsed time, classify startup/load failures and timeouts, and
+terminate/wait only that retained child if required. The probe itself has no
+intrinsic timeout.
+
+Only the exact sole argument `--probe-own-desktop` authorizes one call to the
+existing public `DesktopReadiness.Probe()`. Missing, unknown, duplicate or extra
+arguments never invoke it. The command does not retry. It emits one ASCII line
+of at most 128 bytes including a fixed LF:
+
+```text
+State=<token>;Reason=<token>
+```
+
+| Exit | State | Reason |
+| --- | --- | --- |
+| 0 | Ready | `ActiveInputDesktop` |
+| 2 | Blocked | A blocking readiness reason |
+| 3 | Unknown | An indeterminate readiness reason |
+| 4 | ExecutionError | `OptInRequired`, `InvalidArguments`, `InvalidProbeResult` or `ProbeFailed` |
+
+Undefined or inconsistent state/reason pairs are execution errors. Exception
+messages, arguments, paths and session details are never printed. An output
+failure returns 4 without retrying the probe and may leave an absent/incomplete line;
+host-startup diagnostics and incomplete output still require external supervision.
+
+A result describes only the invoking process's session and thread's desktop at
+that instant. It does **not** prove GUI admission for another process, subsequent
+readiness, application startup, capture or rendering.
+
+## Separate native verification
 
 Native verification is separate, after review: own-session observations in
 already-existing active/blocked environments, then bounded owned-window startup

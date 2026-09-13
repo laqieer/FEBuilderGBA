@@ -37,6 +37,11 @@
   </ItemGroup>
 
   <ItemGroup>
+    <!-- Share only the pure dispatcher; the executable references this project's built DLL. -->
+    <Compile Include="..\tools\DesktopReadinessProbe\ProbeCommand.cs" Link="Helpers\ProbeCommand.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Remove="FakeFEMapCreator\**\*.cs" />
     <ProjectReference Include="FakeFEMapCreator\FakeFEMapCreator.csproj"
                       ReferenceOutputAssembly="false" />
