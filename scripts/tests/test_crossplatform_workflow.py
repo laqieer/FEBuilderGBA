@@ -81,6 +81,27 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
         )
         self.assertRegex(self.jobs["publish"], r"(?m)^    needs: build$")
 
+    def test_linux_x11_pure_suite_runs_unconditionally_after_python_setup(self) -> None:
+        build_steps = named_steps(self.jobs["build"])
+        names = [name for name, _ in build_steps]
+        suite_name = "Run Linux X11 pure contract tests (issue #2160)"
+        self.assertEqual(1, names.count(suite_name))
+        self.assertLess(names.index("Setup Python 3.12"), names.index(suite_name))
+
+        command = "python -B -m unittest scripts.tests.test_linux_x11"
+        suite_step = dict(build_steps)[suite_name]
+        self.assertEqual(command, run_command(suite_step))
+        self.assertEqual(
+            1,
+            sum(run_command(step) == command for _, step in build_steps),
+        )
+        self.assertNotRegex(
+            suite_step,
+            r"(?m)^      (?:if|continue-on-error|working-directory|shell):",
+        )
+        self.assertNotRegex(self.jobs["build"], r"(?m)^    if:")
+        self.assertNotIn("linux_x11_native_smoke", self.jobs["build"])
+
     def test_every_build_test_and_publish_is_server_isolated(self) -> None:
         expected_steps: dict[str, dict[str, tuple[str, str]]] = {
             "build": {

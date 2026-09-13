@@ -58,6 +58,9 @@ jobs:
       with:
         python-version: '3.12'
 
+    - name: Run Linux X11 pure contract tests (issue #2160)
+      run: python -B -m unittest scripts.tests.test_linux_x11
+
     - name: Install playtest contract test runner
       run: python -m pip install --disable-pip-version-check --no-input pytest==8.3.5
 
