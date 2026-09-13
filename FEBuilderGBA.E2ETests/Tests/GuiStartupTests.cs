@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using FEBuilderGBA.E2ETests.Helpers;
 using Xunit;
@@ -49,6 +50,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
         // ------------------------------------------------------------------ Helpers
 
+        [MemberNotNull(nameof(_process), nameof(_cleanup))]
         private void LaunchApp()
         {
             _process = AppRunner.Launch(ExePath);
