@@ -57,6 +57,13 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertNotIn("$config.machine.", run)
         self.assertIn("Read-ProofInput", run)
 
+    def test_resource_admission_checks_discovered_config_rows(self):
+        text = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        start = text.index("function Resources {")
+        resources = text[start:text.index("\nfunction ", start + 1)]
+        self.assertTrue("if (!$config.Count)" in resources, "Resource admission must check discovered config rows")
+        self.assertTrue("$proofConfiguration.Count" not in resources, "Machine configuration is not resource evidence")
+
     def test_ordinary_feature_scenario_and_retained_custody(self):
         desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
         launch = (PACKAGE / "launch.ps1").read_text(encoding="utf-8")

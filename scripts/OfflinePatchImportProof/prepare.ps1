@@ -241,7 +241,7 @@ function Resources {
     }
     $config=@(Tree "$W\config" $true | Where-Object { $_.path -cne 'config.xml' -and $_.path -notmatch '^patch2(\\|$)' })
     $codes=@(Tree "$W\resources\fe-info\json" | Where-Object { $_.path -match '^[^\\]+\\code\.json$' })
-    if (!$proofConfiguration.Count) { throw 'Declared config projection absent; no old-binary fallback.' }
+    if (!$config.Count) { throw 'Declared config projection absent; no old-binary fallback.' }
     if (!@($codes | Where-Object { $_.path -ceq 'fe8\code.json' }).Count) { throw 'Declared FE8 disassembly map absent from this preparation projection: json\fe8\code.json. This optional app data is not an import prerequisite.' }
     return [pscustomobject]@{config=$config;codes=$codes}
 }
