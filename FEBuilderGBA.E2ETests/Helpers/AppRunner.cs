@@ -68,7 +68,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
-        /// Run the exe with the given arguments, capturing stdout + stderr.
+        /// Run a verified CLI-only command, capturing stdout + stderr.
+        /// GUI-capable commands must use RunGui, even when their output is redirected.
         /// Returns (exitCode, stdout, stderr).
         /// The process is killed after <paramref name="timeoutMs"/> ms.
         /// </summary>
@@ -77,10 +78,33 @@ namespace FEBuilderGBA.E2ETests.Helpers
             string args,
             int timeoutMs = 15_000,
             IReadOnlyDictionary<string, string?>? environment = null)
-        {
-            var sb_out = new StringBuilder();
-            var sb_err = new StringBuilder();
+            => Run(exePath, args, timeoutMs, environment, Execute);
 
+        /// <summary>
+        /// Run a GUI-capable command only on an affirmatively ready Windows desktop.
+        /// </summary>
+        public static (int ExitCode, string Stdout, string Stderr) RunGui(
+            string exePath,
+            string args,
+            int timeoutMs = 15_000,
+            IReadOnlyDictionary<string, string?>? environment = null)
+            => RunGui(exePath, args, timeoutMs, environment, DesktopReadiness.Probe, Execute);
+
+        internal static (int ExitCode, string Stdout, string Stderr) RunGui(
+            string exePath, string args, int timeoutMs,
+            IReadOnlyDictionary<string, string?>? environment,
+            Func<DesktopReadinessResult> probe,
+            Func<ProcessStartInfo, int, (int ExitCode, string Stdout, string Stderr)> execute)
+        {
+            DesktopReadiness.RequireReady(probe);
+            return Run(exePath, args, timeoutMs, environment, execute);
+        }
+
+        internal static (int ExitCode, string Stdout, string Stderr) Run(
+            string exePath, string args, int timeoutMs,
+            IReadOnlyDictionary<string, string?>? environment,
+            Func<ProcessStartInfo, int, (int ExitCode, string Stdout, string Stderr)> execute)
+        {
             var psi = new ProcessStartInfo(exePath, args)
             {
                 UseShellExecute        = false,
@@ -100,6 +124,14 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 }
             }
 
+            return execute(psi, timeoutMs);
+        }
+
+        private static (int ExitCode, string Stdout, string Stderr) Execute(
+            ProcessStartInfo psi, int timeoutMs)
+        {
+            var sb_out = new StringBuilder();
+            var sb_err = new StringBuilder();
             using var p = new Process { StartInfo = psi };
             p.OutputDataReceived += (_, e) => { if (e.Data != null) sb_out.AppendLine(e.Data); };
             p.ErrorDataReceived  += (_, e) => { if (e.Data != null) sb_err.AppendLine(e.Data); };
@@ -175,21 +207,49 @@ namespace FEBuilderGBA.E2ETests.Helpers
         /// <summary>
         /// Launch the exe and return the Process (still running).
         /// The caller is responsible for killing it.
-        /// UseShellExecute=true so WinForms apps get a proper window station / desktop context.
+        /// Shell execution does not establish desktop readiness; admission is checked first.
         /// </summary>
         public static Process Launch(string exePath, string args = "")
+            => Launch(exePath, args, DesktopReadiness.Probe, Start);
+
+        internal static Process Launch(string exePath, string args,
+            Func<DesktopReadinessResult> probe, Func<ProcessStartInfo, Process> start)
         {
+            DesktopReadiness.RequireReady(probe);
             var psi = new ProcessStartInfo(exePath)
             {
-                UseShellExecute  = true,   // WinForms requires shell execution context for windows
+                UseShellExecute  = true,
                 WorkingDirectory = Path.GetDirectoryName(exePath)!,
             };
             if (!string.IsNullOrEmpty(args))
                 psi.Arguments = args;
 
+            return start(psi);
+        }
+
+        private static Process Start(ProcessStartInfo psi)
+        {
             var p = new Process { StartInfo = psi, EnableRaisingEvents = true };
-            p.Start();
-            return p;
+            bool started = false;
+            try
+            {
+                if (!p.Start())
+                    throw new InvalidOperationException("GUI process did not start.");
+                started = true;
+                // Retain the original process handle, not just a reusable PID.
+                _ = p.SafeHandle;
+                return p;
+            }
+            catch
+            {
+                if (started)
+                {
+                    try { if (!p.HasExited) p.Kill(entireProcessTree: true); }
+                    catch { }
+                }
+                p.Dispose();
+                throw;
+            }
         }
     }
 }

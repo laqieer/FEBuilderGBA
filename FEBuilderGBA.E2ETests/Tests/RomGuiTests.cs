@@ -48,7 +48,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 30_000);
 
             if (hWnd != IntPtr.Zero)
-                ScreenshotHelper.CaptureWindow(hWnd, $"RomLoad_{romName}");
+                ScreenshotHelper.CaptureWindow(_process, hWnd, $"RomLoad_{romName}");
 
             Assert.NotEqual(IntPtr.Zero, hWnd);
         }

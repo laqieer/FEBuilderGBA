@@ -72,7 +72,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             string outputDir = Path.Combine(Path.GetTempPath(), "febuilder_winforms_images_" + Guid.NewGuid().ToString("N")[..8]);
             try
             {
-                var (exitCode, stdout, stderr) = AppRunner.Run(
+                var (exitCode, stdout, stderr) = AppRunner.RunGui(
                     WinFormsExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{outputDir}\"", timeoutMs: 60000);
                 _output.WriteLine($"Exit code: {exitCode}");
                 _output.WriteLine(stdout);
@@ -111,7 +111,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             try
             {
                 // Run both exports
-                var (winExit, winOut, winErr) = AppRunner.Run(
+                var (winExit, winOut, winErr) = AppRunner.RunGui(
                     WinFormsExe!, $"--rom \"{romPath}\" --export-editor-images --screenshot-dir=\"{winDir}\"", timeoutMs: 60000);
                 _output.WriteLine($"WinForms exit: {winExit}");
                 _output.WriteLine(winOut);

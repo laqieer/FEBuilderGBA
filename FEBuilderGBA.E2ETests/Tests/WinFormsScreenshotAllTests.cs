@@ -70,12 +70,9 @@ namespace FEBuilderGBA.E2ETests.Tests
 
             // Screenshot the main window
             int screenshotCount = 0;
-            string? mainScreenshot = ScreenshotHelper.CaptureWindow(hWnd, $"WinForms_{romName}_MainForm");
-            if (mainScreenshot != null)
-            {
-                screenshotCount++;
-                _output.WriteLine($"{romName}: Main form screenshot: {mainScreenshot}");
-            }
+            string mainScreenshot = ScreenshotHelper.CaptureWindow(_process, hWnd, $"WinForms_{romName}_MainForm");
+            screenshotCount++;
+            _output.WriteLine($"{romName}: Main form screenshot: {mainScreenshot}");
 
             // Poll for toolbar buttons
             var sw = Stopwatch.StartNew();
@@ -125,12 +122,9 @@ namespace FEBuilderGBA.E2ETests.Tests
                         btnText.Split(Path.GetInvalidFileNameChars()));
                     foreach (IntPtr nw in newWindows)
                     {
-                        string? path = ScreenshotHelper.CaptureWindow(nw, $"WinForms_{romName}_{safeText}");
-                        if (path != null)
-                        {
-                            screenshotCount++;
-                            _output.WriteLine($"{romName}: {safeText} screenshot: {path}");
-                        }
+                        string path = ScreenshotHelper.CaptureWindow(_process, nw, $"WinForms_{romName}_{safeText}");
+                        screenshotCount++;
+                        _output.WriteLine($"{romName}: {safeText} screenshot: {path}");
                         WinAutomation.CloseWindow(nw);
                     }
 
@@ -162,9 +156,8 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         /// <summary>
-        /// Verifies the main form window opens and a screenshot can be attempted.
-        /// The screenshot file size check is best-effort — on headless CI runners
-        /// PrintWindow/BitBlt may return empty images even though the window is valid.
+        /// Verifies the main form window opens and an owned-window screenshot is saved.
+        /// A blocked desktop or failed capture fails the test, rather than producing blank proof.
         /// </summary>
         [SkippableTheory]
         [MemberData(nameof(RomLocator.AllRoms), MemberType = typeof(RomLocator))]
@@ -176,33 +169,11 @@ namespace FEBuilderGBA.E2ETests.Tests
             IntPtr hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 60_000);
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
-            // Retry screenshot capture — PrintWindow can return empty on CI runners
-            // if the window hasn't fully rendered yet.
-            string? screenshot = null;
-            long fileSize = 0;
-            for (int attempt = 0; attempt < 5; attempt++)
-            {
-                Thread.Sleep(2_000);
-                screenshot = ScreenshotHelper.CaptureWindow(hWnd, $"WinForms_{romName}_MainForm_verify");
-                if (screenshot != null && File.Exists(screenshot))
-                {
-                    fileSize = new FileInfo(screenshot).Length;
-                    if (fileSize > 1024)
-                        break;
-                    _output.WriteLine($"{romName}: attempt {attempt + 1} screenshot too small ({fileSize} bytes), retrying...");
-                }
-            }
-
-            // The window must exist and be valid (already asserted via hWnd above).
-            // Screenshot capture is best-effort on CI — log but don't fail.
-            if (screenshot == null || fileSize <= 1024)
-            {
-                _output.WriteLine($"{romName}: WARNING — screenshot capture returned small/empty image " +
-                    $"({fileSize} bytes). This is expected on headless CI runners.");
-            }
-
-            Assert.NotNull(screenshot);
-            Assert.True(File.Exists(screenshot!), $"Screenshot file not found: {screenshot}");
+            Thread.Sleep(2_000);
+            string screenshot = ScreenshotHelper.CaptureWindow(
+                _process, hWnd, $"WinForms_{romName}_MainForm_verify");
+            Assert.True(File.Exists(screenshot), $"Screenshot file not found: {screenshot}");
+            Assert.True(new FileInfo(screenshot).Length > 0, "Screenshot file was empty.");
         }
     }
 }

@@ -63,10 +63,13 @@ namespace FEBuilderGBA.E2ETests.Helpers
         /// </summary>
         public static (int ExitCode, string Stdout, string Stderr) Run(
             string exePath, string args, int timeoutMs = 30_000)
-        {
-            var sb_out = new StringBuilder();
-            var sb_err = new StringBuilder();
+            => Run(exePath, args, timeoutMs, DesktopReadiness.Probe, Execute);
 
+        internal static (int ExitCode, string Stdout, string Stderr) Run(
+            string exePath, string args, int timeoutMs, Func<DesktopReadinessResult> probe,
+            Func<ProcessStartInfo, int, (int ExitCode, string Stdout, string Stderr)> execute)
+        {
+            DesktopReadiness.RequireReady(probe);
             var psi = new ProcessStartInfo(exePath, args)
             {
                 UseShellExecute        = false,
@@ -76,6 +79,14 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 WorkingDirectory       = Path.GetDirectoryName(exePath)!,
             };
 
+            return execute(psi, timeoutMs);
+        }
+
+        private static (int ExitCode, string Stdout, string Stderr) Execute(
+            ProcessStartInfo psi, int timeoutMs)
+        {
+            var sb_out = new StringBuilder();
+            var sb_err = new StringBuilder();
             using var p = new Process { StartInfo = psi };
             p.OutputDataReceived += (_, e) => { if (e.Data != null) sb_out.AppendLine(e.Data); };
             p.ErrorDataReceived  += (_, e) => { if (e.Data != null) sb_err.AppendLine(e.Data); };

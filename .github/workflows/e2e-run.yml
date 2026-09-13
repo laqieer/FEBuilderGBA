@@ -261,8 +261,9 @@ jobs:
       - name: Build Avalonia (for screenshot tests)
         run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -warnaserror
 
-      # ---------------------------------------------------------------- Diagnostic probe
-      - name: Diagnostic - probe app startup
+      # GUI startup and capture run only through the desktop-guarded E2E helpers.
+      # ---------------------------------------------------------------- CLI diagnostic
+      - name: Diagnostic - CLI version
         continue-on-error: true
         shell: pwsh
         run: |
@@ -289,51 +290,6 @@ jobs:
           if (Test-Path $verOut) {
             Write-Host "Stdout: $(Get-Content $verOut -Raw -ErrorAction SilentlyContinue)"
           }
-
-          Write-Host ""
-          Write-Host "=== GUI startup probe (10s) ==="
-          $p2 = Start-Process $exe -PassThru
-          for ($i = 0; $i -lt 10; $i++) {
-            Start-Sleep 1
-            $p2.Refresh()
-            if ($p2.HasExited) {
-              Write-Host "App exited at ${i}s with code $($p2.ExitCode)"
-              break
-            }
-            Write-Host "[${i}s] still running — MainWindowTitle='$($p2.MainWindowTitle)'"
-          }
-          if (-not $p2.HasExited) {
-            Write-Host "App running after 10s — killing"
-            try { $p2.Kill() } catch {}
-          }
-
-      # ---------------------------------------------------------------- Capture WinForms screenshots
-      - name: Capture WinForms screenshots
-        if: inputs.rom-name != 'none' && env.HAVE_ROMS == 'true'
-        continue-on-error: true
-        shell: pwsh
-        timeout-minutes: 10
-        run: |
-          $exe = "${{ github.workspace }}\FEBuilderGBA\bin\Release\FEBuilderGBA.exe"
-          $romPath = "${{ github.workspace }}\roms\${{ inputs.rom-name }}.gba"
-          $dir = "${{ github.workspace }}\e2e-screenshots"
-          if (-not (Test-Path $romPath)) {
-            Write-Host "ROM not found at $romPath — skipping WinForms screenshots"
-            exit 0
-          }
-          Write-Host "Capturing WinForms screenshots for ${{ inputs.rom-name }}..."
-          $out = "$env:TEMP\winforms-screenshot-stdout.txt"
-          $err = "$env:TEMP\winforms-screenshot-stderr.txt"
-          $p = Start-Process $exe `
-            -ArgumentList "--rom `"$romPath`" --screenshot-all --screenshot-dir=`"$dir`"" `
-            -NoNewWindow -Wait -PassThru `
-            -RedirectStandardOutput $out `
-            -RedirectStandardError $err
-          if (Test-Path $out) { Get-Content $out }
-          if (Test-Path $err) { Get-Content $err }
-          Write-Host "WinForms screenshot exit code: $($p.ExitCode)"
-          $pngs = (Get-ChildItem "$dir\WinForms_*.png" -ErrorAction SilentlyContinue).Count
-          Write-Host "WinForms screenshots captured: $pngs"
 
       # ---------------------------------------------------------------- Run E2E tests
       - name: Run E2E tests

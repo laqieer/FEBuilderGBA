@@ -54,7 +54,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             Skip.If(romPath == null, $"{romName} ROM not available");
 
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{romPath}\" --lint", timeoutMs: 120_000);
             SaveLog($"WinForms_lint_{romName}.log", code, stdout, stderr);
             // WinExe may produce no console output — just save the log
@@ -77,7 +77,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var upsOut = Path.ChangeExtension(tempRom, ".ups");
             _tempFiles.Add(upsOut);
 
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{tempRom}\" --makeups=\"{upsOut}\"", timeoutMs: 60_000);
             SaveLog($"WinForms_makeups_{romName}.log", code, stdout, stderr);
         }
@@ -91,7 +91,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(romPath == null, $"{romName} ROM not available");
 
             var outFile = TempFile(".asm");
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{romPath}\" --disasm=\"{outFile}\"", timeoutMs: 120_000);
             SaveLog($"WinForms_disasm_{romName}.log", code, stdout, stderr);
         }
@@ -105,7 +105,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Skip.If(romPath == null, $"{romName} ROM not available");
 
             var outFile = TempFile(".txt");
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{romPath}\" --translate --out=\"{outFile}\"", timeoutMs: 120_000);
             SaveLog($"WinForms_translate_{romName}.log", code, stdout, stderr);
         }
@@ -121,7 +121,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var targetRom = TempFile(".gba");
             File.Copy(romPath!, targetRom);
 
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{romPath}\" --pointercalc --target=\"{targetRom}\" --address=0x100",
                 timeoutMs: 120_000);
             SaveLog($"WinForms_pointercalc_{romName}.log", code, stdout, stderr);
@@ -138,7 +138,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             var destRom = TempFile(".gba");
             File.Copy(romPath!, destRom);
 
-            var (code, stdout, stderr) = AppRunner.Run(
+            var (code, stdout, stderr) = AppRunner.RunGui(
                 ExePath, $"--rom \"{destRom}\" --songexchange --fromrom=\"{romPath}\" --fromsong=0x1 --tosong=0x1",
                 timeoutMs: 120_000);
             SaveLog($"WinForms_songexchange_{romName}.log", code, stdout, stderr);

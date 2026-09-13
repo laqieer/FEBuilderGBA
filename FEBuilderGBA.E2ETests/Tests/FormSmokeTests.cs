@@ -126,7 +126,7 @@ namespace FEBuilderGBA.E2ETests.Tests
                         btnText.Split(Path.GetInvalidFileNameChars()));
                     foreach (IntPtr nw in newWindows)
                     {
-                        ScreenshotHelper.CaptureWindow(nw, $"Form_{romName}_{safeText}");
+                        ScreenshotHelper.CaptureWindow(_process, nw, $"Form_{romName}_{safeText}");
                         WinAutomation.CloseWindow(nw);
                     }
 

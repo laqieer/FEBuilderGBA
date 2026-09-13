@@ -9,8 +9,8 @@ namespace FEBuilderGBA.E2ETests.Tests
 {
     /// <summary>
     /// GUI E2E tests that launch the full application and verify the startup window
-    /// appears with the expected controls.  These tests require a display
-    /// (satisfied on Windows CI runners with their virtual desktop).
+    /// appears with the expected controls. These tests require an active input
+    /// desktop; a Windows CI runner alone does not establish readiness.
     ///
     /// The tests are isolated: each test launches a fresh process and kills it when done.
     ///
@@ -66,7 +66,7 @@ namespace FEBuilderGBA.E2ETests.Tests
 
             // Take a screenshot for the test report artifact
             if (hWnd != IntPtr.Zero)
-                ScreenshotHelper.CaptureWindow(hWnd, "StartupWindow_visible");
+                ScreenshotHelper.CaptureWindow(_process!, hWnd, "StartupWindow_visible");
 
             Assert.NotEqual(IntPtr.Zero, hWnd);
         }
@@ -142,7 +142,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             Assert.NotEqual(IntPtr.Zero, hWnd);
 
             // Take a screenshot before closing
-            ScreenshotHelper.CaptureWindow(hWnd, "StartupWindow_before_close");
+            ScreenshotHelper.CaptureWindow(_process!, hWnd, "StartupWindow_before_close");
 
             // Send WM_CLOSE to all top-level windows for the process
             // (some startup dialogs like Init Wizard may show multiple windows)
@@ -159,7 +159,7 @@ namespace FEBuilderGBA.E2ETests.Tests
                 // confirmation dialog in response to WM_CLOSE
                 wins = WinAutomation.GetProcessWindows(_process.Id);
                 foreach (var w in wins)
-                    ScreenshotHelper.CaptureWindow(w, "StartupWindow_close_stuck");
+                    ScreenshotHelper.CaptureWindow(_process, w, "StartupWindow_close_stuck");
 
                 // Force-terminate as a fallback: we've already verified WM_CLOSE
                 // was delivered and at least one window existed. Now confirm the
@@ -204,7 +204,7 @@ namespace FEBuilderGBA.E2ETests.Tests
                 hWnd = WinAutomation.WaitForAnyAppWindow(_process, timeoutMs: 25_000);
             }
 
-            ScreenshotHelper.CaptureWindow(hWnd, "FirstStartupWindow");
+            ScreenshotHelper.CaptureWindow(_process, hWnd, "FirstStartupWindow");
             Assert.NotEqual(IntPtr.Zero, hWnd);
         }
     }
