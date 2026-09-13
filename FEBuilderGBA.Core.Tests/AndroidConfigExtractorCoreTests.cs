@@ -18,6 +18,190 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     public class AndroidConfigExtractorCoreTests
     {
+        [Theory]
+        [InlineData("version")]
+        [InlineData("missing")]
+        [InlineData("incomplete")]
+        public void ProtectedPatchDatabaseSurvivesConfigRefresh(string cause)
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                var source = new TestDirAssetSource(src);
+                AndroidConfigExtractorCore.EnsureExtracted(source, target, "one", preservePatchDatabase: true);
+                WriteAsset(target, "config/patch2/FE8U/PATCH_owned.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/obsolete/old.txt", "OBSOLETE");
+                string version = "one";
+                if (cause == "version") version = "two";
+                if (cause == "missing") File.Delete(Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName));
+                if (cause == "incomplete") File.Delete(Path.Combine(target, "config", "data", "foo.txt"));
+
+                AndroidConfigExtractorCore.EnsureExtracted(source, target, version, preservePatchDatabase: true);
+
+                Assert.Equal("IMPORTED", File.ReadAllText(Path.Combine(target, "config", "patch2", "FE8U", "PATCH_owned.txt")));
+                Assert.Equal("BACKUP", File.ReadAllText(Path.Combine(target, ".patch2-import", "retained", "old", "keep.txt")));
+                Assert.False(Directory.Exists(Path.Combine(target, "config", "obsolete")));
+                Assert.Equal("FOO", File.ReadAllText(Path.Combine(target, "config", "data", "foo.txt")));
+            }
+            finally { Cleanup(src, target); }
+        }
+
+        [Theory]
+        [InlineData("config")]
+        [InlineData("config/patch2")]
+        [InlineData("config/patch2/FE8U/bundled.txt")]
+        [InlineData(".patch2-import/state.json")]
+        public void ProtectedRuntimeManifestOverlapFailsBeforeAnyMutation(string conflictingPath)
+        {
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "KEEP");
+                WriteAsset(target, "config/data/old.txt", "OLD");
+                var source = new InMemoryAssetSource(new()
+                {
+                    [conflictingPath] = Encoding.UTF8.GetBytes("forbidden"),
+                    ["config/data/new.txt"] = Encoding.UTF8.GetBytes("new"),
+                });
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+                Assert.Equal("KEEP", File.ReadAllText(Path.Combine(target, "config", "patch2", "FE8U", "keep.txt")));
+                Assert.Equal("OLD", File.ReadAllText(Path.Combine(target, "config", "data", "old.txt")));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [Theory]
+        [InlineData("config")]
+        [InlineData("config/patch2")]
+        public void ProtectedAncestorFileIsRefusedBeforeDeletingIt(string conflict)
+        {
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, conflict, "not a directory");
+                var source = new InMemoryAssetSource(new() { ["config/data/new.txt"] = Encoding.UTF8.GetBytes("new") });
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "one", preservePatchDatabase: true));
+                Assert.Equal("not a directory", File.ReadAllText(Path.Combine(target, conflict.Replace('/', Path.DirectorySeparatorChar))));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [Theory]
+        [InlineData("config/blocked")]
+        [InlineData("config/blocked/nested")]
+        public void UnsafeManifestDestinationAbortsBeforePruning(string blockedAncestor)
+        {
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/aaa-canary.txt", "UNCHANGED");
+                WriteAsset(target, blockedAncestor, "NOT A DIRECTORY");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "old stamp");
+                string[] beforeFiles = Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                byte[][] beforeContents = beforeFiles.Select(File.ReadAllBytes).ToArray();
+                string[] beforeDirectories = Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config/new.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                    [blockedAncestor + "/asset.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal(beforeFiles, Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                Assert.Equal(beforeDirectories, Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                for (int i = 0; i < beforeFiles.Length; i++)
+                    Assert.Equal(beforeContents[i], File.ReadAllBytes(beforeFiles[i]));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [Fact]
+        public void ReparseManifestAncestorAbortsBeforePruningOrFollowingTheLink()
+        {
+            string target = NewTempDir();
+            string outside = NewTempDir();
+            string link = Path.Combine(target, "config", "blocked");
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/aaa-canary.txt", "UNCHANGED");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "old stamp");
+                WriteAsset(outside, "asset.txt", "EXTERNAL OWNED CANARY");
+                var before = Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .ToDictionary(path => path, File.ReadAllBytes);
+                if (OperatingSystem.IsWindows())
+                {
+                    // A directory junction exercises the reparse guard without symlink privileges.
+                    var start = new System.Diagnostics.ProcessStartInfo(
+                        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "cmd.exe"))
+                    {
+                        UseShellExecute = false, CreateNoWindow = true,
+                        RedirectStandardOutput = true, RedirectStandardError = true,
+                    };
+                    foreach (string argument in new[] { "/d", "/c", "mklink", "/J", link, outside })
+                        start.ArgumentList.Add(argument);
+                    using var process = System.Diagnostics.Process.Start(start)!;
+                    if (!process.WaitForExit(10_000))
+                    {
+                        process.Kill(entireProcessTree: true);
+                        throw new TimeoutException("Owned test junction creation timed out.");
+                    }
+                    Assert.True(process.ExitCode == 0, process.StandardError.ReadToEnd());
+                }
+                else Directory.CreateSymbolicLink(link, outside);
+                string? linkTarget = new DirectoryInfo(link).LinkTarget;
+                Assert.NotNull(linkTarget);
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config/new.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                    ["config/blocked/asset.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal(linkTarget, new DirectoryInfo(link).LinkTarget);
+                Assert.True((File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0);
+                Assert.False(File.Exists(Path.Combine(target, "config", "new.txt")));
+                foreach (var file in before) Assert.Equal(file.Value, File.ReadAllBytes(file.Key));
+                Assert.Equal("EXTERNAL OWNED CANARY", File.ReadAllText(Path.Combine(outside, "asset.txt")));
+                Assert.Single(Directory.GetFiles(outside));
+            }
+            finally
+            {
+                if (Directory.Exists(link) && (File.GetAttributes(link) & FileAttributes.ReparsePoint) != 0)
+                    Directory.Delete(link);
+                Cleanup(target, outside);
+            }
+        }
+
+        [Fact]
+        public void DefaultExtractionDoesNotOptOtherHeadsIntoPreservation()
+        {
+            var (src, target) = MakeSampleConfig();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/old.txt", "legacy");
+                AndroidConfigExtractorCore.EnsureExtracted(new TestDirAssetSource(src), target, "one");
+                Assert.False(Directory.Exists(Path.Combine(target, "config", "patch2")));
+            }
+            finally { Cleanup(src, target); }
+        }
+
         /// <summary>Synthetic asset source backed by a real on-disk directory.</summary>
         sealed class TestDirAssetSource : AndroidConfigExtractorCore.IAssetSource
         {
@@ -44,13 +228,36 @@ namespace FEBuilderGBA.Core.Tests
         {
             readonly Dictionary<string, byte[]> _files;
             public InMemoryAssetSource(Dictionary<string, byte[]> files) { _files = files; }
+            public int OpenAssetCalls { get; private set; }
             public IEnumerable<string> EnumerateAssetFiles() => _files.Keys;
-            public Stream OpenAsset(string relativePath) => new MemoryStream(_files[relativePath], writable: false);
+            public Stream OpenAsset(string relativePath)
+            {
+                OpenAssetCalls++;
+                return new MemoryStream(_files[relativePath], writable: false);
+            }
+        }
+
+        [Fact]
+        public void FixtureDirectoriesAreProjectOwnedAndRemoved()
+        {
+            string root = NewTempDir();
+            try
+            {
+                string parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestResults"));
+                Assert.Equal(parent, Path.GetDirectoryName(root));
+                Assert.StartsWith("feb_extract_", Path.GetFileName(root));
+                Assert.True(Directory.Exists(root));
+                PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(root);
+            }
+            finally { Cleanup(root); }
+            Assert.False(Directory.Exists(root));
         }
 
         static string NewTempDir()
         {
-            string d = Path.Combine(Path.GetTempPath(), "feb_extract_" + Guid.NewGuid().ToString("N"));
+            string d = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "TestResults",
+                "feb_extract_" + Guid.NewGuid().ToString("N")));
+            PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(d);
             Directory.CreateDirectory(d);
             return d;
         }

@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
+using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Media;
@@ -175,8 +179,52 @@ namespace FEBuilderGBA.Avalonia
             AvaloniaXamlLoader.Load(this);
         }
 
+        internal sealed record PatchDatabaseRecoveryState(PatchDatabaseImportCore.Result? Result,
+            PatchDatabaseImportCore.RecoveryException? Exception);
+        static PatchDatabaseRecoveryState? patchDatabaseRecoveryState;
+        internal static PatchDatabaseRecoveryState? CapturePatchDatabaseRecoveryNotice()
+            => Volatile.Read(ref patchDatabaseRecoveryState);
+        internal static PatchDatabaseImportCore.Result? PatchDatabaseRecoveryResult => CapturePatchDatabaseRecoveryNotice()?.Result;
+        internal static PatchDatabaseImportCore.RecoveryException? PatchDatabaseRecoveryException => CapturePatchDatabaseRecoveryNotice()?.Exception;
+        internal static string PatchDatabaseRecoveryNotice
+        {
+            get
+            {
+                var state = CapturePatchDatabaseRecoveryNotice();
+                return state?.Exception != null ? PatchDatabaseImportService.FormatRecoveryException(state.Exception)
+                    : state?.Result != null ? PatchDatabaseImportService.FormatResult(state.Result) : "";
+            }
+        }
+
+        internal static void ClearPatchDatabaseRecoveryNotice()
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState, null);
+
+        internal static void ClearPatchDatabaseRecoveryNotice(PatchDatabaseRecoveryState? expected)
+            => Interlocked.CompareExchange(ref patchDatabaseRecoveryState, null, expected);
+
+        internal static void RecordPatchDatabaseRecovery(PatchDatabaseImportCore.Result result)
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState,
+                result.RecoveryRequired ? new PatchDatabaseRecoveryState(result, null) : null);
+
+        internal static void RecordPatchDatabaseRecovery(PatchDatabaseImportCore.RecoveryException exception)
+            => Interlocked.Exchange(ref patchDatabaseRecoveryState, new PatchDatabaseRecoveryState(null, exception));
+
+        readonly PatchDatabaseStartupService patchDatabaseStartup = new();
+        internal Task? StartupTask { get; private set; }
+        bool frameworkInitialized;
+        bool startupLocalizationInitialized;
+        const string StartupFailureTemplate = "Startup failed. The application could not finish starting.\r\n{0}";
+
+        internal static bool HasSynchronousStartupRoute =>
+            GapSweepMode != null || !string.IsNullOrEmpty(RenderMainViewPath) ||
+            (!string.IsNullOrEmpty(ScreenshotWindowName) && !string.IsNullOrEmpty(ScreenshotWindowOut)) ||
+            SmokeTestMode || SmokeTestAll || DataVerifyMode || DataVerifyFullMode || ScreenshotAllMode ||
+            ExportEditorImagesMode || ValidateImportMode || ValidatePaletteMode || ListParityMode;
+
         public override void OnFrameworkInitializationCompleted()
         {
+            if (frameworkInitialized) return;
+            frameworkInitialized = true;
             // Register code pages for Shift-JIS, etc.
             Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
 
@@ -188,6 +236,76 @@ namespace FEBuilderGBA.Avalonia
             CoreState.BaseDirectory = baseDir;
             CoreState.Services = new AvaloniaAppServices();
             CoreState.ImageService = new SkiaImageService();
+
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime route)
+                ParseArguments(route.Args, resolveLastRom: false);
+#if !BROWSER && !IOS
+            if (!HasSynchronousStartupRoute &&
+                (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime ||
+                 ApplicationLifetime is ISingleViewApplicationLifetime))
+            {
+                Exception? localizationFailure = null;
+                try { InitializeStartupLocalization(baseDir); }
+                catch (Exception ex) { localizationFailure = ex; }
+                var status = new TextBlock
+                {
+                    Text = localizationFailure == null ? R._("Recovering patch database…") : FormatStartupFailure(localizationFailure),
+                    Margin = new Thickness(24),
+                };
+                var root = new Border { Child = status };
+                if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime interactive)
+                {
+                    var loading = new Window { Title = "FEBuilderGBA", Width = 480, Height = 160, Content = root };
+                    bool closed = false;
+                    loading.Closed += (_, _) => closed = true;
+                    interactive.MainWindow = loading;
+                    StartupTask = localizationFailure != null ? Task.CompletedTask : patchDatabaseStartup.CompleteAsync(baseDir,
+                        () => !closed && ReferenceEquals(ApplicationLifetime, interactive) &&
+                              ReferenceEquals(interactive.MainWindow, loading),
+                        result =>
+                        {
+                            InitializeConsumers(baseDir, result);
+                            ParseArgs(interactive.Args);
+                            PatchDatabaseStartupService.Handoff(interactive, loading, () => new Views.MainWindow());
+                        },
+                        ex => status.Text = FormatStartupFailure(ex));
+                }
+                else if (ApplicationLifetime is ISingleViewApplicationLifetime single)
+                {
+                    single.MainView = root;
+                    StartupTask = localizationFailure != null ? Task.CompletedTask : patchDatabaseStartup.CompleteAsync(baseDir,
+                        () => ReferenceEquals(ApplicationLifetime, single) && ReferenceEquals(single.MainView, root),
+                        result =>
+                        {
+                            InitializeConsumers(baseDir, result);
+                            single.MainView = new Views.MainView();
+                        },
+                        ex => status.Text = FormatStartupFailure(ex));
+                }
+                base.OnFrameworkInitializationCompleted();
+                return;
+            }
+#endif
+            var recovery = PatchDatabaseImportCore.RecoverPending(baseDir);
+            InitializeConsumers(baseDir, recovery);
+            InitializeSynchronousShell();
+            base.OnFrameworkInitializationCompleted();
+        }
+
+        static string FormatStartupFailure(Exception exception)
+        {
+            try { return R._(StartupFailureTemplate, exception.Message); }
+            catch (FormatException)
+            {
+                return string.Format(CultureInfo.InvariantCulture, StartupFailureTemplate, exception.Message);
+            }
+        }
+
+        void InitializeConsumers(string baseDir, PatchDatabaseImportCore.Result recovery)
+        {
+            RecordPatchDatabaseRecovery(recovery);
+            if (!string.IsNullOrEmpty(PatchDatabaseRecoveryNotice))
+                Log.Error(PatchDatabaseRecoveryNotice);
 
             // Wire headless caches
             CoreState.CommentCache = new HeadlessEtcCache();
@@ -216,6 +334,15 @@ namespace FEBuilderGBA.Avalonia
             // CLI + tests via the Core helper.
             CoreState.WireHeadlessAppendBinaryData();
 
+            InitializeStartupLocalization(baseDir);
+
+            // Apply saved theme preference
+            ApplySavedTheme();
+        }
+
+        void InitializeStartupLocalization(string baseDir)
+        {
+            if (startupLocalizationInitialized) return;
             // Load config
             // #1124: baseDir is the exe dir on desktop and Context.FilesDir (app-private) on Android (#1123), so config.xml is already redirected to app-private storage on Android.
             // #1799: always create the Config (even when config.xml doesn't exist yet on a
@@ -232,10 +359,11 @@ namespace FEBuilderGBA.Avalonia
                 CoreState.Language = lang;
             }
             ViewModels.OptionsViewModel.ReloadTranslations();
+            startupLocalizationInitialized = true;
+        }
 
-            // Apply saved theme preference
-            ApplySavedTheme();
-
+        void InitializeSynchronousShell()
+        {
             // Parse command line arguments
             if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
             {
@@ -288,7 +416,6 @@ namespace FEBuilderGBA.Avalonia
                 singleView.MainView = new Views.MainView();
             }
 
-            base.OnFrameworkInitializationCompleted();
         }
 
         /// <summary>
@@ -632,6 +759,9 @@ namespace FEBuilderGBA.Avalonia
         }
 
         static void ParseArgs(string[]? args)
+            => ParseArguments(args, resolveLastRom: true);
+
+        internal static void ParseArguments(string[]? args, bool resolveLastRom)
         {
             if (args == null) return;
             for (int i = 0; i < args.Length; i++)
@@ -783,7 +913,7 @@ namespace FEBuilderGBA.Avalonia
                 else if (args[i] == "--lastrom")
                 {
                     // Load last ROM from config
-                    if (CoreState.Config != null)
+                    if (resolveLastRom && CoreState.Config != null)
                     {
                         string lastRom = CoreState.Config.at("Last_Rom_Filename", "");
                         if (!string.IsNullOrEmpty(lastRom) && File.Exists(lastRom))

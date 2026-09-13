@@ -10,6 +10,43 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class PatchMetadataCoreTests : IDisposable
     {
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void CancellationIsObservedAfterTheCurrentFileReadWithoutPartialPublication(bool strict)
+        {
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            int reads = 0;
+            string[] Read(string _)
+            {
+                reads++;
+                cancellation.Cancel();
+                return new[] { "NAME=Cancelled read", "PATCHED_IF:0x100=0xAA" };
+            }
+            string[] List(string _) => new[] { "PATCH_first.txt", "PATCH_second.txt" };
+            Assert.Throws<OperationCanceledException>(() =>
+            {
+                if (strict) PatchMetadataCore.TryEnumeratePatches("captured", new ROM(), "en",
+                    Read, List, out _, out _, cancellation.Token);
+                else PatchMetadataCore.EnumeratePatches("captured", new ROM(), "en", Read, List, cancellation.Token);
+            });
+            Assert.Equal(1, reads);
+        }
+
+        [Fact]
+        public void CancellableStrictAndLegacyReadsRetainTheirDifferentFailureSemantics()
+        {
+            using var cancellation = new System.Threading.CancellationTokenSource();
+            string[] Read(string _) => throw new IOException("owned unreadable descriptor");
+            string[] List(string _) => new[] { "PATCH_unreadable.txt" };
+            var tolerant = PatchMetadataCore.EnumeratePatches("captured", new ROM(), "en", Read, List, cancellation.Token);
+            Assert.Equal(PatchMetadataCore.PatchStatus.Unknown, Assert.Single(tolerant).Status);
+            Assert.False(PatchMetadataCore.TryEnumeratePatches("captured", new ROM(), "en", Read, List,
+                out var strict, out var error, cancellation.Token));
+            Assert.Empty(strict);
+            Assert.Contains("owned unreadable", error);
+        }
+
         readonly ROM? _savedRom;
         readonly string? _savedLang;
 

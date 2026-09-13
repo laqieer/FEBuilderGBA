@@ -20,6 +20,37 @@ namespace FEBuilderGBA.Avalonia.Tests;
 /// </summary>
 public class AndroidMultiTargetDesktopParityTests : IDisposable
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void EarlyRoutingDoesNotResolveLastRomAndReplayPreservesArgumentOrder(bool lastWins)
+    {
+        var config = CoreState.Config;
+        string? startup = App.StartupRomPath;
+        string root = Path.Combine(AppContext.BaseDirectory, "TestResults", "route-" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(root);
+        string last = Path.Combine(root, "owned-last.gba");
+        File.WriteAllText(last, "path lookup only, not a ROM");
+        try
+        {
+            CoreState.Config = new Config();
+            CoreState.Config["Last_Rom_Filename"] = last;
+            string[] args = lastWins ? new[] { "--rom=explicit.gba", "--lastrom" }
+                : new[] { "--lastrom", "--rom=explicit.gba" };
+            App.StartupRomPath = null;
+            App.ParseArguments(args, resolveLastRom: false);
+            Assert.Equal("explicit.gba", App.StartupRomPath);
+            typeof(App).GetMethod("ParseArgs", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new object[] { args });
+            Assert.Equal(lastWins ? last : "explicit.gba", App.StartupRomPath);
+        }
+        finally
+        {
+            App.StartupRomPath = startup;
+            CoreState.Config = config;
+            Directory.Delete(root, true);
+        }
+    }
+
     // Snapshot + restore the gap-sweep statics so ordering with other
     // suites (RunAllSweepTests etc.) can't leak state between tests.
     readonly string? _mode;

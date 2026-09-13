@@ -286,8 +286,8 @@ The `config/` directory (game data, scripts, names, translations) is **required
 at runtime**: `FEBuilderGBA.Core/PathUtil.cs:39` resolves `config/<subpath>`
 relative to `CoreState.BaseDirectory`, which `App.axaml.cs` sets to
 `AppDomain.CurrentDomain.BaseDirectory` on desktop. On desktop,
-`FEBuilderGBA.Avalonia.csproj` copies `config/**` (excluding `patch2`) as loose
-files beside the exe.
+`FEBuilderGBA.Avalonia.csproj` copies `config/**`, including the initialized
+patch library but excluding its Git metadata, as loose files beside the exe.
 
 **Inside an APK there is no "beside the exe" loose-file layout.** The Android
 head therefore ships + extracts config:
@@ -322,11 +322,10 @@ head therefore ships + extracts config:
 
 ### 5.1 patch2 / FE-Repo on-device delivery decision (#1641)
 
-**Decision: the binary-patch library (`config/patch2`) and the FE-Repo
-graphics/music resource submodules are DESKTOP-ONLY on Android for now —
-documented limitation, not on-device delivery.** This is a deliberate, honest
-scoping decision (acceptance of #1641's "document the limitation" path), not an
-oversight.
+**Git-based delivery remains desktop-only.** Android does not initialize or
+update patch2/FE-Repo through Git, and neither database is bundled in the APK.
+The separate offline patch-database ZIP fallback in §5.2 does not change that
+predicate or provide FE-Repo, HTTP delivery, or additional patch-execution support.
 
 **Why they are not delivered on Android:**
 
@@ -334,12 +333,9 @@ oversight.
   are runtime-installed git submodules that the app fetches on demand via the
   in-process `GitUtil`. Android has no in-process git, so the desktop delivery
   path simply does not exist on a device.
-- **APK packaging / submodule size.** `config/patch2` and FE-Repo are large
-  (the patch library is hundreds of MB; FE-Repo is a large graphics/music
-  corpus). Bundling either as an `AndroidAsset` inside the APK would bloat the
-  download enormously and is not how the desktop build delivers them either
-  (the desktop ships them out-of-band via git, see §2 of `docs/RELEASE.md` and
-  the `config/patch2/` empty placeholders).
+- **APK packaging / submodule size.** Neither library is included as an
+  Android asset. Desktop portable bundles can include patch2; the desktop Git
+  setup/update path remains separate from Android's offline import.
 - **Storage model differs.** The desktop relies on a "loose files beside the
   exe" layout; Android uses app-private `Context.FilesDir` + SAF (`content://`)
   storage with no equivalent loose-file tree (see §4 and §5 above). Even a
@@ -348,12 +344,10 @@ oversight.
 
 **What the user sees in-app today (the empty-state):**
 
-- **Patch Manager** — the patch list resolves empty on Android (no
-  `config/patch2/{version}/` on device). Instead of a silent blank list, the
-  manager now shows the canonical Android notice
-  (`AndroidResourceNoticeCore.PatchLibraryUnavailableMessage`): patch2 is not
-  available on Android yet, ships on desktop builds via git, and on-device
-  delivery is planned under #1070.
+- **Patch Manager** — an empty library prompts the user to choose **Import
+  Patch Database ZIP** for the loaded ROM. The notice still explains that
+  Android cannot initialize/update through Git and that the APK contains no
+  patch data.
 - **FE-Repo Resource Browser** — when the submodule is absent the browser
   already surfaces an actionable empty-state. On desktop that is the
   `git submodule update --init …` hint (#1380); on Android — where that command
@@ -388,6 +382,139 @@ known-gaps table in `docs/RELEASE.md` §7.
 > boot-smoke**: `MainActivity.OnCreate` runs the extraction and rethrows on
 > failure (fail-fast), so a bad extract surfaces as a boot crash the boot-smoke
 > test catches.
+
+### 5.2 Offline patch-database ZIP import
+
+In Avalonia, load a ROM, open **Patch Manager**, and choose **Import Patch
+Database ZIP**. Select a ZIP with exactly one direct version directory
+(`FE6`, `FE7J`, `FE7U`, `FE8J`, or `FE8U`) or one wrapper above it. The importer
+selects the loaded ROM's canonical version; it is not FE8U-only. Other safe
+version roots are not installed.
+
+The SAF document is opened as a read-only stream; no local path or seekable
+provider is required. Core owns bounded local spooling, archive/metadata
+validation and staging. Confirmation defaults to **No** and identifies the
+version, target, file/byte counts and whether an existing library will be
+replaced. Import never applies a patch or edits the ROM. EA and unknown patch
+types retain their existing unsupported/unknown behavior.
+
+The canonical destination is
+`<BaseDirectory>/config/patch2/<version>` (Android's canonical app-private
+`FilesDir`). Imported libraries survive relaunch and bundled-config version
+refresh. Desktop import requires a writable, non-Git-owned application tree:
+Git worktrees, repositories, submodules, unsafe ancestry and concurrent
+cooperating import/Git operations are refused. Run a portable desktop build
+outside a source checkout rather than modifying the checkout's database.
+Patch install, force-install and both uninstall paths also use the shared
+in-process content-operation gate. Clean-ROM selection keeps that gate until
+the uninstall dialog completes; Git/import cannot replace its descriptor
+mid-dialog. This does not coordinate unrelated external filesystem writers.
+
+Supported archives are single-disk stored/deflate ZIPs, including bounded ZIP64
+and checked streaming data descriptors. Limits include a 1-GiB input, 100,000
+archive records, 50,000 selected files, 100,000 distinct materialized paths,
+128 MiB per expanded file and 2 GiB selected expanded data. Names, collisions,
+entry types, compressed extents, actual bytes and CRC are checked. ZIP64 extra
+payloads must be consumed exactly, including when ordinary header fields do
+not need ZIP64 values. Metadata
+references must remain within the selected version and satisfy bounded
+text/reference-graph limits; ambiguous language/path interpretations, missing
+dependencies, cycles and unsafe operands are rejected. A ZIP is not an
+endorsement of its contents, and imported scripts/binaries are never executed
+by the importer.
+
+Preparation can be cancelled without replacing the old library. Promotion
+holds a base-wide lease and preserves the old directory until a durable commit
+record exists. Recovery/cleanup runs with ownership and inventory checks; an
+uncertain state is retained with an explicit warning, not deleted. Preserve
+any reported `.patch2-import/<operation-id>` workspace for diagnosis.
+Pending recovery notices survive reopening Patch Manager and are cleared only
+after successful recovery/cleanup. Avalonia localizes structured Core outcome
+templates; provider/filesystem error details remain diagnostic text. During
+Android config refresh, an unsafe destination ancestry (including a reparse
+point or file where a directory is required) aborts before pruning or extraction,
+leaving the prior stamp and imported library untouched.
+
+Interactive Android/desktop startup first displays an inert recovery screen.
+Recovery runs on a worker before the normal shell, caches or ROM consumers
+are initialized. Closing/replacing that screen suppresses late startup.
+Command/render/smoke startup keeps its existing synchronous route.
+
+Patch Manager loads, filters and refreshes metadata on a captured ROM-byte
+clone, including real file-backed FGREP and dependency checks. Each view has
+one running read and at most one replaceable pending request. Changing the
+ROM, filter or attachment discards stale results; cancellation never releases
+an in-use import/reader lease. A committed import stays imported even if its
+list refresh fails or is cancelled; reopen Patch Manager to retry.
+Managed libraries require the existing fixed read/write exclusive lease.
+Missing, inaccessible or read-only managed locks are reported, not repaired
+or bypassed. Legacy libraries remain readable without creating a workspace
+or changing permissions; a newly appearing managed state forces a locked reread.
+
+Install, forced install and both uninstall routes hold that lease through
+verification, any awaited clean-ROM picker, backups, ROM/undo and status work.
+The published identity hashes the whole admitted `config/patch2` tree's content,
+including shared files and other versions; a marker or unchanged timestamp is
+not sufficient. Full-tree verification runs on a worker. A replaced database
+requires refresh and reselection, and an action's own backup changes invalidate
+the old managed publication until its automatic refresh completes. Translation
+also holds scoped ownership from discovery through application and undo.
+Read verification refuses unsafe/unreadable entries or trees exceeding 200,010
+nodes or depth 32, without repair or an unlocked fallback. These are verification
+bounds, not changes to import/recovery quotas. External files/writers outside
+the admitted tree retain their existing legacy contract.
+
+For the optional source-bound large-input experiment, the existing Core test executable includes
+`PatchDatabaseImportCoreTests.GenerateResponsivenessProofFixtures`.
+Set `FEBUILDER_RESPONSIVENESS_PROOF` to a fresh 32-hex GUID, then run that exact
+test with `dotnet vstest` against the built Core.Tests DLL. It writes only to
+that DLL's `TestResults/responsiveness-proof-<GUID>`: a generated 16-MiB FE8U
+ROM, `large-fgrep.zip` (10,000 descriptors, expected Installed), and
+`recovery-base` containing a valid interrupted Prepared workspace with 20,000
+user-data descendants (20,001 including the owned marker). Keep the complete
+workspace and fixed lock together when copying into an owned app-private
+proof root. The helper does not install app test hooks or establish GUI
+responsiveness. When claiming this experiment on a device or desktop,
+independently record loading, input responsiveness and final counts/recovery,
+with 600-second stages and a 30-minute owned session limit; do not reduce the
+fixture after a timeout. These experiment limits are not an ordinary desktop
+regression checklist, nor does one platform establish results for another.
+
+The large generator's header-only ROM is a metadata-scan fixture, not a valid
+ordinary text-initialization fixture. For this experiment's actual GUI proof, use the existing
+functional `SyntheticFe8URom` fixture and a separately screened data-only
+adapter that writes a new owned 16-MiB file, changing only its last four bytes
+to `AB CD EF 12`. Preserve its header and finite Huffman tree, record pristine
+and adapted hashes, and leave the ZIP and complete recovery inventory unchanged.
+
+For ordinary desktop regression validation, use a legal functional
+`SyntheticFe8URom` and an isolated application root. Launch without smoke,
+render or test hooks; observe the actual loading-window-to-main-window handoff,
+then use the real Patch Manager picker and confirmation to import a small valid
+ZIP and verify its row/status. Reject a small invalid ZIP, preserving the
+installed row/database and original ROM/ZIP hashes. Capture the affected editor,
+then close the main window normally with the editor open and verify both exit.
+One usable owned desktop environment covers this manual smoke; it does not
+replace native Windows/Linux/macOS contention tests or prove every picker and
+filesystem. Headless tests establish internal ownership/ROM/undo assertions,
+not rendered behavior; screenshots and file hashes alone do not prove exact
+in-memory ROM/undo/modified state or responsiveness under large inputs.
+
+The `android-patch-import-smoke` job in
+[`android-emulator-parity.yml`](../.github/workflows/android-emulator-parity.yml)
+uses a fresh API-34 x86_64 AVD, ordinary Debug APKs and generated legal fixtures.
+Its self-generated ROM uses Core's version-specific pointer APIs and a minimal
+terminating Huffman tree; it contains no commercial ROM bytes. Before a local
+run, validate `SyntheticPatchImportFixtureTests` in both Debug and Release, then
+build `scripts/SyntheticProofFixtures/SyntheticProofFixtures.csproj` in Debug.
+The runner invokes that prebuilt generator (no implicit build/restore), verifies
+its receipt against the generated bytes, and retains source-ROM/ZIP invariance
+checks. Header-only ROMs are insufficient for Debug text initialization.
+It drives DocumentsUI/SAF, declines confirmation, imports, rejects a bad ZIP,
+relaunches, and installs a higher application version to exercise real config
+refresh. Its tablet-viewport screenshots and hash report require independent
+inspection; fake-adb tests and the separate boot/parity jobs are not import
+proof. Broader ROM-editing and phone-layout coverage remain preview work.
 
 ---
 
