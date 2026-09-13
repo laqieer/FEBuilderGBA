@@ -135,6 +135,8 @@ namespace FEBuilderGBA
         {
             token.ThrowIfCancellationRequested();
             string pattern = FileSystemName.TranslateWin32Expression("PATCH_*.txt");
+            bool ignoreCase = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
+                OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
             // Preserve Directory's SearchOption defaults, including access-error reporting.
             var options = new EnumerationOptions
             {
@@ -151,7 +153,7 @@ namespace FEBuilderGBA
                 visit?.Invoke(entry.Path);
                 token.ThrowIfCancellationRequested();
                 if (!entry.IsDirectory && FileSystemName.MatchesWin32Expression(pattern,
-                    Path.GetFileName(entry.Path), ignoreCase: OperatingSystem.IsWindows()))
+                    Path.GetFileName(entry.Path), ignoreCase))
                     yield return entry.Path;
             }
             token.ThrowIfCancellationRequested();
