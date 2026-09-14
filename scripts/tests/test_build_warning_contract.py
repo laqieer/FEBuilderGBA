@@ -8,6 +8,8 @@ import re
 import unittest
 from pathlib import Path
 
+from scripts.tests.test_crossplatform_workflow import all_job_blocks, named_steps
+
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOWS_DIR = ROOT / ".github" / "workflows"
@@ -649,6 +651,215 @@ jobs:
                     continue
             return candidate
         return None
+
+
+class WinFormsReleaseWorkflowContractTests(unittest.TestCase):
+    BUILD_NAME = "Build WinForms unit tests (Release/x86)"
+    TEST_NAME = "Run WinForms unit tests (Release/x86)"
+    BUILD_COMMAND = (
+        r"dotnet build FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj "
+        "-c Release -p:Platform=x86 --no-restore -warnaserror"
+    )
+    TEST_COMMAND = (
+        r"dotnet test FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj "
+        '-c Release -p:Platform=x86 --no-build --verbosity normal '
+        '--logger "trx;LogFileName=unit-release-x86.trx" '
+        "--blame-hang --blame-hang-timeout 20m"
+    )
+    BUILD_STEP = (
+        f"    - name: {BUILD_NAME}\n"
+        "      shell: pwsh\n"
+        "      timeout-minutes: 15\n"
+        f"      run: {BUILD_COMMAND}\n\n"
+    )
+    TEST_STEP = (
+        f"    - name: {TEST_NAME}\n"
+        "      shell: pwsh\n"
+        "      timeout-minutes: 30\n"
+        f"      run: {TEST_COMMAND}\n\n"
+    )
+    VALID_WORKFLOW = (
+        """name: Check
+on:
+  push:
+    branches: [ "master" ]
+  pull_request:
+    branches: [ "master" ]
+env:
+  BUILD_CONFIGURATION: Debug
+  BUILD_PLATFORM: x86
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+jobs:
+  build:
+    runs-on: windows-latest
+    timeout-minutes: 120
+    steps:
+    - name: Run Tests
+      shell: pwsh
+      timeout-minutes: 90
+      run: dotnet test Debug.Tests.csproj --no-build
+
+"""
+        + BUILD_STEP
+        + TEST_STEP
+        + """    - name: Publish Test Results
+      uses: dorny/test-reporter@v1
+"""
+    )
+
+    def assert_release_contract(self, workflow: str) -> None:
+        for key, expected in (
+            ("on", [
+                "  push:",
+                '    branches: [ "master" ]',
+                "  pull_request:",
+                '    branches: [ "master" ]',
+            ]),
+            ("permissions", [
+                "  contents: read",
+                "  pull-requests: write",
+                "  checks: write",
+            ]),
+        ):
+            match = re.search(
+                rf"(?ms)^{key}:[ \t]*\n(?P<body>.*?)(?=^[^\s#]|\Z)", workflow,
+            )
+            self.assertIsNotNone(match, key)
+            self.assertEqual(expected, [
+                line.rstrip()
+                for line in match.group("body").splitlines()
+                if line.strip() and not line.lstrip().startswith("#")
+            ], key)
+        for key, expected in (("BUILD_CONFIGURATION", "Debug"), ("BUILD_PLATFORM", "x86")):
+            self.assertEqual(
+                [expected],
+                re.findall(rf"(?m)^  {key}:\s*(\S+)\s*$", workflow),
+            )
+
+        build = all_job_blocks(workflow)["build"]
+        self.assertCountEqual(
+            ["runs-on", "timeout-minutes", "steps"],
+            re.findall(r"(?m)^    ([A-Za-z-]+):", build),
+        )
+        self.assertEqual(["windows-latest"], re.findall(r"(?m)^    runs-on:\s*(\S+)\s*$", build))
+        self.assertEqual(["120"], re.findall(r"(?m)^    timeout-minutes:\s*(\d+)\s*$", build))
+        steps = named_steps(build)
+        names = [name for name, _ in steps]
+        sequence = ["Run Tests", self.BUILD_NAME, self.TEST_NAME, "Publish Test Results"]
+        for name in sequence:
+            self.assertEqual(1, names.count(name), name)
+        start = names.index("Run Tests")
+        self.assertEqual(sequence, names[start:start + len(sequence)])
+        step_map = dict(steps)
+        self.assertEqual(
+            ["90"],
+            re.findall(r"(?m)^      timeout-minutes:\s*(\d+)\s*$", step_map["Run Tests"]),
+        )
+
+        runs = parse_workflow_runs(workflow, "check.yml")
+        for name, verb, timeout, expected_command in (
+            (self.BUILD_NAME, "build", "15", self.BUILD_COMMAND),
+            (self.TEST_NAME, "test", "30", self.TEST_COMMAND),
+        ):
+            step = step_map[name]
+            self.assertCountEqual(
+                ["shell", "timeout-minutes", "run"],
+                re.findall(r"(?m)^      ([A-Za-z-]+):", step),
+                name,
+            )
+            self.assertEqual(["pwsh"], re.findall(r"(?m)^      shell:\s*(\S+)\s*$", step))
+            self.assertEqual([timeout], re.findall(r"(?m)^      timeout-minutes:\s*(\d+)\s*$", step))
+            matching_runs = [run for run in runs if run.job == "build" and run.name == name]
+            self.assertEqual(1, len(matching_runs), name)
+            self.assertEqual([expected_command], logical_shell_commands(matching_runs[0].command))
+            invocations = dotnet_invocations(matching_runs[0])
+            self.assertEqual(1, len(invocations), name)
+            invocation = invocations[0]
+            self.assertEqual(verb, invocation.verb)
+            self.assertEqual("FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj", invocation.project)
+            self.assertEqual("Release", configuration(invocation.tokens))
+            self.assertEqual("x86", property_value(invocation.tokens, "Platform"))
+            if verb == "build":
+                self.assertTrue(has_cli_warn_as_error(invocation.tokens))
+            else:
+                self.assertFalse(is_compile_invocation(invocation))
+                self.assertEqual("trx;LogFileName=unit-release-x86.trx", option_value(invocation.tokens, "--logger"))
+                self.assertEqual("20m", option_value(invocation.tokens, "--blame-hang-timeout"))
+
+    def test_check_workflow_runs_full_release_winforms_unit_suite(self) -> None:
+        self.assert_release_contract((WORKFLOWS_DIR / "check.yml").read_text(encoding="utf-8"))
+
+    def test_valid_fixture_is_accepted(self) -> None:
+        self.assert_release_contract(self.VALID_WORKFLOW)
+
+    def test_missing_duplicate_or_reordered_release_steps_are_rejected(self) -> None:
+        mutations = {
+            "missing build": self.VALID_WORKFLOW.replace(self.BUILD_STEP, ""),
+            "missing test": self.VALID_WORKFLOW.replace(self.TEST_STEP, ""),
+            "duplicate build": self.VALID_WORKFLOW.replace(self.BUILD_STEP, self.BUILD_STEP * 2),
+            "duplicate test": self.VALID_WORKFLOW.replace(self.TEST_STEP, self.TEST_STEP * 2),
+            "test before build": self.VALID_WORKFLOW.replace(
+                self.BUILD_STEP + self.TEST_STEP, self.TEST_STEP + self.BUILD_STEP,
+            ),
+            "release after publisher": self.VALID_WORKFLOW.replace(
+                self.BUILD_STEP + self.TEST_STEP, "",
+            ) + self.BUILD_STEP + self.TEST_STEP,
+        }
+        for name, workflow in mutations.items():
+            with self.subTest(name=name), self.assertRaises(AssertionError):
+                self.assert_release_contract(workflow)
+
+    def test_wrong_commands_selectors_and_failure_masks_are_rejected(self) -> None:
+        for name, old, new in (
+            ("project", r"FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj", "Other.Tests.csproj"),
+            ("configuration", "-c Release", "-c Debug"),
+            ("platform", "-p:Platform=x86", "-p:Platform=x64"),
+            ("restore", " --no-restore", ""),
+            ("warning errors", " -warnaserror", ""),
+            ("no build", " --no-build --verbosity", " --verbosity"),
+            ("verbosity", "--verbosity normal", "--verbosity quiet"),
+            ("logger", "unit-release-x86.trx", "unit-debug.trx"),
+            ("logger quoting", '"trx;LogFileName=unit-release-x86.trx"', "trx;LogFileName=unit-release-x86.trx"),
+            ("hang detection", " --blame-hang ", " "),
+            ("hang bound", "--blame-hang-timeout 20m", "--blame-hang-timeout 0"),
+            ("filter", self.TEST_COMMAND, self.TEST_COMMAND + " --filter Category=Pure"),
+            ("list only", self.TEST_COMMAND, self.TEST_COMMAND + " --list-tests"),
+            ("response file", self.TEST_COMMAND, self.TEST_COMMAND + " @selection.rsp"),
+            ("masked exit", self.TEST_COMMAND, self.TEST_COMMAND + "; exit 0"),
+            ("ignored failure", self.TEST_COMMAND, self.TEST_COMMAND + " || true"),
+            ("extra command", f"run: {self.TEST_COMMAND}", f"run: |\n        {self.TEST_COMMAND}\n        Write-Output done"),
+            ("warning suppression", self.BUILD_COMMAND, self.BUILD_COMMAND + " -p:TreatWarningsAsErrors=false"),
+        ):
+            with self.subTest(name=name):
+                self.assertIn(old, self.VALID_WORKFLOW)
+                with self.assertRaises(AssertionError):
+                    self.assert_release_contract(self.VALID_WORKFLOW.replace(old, new))
+
+    def test_execution_policy_changes_are_rejected(self) -> None:
+        for name, old, new in (
+            ("trigger", "  pull_request:", "  pull_request_target:"),
+            ("extra trigger", "on:\n", "on:\n  workflow_dispatch:\n"),
+            ("permissions", "  contents: read", "  contents: write"),
+            ("runner", "    runs-on: windows-latest", "    runs-on: self-hosted"),
+            ("job condition", "    steps:", "    if: false\n    steps:"),
+            ("advisory job", "    steps:", "    continue-on-error: true\n    steps:"),
+            ("job budget", "    timeout-minutes: 120", "    timeout-minutes: 121"),
+            ("debug budget", "      timeout-minutes: 90", "      timeout-minutes: 91"),
+            ("debug configuration", "  BUILD_CONFIGURATION: Debug", "  BUILD_CONFIGURATION: Release"),
+            ("default platform", "  BUILD_PLATFORM: x86", "  BUILD_PLATFORM: x64"),
+            ("build budget", "      timeout-minutes: 15", "      timeout-minutes: 0"),
+            ("test budget", "      timeout-minutes: 30", "      timeout-minutes: 0"),
+            ("shell", f"- name: {self.BUILD_NAME}\n      shell: pwsh", f"- name: {self.BUILD_NAME}\n      shell: bash"),
+            ("step condition", f"- name: {self.TEST_NAME}\n", f"- name: {self.TEST_NAME}\n      if: true\n"),
+            ("advisory step", f"- name: {self.TEST_NAME}\n", f"- name: {self.TEST_NAME}\n      continue-on-error: true\n"),
+        ):
+            with self.subTest(name=name):
+                self.assertIn(old, self.VALID_WORKFLOW)
+                with self.assertRaises(AssertionError):
+                    self.assert_release_contract(self.VALID_WORKFLOW.replace(old, new))
 
 
 if __name__ == "__main__":

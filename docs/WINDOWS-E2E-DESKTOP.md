@@ -58,7 +58,8 @@ output or a command-line flag.
 `e2e-run.yml` retains direct CLI version diagnostics but removes duplicate
 unguarded GUI startup and screenshot-all launches. Its existing E2E step now
 owns those paths and propagates failures. `check.yml` inherits the guards without
-changing its existing failure propagation.
+weakening failure propagation, preserves the Debug test loop and adds the hosted
+Release/x86 unit coverage described below.
 
 ## Owned-window capture
 
@@ -107,6 +108,39 @@ CLI preservation, resource ownership, native-return handling, failure propagatio
 and removal of direct workflow GUI diagnostics. Startup cleanup tests inject
 process liveness, termination and waits, including failed and repeated cleanup;
 they neither launch nor inspect a real process.
+
+### Hosted full Release/x86 WinForms unit coverage
+
+Required Windows `Check` preserves the four-project Debug/x86 test loop and its
+coverage collection. After that loop succeeds, it builds and runs the complete
+`FEBuilderGBA.Tests` project in Release/x86 on the hosted runner:
+
+```powershell
+dotnet build FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj -c Release -p:Platform=x86 --no-restore -warnaserror
+dotnet test FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj -c Release -p:Platform=x86 --no-build --verbosity normal --logger "trx;LogFileName=unit-release-x86.trx" --blame-hang --blame-hang-timeout 20m
+```
+
+The preceding Debug build, solution restore, submodule initialization and x86
+runtime preparation remain prerequisites. The existing test-project dependency
+copy target consumes Debug config; the Release steps do not replace that build
+or silently restore missing prerequisites.
+
+The build and test step caps are 15 and 30 minutes. The unchanged 120-minute job
+deadline overrides both; these are upper bounds, not reserved execution time.
+The existing 20-minute hang detector remains enabled. Native command failures
+propagate, and a failed prerequisite may skip subsequent steps. Failed, skipped,
+timed-out, missing or empty Release results do not satisfy the full-suite
+requirement. Acceptance requires exact-head hosted logs for both commands and
+nonzero unfiltered `unit-release-x86.trx` results with pass/fail/skip counts; the
+existing `**/TestResults/*.trx` reporter also picks up this distinct file.
+
+The unfiltered unit suite contains real WinForms `form.Show()` calls. **Do not
+run that test command locally under a no-native/no-GUI workstation grant.**
+Source review, builds and the injected tests above do not authorize it or
+substitute for its full hosted results. Conversely, hosted unit results are not
+own-desktop native readiness/transport verification, actual application GUI or
+screenshot proof, or evidence of normal application close. Those boundaries and
+any required fresh bounded authorization remain separate.
 
 ## Opt-in probe command
 
