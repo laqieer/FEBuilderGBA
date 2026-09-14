@@ -134,7 +134,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     _vm.SetPendingFilter(filter);
                     StatusMessageLabel.Text = WithRecoveryNotice(_refresh.Failure?.Localize() ??
-                        R._("The patch database could not be refreshed: {0}", "Reopen Patch Manager."));
+                        R._("The patch database could not be refreshed: {0}", R._("Reopen Patch Manager.")));
                 }
                 return refreshed;
             }
@@ -401,13 +401,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         RefreshTask = LoadPatchesAsync();
                         bool refreshed = await RefreshTask;
                         if (_attached)
-                        {
-                            string message = refreshed
-                                ? "Patch database updated — list refreshed. Restart recommended for all changes to take full effect."
-                                : "Patch database updated, but the list was not refreshed. Reopen Patch Manager.";
-                            if (!refreshed && _refresh.Failure != null) message += "\n" + _refresh.Failure.Localize();
-                            StatusMessageLabel.Text = WithRecoveryNotice(message);
-                        }
+                            PublishGitRefreshResult(refreshed);
                         break;
                 }
             }
@@ -422,6 +416,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 _gitRunning = false;
                 if (_attached) UpdateOperationControls();
             }
+        }
+
+        internal void PublishGitRefreshResult(bool refreshed)
+        {
+            string message = refreshed
+                ? R._("Patch database updated — list refreshed. Restart recommended for all changes to take full effect.")
+                : R._("Patch database updated, but the list was not refreshed. Reopen Patch Manager.");
+            if (!refreshed && _refresh.Failure != null) message += "\n" + _refresh.Failure.Localize();
+            StatusMessageLabel.Text = WithRecoveryNotice(message);
         }
 
         async void OnImportPatchDatabaseClick(object? sender, RoutedEventArgs e)

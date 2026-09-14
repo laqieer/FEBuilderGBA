@@ -28689,6 +28689,15 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 :The patch database could not be refreshed: {0}
 无法刷新补丁数据库：{0}
 
+:Reopen Patch Manager.
+请重新打开补丁管理器。
+
+:Patch database updated — list refreshed. Restart recommended for all changes to take full effect.
+补丁数据库已更新，列表已刷新。建议重启以使所有更改完全生效。
+
+:Patch database updated, but the list was not refreshed. Reopen Patch Manager.
+补丁数据库已更新，但列表未刷新。请重新打开补丁管理器。
+
 :The installed database could not be refreshed: {0}
 无法刷新已安装的数据库：{0}
 

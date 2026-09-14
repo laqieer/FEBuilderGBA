@@ -374,7 +374,12 @@ namespace FEBuilderGBA
                 // Do not acquire/create a lease on ordinary startup with no pending work.
                 PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(workspace);
                 if (!Directory.Exists(workspace)) return new Result { Success = true };
-                if (!HasPendingEntries(workspace)) return new Result { Success = true };
+                if (!HasPendingEntries(workspace))
+                {
+                    string lockPath = Path.Combine(workspace, PatchDatabaseOperationLeaseCore.LeaseName);
+                    PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(lockPath, allowFileLeaf: true);
+                    if (File.Exists(lockPath)) return new Result { Success = true };
+                }
                 if (!ContentRepoGitService.TryEnter())
                     throw new PatchDatabaseOperationLeaseCore.BusyException(new IOException("A content operation is running."));
                 try

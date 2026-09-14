@@ -538,6 +538,80 @@ public class PatchDatabaseImportCoreTests
     }
 
     [Fact]
+    public void EmptyControlWorkspaceRecoveryCreatesAUsableStableReaderLock()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        string workspace = Path.Combine(fixture.Root, ".patch2-import");
+        string lockPath = Path.Combine(workspace, "lease.lock");
+        Directory.CreateDirectory(workspace);
+
+        var result = PatchDatabaseImportCore.RecoverPending(fixture.Root);
+        Assert.True(result.Success, result.Message);
+        Assert.True(File.Exists(lockPath));
+        var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U", fixture.Target);
+        using (PatchDatabaseOperationLeaseCore.AcquireExisting(probe)) { }
+
+        using (var retained = new FileStream(lockPath, FileMode.Open, FileAccess.ReadWrite,
+            FileShare.ReadWrite | FileShare.Delete))
+        {
+            Assert.True(PatchDatabaseImportCore.RecoverPending(fixture.Root).Success);
+            retained.WriteByte(0x5A);
+            retained.Flush(true);
+            using var current = new FileStream(lockPath, FileMode.Open, FileAccess.Read,
+                FileShare.ReadWrite | FileShare.Delete);
+            Assert.Equal(0x5A, current.ReadByte());
+            Assert.Equal(-1, current.ReadByte());
+        }
+        using (PatchDatabaseOperationLeaseCore.AcquireExisting(probe)) { }
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [Fact]
+    public void EmptyControlWorkspaceRecoveryDoesNotBypassAnotherContentOperation()
+    {
+        using var fixture = new Fixture();
+        string workspace = Path.Combine(fixture.Root, ".patch2-import");
+        Directory.CreateDirectory(workspace);
+        Assert.True(ContentRepoGitService.TryEnter());
+        try
+        {
+            var result = PatchDatabaseImportCore.RecoverPending(fixture.Root);
+            Assert.False(result.Success);
+            Assert.True(result.RecoveryRequired);
+            Assert.True(ContentRepoGitService.IsRunning());
+            Assert.False(File.Exists(Path.Combine(workspace, "lease.lock")));
+        }
+        finally { ContentRepoGitService.Exit(); }
+    }
+
+    [Fact]
+    public void DirectoryAtLeasePathDoesNotCountAsSafeExistingLock()
+    {
+        using var fixture = new Fixture();
+        string lockPath = Path.Combine(fixture.Root, ".patch2-import", "lease.lock");
+        Directory.CreateDirectory(lockPath);
+        var result = PatchDatabaseImportCore.RecoverPending(fixture.Root);
+        Assert.False(result.Success);
+        Assert.True(result.RecoveryRequired);
+        Assert.True(Directory.Exists(lockPath));
+    }
+
+    [Fact]
+    public void EmptyGuidOperationWithoutJournalIsRetained()
+    {
+        using var fixture = new Fixture();
+        string operation = Path.Combine(fixture.Root, ".patch2-import", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(operation);
+        var result = PatchDatabaseImportCore.RecoverPending(fixture.Root);
+        Assert.False(result.Success);
+        Assert.True(result.RecoveryRequired);
+        Assert.True(Directory.Exists(operation));
+        Assert.Empty(Directory.EnumerateFileSystemEntries(operation));
+    }
+
+    [Fact]
     public void MissingApplicationDirectoryIsAHarmlessRecoveryNoOp()
     {
         using var fixture = new Fixture();

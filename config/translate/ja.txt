@@ -14859,6 +14859,15 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 :The patch database could not be refreshed: {0}
 パッチデータベースを更新できませんでした: {0}
 
+:Reopen Patch Manager.
+パッチマネージャーを開き直してください。
+
+:Patch database updated — list refreshed. Restart recommended for all changes to take full effect.
+パッチデータベースと一覧を更新しました。すべての変更を反映するには再起動をお勧めします。
+
+:Patch database updated, but the list was not refreshed. Reopen Patch Manager.
+パッチデータベースを更新しましたが、一覧は更新されませんでした。パッチマネージャーを開き直してください。
+
 :The installed database could not be refreshed: {0}
 インストール済みのデータベースを更新できませんでした: {0}
 

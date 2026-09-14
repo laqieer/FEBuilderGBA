@@ -15,6 +15,68 @@ namespace FEBuilderGBA.Avalonia.Tests
     public class PatchManagerAvailabilityTests
     {
         [AvaloniaTheory]
+        [InlineData("en", "stale", "The patch database could not be refreshed: Reopen Patch Manager.")]
+        [InlineData("ja", "stale", "パッチデータベースを更新できませんでした: パッチマネージャーを開き直してください。")]
+        [InlineData("zh", "stale", "无法刷新补丁数据库：请重新打开补丁管理器。")]
+        [InlineData("en", "git-refreshed", "Patch database updated — list refreshed. Restart recommended for all changes to take full effect.")]
+        [InlineData("ja", "git-refreshed", "パッチデータベースと一覧を更新しました。すべての変更を反映するには再起動をお勧めします。")]
+        [InlineData("zh", "git-refreshed", "补丁数据库已更新，列表已刷新。建议重启以使所有更改完全生效。")]
+        [InlineData("en", "git-stale", "Patch database updated, but the list was not refreshed. Reopen Patch Manager.")]
+        [InlineData("ja", "git-stale", "パッチデータベースを更新しましたが、一覧は更新されませんでした。パッチマネージャーを開き直してください。")]
+        [InlineData("zh", "git-stale", "补丁数据库已更新，但列表未刷新。请重新打开补丁管理器。")]
+        public async Task RefreshFallbackAndGitResultsUseRuntimeTranslations(string language, string scenario, string expected)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            var translations = typeof(MyTranslateResource).GetField("Resource",
+                System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+            object? previousTranslations = translations.GetValue(null);
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            PatchManagerView? view = null;
+            Window? host = null;
+            try
+            {
+                translations.SetValue(null, new MyTranslateResourceLow());
+                MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+                App.ClearPatchDatabaseRecoveryNotice();
+                view = new PatchManagerView();
+                host = new Window { Content = view };
+                if (scenario == "stale")
+                {
+                    var refresh = new Services.PatchManagerRefreshService((request, token) =>
+                    {
+                        var snapshot = Services.PatchManagerRefreshService.Read(request, token);
+                        CoreState.ROM = new ROM();
+                        return snapshot;
+                    });
+                    typeof(PatchManagerView).GetField("_refresh",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(view, refresh);
+                    host.Show();
+                    Assert.False(await view.RefreshTask);
+                    Assert.Null(refresh.Failure);
+                }
+                else
+                    view.PublishGitRefreshResult(scenario == "git-refreshed");
+                Assert.Equal(expected, view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+            }
+            finally
+            {
+                try
+                {
+                    host?.Close();
+                    if (view != null) await view.RefreshTask;
+                }
+                finally
+                {
+                    translations.SetValue(null, previousTranslations);
+                    App.ClearPatchDatabaseRecoveryNotice();
+                    if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                    if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+                }
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData("en", false, "Initialize Patch Database")]
         [InlineData("en", true, "Update Patch Database")]
         [InlineData("ja", false, "パッチデータベースを初期化")]
