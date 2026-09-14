@@ -31,6 +31,8 @@ function ProofEnvelope {
         $bindingCases=Invoke-PinnedRuntimeBindingTests
         $lexicalCases=Invoke-WindowsLexicalBindingTests
         $policyCases=[DesktopPolicyTests]::Run()
+        $snapshotCases=[DesktopPolicyTests]::RunSnapshotTests($root)
+        if($snapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
         . (Join-Path $PSScriptRoot 'Configuration.ps1')
         . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
@@ -42,6 +44,7 @@ function ProofEnvelope {
         $loaderCases=Invoke-PinnedLoaderTests $root
         [pscustomobject]@{
             cases = $policyCases
+            installedSnapshotCases = $snapshotCases
             processImageCases = $imageCases
             runtimeBindingCases = $bindingCases
             windowsLexicalCases = $lexicalCases

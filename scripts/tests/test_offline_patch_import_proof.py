@@ -83,6 +83,24 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
             self.assertNotRegex(text, r"GetProcesses(?:ByName)?\s*\(|SetForegroundWindow|SendInput|SendKeys|\.Kill\((?:true|\$true)\)")
             self.assertNotRegex(text, r"--smoke-test|--screenshot-all")
 
+    def test_installed_marker_uses_the_production_snapshot_and_both_pure_runners(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        self.assertIn("InstalledDatabaseSnapshot.Capture(database, Guard, Hash)", desktop)
+        self.assertNotIn("files == 2", desktop)
+        self.assertIn('MarkerName = ".febuilder-patch-import.json"', policy)
+        self.assertIn('MarkerOwner = "FEBuilderGBA.PatchDatabaseImport"', policy)
+        self.assertIn("ReadMarker(entry)", policy)
+        self.assertIn("SHA256.HashData(marker)", policy)
+        self.assertIn("files == 3 && rows.Count == 4", policy)
+        self.assertIn("16777217", tests)
+        self.assertIn("DesktopPolicy.Preserved(original, altered", tests)
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            runner = (PACKAGE / name).read_text(encoding="utf-8")
+            self.assertIn("[DesktopPolicyTests]::RunSnapshotTests(", runner)
+            self.assertIn("Incomplete installed snapshot cases.", runner)
+
     def test_real_staging_and_reporting_regressions_are_in_aggregate(self):
         aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")

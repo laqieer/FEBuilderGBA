@@ -1,7 +1,110 @@
 using System;
+using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
 public static class DesktopPolicyTests
 {
+    public static int RunSnapshotTests(string parent)
+    {
+        int count = 0, guards = 0;
+        void Verify(bool condition)
+        {
+            count++;
+            if (!condition) throw new InvalidOperationException("Installed snapshot case failed: " + count);
+        }
+        void Refused(Action action, string expected)
+        {
+            bool refused = false;
+            try { action(); }
+            catch (InvalidOperationException ex) when (ex.Message == expected) { refused = true; }
+            Verify(refused);
+        }
+        string root = Path.Combine(parent, "snapshot-" + Guid.NewGuid().ToString("N"));
+        string proof = Path.Combine(root, "proof");
+        string descriptor = Path.Combine(proof, "PATCH_offline.txt");
+        string payload = Path.Combine(proof, "payload.bin");
+        string marker = Path.Combine(root, ".febuilder-patch-import.json");
+        const string owner = "FEBuilderGBA.PatchDatabaseImport";
+        const string id = "abcdef0123456789abcdef0123456789";
+        string valid = owner + "\n" + id + "\nFE8U\n";
+        string Hash(string path)
+        {
+            using var stream = File.OpenRead(path);
+            return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        }
+        string Capture() => InstalledDatabaseSnapshot.Capture(root, () => guards++, Hash);
+        void Marker(string text) => File.WriteAllBytes(marker, Encoding.ASCII.GetBytes(text));
+        Directory.CreateDirectory(proof);
+        try
+        {
+            File.WriteAllText(descriptor, "NAME=Owned proof", new UTF8Encoding(false));
+            File.WriteAllBytes(payload, new byte[] { 1 });
+            Marker(valid);
+            string before = Capture();
+            Verify(DesktopPolicy.Sha256(before));
+            Verify(Capture() == before);
+            File.Delete(marker);
+            Refused(() => Capture(), "installed-tree-shape");
+            foreach (string invalidMarker in new[] { "", "X" + valid.Substring(1),
+                valid.Replace("FE8U", "FE7U"), valid.Replace(id, id.ToUpperInvariant()),
+                valid.Replace(id, new string('g', 32)), valid.TrimEnd('\n'),
+                valid + "x", valid.Replace("\n", "\r\n") })
+            {
+                Marker(invalidMarker);
+                Refused(() => Capture(), "installed-marker");
+            }
+            byte[] nonAscii = Encoding.ASCII.GetBytes(valid);
+            nonAscii[0] = 0x80;
+            File.WriteAllBytes(marker, nonAscii);
+            Refused(() => Capture(), "installed-marker");
+            Marker(valid.Replace(id, new string('1', 32)));
+            string changed = Capture();
+            Verify(changed != before);
+            string[] original = { before, before, before, before };
+            string[] altered = { before, before, before, changed };
+            Verify(!DesktopPolicy.Preserved(original, altered, "row", "row", true));
+            Marker(valid);
+            Verify(Capture() == before);
+            Verify(DesktopPolicy.Preserved(original, original, "row", "row", true));
+            string extra = Path.Combine(root, "extra.txt");
+            File.WriteAllText(extra, "unexpected");
+            Refused(() => Capture(), "unexpected-installed-file");
+            File.Delete(extra);
+            string nestedMarker = Path.Combine(proof, ".febuilder-patch-import.json");
+            File.Copy(marker, nestedMarker);
+            Refused(() => Capture(), "unexpected-installed-file");
+            File.Delete(nestedMarker);
+            File.Delete(marker);
+            Directory.CreateDirectory(marker);
+            Refused(() => Capture(), "unexpected-installed-directory");
+            Directory.Delete(marker);
+            Marker(valid);
+            File.Delete(payload);
+            Refused(() => Capture(), "installed-tree-shape");
+            File.WriteAllBytes(payload, new byte[] { 1 });
+            string unexpectedDirectory = Path.Combine(root, "other");
+            Directory.CreateDirectory(unexpectedDirectory);
+            Refused(() => Capture(), "unexpected-installed-directory");
+            Directory.Delete(unexpectedDirectory);
+            using (var stream = new FileStream(payload, FileMode.Open, FileAccess.Write))
+                stream.SetLength(16777216);
+            Verify(DesktopPolicy.Sha256(Capture()));
+            using (var stream = new FileStream(payload, FileMode.Open, FileAccess.Write))
+                stream.SetLength(16777217);
+            Refused(() => Capture(), "hash-size-bound");
+            File.WriteAllBytes(payload, new byte[] { 1 });
+            for (int i = 0; i < 17; i++) File.WriteAllText(Path.Combine(root, "extra-" + i), "x");
+            Refused(() => Capture(), "unexpected-installed-file");
+            for (int i = 0; i < 17; i++) File.Delete(Path.Combine(root, "extra-" + i));
+            File.Delete(descriptor);
+            Refused(() => Capture(), "installed-tree-shape");
+            Verify(guards > 0);
+            return count;
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     static int cases;
     static void Check(bool condition)
     {

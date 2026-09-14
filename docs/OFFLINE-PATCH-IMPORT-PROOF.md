@@ -75,6 +75,22 @@ Only the two deliberate depth-warning cases capture their warning stream.
 Unexpected warnings remain visible. Loader tests establish a local `r` alias
 trap and invoke the real fixed entrypoint without invoking that alias.
 
+## Installed-library preservation
+
+The production snapshot requires exactly the `proof` directory, its descriptor
+and payload, and the root `.febuilder-patch-import.json` marker produced by Core.
+Despite its extension, that marker uses Core's exact ASCII owner/GUID/FE8U/newline
+format. The marker is validated with a bounded read and its authenticated bytes
+are included in the same tree fingerprint as the payloads. It is not ignored as
+incidental metadata: changing even its valid operation GUID invalidates the
+before/after preservation assertion.
+
+The shared non-native snapshot helper is called by the actual desktop scenario.
+Both current pure runners execute 26 real-directory snapshot checks separately
+from the unchanged 522 original policy cases. Missing or malformed markers,
+unexpected paths, substituted directories and oversized payloads fail closed.
+The 16-entry, 16-MiB file, no-reparse and exact-inventory limits remain in force.
+
 ## Local configuration and provenance
 
 The example is intentionally non-runnable. Replace every placeholder locally,

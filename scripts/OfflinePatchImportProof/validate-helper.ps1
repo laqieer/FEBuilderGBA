@@ -67,6 +67,8 @@ function ProofEnvelope {
                 Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs","$Code\Policy.Tests.cs") -ReferencedAssemblies $references
                 $report.cases=[DesktopPolicyTests]::Run()
                 if ($report.cases -le 0) { throw 'No pure cases executed.' }
+                $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
+                if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

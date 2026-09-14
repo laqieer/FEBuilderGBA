@@ -600,41 +600,7 @@ public sealed class BoundedDesktopSmoke
 
     string[] Snapshot()
     {
-        var rows = new List<string>();
-        var pending = new Queue<string>();
-        pending.Enqueue(database);
-        int entries = 0, files = 0;
-        while (pending.Count != 0)
-        {
-            Guard();
-            string dir = pending.Dequeue();
-            Plain(dir);
-            foreach (string entry in Directory.EnumerateFileSystemEntries(dir))
-            {
-                Require(++entries <= 16, "installed-tree-bound");
-                Plain(entry);
-                string relative = entry.Substring(database.Length + 1);
-                Require(DesktopPolicy.RelativeFile(relative), "installed-tree-path");
-                if ((File.GetAttributes(entry) & FileAttributes.Directory) != 0)
-                {
-                    Require(relative == "proof", "unexpected-installed-directory");
-                    rows.Add("D:" + relative);
-                    pending.Enqueue(entry);
-                }
-                else
-                {
-                    Require(relative == @"proof\PATCH_offline.txt" || relative == @"proof\payload.bin",
-                        "unexpected-installed-file");
-                    files++;
-                    rows.Add("F:" + relative + ":" + new FileInfo(entry).Length + ":" + Hash(entry));
-                }
-            }
-        }
-        Require(files == 2 && rows.Count == 3, "installed-tree-shape");
-        rows.Sort(StringComparer.Ordinal);
-        string fingerprint;
-        using (var sha = SHA256.Create())
-            fingerprint = Convert.ToHexString(sha.ComputeHash(Encoding.UTF8.GetBytes(string.Join("\n", rows)))).ToLowerInvariant();
+        string fingerprint = InstalledDatabaseSnapshot.Capture(database, Guard, Hash);
         return new[] { Hash(rom), Hash(valid), Hash(invalid), fingerprint };
     }
 
