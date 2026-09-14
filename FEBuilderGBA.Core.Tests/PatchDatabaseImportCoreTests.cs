@@ -9,6 +9,114 @@ namespace FEBuilderGBA.Core.Tests;
 [Collection("ContentRepoGitGuard")]
 public class PatchDatabaseImportCoreTests
 {
+    [Theory]
+    [InlineData("PATCH_test.txt")]
+    [InlineData("patch_lower.txt")]
+    [InlineData("PATCH_upper.TXT")]
+    [InlineData("nested/PATCH_test.txt")]
+    [InlineData("nested/patch_lower.txt")]
+    [InlineData("nested/PATCH_upper.TXT")]
+    public async Task DescriptorCasingImportMatchesNativeRuntimeDiscovery(string descriptor)
+    {
+        const string metadata = "NAME=Case\nTYPE=BIN\n";
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        byte[] rom = ResponsivenessRom();
+        string romPath = Path.Combine(fixture.Root, "source.gba");
+        File.WriteAllBytes(romPath, rom);
+        string relativePath = descriptor.Replace('/', Path.DirectorySeparatorChar);
+        string oracle = Path.Combine(fixture.Root, "discovery-oracle");
+        string oracleFile = Path.Combine(oracle, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(oracleFile)!);
+        File.WriteAllText(oracleFile, metadata, new UTF8Encoding(false));
+        bool discoverable = Directory.GetFiles(oracle, "PATCH_*.txt", SearchOption.AllDirectories).Length == 1;
+        Assert.Equal(discoverable, PatchMetadataCore.DiscoverPatchFiles(oracle, default).Length == 1);
+
+        using var zip = Fixture.ZipDescriptors((descriptor, metadata));
+        byte[] originalZip = zip.ToArray();
+        bool preparedReached = false;
+        PatchDatabaseImportCore.PreparedImport? prepared = null;
+        try
+        {
+            if (discoverable)
+            {
+                prepared = await fixture.Prepare(zip, checkpoint: point =>
+                    preparedReached |= point == PatchDatabaseImportCore.Checkpoint.Prepared);
+                Assert.True(preparedReached);
+                Assert.Equal(1, prepared.FileCount);
+                Assert.True(prepared.Commit().Success);
+            }
+            else
+            {
+                var error = await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                    prepared = await fixture.Prepare(zip, checkpoint: point =>
+                        preparedReached |= point == PatchDatabaseImportCore.Checkpoint.Prepared));
+                Assert.Equal("No patch definition can be discovered on this platform.", error.Message);
+                Assert.False(preparedReached);
+                Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+                Assert.Equal(new[] { fixture.OldFile },
+                    Directory.GetFiles(fixture.Target, "*", SearchOption.AllDirectories));
+            }
+        }
+        finally { prepared?.Dispose(); }
+
+        if (discoverable)
+        {
+            Assert.False(File.Exists(fixture.OldFile));
+            string installed = Assert.Single(PatchMetadataCore.DiscoverPatchFiles(fixture.Target, default));
+            Assert.Equal(relativePath, Path.GetRelativePath(fixture.Target, installed));
+            Assert.Equal(Encoding.UTF8.GetBytes(metadata), File.ReadAllBytes(installed));
+            Assert.True(PatchMetadataCore.TryEnumeratePatches(fixture.Target, new ROM(), "en",
+                out var strict, out string error), error);
+            Assert.Equal("Case", Assert.Single(strict).Name);
+            Assert.Equal(installed, Assert.Single(strict).PatchFilePath);
+            var tolerant = PatchMetadataCore.EnumeratePatches(fixture.Target, new ROM(), "en");
+            Assert.Equal("Case", Assert.Single(tolerant).Name);
+            Assert.Equal(installed, Assert.Single(tolerant).PatchFilePath);
+        }
+        Assert.Equal(originalZip, zip.ToArray());
+        Assert.Equal(rom, File.ReadAllBytes(romPath));
+        fixture.AssertOperationReleased();
+    }
+
+    [Theory]
+    [InlineData("patch_unsafe.txt", "missing.event")]
+    [InlineData("patch_unsafe.txt", "../outside.event")]
+    [InlineData("PATCH_unsafe.TXT", "missing.event")]
+    [InlineData("PATCH_unsafe.TXT", "../outside.event")]
+    public async Task CaseVariantDescriptorsRemainAuditedBesideADiscoverableDescriptor(string descriptor, string target)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        byte[] rom = ResponsivenessRom();
+        string romPath = Path.Combine(fixture.Root, "source.gba");
+        File.WriteAllBytes(romPath, rom);
+        using var zip = Fixture.ZipDescriptors(
+            ("PATCH_valid.txt", "NAME=Visible\nTYPE=BIN\n"),
+            (descriptor, "NAME=Unsafe\nTYPE=BIN\nEA=" + target + "\n"));
+        byte[] originalZip = zip.ToArray();
+        bool materializationReached = false, preparedReached = false;
+        PatchDatabaseImportCore.PreparedImport? unexpected = null;
+        try
+        {
+            await Assert.ThrowsAsync<InvalidDataException>(async () =>
+                unexpected = await fixture.Prepare(zip, checkpoint: point =>
+                {
+                    materializationReached |= point == PatchDatabaseImportCore.Checkpoint.BeforeMaterialization;
+                    preparedReached |= point == PatchDatabaseImportCore.Checkpoint.Prepared;
+                }));
+        }
+        finally { unexpected?.Dispose(); }
+        Assert.True(materializationReached);
+        Assert.False(preparedReached);
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.Equal(new[] { fixture.OldFile },
+            Directory.GetFiles(fixture.Target, "*", SearchOption.AllDirectories));
+        Assert.Equal(originalZip, zip.ToArray());
+        Assert.Equal(rom, File.ReadAllBytes(romPath));
+        fixture.AssertOperationReleased();
+    }
+
     [Fact]
     public async Task SymbolSidecarImportsWithoutInterpretingSymbolNamesAsMetadata()
     {
@@ -909,6 +1017,35 @@ public class PatchDatabaseImportCoreTests
         {
             string workspace = Path.Combine(Root, ".patch2-import");
             return Directory.Exists(workspace) ? Directory.GetDirectories(workspace) : Array.Empty<string>();
+        }
+
+        public void AssertOperationReleased()
+        {
+            Assert.Empty(OperationDirectories());
+            Assert.True(File.Exists(Path.Combine(Root, ".patch2-import", "lease.lock")));
+            Assert.False(ContentRepoGitService.IsRunning());
+            Assert.True(ContentRepoGitService.TryEnter());
+            try
+            {
+                using var lease = PatchDatabaseOperationLeaseCore.Acquire(Root);
+            }
+            finally { ContentRepoGitService.Exit(); }
+        }
+
+        public static MemoryStream ZipDescriptors(params (string Path, string Text)[] descriptors)
+        {
+            var stream = new MemoryStream();
+            using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, true))
+            {
+                foreach (var descriptor in descriptors)
+                {
+                    var entry = archive.CreateEntry("FE8U/" + descriptor.Path, CompressionLevel.NoCompression);
+                    using var writer = new StreamWriter(entry.Open(), new UTF8Encoding(false));
+                    writer.Write(descriptor.Text);
+                }
+            }
+            stream.Position = 0;
+            return stream;
         }
 
         public static MemoryStream Zip(string name, string extra = "", params string[] directories)

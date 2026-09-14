@@ -126,6 +126,13 @@ namespace FEBuilderGBA
             CancellationToken cancellationToken)
             => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, cancellationToken);
 
+        static readonly string PatchFilePattern = FileSystemName.TranslateWin32Expression("PATCH_*.txt");
+        static readonly bool IgnorePatchFileCase = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
+            OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
+
+        internal static bool IsDiscoverablePatchFileName(string fileName)
+            => FileSystemName.MatchesWin32Expression(PatchFilePattern, fileName, IgnorePatchFileCase);
+
         internal static string[] DiscoverPatchFiles(string directory, CancellationToken token,
             Action<string> visit = null)
             => EnumeratePatchFiles(directory, token, visit).ToArray();
@@ -134,9 +141,6 @@ namespace FEBuilderGBA
             Action<string> visit)
         {
             token.ThrowIfCancellationRequested();
-            string pattern = FileSystemName.TranslateWin32Expression("PATCH_*.txt");
-            bool ignoreCase = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
-                OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
             // Preserve Directory's SearchOption defaults, including access-error reporting.
             var options = new EnumerationOptions
             {
@@ -152,8 +156,7 @@ namespace FEBuilderGBA
                 token.ThrowIfCancellationRequested();
                 visit?.Invoke(entry.Path);
                 token.ThrowIfCancellationRequested();
-                if (!entry.IsDirectory && FileSystemName.MatchesWin32Expression(pattern,
-                    Path.GetFileName(entry.Path), ignoreCase))
+                if (!entry.IsDirectory && IsDiscoverablePatchFileName(Path.GetFileName(entry.Path)))
                     yield return entry.Path;
             }
             token.ThrowIfCancellationRequested();

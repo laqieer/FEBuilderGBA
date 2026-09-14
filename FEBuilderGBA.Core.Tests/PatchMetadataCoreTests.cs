@@ -129,10 +129,16 @@ namespace FEBuilderGBA.Core.Tests
                     File.WriteAllText(Path.Combine(root, name), "inert metadata");
                 File.WriteAllText(Path.Combine(nested, "PATCH_nested.txt"), "inert metadata");
                 var expected = Directory.GetFiles(root, "PATCH_*.txt", SearchOption.AllDirectories)
-                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
+                    .OrderBy(path => path, StringComparer.OrdinalIgnoreCase).ToArray();
                 var actual = PatchMetadataCore.DiscoverPatchFiles(root, default)
                     .OrderBy(path => path, StringComparer.OrdinalIgnoreCase);
                 Assert.Equal(expected, actual);
+                var predicate = typeof(PatchMetadataCore).GetMethod("IsDiscoverablePatchFileName",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+                Assert.NotNull(predicate);
+                var matches = predicate.CreateDelegate<Func<string, bool>>();
+                foreach (string file in Directory.GetFiles(root, "*", SearchOption.AllDirectories))
+                    Assert.Equal(expected.Contains(file, StringComparer.Ordinal), matches(Path.GetFileName(file)));
                 Assert.False(PatchMetadataCore.IsPatchLibraryEmpty(root, default));
                 string missing = Path.Combine(root, "missing");
                 Assert.True(PatchMetadataCore.IsPatchLibraryEmpty(missing));

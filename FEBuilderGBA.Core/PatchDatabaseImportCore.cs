@@ -716,8 +716,8 @@ namespace FEBuilderGBA
         {
             var descriptors = manifest.Keys.Where(path =>
                 FileSystemName.MatchesSimpleExpression("PATCH_*.txt", Path.GetFileName(path), ignoreCase: true)).ToArray();
-            bool discoverable = descriptors.Any(path => FileSystemName.MatchesSimpleExpression(
-                "PATCH_*.txt", Path.GetFileName(path), ignoreCase: OperatingSystem.IsWindows()));
+            bool discoverable = descriptors.Any(path =>
+                PatchMetadataCore.IsDiscoverablePatchFileName(Path.GetFileName(path)));
             if (!discoverable) throw new InvalidDataException("No patch definition can be discovered on this platform.");
             IEnumerable<string> Files(string unused)
             {
