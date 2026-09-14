@@ -4,14 +4,56 @@ This package keeps the feature's actual Windows UI automation and necessary
 support in the same feature PR. It does not modify application behavior and does
 not depend on another GUI-readiness PR. Pure tests are **not GUI acceptance**.
 
+## Startup observation
+
+Ordinary startup can complete before the transient recovery window is visible to
+the bounded observer. `DesktopStartupObservation` is shared by the actual driver
+and separately counted pure regressions; it does not change application startup.
+Both pure runners enforce all 75 startup-observation cases separately from the
+unchanged 522 policy and 26 installed-snapshot cases.
+The result records `StartupRoute`, `LoadingObserved`, `LoadingObservedAtMs` and
+the bound `AvaloniaWindowClass`:
+
+* `real-main-visible-and-loading-destroyed`: loading was positively observed.
+  That observation is sticky. Only the original strict `DesktopPolicy.Handoff`
+  accepts later chronology, a distinct main handle, a destroyed loading handle
+  and a currently visible main/control. Missing labels or a still-existing
+  loading window never fall back to the other route.
+* `main-visible-loading-not-observed`: no loading observation was made. This
+  reports only the current validated main/control; it does not claim a transient
+  handoff or loading-window destruction.
+
+Each observation classifies the complete bounded visible owned-root sample before
+deciding. Unknown extra roots block readiness regardless of enumeration order;
+duplicate handles/candidates, invalid projections and nonmonotonic polling
+observations refuse the attempt. The sole ancillary-root exception is at most one
+same-class, distinct, immediate-main-owned setup wizard with the unique visible
+`ContentRepoSetupWizard_Close_Button`. A title, owner chain alone, native picker,
+missing close control or another root is insufficient. No wizard is closed here:
+only the existing owned-control invocation in `OpenEditor` may close it.
+
+Acceptance refreshes the complete sample, preserves candidate main identity/class,
+rechecks all accepted native roots and required visible controls, and rechecks
+the observed loading handle's destruction. The refresh may share its candidate's
+millisecond tick; ordinary polling samples must advance. Main controls need not
+be enabled before the existing wizard-close phase. A late loading observation
+is sticky too, and a rejected attempt cannot recover through the fast route.
+
+The 45-second startup stage and overall budgets, ownership/ancestry checks,
+joined-worker/retained-process custody, real import/rejection, file preservation,
+editor screenshot and normal-close requirements are unchanged. These sampled
+checks are not an atomic desktop snapshot. Historical `missing-loading-observation`
+attempts remain failed and consumed; new runtime proof needs newly authenticated
+source, preparation and a separate grant.
+
 ## Reviewable source
 
 `scripts\OfflinePatchImportProof` contains:
 
 | Source | Responsibility |
 | --- | --- |
-| `Desktop.cs` | The feature-specific ordinary `--rom` → loading/main → Patch Manager → native picker flow, valid and invalid ZIP assertions, one editor-only PrintWindow, and normal close. |
-| `Policy.cs`, `Policy.Tests.cs`, `Readiness.cs` | Own-session admission, bounded dispatch, retained-process cleanup decisions, worker containment, and 522 pure cases. |
+| `Desktop.cs` | The feature-specific ordinary `--rom` → observed-loading/main or main-first → Patch Manager → native picker flow, valid and invalid ZIP assertions, one editor-only PrintWindow, and normal close. |
+| `Policy.cs`, `Policy.Tests.cs`, `Readiness.cs` | Own-session admission, bounded dispatch, retained-process cleanup decisions, worker containment, the original 522 policy cases, 26 installed-snapshot checks and 75 startup-observation cases. |
 | `RuntimeBinding*`, `ProcessImage*` | Pinned runtime identity and bounded process-image observation; 22 and 10 original cases. Windows-form path checks remain Windows lexical checks on every OS. |
 | `prepare.ps1`, `validate-helper.ps1` | Fixed Build/Validate/Inputs operations, pinned local tools, fixture tests and output-only compilation. The existing `scripts\SyntheticProofFixtures` project remains the only ROM fixture generator. |
 | `run.ps1`, `launch.ps1` | Ordinary GUI runner and retained-runner/application supervisor. No global input, focus manipulation, PID enumeration, recursive kill, screenshot fallback, or timeout promotion. |

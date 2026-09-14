@@ -180,6 +180,43 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertIn("outer driver trusts the reviewed checkout", aggregate)
         self.assertIn("Invoke-PinnedTestMode -Fixture $checkoutFixture -Mode AggregatePure", aggregate)
 
+    def test_startup_observer_is_shared_by_driver_and_both_runners(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        validation = (PACKAGE / "validate-helper.ps1").read_text(encoding="utf-8")
+        for token in ("new DesktopStartupObservation()", "ReadStartupSample()",
+                      "observation.Revalidate(", "observation.Observe(",
+                      "result.StartupRoute = decision.Route",
+                      "result.LoadingObserved = observation.LoadingObserved",
+                      "startup-main-acceptance-control", "startup-wizard-acceptance-control"):
+            self.assertIn(token, desktop)
+        self.assertNotIn('"missing-loading-observation"', desktop)
+        for token in ("DesktopPolicy.Handoff(true, LoadingAt", "unknown != 0",
+                      "wizard.Owner == main.Handle", "wizard.WindowClass == main.WindowClass",
+                      "startup-duplicate-root", "startup-duplicate-main", "startup-duplicate-loading",
+                      "startup-duplicate-wizard", "startup-observation-order", "startup-acceptance-changed",
+                      "main-visible-loading-not-observed", "real-main-visible-and-loading-destroyed"):
+            self.assertIn(token, policy)
+        handoff = desktop[desktop.index("    void Handoff()"):desktop.index("    void OpenEditor()")]
+        self.assertLess(handoff.index("ReadStartupSample()"), handoff.index("ObserveStartup("))
+        self.assertIn("ObserveStartup(observation, acceptance, true)", handoff)
+        self.assertIn("ValidateWindow(window, decision.WindowClass)", handoff)
+        self.assertIn("Control(acceptedMain, MainButton, ControlType.Button, false)", handoff)
+        self.assertNotIn("Invoke(", handoff)
+        self.assertIn('Stage("loading-handoff", 45000)', handoff)
+        for text in (aggregate, validation):
+            self.assertIn("[DesktopPolicyTests]::RunStartupTests()", text)
+            self.assertIn("startupObservationCases", text)
+            self.assertRegex(text, r"startup(?:Observation)?Cases -ne 75")
+            self.assertIn("installedSnapshotCases", text)
+            self.assertIn("-ne 26", text)
+        for token in ("main-first-honest-fast-route", "unlabeled-leftover-order-",
+                      "exact-main-owned-wizard-order-", "late-loading-makes-observation-sticky",
+                      "invalid-observed-handoff-never-falls-back-", "acceptance-offscreen-main-control-blocks"):
+            self.assertIn(token, tests)
+
     def test_final_writer_is_not_optional_process_grace(self):
         policy = (PACKAGE / "restage/RestagePolicy.ps1").read_text(encoding="utf-8")
         writer = policy[policy.index("function Write-RReportingFile"):policy.index("function Assert-R(")]

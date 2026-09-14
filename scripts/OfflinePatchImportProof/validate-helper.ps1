@@ -69,6 +69,8 @@ function ProofEnvelope {
                 if ($report.cases -le 0) { throw 'No pure cases executed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
+                $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
+                if($report.startupObservationCases -ne 75) { throw 'Startup observation case inventory changed.' }
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

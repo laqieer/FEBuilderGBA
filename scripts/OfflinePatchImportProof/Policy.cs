@@ -80,6 +80,157 @@ public static class DesktopPolicy
     }
 }
 
+// Native/UIA ownership and control ancestry are checked before these projections.
+public sealed class DesktopStartupRoot
+{
+    public long Handle { get; }
+    public long Owner { get; }
+    public string WindowClass { get; }
+    public bool Visible { get; }
+    public bool MainControlVisible { get; }
+    public bool LoadingLabelVisible { get; }
+    public bool SetupWizardControlVisible { get; }
+
+    public DesktopStartupRoot(long handle, long owner, string windowClass, bool visible,
+        bool mainControlVisible, bool loadingLabelVisible, bool setupWizardControlVisible)
+    {
+        Handle = handle;
+        Owner = owner;
+        WindowClass = windowClass;
+        Visible = visible;
+        MainControlVisible = mainControlVisible;
+        LoadingLabelVisible = loadingLabelVisible;
+        SetupWizardControlVisible = setupWizardControlVisible;
+    }
+}
+
+public sealed class DesktopStartupDecision
+{
+    public bool Ready { get; }
+    public string Route { get; }
+    public long MainHandle { get; }
+    public long WizardHandle { get; }
+    public string WindowClass { get; }
+
+    internal DesktopStartupDecision(string route = null, long main = 0, long wizard = 0,
+        string windowClass = null)
+    {
+        Ready = route != null;
+        Route = route;
+        MainHandle = main;
+        WizardHandle = wizard;
+        WindowClass = windowClass;
+    }
+}
+
+public sealed class DesktopStartupObservation
+{
+    public const string ObservedRoute = "real-main-visible-and-loading-destroyed";
+    public const string UnobservedRoute = "main-visible-loading-not-observed";
+    public bool LoadingObserved { get; private set; }
+    public long LoadingHandle { get; private set; }
+    public long LoadingAt { get; private set; } = -1;
+    public string WindowClass { get; private set; }
+    long previousAt = -1;
+    string failure;
+    DesktopStartupDecision candidate;
+
+    void Require(bool condition, string reason)
+    {
+        if (failure != null) throw new InvalidOperationException(failure);
+        if (condition) return;
+        failure = reason;
+        throw new InvalidOperationException(reason);
+    }
+
+    public DesktopStartupDecision Observe(long at, IReadOnlyList<DesktopStartupRoot> roots,
+        bool loadingExists)
+    {
+        Require(at >= 0 && at > previousAt, "startup-observation-order");
+        candidate = Evaluate(at, roots, loadingExists);
+        return candidate;
+    }
+
+    public DesktopStartupDecision Revalidate(long at, IReadOnlyList<DesktopStartupRoot> roots,
+        bool loadingExists)
+    {
+        Require(candidate != null && candidate.Ready, "startup-acceptance-candidate");
+        // The acceptance refresh may share a clock tick with its candidate.
+        Require(at >= previousAt, "startup-observation-order");
+        var expected = candidate;
+        candidate = Evaluate(at, roots, loadingExists);
+        Require(!candidate.Ready || (candidate.MainHandle == expected.MainHandle &&
+            candidate.WindowClass == expected.WindowClass && candidate.Route == expected.Route),
+            "startup-acceptance-changed");
+        return candidate;
+    }
+
+    DesktopStartupDecision Evaluate(long at, IReadOnlyList<DesktopStartupRoot> roots,
+        bool loadingExists)
+    {
+        previousAt = at;
+        Require(roots != null && roots.Count <= 8, "startup-root-bound");
+        var handles = new HashSet<long>();
+        DesktopStartupRoot main = null, loading = null, wizard = null;
+        int unknown = 0;
+        foreach (var root in roots)
+        {
+            Require(root != null && root.Handle != 0 && root.Visible, "startup-root-projection");
+            Require(handles.Add(root.Handle), "startup-duplicate-root");
+            Require(DesktopPolicy.AvaloniaClass(root.WindowClass), "startup-root-class");
+            int roles = (root.MainControlVisible ? 1 : 0) + (root.LoadingLabelVisible ? 1 : 0) +
+                (root.SetupWizardControlVisible ? 1 : 0);
+            Require(roles <= 1, "startup-root-role");
+            if (root.MainControlVisible)
+            {
+                Require(main == null, "startup-duplicate-main");
+                main = root;
+            }
+            else if (root.LoadingLabelVisible)
+            {
+                Require(loading == null, "startup-duplicate-loading");
+                loading = root;
+            }
+            else if (root.SetupWizardControlVisible)
+            {
+                Require(wizard == null, "startup-duplicate-wizard");
+                wizard = root;
+            }
+            else unknown++;
+        }
+        if (loading != null)
+        {
+            Require(!LoadingObserved || loading.Handle == LoadingHandle, "startup-loading-changed");
+            if (!LoadingObserved)
+            {
+                LoadingObserved = true;
+                LoadingHandle = loading.Handle;
+                LoadingAt = at;
+                Require(WindowClass == null || WindowClass == loading.WindowClass, "startup-class-changed");
+                WindowClass = loading.WindowClass;
+            }
+        }
+        if (WindowClass != null)
+            foreach (var root in roots)
+                Require(root.WindowClass == WindowClass, "startup-class-changed");
+        Require(LoadingObserved || !loadingExists, "startup-loading-projection");
+        if (main != null && wizard != null)
+            Require(wizard.Handle != main.Handle && wizard.Owner == main.Handle &&
+                wizard.WindowClass == main.WindowClass, "startup-setup-wizard");
+        if (main == null || unknown != 0 || loading != null || (LoadingObserved && loadingExists))
+            return new DesktopStartupDecision();
+
+        if (LoadingObserved)
+            Require(DesktopPolicy.Handoff(true, LoadingAt, at, LoadingHandle, main.Handle,
+                !loadingExists, main.Visible && main.MainControlVisible), "startup-handoff-refused");
+        WindowClass = main.WindowClass;
+        foreach (var root in roots)
+            Require(root.WindowClass == WindowClass, "startup-class-changed");
+        return new DesktopStartupDecision(LoadingObserved ? ObservedRoute : UnobservedRoute,
+            main.Handle, wizard?.Handle ?? 0, WindowClass);
+    }
+}
+
 public static class InstalledDatabaseSnapshot
 {
     const string MarkerName = ".febuilder-patch-import.json";

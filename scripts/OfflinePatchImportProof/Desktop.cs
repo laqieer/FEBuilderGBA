@@ -26,6 +26,9 @@ public sealed class DesktopResult
     public int Pid { get; set; }
     public long StartUtcTicks { get; set; }
     public string AvaloniaWindowClass { get; set; }
+    public string StartupRoute { get; set; }
+    public bool LoadingObserved { get; set; }
+    public long LoadingObservedAtMs { get; set; } = -1;
     public bool TimedOut { get; set; }
     public bool NormalCloseRequested { get; set; }
     public bool NormalCloseObserved { get; set; }
@@ -46,6 +49,7 @@ public sealed class DesktopResult
 public sealed class BoundedDesktopSmoke
 {
     const string MainButton = "Main_PatchManager_Button";
+    const string SetupWizardButton = "ContentRepoSetupWizard_Close_Button";
     const string ImportButton = "PatchManager_ImportPatchDatabase_Button";
     const string StatusLabel = "PatchManager_StatusMessage_Label";
     const string PatchList = "PatchManager_PatchList_List";
@@ -248,7 +252,7 @@ public sealed class BoundedDesktopSmoke
             OwnerChain(h)), "window-ownership");
     }
 
-    List<AutomationElement> Windows()
+    List<AutomationElement> Windows(bool startup = false)
     {
         Identity();
         // The desktop is only a provider query root; no unrelated element is read or traversed.
@@ -261,7 +265,11 @@ public sealed class BoundedDesktopSmoke
             Guard();
             Require(owned[i].Current.ProcessId == pid, "foreign-root");
             IntPtr h = Handle(owned[i]);
-            if (h == IntPtr.Zero) continue;
+            if (h == IntPtr.Zero)
+            {
+                Require(!startup || owned[i].Current.IsOffscreen, "startup-root-native-handle");
+                continue;
+            }
             Require(Pid(h) == pid, "owned-root-native-pid");
             if (!Native.IsWindowVisible(h) || owned[i].Current.IsOffscreen) continue;
             string c = Class(h);
@@ -355,39 +363,121 @@ public sealed class BoundedDesktopSmoke
         Dispatch(() => invoke.Invoke());
     }
 
-    void Handoff()
+    sealed class StartupSample
     {
-        Stage("loading-handoff", 45000);
-        IntPtr loadingHandle = IntPtr.Zero;
-        long loadingAt = -1;
-        while (true)
+        public readonly List<AutomationElement> Windows = new List<AutomationElement>();
+        public readonly List<DesktopStartupRoot> Roots = new List<DesktopStartupRoot>();
+    }
+
+    StartupSample ReadStartupSample()
+    {
+        var sample = new StartupSample();
+        foreach (var window in Windows(true))
         {
-            foreach (var window in Windows())
+            IntPtr h = Handle(window);
+            string windowClass = Class(h);
+            Require(DesktopPolicy.AvaloniaClass(windowClass), "startup-root-class");
+            var mainControl = Control(window, MainButton, ControlType.Button, false);
+            var wizardControl = Control(window, SetupWizardButton, ControlType.Button, false);
+            bool loading = false;
+            if (window.Current.Name == "FEBuilderGBA")
             {
-                if (Class(Handle(window)) == "#32770") continue;
-                var mainControl = Control(window, MainButton, ControlType.Button, false);
-                if (mainControl != null)
-                {
-                    Require(loadingHandle != IntPtr.Zero, "missing-loading-observation");
-                    main = window; mainHandle = Handle(main);
-                    if (!Native.IsWindow(loadingHandle))
-                    {
-                        Require(DesktopPolicy.Handoff(true, loadingAt, clock.ElapsedMilliseconds,
-                            loadingHandle.ToInt64(), mainHandle.ToInt64(), true, true), "handoff-refused");
-                        Record("observation", "real-main-visible-and-loading-destroyed", mainHandle);
-                        return;
-                    }
-                }
-                if (loadingHandle != IntPtr.Zero || window.Current.Name != "FEBuilderGBA") continue;
                 var labels = Find(window, new AndCondition(
                     new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text),
                     new PropertyCondition(AutomationElement.NameProperty, "Recovering patch database…")));
-                if (labels.Count != 1 || labels[0].Current.IsOffscreen) continue;
-                loadingHandle = Handle(window);
-                avaloniaClass = Class(loadingHandle);
-                lock (sync) result.AvaloniaWindowClass = avaloniaClass;
-                loadingAt = clock.ElapsedMilliseconds;
-                Record("observation", "loading-visible:Recovering-patch-database", loadingHandle);
+                Require(labels.Count <= 1, "startup-ambiguous-loading-control");
+                loading = labels.Count == 1 && !labels[0].Current.IsOffscreen;
+            }
+            sample.Windows.Add(window);
+            sample.Roots.Add(new DesktopStartupRoot(h.ToInt64(), Native.GetWindow(h, 4).ToInt64(),
+                windowClass, Native.IsWindow(h) && Native.IsWindowVisible(h) && !window.Current.IsOffscreen,
+                mainControl != null && !mainControl.Current.IsOffscreen, loading,
+                wizardControl != null && !wizardControl.Current.IsOffscreen));
+        }
+        return sample;
+    }
+
+    DesktopStartupDecision ObserveStartup(DesktopStartupObservation observation,
+        StartupSample sample, bool revalidate)
+    {
+        bool loadingExists = observation.LoadingObserved &&
+            Native.IsWindow(new IntPtr(observation.LoadingHandle));
+        DesktopStartupDecision decision;
+        try
+        {
+            decision = revalidate
+                ? observation.Revalidate(clock.ElapsedMilliseconds, sample.Roots, loadingExists)
+                : observation.Observe(clock.ElapsedMilliseconds, sample.Roots, loadingExists);
+        }
+        catch (InvalidOperationException ex) { throw new Refusal(ex.Message); }
+        bool firstLoading;
+        lock (sync)
+        {
+            firstLoading = observation.LoadingObserved && !result.LoadingObserved;
+            result.LoadingObserved = observation.LoadingObserved;
+            result.LoadingObservedAtMs = observation.LoadingAt;
+            if (observation.WindowClass != null)
+            {
+                avaloniaClass = observation.WindowClass;
+                result.AvaloniaWindowClass = avaloniaClass;
+            }
+        }
+        if (firstLoading)
+            Record("observation", "loading-visible:Recovering-patch-database",
+                new IntPtr(observation.LoadingHandle));
+        return decision;
+    }
+
+    void Handoff()
+    {
+        Stage("loading-handoff", 45000);
+        var observation = new DesktopStartupObservation();
+        while (true)
+        {
+            var sample = ReadStartupSample();
+            var decision = ObserveStartup(observation, sample, false);
+            if (decision.Ready)
+            {
+                var acceptance = ReadStartupSample();
+                decision = ObserveStartup(observation, acceptance, true);
+                if (decision.Ready)
+                {
+                    AutomationElement acceptedMain = null;
+                    foreach (var window in acceptance.Windows)
+                    {
+                        ValidateWindow(window, decision.WindowClass);
+                        IntPtr h = Handle(window);
+                        if (h.ToInt64() == decision.MainHandle)
+                        {
+                            var control = Control(window, MainButton, ControlType.Button, false);
+                            Require(control != null && !control.Current.IsOffscreen,
+                                "startup-main-acceptance-control");
+                            acceptedMain = window;
+                        }
+                        else
+                        {
+                            Require(h.ToInt64() == decision.WizardHandle &&
+                                Native.GetWindow(h, 4).ToInt64() == decision.MainHandle,
+                                "startup-setup-wizard");
+                            var control = Control(window, SetupWizardButton, ControlType.Button, false);
+                            Require(control != null && !control.Current.IsOffscreen,
+                                "startup-wizard-acceptance-control");
+                        }
+                    }
+                    Require(acceptedMain != null, "startup-main-acceptance-root");
+                    Require(!observation.LoadingObserved ||
+                        !Native.IsWindow(new IntPtr(observation.LoadingHandle)),
+                        "startup-loading-still-present");
+                    ValidateWindow(acceptedMain, decision.WindowClass);
+                    var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false);
+                    Require(mainControl != null && !mainControl.Current.IsOffscreen,
+                        "startup-main-acceptance-control");
+                    main = acceptedMain;
+                    mainHandle = new IntPtr(decision.MainHandle);
+                    lock (sync) result.StartupRoute = decision.Route;
+                    Record("observation", decision.Route, mainHandle);
+                    return;
+                }
             }
             Identity();
             Thread.Sleep(25);
