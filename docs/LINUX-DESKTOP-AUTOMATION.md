@@ -91,8 +91,8 @@ bounds/cleanup, root confirmation, and inert smoke-source validation.
 Host-layout tests are not a substitute for a Linux native ABI smoke.
 
 The required Cross-Platform Build workflow's existing `build` matrix is configured
-to run `python -B -m unittest scripts.tests.test_linux_x11` after Python setup on
-Ubuntu, macOS, and Windows, without a condition or failure suppression. Verify the
+to run `python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata`
+after Python setup on Ubuntu, macOS, and Windows, without a condition or failure suppression. Verify the
 exact current-head CI run and results before treating that coverage as observed.
 This pure CI step does not run the native smoke or establish native/application
 acceptance.
