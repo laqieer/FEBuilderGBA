@@ -266,6 +266,20 @@ class MetadataContracts(unittest.TestCase):
                 self.assertEqual("unavailable", value["status"])
                 self.assertNotIn("options", value)
 
+    def test_valid_gzip_header_with_corrupt_deflate_is_optional_unavailable(self):
+        fake = FakeOS()
+        fake.add(
+            metadata.MANUALS[0],
+            data=b"\x1f\x8b\x08\x00\x00\x00\x00\x00\x00\xff\x07",
+        )
+        result = self.run_observation(fake)
+        self.assertEqual("observed", result["status"])
+        self.assertEqual("unavailable", result["manuals"][metadata.MANUALS[0]]["status"])
+        self.assertEqual(
+            "invalid_compressed_manual",
+            result["manuals"][metadata.MANUALS[0]]["reason"],
+        )
+
     def test_option_count_is_shared_across_both_manuals(self):
         fake = FakeOS()
         for index, path in enumerate(metadata.MANUALS):

@@ -12,6 +12,7 @@ import signal
 import stat
 import sys
 import time
+import zlib
 
 
 EXPECTED_ROOT = (
@@ -236,7 +237,7 @@ class MetadataObserver:
             text = expanded.decode("utf-8", errors="strict").replace(r"\-", "-")
         except TimeoutError:
             raise
-        except (OSError, EOFError, UnicodeError):
+        except (OSError, EOFError, UnicodeError, zlib.error):
             raise Unavailable("invalid_compressed_manual") from None
         self.check_time()
         options = set(re.findall(r"--[a-z][a-z0-9-]*", text))
