@@ -167,3 +167,51 @@ A primitive pass establishes neither application GUI behavior nor screenshots,
 normal close, or observer acceptance. Any later application run needs its own
 bounded source/input/execution scope. The historical e043 attempt remains failed:
 its discarded native event cannot be reconstructed from status 1.
+
+## Separately gated current metadata
+
+`scripts/linux_x11_metadata.py` and `scripts/Invoke-LinuxX11Metadata.ps1` are
+tracked source for the issue-2160 metadata-only observation, not a general-purpose
+launcher or an environment repair. Importing/dot-sourcing them is inert. Their
+fixed bindings are deliberately limited to the reviewed worktree, default
+non-root Ubuntu identity and installed tools. Rebinding requires new review.
+
+The Windows entry accepts only `-PacketPath` for an independently reviewed,
+data-only JSON object. Its five exact keys are `schema`, `expectedHead`,
+`sourceSha256`, `historicalSha256`, and `receiptStem`. No executable, command,
+code, callback, environment or observation-path overrides are accepted. The
+packet pins all ten PR source paths and the two unchanged historical receipts.
+The supervisor invokes the tracked Python file with sixteen literal argument
+elements and cleared Windows/Linux environments; no inline `-c` payload, private
+wrapper or generated helper is used.
+
+Execution still requires an accepted PLAN, exact pushed-head SOURCE/security
+acceptance, accepted operational packet and arguments, and a distinct
+posted/read-back single-use coordinator grant. The coordinator must verify exact
+HEAD/branch, complete tracked/untracked state, source/evidence hashes, packet and
+live grant immediately before and after submission. Neither `--observe`, packet
+possession nor successful pure tests grants execution authority.
+
+The observer opens only fixed no-follow directory/file paths and never enumerates
+directories or connects to a display, socket or daemon. It observes socket-directory
+type/access/read-only filesystem flags, fixed installed-tool metadata, three
+bounded integer kernel controls and long-option tokens from two bounded local
+manuals. Optional missing/denied/oversized inputs remain explicit unknowns.
+Candidate presence, manual tokens and kernel controls do not establish usable
+isolation. Path/descriptor checks are point-in-time evidence, not atomic custody.
+There is no filesystem write, namespace/container creation, privilege change,
+installation, application or native smoke in the Linux payload.
+
+The guest has a three-second self-alarm/monotonic budget and at most eight live
+metadata descriptors. The outer process has five seconds for launch/capture and
+at most five more for one nonrecursive kill/confirmation of that original retained
+process. Stdout/stderr retain at most 16384/4096 bytes plus overflow sentinels;
+overflow, incomplete EOF, timeouts and cleanup errors cannot pass. OS scheduling
+or uninterruptible operations may delay cleanup; a deadline overrun remains a
+failure. Outer exit does not establish guest/descendant cleanup or native/app proof.
+Exclusive-create evidence files remain private, preserved and unstaged.
+
+Required CI runs the Python pure/injected observer contracts alongside the X11
+pure suite on all three operating systems, and fake-only PowerShell supervisor
+contracts on Windows. These tests do not invoke WSL, inspect host `/tmp` or `/proc`,
+start a child process, or run either production entry point.

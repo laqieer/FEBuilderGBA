@@ -59,7 +59,12 @@ jobs:
         python-version: '3.12'
 
     - name: Run Linux X11 pure contract tests (issue #2160)
-      run: python -B -m unittest scripts.tests.test_linux_x11
+      run: python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata
+
+    - name: Run Windows Linux metadata supervisor pure contracts (issue #2160)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: .\scripts\tests\test_linux_x11_metadata_supervisor.ps1
 
     - name: Install playtest contract test runner
       run: python -m pip install --disable-pip-version-check --no-input pytest==8.3.5
