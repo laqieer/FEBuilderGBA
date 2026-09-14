@@ -45,6 +45,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         for name in ("prepare.ps1", "validate-helper.ps1", "run.ps1", "launch.ps1", "restage/restage.ps1"):
             text = (PACKAGE / name).read_text(encoding="utf-8")
             with self.subTest(path=name):
+                self.assertTrue(text.startswith("throw 'PinnedProof.UnsupportedDirectRoute'\nfunction ProofEnvelope {"))
                 read = text.index("Read-ProofConfiguration")
                 closure = text.index("Assert-ProofSource")
                 self.assertLess(read, closure)
@@ -60,7 +61,9 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
     def test_resource_admission_checks_discovered_config_rows(self):
         text = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
         start = text.index("function Resources {")
-        resources = text[start:text.index("\nfunction ", start + 1)]
+        following = re.search(r"\n\s*function ", text[start + 1:])
+        self.assertIsNotNone(following)
+        resources = text[start:start + 1 + following.start()]
         self.assertTrue("if (!$config.Count)" in resources, "Resource admission must check discovered config rows")
         self.assertTrue("$proofConfiguration.Count" not in resources, "Machine configuration is not resource evidence")
 
@@ -85,7 +88,8 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
         for token in ("Invoke-ConfigurationIntegrationTests", "Invoke-ReportingWriterTests", "Invoke-PinnedLoaderTests"):
             self.assertIn(token, aggregate)
-        self.assertIn("& (Join-Path $PSScriptRoot 'restage\\restage.ps1')", tests)
+        self.assertIn("Invoke-PinnedTestMode -Root $Root -Mode RestageChild", tests)
+        self.assertIn("Invoke-PinnedTestMode -Fixture $relocated -Mode PrerequisitesChild", tests)
         self.assertIn("Confirm-ProofChildResult", tests)
         self.assertIn("Invoke-RTerminalPublication", tests)
         self.assertIn("@(105,315)", tests)
@@ -123,6 +127,40 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertNotIn("-DateKind", config)
         loader_tests = (ROOT / "scripts/WindowsDesktopProof/PinnedLoader.Tests.ps1").read_text(encoding="utf-8")
         self.assertIn("Set-Alias -Name r -Value Invoke-ProofShortAliasTrap", loader_tests)
+
+    def test_bootstrap_closure_and_fixed_dispatch(self):
+        loader = (ROOT / "scripts/WindowsDesktopProof/PinnedLoader.ps1").read_text(encoding="utf-8")
+        modes = set(re.findall(r"^\s+(\w+) \{\$file=", loader, re.M))
+        self.assertEqual({
+            "Pure", "AggregatePure", "SupervisedPure", "ReadOnlyPrerequisites", "Restage", "Gui",
+            "Build", "Validate", "Inputs", "ValidatePureChild", "ValidateCompileChild",
+            "PrerequisitesChild", "RestageChild", "RunChild",
+        }, modes)
+        for token in ("ClosurePath", "ClosureBytes", "ClosureSha256", "pinned-proof-bindings-v2",
+                      "pinned-proof-closure-v1", "PinnedProof.Authentication:", "23068672",
+                      "$manifest.files.Count -ne 22", "$CommandBytes -gt 65536",
+                      "$CommandSha256 -cne $row.sha256", "$body.GetScriptBlock()"):
+            self.assertIn(token, loader)
+        invoke = loader[loader.index("function Invoke-PinnedProof {"):]
+        self.assertLess(invoke.index("Read-PinnedProofClosure"), invoke.index("ConvertTo-PinnedProofAst"))
+        self.assertIn(". (Get-PinnedProofEnvelope", invoke)
+        for name in ("prepare.ps1", "launch.ps1", "supervision/NonCopySupervisor.ps1"):
+            text = (PACKAGE / name).read_text(encoding="utf-8")
+            self.assertIn("New-PinnedProofChildArguments", text)
+            self.assertNotRegex(text, r"'-File',\s*(?:\"\$Code\\validate-helper|.*'run\.ps1')")
+
+    def test_libraries_are_imported_without_main(self):
+        for name, entry in (("NonCopySupervisor.ps1", "Invoke-NonCopyEntry"),
+                            ("RestageSupervisor.ps1", "Invoke-RestageSupervisorEntry")):
+            text = (PACKAGE / "supervision" / name).read_text(encoding="utf-8")
+            self.assertTrue(text.startswith("throw 'PinnedProof.UnsupportedDirectRoute'\nfunction ProofEnvelope {"))
+            self.assertIn("function " + entry, text)
+            self.assertIn(". (Get-PinnedProofLibrary -Library ", text)
+            self.assertNotIn("$MyInvocation.InvocationName", text)
+        aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        self.assertIn("function Invoke-AggregateEntry", aggregate)
+        self.assertIn("outer driver trusts the reviewed checkout", aggregate)
+        self.assertIn("Invoke-PinnedTestMode -Fixture $checkoutFixture -Mode AggregatePure", aggregate)
 
     def test_final_writer_is_not_optional_process_grace(self):
         policy = (PACKAGE / "restage/RestagePolicy.ps1").read_text(encoding="utf-8")

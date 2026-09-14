@@ -34,6 +34,13 @@ pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\te
 python -m unittest scripts.tests.test_offline_patch_import_proof scripts.tests.test_crossplatform_workflow -v
 ```
 
+This ordinary command **trusts the reviewed checkout**, not independently approved
+source pins. Its outer driver copies the fixed public closure into a fresh owned
+fixture, generates test-only pins and invokes `AggregatePure`. Pinned aggregate
+dispatch extracts only its authenticated declaration envelope/main; it never
+executes the outer driver. Inner loader regressions run only failing AggregatePure
+cases, so the successful outer aggregate cannot recurse.
+
 The aggregate creates a fresh test-owned directory under `TestResults`, invokes
 the production restager with generated benign bytes and complete synthetic
 historical evidence, and checks fresh copy, existing-path refusal, unchanged
@@ -132,8 +139,12 @@ evidence and obtain a new independently approved source/configuration/run bindin
 
 ## Entry points
 
-All operational entrypoints require `-Configuration` and
-`-ConfigurationSha256`. They are Windows operations, not CI's pure command.
+All operational files refuse direct `-File`, call-operator and dot-source execution
+with `PinnedProof.UnsupportedDirectRoute`, before importing dependencies. Use the
+fixed loader modes below. Their v2 bindings carry `configuration` and
+`configurationSha256`; the following lists describe the preserved internal
+parameters, not supported direct commands. They are Windows operations, not CI's
+pure command.
 
 * `prepare.ps1`: fixed `-Stage Build|Validate|Inputs`, fresh `-Id`, matching
   `-SourceManifestSha256`, `-HelperSourceManifestSha256`,
@@ -153,24 +164,96 @@ by identity validation and retained custody. Runner exit must be confirmed befor
 app cleanup; at most one nonrecursive kill of each original retained process is
 allowed. A killed/timed-out app never counts as graceful-close success.
 
-## Pinned loader bindings
+## Independently pinned bootstrap and bindings
 
-The loader declares only `Mode`, `CommandBytes`, `CommandSha256`, `BindingsPath`,
-`BindingsBytes`, `BindingsSha256`. Binding bytes must be 1..16384; command bytes
-1..65536. Reads are canonical/non-reparse, bounded with an EOF sentinel,
-length/hash checked and strict UTF-8 without a BOM. The same verified command
-buffer is parsed with its fixed source filename and invoked; it is not reopened
-for execution and package-relative resolution survives.
+The selected PowerShell host and **PinnedLoader itself must first be authenticated
+externally**. A loader cannot establish its own trust by hashing itself after
+execution. Its inclusion in the closure binds later child-loader reads; it does
+not replace external bootstrap authentication.
 
-Bindings have exactly these fields:
+`PinnedLoader.ps1` accepts only `Mode`, `CommandBytes`, `CommandSha256`,
+`BindingsPath`, `BindingsBytes`, `BindingsSha256`, and mandatory `ClosurePath`,
+`ClosureBytes`, `ClosureSha256`. Production pins come from the caller's approved
+data, never discovery of current checkout bytes. All nine parameters must be
+supplied; there is no unpinned production fallback.
+
+Closure JSON is exactly:
 
 ```json
-{"schema":"pinned-proof-bindings-v1","mode":"Pure","configuration":null,"configurationSha256":null,"newGuiId":null,"inputManifest":null,"inputManifestSha256":null,"sourceManifestSha256":null,"authorizationReference":null}
+{"schema":"pinned-proof-closure-v1","files":[{"path":"OfflinePatchImportProof\\Configuration.ps1","bytes":1,"sha256":"REPLACE_WITH_APPROVED_SHA256"}]}
 ```
 
-`Pure` invokes the committed restage pure suite and requires every data field to
-be null. Other modes require configuration path/hash; Restage alone requires
-`newGuiId`; Gui alone requires all four GUI binding fields. Unexpected fields
-are refused. The other fixed targets are the matching supervision/launch scripts.
-Tests exercise refusal and a real same-buffer invocation, without dynamic
-test-mode commands or native/application launch.
+This abbreviated example is deliberately incomplete. Exactly 22 rows are required:
+the existing 20 feature-package CS/PS1 members, prefixed `OfflinePatchImportProof\`,
+and `WindowsDesktopProof\PinnedLoader.ps1` plus
+`WindowsDesktopProof\PinnedLoader.Tests.ps1`. The fixed inventory is public in
+`Get-PinnedProofFiles`. Unknown/missing/duplicate/case-colliding rows or fields,
+incorrect types, sizes, hashes, or unsafe/reparse paths are rejected. The existing
+configuration's 20-member source manifest remains a separate additional provenance
+check; historical 7/10-member preparation evidence is not upgraded or relaxed.
+
+Closure and bindings are each 1..16384 bytes. Each source is 1..1048576 bytes,
+with a 22 MiB aggregate ceiling. The selected command remains 1..65536 bytes and
+its separately supplied pin must equal its closure row. Reads use exact lengths,
+an EOF sentinel and SHA256. JSON and executable AST input use strict UTF-8 without
+a BOM. JSON/AST parsing consumes authenticated buffers.
+
+**Every member, including all four C# units and secondary test/policy libraries,
+is authenticated before any package code, compilation, output allocation or
+downstream spawn.** Admission errors start with `PinnedProof.Authentication:`;
+they cannot be promoted to successful operational receipts.
+
+Bindings v1 is rejected. V2 has exactly these 15 fields:
+
+```json
+{"schema":"pinned-proof-bindings-v2","mode":"Pure","configuration":null,"configurationSha256":null,"newGuiId":null,"inputManifest":null,"inputManifestSha256":null,"sourceManifestSha256":null,"authorizationReference":null,"id":null,"priorId":null,"helperSourceManifestSha256":null,"sourceGateReference":null,"buildReceiptSha256":null,"validationReceiptSha256":null}
+```
+
+Only the following fields may be non-null for each exact mode. `config` below
+means `configuration` + `configurationSha256`; all other names are literal.
+
+| Mode | Fixed target | Required non-null data |
+| --- | --- | --- |
+| Pure | Original restage pure AST, through the loader's fixed `Invoke-PinnedRestagePure` adapter | None |
+| AggregatePure | Aggregate envelope/main | None |
+| SupervisedPure | NonCopy supervisor, Pure | config |
+| ReadOnlyPrerequisites | NonCopy supervisor, ReadOnlyPrerequisites | config |
+| Restage | Restage supervisor | config, newGuiId |
+| Gui / RunChild | Launcher / runner | config, inputManifest, inputManifestSha256, sourceManifestSha256, authorizationReference |
+| Build / Validate | Preparation, corresponding Stage | config, id, sourceManifestSha256, helperSourceManifestSha256, sourceGateReference, authorizationReference |
+| Inputs | Preparation, Inputs | Same as Build, plus buildReceiptSha256, validationReceiptSha256 |
+| ValidatePureChild / ValidateCompileChild | Validation helper, Pure / Compile | config, id, sourceManifestSha256, helperSourceManifestSha256 |
+| PrerequisitesChild | Read-only restager | config, priorId |
+| RestageChild | Copying restager | config, priorId, newGuiId |
+
+No operational fields are admitted for Pure/AggregatePure, but their independent
+closure pins are mandatory. IDs, hashes, paths and references retain their strict
+types/formats. URLs remain metadata, not acquired execution authorization.
+
+Operational files contain a direct-route throw and one declaration-only
+`ProofEnvelope`, including a separate fixed named main. The loader imports the
+authenticated envelope body into its invocation scope and calls only the fixed
+main. Supervisor library imports dot-source cached authenticated bodies with no
+arguments, exposing writers without invoking production main. No Boolean,
+environment marker, secret or caller script callback constitutes authentication.
+
+Preparation, launcher and supervisor child dispatches reauthenticate the complete
+closure before creating closed data-only child bindings. They pass the inherited
+closure pins to the public loader, and the fresh child independently repeats
+admission. Existing host, attempt/cwd, claim, ID, deadline and custody checks remain.
+
+### Quiescent-source limitation
+
+The authenticated entry/envelope and supervisor-library buffers are not reopened
+for execution. Other already-authenticated PowerShell dependencies, C# `Add-Type
+-Path` inputs and the child loader are reopened. **All 22 source files and their
+path ancestry must remain quiescent throughout execution, including between the
+parent's verification and the child's loader open.** The correction refuses
+pre-existing tampering; preflight/path checks are neither atomic filesystem
+protection nor an OS sandbox. A hostile caller manually evaluating arbitrary code
+outside the supported API is not contained.
+
+Old grants, manifests, failed receipts and prepared roots stay historical and
+unchanged. A corrected source closure requires fresh approval and bindings.
+Passing these non-native tests is not authority for production preparation or
+GUI execution; the feature's UI automation remains in this feature PR.

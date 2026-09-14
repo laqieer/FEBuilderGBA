@@ -115,8 +115,8 @@ function Get-LaterRestageCases {
     )
 }
 function Invoke-LaterProductionTests([string]$Root) {
-    . (Join-Path $PSScriptRoot 'supervision\NonCopySupervisor.ps1')
-    . (Join-Path $PSScriptRoot 'supervision\RestageSupervisor.ps1')
+    . (Get-PinnedProofLibrary -Library NonCopySupervisor)
+    . (Get-PinnedProofLibrary -Library RestageSupervisor)
     $cases=0
     foreach($writer in @('Write-NonCopyReceipt','Write-RestageReceipt')){
         foreach($previous in @(-1,[double]::NaN,[double]::PositiveInfinity,106)){
@@ -306,8 +306,8 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
     return @{config=$configuration;pin=$configurationPin;manifest=$manifest}
 }
 function Invoke-ReportingWriterTests([string]$Root) {
-    . (Join-Path $PSScriptRoot 'supervision\NonCopySupervisor.ps1')
-    . (Join-Path $PSScriptRoot 'supervision\RestageSupervisor.ps1')
+    . (Get-PinnedProofLibrary -Library NonCopySupervisor)
+    . (Get-PinnedProofLibrary -Library RestageSupervisor)
     $cases=0
     foreach($writer in @('Write-NonCopyReceipt','Write-RestageReceipt')) {
         foreach($external in @(100,310)){
@@ -412,7 +412,7 @@ function Invoke-ReportingWriterTests([string]$Root) {
     return $cases
 }
 function Invoke-ConfigurationIntegrationTests([string]$Root) {
-    . (Join-Path $PSScriptRoot 'supervision\NonCopySupervisor.ps1')
+    . (Get-PinnedProofLibrary -Library NonCopySupervisor)
     $fixture=New-ProofRestageFixture (Join-Path $Root 'physical')
     $config=$fixture.config;$pin=$fixture.pin;$cases=0
     $parsed=Read-ProofConfiguration $pin.path $pin.sha256 -Purpose Restage
@@ -425,7 +425,7 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     $cases+=Invoke-ProofBooleanTests
     $adapterError=$null
     try {
-        & (Join-Path $PSScriptRoot 'supervision\RestageSupervisor.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -NewGuiId ('a'*32)
+        Invoke-PinnedTestMode -Root $Root -Mode Restage -Values @{configuration=$pin.path;configurationSha256=$pin.sha256;newGuiId=('a'*32)}
     }catch{$adapterError=$_.Exception.Message}
     Assert-Proof ($adapterError -ceq 'Pinned PowerShell 7 host required.') 'Actual restage adapter lost declared configuration before the no-spawn host gate.'
     $cases++
@@ -440,14 +440,9 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     }
     Assert-Proof ($before -eq (@([IO.Directory]::GetFileSystemEntries($config.outputRoot)).Count+@([IO.Directory]::GetFileSystemEntries($config.evidenceRoot)).Count)) 'Configuration rejection allocated output.'
     $cases++
-    $relocated=Join-Path $Root 'relocated source'
-    $source=Read-ProofPinnedJson $config.sourceManifest
-    foreach($row in $source.files){
-        $path=Join-Path $relocated $row.path
-        [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
-        [IO.File]::Copy((Join-Path $PSScriptRoot $row.path),$path,$false)
-    }
-    $readOnly=& (Join-Path $relocated 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -ReadOnlyPrerequisites | ConvertFrom-Json -AsHashtable
+    $relocated=New-PinnedProofFixture (Join-Path $Root 'relocated source')
+    $readOnly=Invoke-PinnedTestMode -Fixture $relocated -Mode PrerequisitesChild -Values @{
+        configuration=$pin.path;configurationSha256=$pin.sha256;priorId=$config.restage.priorId} | ConvertFrom-Json -AsHashtable
     Assert-Proof ($readOnly.passed -and !$readOnly.copiesPerformed) 'Relocated production prerequisites.';$cases++
     $null=Confirm-ProofChildResult $config $pin.sha256 'ReadOnlyPrerequisites' '' $readOnly {};$cases++
     $stringProjection=$readOnly.Clone()
@@ -463,13 +458,15 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     }
     $newId='8'*32
     New-ProofRestageClaim $config $pin.sha256 $newId
-    $report=& (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -NewGuiId $newId | ConvertFrom-Json -AsHashtable
+    $report=Invoke-PinnedTestMode -Root $Root -Mode RestageChild -Values @{
+        configuration=$pin.path;configurationSha256=$pin.sha256;priorId=$config.restage.priorId;newGuiId=$newId} | ConvertFrom-Json -AsHashtable
     Assert-Proof ($report.passed -and $report.payloadFiles -eq 605 -and $report.payloadBytes -eq $config.restage.expected.bytes) 'Production fresh copy failed.';$cases++
     $rows=@(Confirm-ProofChildResult $config $pin.sha256 'Restage' $newId $report {})
     Assert-Proof ($rows.Count -eq 608) 'Production supervisor inventory did not verify every output.';$cases++
     Assert-ProofTestThrows {New-ProofRestageClaim $config $pin.sha256 $newId};$cases++
     Assert-ProofTestThrows {
-        & (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -NewGuiId $newId
+        Invoke-PinnedTestMode -Root $Root -Mode RestageChild -Values @{
+            configuration=$pin.path;configurationSha256=$pin.sha256;priorId=$config.restage.priorId;newGuiId=$newId}
     };$cases++
     foreach($group in @(@{prefix='app';rows=$fixture.manifest.appFiles},@{prefix='support';rows=$fixture.manifest.runtimeAssemblies},
         @{prefix=('desktop-proof-'+$config.restage.priorId);rows=$fixture.manifest.fixtures})){
@@ -482,7 +479,8 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     [IO.File]::WriteAllBytes($corruptPath,([byte[]]@(255)))
     $failedId='9'*32;New-ProofRestageClaim $config $pin.sha256 $failedId
     Assert-ProofTestThrows {
-        & (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $pin.path -ConfigurationSha256 $pin.sha256 -PriorId $config.restage.priorId -NewGuiId $failedId
+        Invoke-PinnedTestMode -Root $Root -Mode RestageChild -Values @{
+            configuration=$pin.path;configurationSha256=$pin.sha256;priorId=$config.restage.priorId;newGuiId=$failedId}
     };$cases++
     $failed=Read-ProofJsonFile (Join-Path $config.evidenceRoot ('restage-'+$failedId+'.result.json'))
     Assert-Proof (!$failed.passed -and !$failed.copiesPerformed -and $failed.failure -and
@@ -490,8 +488,8 @@ function Invoke-ConfigurationIntegrationTests([string]$Root) {
     foreach($invalidType in @('PurePassed','CompilePassed','BindingAccepted','OuterSource','HistoryExtra','HistoryMissing')){
         $badFixture=New-ProofRestageFixture (Join-Path $Root ('bad-history-'+$invalidType)) $invalidType
         Assert-ProofTestThrows {
-            & (Join-Path $PSScriptRoot 'restage\restage.ps1') -Configuration $badFixture.pin.path -ConfigurationSha256 $badFixture.pin.sha256 `
-                -PriorId $badFixture.config.restage.priorId -ReadOnlyPrerequisites
+            Invoke-PinnedTestMode -Root $Root -Mode PrerequisitesChild -Values @{
+                configuration=$badFixture.pin.path;configurationSha256=$badFixture.pin.sha256;priorId=$badFixture.config.restage.priorId}
         }
         Assert-Proof (@([IO.Directory]::GetFileSystemEntries($badFixture.config.outputRoot)).Count -eq 0) 'Malformed history allocated output.'
         $cases++
