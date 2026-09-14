@@ -153,6 +153,36 @@ $capture = Invoke-FakeCapture $process
 Assert-True (-not $capture.Record.ok -and $process.KillCount -eq 1) 'Setup error must fail and abort the owned child.'
 Assert-True ($stdout.Disposed -and $stderr.Disposed) 'Acquired streams must both close on setup error.'
 
+$diagnostic = [Text.Encoding]::UTF8.GetBytes('retained sibling diagnostic')
+foreach ($failureKind in @('setup', 'completed-read')) {
+    foreach ($failedName in @('stdout', 'stderr')) {
+        $stdout = New-FakePipe $diagnostic
+        $stderr = New-FakePipe $diagnostic
+        $failed = if ($failedName -ceq 'stdout') { $stdout } else { $stderr }
+        if ($failureKind -ceq 'setup') {
+            $failed | Add-Member ScriptMethod ReadAsync {
+                param($buffer, $offset, $count, $token)
+                throw 'injected symmetric setup failure'
+            } -Force
+        } else {
+            $failed.Completion.SetException([Exception]::new('injected completed read failure'))
+            $failed | Add-Member ScriptMethod ReadAsync {
+                param($buffer, $offset, $count, $token)
+                return $this.Completion.Task
+            } -Force
+        }
+        $process = New-FakeProcess $stdout $stderr $false
+        $capture = Invoke-FakeCapture $process
+        $sibling = if ($failedName -ceq 'stdout') { 'stderr' } else { 'stdout' }
+        Assert-True (-not $capture.Record.ok) 'A stream failure cannot pass.'
+        Assert-True ($capture.Record.streams[$sibling].retained_bytes -eq $diagnostic.Length) "$failureKind on $failedName discarded completed sibling bytes."
+        $retained = if ($sibling -ceq 'stdout') { $capture.Stdout } else { $capture.Stderr }
+        Assert-True ([Convert]::ToHexString($retained) -ceq [Convert]::ToHexString($diagnostic)) 'Sibling byte content changed.'
+        Assert-True ($null -ne $capture.Record.streams[$failedName].error) 'Failed stream error not retained.'
+        Assert-True ($process.KillCount -eq 1) 'Failure must retain original-object-only abort.'
+    }
+}
+
 $source = [IO.File]::ReadAllText("$PSScriptRoot\..\Invoke-LinuxX11Metadata.ps1")
 Assert-True (-not ($source -match 'Invoke-Expression|Start-Process|Get-Process|Stop-Process|taskkill|\.Kill\(\s*\$true')) 'Forbidden command/termination surface.'
 Write-Output 'Linux metadata supervisor pure contracts passed.'

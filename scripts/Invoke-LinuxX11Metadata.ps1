@@ -101,6 +101,29 @@ function Get-MetadataShortError([Exception]$ErrorObject) {
     return $text.Substring(0, [Math]::Min(300, $text.Length))
 }
 
+function Receive-MetadataRead($Stream) {
+    if ($null -eq $Stream.Task -or -not $Stream.Task.IsCompleted) { return $null }
+    $task = $Stream.Task
+    $Stream.Task = $null
+    try {
+        $count = $task.GetAwaiter().GetResult()
+        if ($count -lt 0 -or $count -gt $Stream.Requested) { throw 'Invalid asynchronous read count.' }
+        if ($count -eq 0) {
+            $Stream.Eof = $true
+        } else {
+            $Stream.Observed += $count
+            if ($Stream.Observed -gt $Stream.Limit) {
+                $Stream.Overflow = $true
+                throw ('Outer ' + $Stream.Name + ' raw-byte cap.')
+            }
+        }
+        return $null
+    } catch {
+        if ($null -eq $Stream.Error) { $Stream.Error = Get-MetadataShortError $_.Exception }
+        return $Stream.Error
+    }
+}
+
 function Invoke-MetadataCapture {
     param(
         [Parameter(Mandatory)]$Process,
@@ -120,8 +143,8 @@ function Invoke-MetadataCapture {
         ok = $false; streams = [ordered]@{}; descendant_cleanup_proven = $false
     }
     $streams = @(
-        [pscustomobject]@{ Name = 'stdout'; Limit = 16384; Buffer = [byte[]]::new(16385); Observed = 0; Eof = $false; Overflow = $false; Error = $null; Stream = $null; Task = $null }
-        [pscustomobject]@{ Name = 'stderr'; Limit = 4096; Buffer = [byte[]]::new(4097); Observed = 0; Eof = $false; Overflow = $false; Error = $null; Stream = $null; Task = $null }
+        [pscustomobject]@{ Name = 'stdout'; Limit = 16384; Buffer = [byte[]]::new(16385); Observed = 0; Requested = 0; Eof = $false; Overflow = $false; Error = $null; Stream = $null; Task = $null }
+        [pscustomobject]@{ Name = 'stderr'; Limit = 4096; Buffer = [byte[]]::new(4097); Observed = 0; Requested = 0; Eof = $false; Overflow = $false; Error = $null; Stream = $null; Task = $null }
     )
     $retainedHandle = $null
     $started = & $Now
@@ -130,41 +153,54 @@ function Invoke-MetadataCapture {
         if (-not $record.started) { throw 'Exact outer process did not start.' }
         $streams[0].Stream = $Process.StandardOutput.BaseStream
         $streams[1].Stream = $Process.StandardError.BaseStream
+        $firstFailure = $null
         foreach ($stream in $streams) {
-            try { $stream.Task = $stream.Stream.ReadAsync($stream.Buffer, 0, 4096, $cancel.Token) }
-            catch { $stream.Error = Get-MetadataShortError $_.Exception; throw }
+            if ((& $Now) - $started -ge 5) {
+                $record.timed_out = $true
+                if ($null -eq $firstFailure) { $firstFailure = 'Outer stream setup deadline.' }
+                break
+            }
+            try {
+                $stream.Requested = 4096
+                $stream.Task = $stream.Stream.ReadAsync($stream.Buffer, 0, $stream.Requested, $cancel.Token)
+            } catch {
+                $stream.Error = Get-MetadataShortError $_.Exception
+                if ($null -eq $firstFailure) { $firstFailure = $stream.Error }
+            }
         }
+        if ($null -ne $firstFailure) { throw $firstFailure }
         $retainedHandle = $Process.SafeHandle
         $record.pid = $Process.Id
         $record.process_start_utc = $Process.StartTime.ToUniversalTime().ToString('o')
         while ($true) {
+            $firstFailure = $null
             foreach ($stream in $streams) {
                 if ((& $Now) - $started -ge 5) {
                     $record.timed_out = $true
-                    throw 'Outer launch/capture deadline.'
+                    if ($null -eq $firstFailure) { $firstFailure = 'Outer launch/capture deadline.' }
+                    break
                 }
-                if ($null -ne $stream.Task -and $stream.Task.IsCompleted) {
-                    try { $count = $stream.Task.GetAwaiter().GetResult() }
-                    catch { $stream.Error = Get-MetadataShortError $_.Exception; throw }
-                    $stream.Task = $null
-                    if ($count -eq 0) {
-                        $stream.Eof = $true
-                    } else {
-                        $stream.Observed += $count
-                        if ($stream.Observed -gt $stream.Limit) {
-                            $stream.Overflow = $true
-                            throw ('Outer ' + $stream.Name + ' raw-byte cap.')
-                        }
-                        if ((& $Now) - $started -ge 5) {
-                            $record.timed_out = $true
-                            throw 'Outer launch/capture deadline.'
-                        }
-                        $size = [Math]::Min(4096, $stream.Limit + 1 - $stream.Observed)
-                        try { $stream.Task = $stream.Stream.ReadAsync($stream.Buffer, $stream.Observed, $size, $cancel.Token) }
-                        catch { $stream.Error = Get-MetadataShortError $_.Exception; throw }
+                $failure = Receive-MetadataRead $stream
+                if ($null -ne $failure -and $null -eq $firstFailure) { $firstFailure = $failure }
+            }
+            if ($null -ne $firstFailure) { throw $firstFailure }
+            foreach ($stream in $streams) {
+                if ((& $Now) - $started -ge 5) {
+                    $record.timed_out = $true
+                    if ($null -eq $firstFailure) { $firstFailure = 'Outer launch/capture deadline.' }
+                    break
+                }
+                if ($null -eq $stream.Task -and -not $stream.Eof) {
+                    try {
+                        $stream.Requested = [Math]::Min(4096, $stream.Limit + 1 - $stream.Observed)
+                        $stream.Task = $stream.Stream.ReadAsync($stream.Buffer, $stream.Observed, $stream.Requested, $cancel.Token)
+                    } catch {
+                        $stream.Error = Get-MetadataShortError $_.Exception
+                        if ($null -eq $firstFailure) { $firstFailure = $stream.Error }
                     }
                 }
             }
+            if ($null -ne $firstFailure) { throw $firstFailure }
             if ((& $Now) - $started -ge 5) {
                 $record.timed_out = $true
                 throw 'Outer completion deadline.'
@@ -220,15 +256,19 @@ function Invoke-MetadataCapture {
             } catch { $record.exit_error = Get-MetadataShortError $_.Exception }
         }
         foreach ($stream in $streams) {
-            if ($null -ne $stream.Task -and $stream.Task.IsCompleted -and $stream.Task.IsFaulted) { $null = $stream.Task.Exception }
+            $failure = Receive-MetadataRead $stream
+            if ($null -ne $failure -and $null -eq $record.failure) { $record.failure = $failure }
             if ($null -ne $stream.Stream) {
                 try { $stream.Stream.Dispose() }
                 catch { $record.cleanup[$stream.Name] = Get-MetadataShortError $_.Exception }
             }
+            $failure = Receive-MetadataRead $stream
+            if ($null -ne $failure -and $null -eq $record.failure) { $record.failure = $failure }
             $record.streams[$stream.Name] = [ordered]@{
                 limit_bytes = $stream.Limit; observed_bytes = $stream.Observed
                 retained_bytes = [Math]::Min($stream.Limit, $stream.Observed)
                 eof = $stream.Eof; overflow = $stream.Overflow; error = $stream.Error
+                pending = $null -ne $stream.Task
             }
         }
         try { $Process.Dispose() } catch { $record.cleanup.process = Get-MetadataShortError $_.Exception }

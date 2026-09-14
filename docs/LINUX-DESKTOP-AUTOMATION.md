@@ -80,7 +80,7 @@ not authorize creating/running that machine-specific copy.
 From the repository root, using the existing standard-library test runner:
 
 ```powershell
-python -m unittest discover -s scripts\tests -p test_linux_x11.py
+python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata
 ```
 
 Tests use Python fakes and ctypes storage only, not Xlib, C callbacks, displays,
@@ -210,6 +210,11 @@ overflow, incomplete EOF, timeouts and cleanup errors cannot pass. OS scheduling
 or uninterruptible operations may delay cleanup; a deadline overrun remains a
 failure. Outer exit does not establish guest/descendant cleanup or native/app proof.
 Exclusive-create evidence files remain private, preserved and unstaged.
+
+Stream setup and completed-read servicing retain the first failure while still
+accounting for the sibling stream. Abort/cleanup collects only already-completed
+reads, without a new read, tail wait or deadline extension; still-pending reads
+are explicitly recorded and do not establish EOF or diagnostic completeness.
 
 Required CI runs the Python pure/injected observer contracts alongside the X11
 pure suite on all three operating systems, and fake-only PowerShell supervisor
