@@ -187,7 +187,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
         validation = (PACKAGE / "validate-helper.ps1").read_text(encoding="utf-8")
         for token in ("new DesktopStartupObservation()", "ReadStartupSample()",
-                      "observation.Revalidate(", "observation.Observe(",
+                      "sample.Observe(observation, clock.ElapsedMilliseconds, loadingExists, revalidate)",
                       "result.StartupRoute = decision.Route",
                       "result.LoadingObserved = observation.LoadingObserved",
                       "startup-main-acceptance-control", "startup-wizard-acceptance-control"):
@@ -203,7 +203,8 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertLess(handoff.index("ReadStartupSample()"), handoff.index("ObserveStartup("))
         self.assertIn("ObserveStartup(observation, acceptance, true)", handoff)
         self.assertIn("ValidateWindow(window, decision.WindowClass)", handoff)
-        self.assertIn("Control(acceptedMain, MainButton, ControlType.Button, false)", handoff)
+        self.assertIn("Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree)", handoff)
+        self.assertIn("acceptance.CheckRevision()", handoff)
         self.assertNotIn("Invoke(", handoff)
         self.assertIn('Stage("loading-handoff", 45000)', handoff)
         for text in (aggregate, validation):
@@ -216,6 +217,105 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
                       "exact-main-owned-wizard-order-", "late-loading-makes-observation-sticky",
                       "invalid-observed-handoff-never-falls-back-", "acceptance-offscreen-main-control-blocks"):
             self.assertIn(token, tests)
+
+    def test_owned_tree_is_the_real_discovery_and_query_boundary(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        self.assertIn("OwnedTreeAdapter : IDesktopOwnedTreeAdapter<AutomationElement>", desktop)
+        self.assertIn("new DesktopOwnedTree<AutomationElement>(new OwnedTreeAdapter(this)", desktop)
+        self.assertEqual(1, desktop.count(".FindAll("))
+        self.assertIn("desktop.FindAll(TreeScope.Children", desktop)
+        self.assertIn("PropertyCondition(AutomationElement.ProcessIdProperty, owner.pid)", desktop)
+        self.assertNotIn("TreeScope.Descendants", desktop)
+        self.assertNotIn("ControlViewWalker", desktop)
+        for method in ("GetParent", "GetFirstChild", "GetNextSibling"):
+            self.assertIn(f"TreeWalker.RawViewWalker.{method}(node)", desktop)
+        for token in ("tree.Find(tree.WindowKey(window, selector)", "tree.Validate(tree.WindowKey(",
+                      "tree.Read(tree.WindowKey(", "DesktopStartupSample<AutomationElement>.Capture(tree, owned =>"):
+            self.assertIn(token, desktop)
+        for token in ("DesktopSelector.Loading", "DesktopSelector.FilenameHost",
+                      "DesktopSelector.FilenameEdit, 1, field, tree",
+                      "DesktopSelector.PickerOpen", "DesktopSelector.Row, 1, list, tree",
+                      "DesktopSelector.RowName, 2, rows[0], tree"):
+            self.assertIn(token, desktop)
+        self.assertNotRegex(desktop, r"GetAncestor\([^,\n]+,\s*3\)")
+        walk = policy[policy.index("    void Walk("):policy.index("    void Drain()")]
+        self.assertLess(walk.index("adapter.ProcessId(node) == pid"), walk.index("Resolve(node, expected)"))
+        self.assertLess(walk.index("CrossRoot(expected, root)"), walk.index("adapter.Matches(node, selector)"))
+        self.assertIn("query-window-cycle", policy)
+        self.assertIn("pending.Enqueue(root)", policy)
+        self.assertIn("while (pending.Count != 0)", policy)
+
+    def test_owned_tree_budget_and_failure_privacy_are_explicit(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        for token in ("Nodes >= 4096", "Calls >= 65536", "depth > 32", "windows.Count < 8",
+                      "id.Length <= 32", "depth < 8", "query-topology-changed"):
+            self.assertIn(token, policy)
+        self.assertIn("unchecked((uint)value)", policy)
+        self.assertIn("new IntPtr(unchecked((int)value))", policy)
+        self.assertIn("Key(Native.GetAncestor(", desktop)
+        self.assertIn("Same(Native.GetForegroundWindow(), pickerHandle)", desktop)
+        failure = policy[policy.index("public sealed class DesktopQueryFailure"):
+                         policy.index("internal sealed class DesktopTreeGuardException")]
+        self.assertNotRegex(failure, r"\b(?:Name|Value|Path|Title|RuntimeId|ActualPid)\b")
+        for token in ("ExpectedOwnedRoot", "PreviouslyOwnedHandle", "OwnedRootBefore", "OwnedRootAfter",
+                      "AliveBefore", "AliveAfter", "OwnPidBefore", "OwnPidAfter", "Predicate"):
+            self.assertIn(token, failure)
+        refusal = policy[policy.index("    void Fail("):policy.index("    void Require(")]
+        self.assertIn("failure.PreviouslyOwnedHandle != 0 && !Budget.Closed", refusal)
+        self.assertLess(refusal.index("adapter.NativePid(root) == pid"),
+                        refusal.index("failure.OwnedRootAfter = root"))
+        self.assertIn("query-element-unavailable", policy)
+        self.assertIn('Fail(ex.GetType().Name == "ElementNotAvailableException"', policy)
+        self.assertIn("if (result.QueryFailure == null) result.QueryFailure = ex.Failure", desktop)
+        self.assertIn("worker.Join(100)", desktop)
+        self.assertIn("dispatch.Close()", desktop)
+
+    def test_owned_tree_inventory_exercises_production_adapter_calls(self):
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        self.assertIn("OwnedModel : IDesktopOwnedTreeAdapter<OwnedNode>", tests)
+        self.assertIn("new DesktopOwnedTree<OwnedNode>(this", tests)
+        for token in ("main-seed-discovers-owned-wizard", "owner-query-never-matches-wizard-descendant",
+                      "foreign-uia-pid-before-all-other-node-access", "raw-parent-includes-native-root-through-wrappers",
+                      "cross-native-window-cycle-is-not-consistent-rediscovery",
+                      "unavailable-provider-is-refused-without-retry",
+                      "query-discovered-root-is-drained-before-return",
+                      "actual-traversal-wizard-selection-drives-startup",
+                      "observed-visibility-change-invalidates-acceptance-revision",
+                      "diagnostics-cannot-hide-original-refusal-when-budget-closes"):
+            self.assertIn(token, tests)
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            runner = (PACKAGE / name).read_text(encoding="utf-8")
+            self.assertIn("[DesktopPolicyTests]::RunOwnedTreeTests()", runner)
+            self.assertIn("ownedTreeCases", runner)
+            self.assertRegex(runner, r"ownedTreeCases -ne 108")
+
+    def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        sample = policy[policy.index("internal sealed class DesktopStartupSample"):
+                        policy.index("// Native/UIA ownership and control ancestry")]
+        self.assertIn("internal int Revision { get; }", sample)
+        self.assertIn("Tree = tree; Revision = tree.Revision;", sample)
+        self.assertNotIn("sample.Revision = tree.Revision", sample)
+        capture = sample[sample.index("    internal static"):sample.index("    internal DesktopStartupDecision")]
+        self.assertLess(capture.index("sample.CheckRevision()"), capture.index("for (int i"))
+        self.assertRegex(capture, r"bool visible = tree.Visible\(window\);\s+sample.CheckRevision\(\);\s+if \(!visible\)")
+        self.assertRegex(capture, r"var projection = project\(window\);[\s\S]*?sample.CheckRevision\(\);\s+sample.windows.Add")
+        observe = sample[sample.index("    internal DesktopStartupDecision"):]
+        self.assertLess(observe.index("CheckRevision()"), observe.index("observation.Revalidate("))
+        self.assertIn("observation.Observe(at, Roots, loadingExists)", observe)
+        self.assertIn("DesktopStartupSample<AutomationElement>.Capture", desktop)
+        self.assertIn("DesktopStartupSample<OwnedNode>.Capture", tests)
+        self.assertIn("return count + RunProjectionTests()", tests)
+        for name in ("initial-projection-cannot-omit-earlier-hidden-root",
+                     "acceptance-refresh-cannot-omit-earlier-hidden-root",
+                     "already-projected-root-visibility-change-refuses",
+                     "observed-change-after-refresh-decision-refuses-final-acceptance",
+                     "stable-hidden-root-keeps-honest-candidate-and-refresh"):
+            self.assertIn(name, tests)
 
     def test_final_writer_is_not_optional_process_grace(self):
         policy = (PACKAGE / "restage/RestagePolicy.ps1").read_text(encoding="utf-8")

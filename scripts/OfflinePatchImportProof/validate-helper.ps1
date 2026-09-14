@@ -71,6 +71,8 @@ function ProofEnvelope {
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
                 if($report.startupObservationCases -ne 75) { throw 'Startup observation case inventory changed.' }
+                $report.ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
+                if($report.ownedTreeCases -ne 108) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

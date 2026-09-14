@@ -80,6 +80,471 @@ public static class DesktopPolicy
     }
 }
 
+internal static class DesktopHwnd
+{
+    internal static uint Key(long value) => unchecked((uint)value);
+    internal static IntPtr Pointer(uint value) => new IntPtr(unchecked((int)value));
+    internal static bool Same(IntPtr first, IntPtr second) => Key(first.ToInt64()) == Key(second.ToInt64());
+}
+
+internal enum DesktopSelector
+{
+    Discovery, Membership, Main, Wizard, Loading, Import, Status, List,
+    FilenameHost, FilenameEdit, PickerOpen, Row, RowName, ConfirmationYes, ConfirmationMessage
+}
+
+public sealed class DesktopQueryFailure
+{
+    public string Stage { get; set; }
+    public string Selector { get; set; }
+    public string Predicate { get; set; }
+    public long ExpectedOwnedRoot { get; set; }
+    public long PreviouslyOwnedHandle { get; set; }
+    public long OwnedRootBefore { get; set; }
+    public long OwnedRootAfter { get; set; }
+    public bool? AliveBefore { get; set; }
+    public bool? AliveAfter { get; set; }
+    public bool? OwnPidBefore { get; set; }
+    public bool? OwnPidAfter { get; set; }
+    public bool? RootMatchesBefore { get; set; }
+    public bool? RootMatchesAfter { get; set; }
+    public int Nodes { get; set; }
+    public int Calls { get; set; }
+    public int Windows { get; set; }
+}
+
+internal sealed class DesktopTreeGuardException : Exception
+{
+    internal DesktopTreeGuardException(string code) : base(code) { }
+}
+
+internal sealed class DesktopTreeException : InvalidOperationException
+{
+    internal DesktopQueryFailure Failure { get; }
+    internal DesktopTreeException(DesktopQueryFailure failure) : base(failure.Predicate) { Failure = failure; }
+}
+
+internal sealed class DesktopTreeBudget
+{
+    readonly Action guard;
+    internal int Nodes { get; private set; }
+    internal int Calls { get; private set; }
+    internal bool Closed { get; private set; }
+    internal DesktopTreeBudget(Action guard) { this.guard = guard; }
+    internal void Check()
+    {
+        if (Closed) throw new DesktopTreeGuardException("query-budget-closed");
+        try { guard(); }
+        catch { Closed = true; throw; }
+    }
+    internal void Close() { Closed = true; }
+    internal void Visit(int depth)
+    {
+        Check();
+        string error = depth < 0 || depth > 32 ? "query-depth" : Nodes >= 4096 ? "query-node-bound" : null;
+        if (error != null) { Closed = true; throw new DesktopTreeGuardException(error); }
+        Nodes++;
+    }
+    internal TValue Call<TValue>(Func<TValue> read)
+    {
+        Check();
+        if (Calls >= 65536) { Closed = true; throw new DesktopTreeGuardException("query-call-bound"); }
+        Calls++;
+        TValue value = read();
+        Check();
+        return value;
+    }
+}
+
+internal interface IDesktopOwnedTreeAdapter<TNode> where TNode : class
+{
+    DesktopTreeBudget Budget { set; }
+    IReadOnlyList<TNode> Seeds();
+    int ProcessId(TNode node);
+    int[] Identity(TNode node);
+    uint Handle(TNode node);
+    TNode Parent(TNode node);
+    TNode FirstChild(TNode node);
+    TNode NextSibling(TNode node);
+    TNode FromHandle(uint handle);
+    bool Alive(uint handle);
+    int NativePid(uint handle);
+    uint NativeRoot(uint handle);
+    uint Owner(uint handle);
+    string Class(uint handle);
+    bool Visible(uint handle);
+    bool Offscreen(TNode node);
+    bool Matches(TNode node, DesktopSelector selector);
+}
+
+internal sealed class DesktopOwnedWindow<TNode> where TNode : class
+{
+    internal uint Handle;
+    internal uint Owner;
+    internal string Class;
+    internal string Identity;
+    internal TNode Element;
+    internal bool Visible;
+}
+
+internal sealed class DesktopOwnedTree<TNode> where TNode : class
+{
+    readonly IDesktopOwnedTreeAdapter<TNode> adapter;
+    readonly int pid;
+    readonly string expectedClass, stage;
+    readonly Dictionary<uint, DesktopOwnedWindow<TNode>> roots = new Dictionary<uint, DesktopOwnedWindow<TNode>>();
+    readonly List<DesktopOwnedWindow<TNode>> windows = new List<DesktopOwnedWindow<TNode>>();
+    readonly Queue<DesktopOwnedWindow<TNode>> pending = new Queue<DesktopOwnedWindow<TNode>>();
+    readonly Dictionary<uint, HashSet<uint>> edges = new Dictionary<uint, HashSet<uint>>();
+    DesktopQueryFailure context, failure;
+    internal DesktopTreeBudget Budget { get; }
+    internal IReadOnlyList<DesktopOwnedWindow<TNode>> Windows => windows;
+    internal int Revision { get; private set; }
+
+    internal DesktopOwnedTree(IDesktopOwnedTreeAdapter<TNode> adapter, int pid, string expectedClass,
+        string stage, Action guard)
+    {
+        this.adapter = adapter;
+        this.pid = pid;
+        this.expectedClass = expectedClass;
+        this.stage = stage;
+        Budget = new DesktopTreeBudget(guard);
+        adapter.Budget = Budget;
+    }
+
+    void Begin(DesktopSelector selector, uint expected = 0)
+    {
+        if (failure != null) throw new DesktopTreeException(failure);
+        context = new DesktopQueryFailure { Stage = stage, Selector = selector.ToString(),
+            ExpectedOwnedRoot = roots.ContainsKey(expected) ? expected : 0 };
+    }
+
+    void NodeContext(uint expected)
+    {
+        string selector = context.Selector;
+        context = new DesktopQueryFailure { Stage = stage, Selector = selector,
+            ExpectedOwnedRoot = roots.ContainsKey(expected) ? expected : 0 };
+    }
+
+    void Fail(string code)
+    {
+        if (failure == null)
+        {
+            failure = context ?? new DesktopQueryFailure { Stage = stage, Selector = DesktopSelector.Discovery.ToString() };
+            failure.Predicate = code;
+            // Only refresh a handle positively owned earlier in this query, within the same budget.
+            if (failure.PreviouslyOwnedHandle != 0 && !Budget.Closed)
+            {
+                try
+                {
+                    uint h = (uint)failure.PreviouslyOwnedHandle;
+                    failure.AliveAfter = adapter.Alive(h);
+                    failure.OwnPidAfter = adapter.NativePid(h) == pid;
+                    if (failure.AliveAfter == true && failure.OwnPidAfter == true)
+                    {
+                        uint root = adapter.NativeRoot(h);
+                        bool ownedRoot = root != 0 && adapter.NativePid(root) == pid;
+                        if (ownedRoot) failure.OwnedRootAfter = root;
+                        failure.RootMatchesAfter = ownedRoot && root == failure.ExpectedOwnedRoot;
+                    }
+                }
+                catch { /* Original refusal and containment take precedence over diagnostics. */ }
+            }
+            Budget.Close();
+            failure.Nodes = Budget.Nodes;
+            failure.Calls = Budget.Calls;
+            failure.Windows = windows.Count;
+        }
+        throw new DesktopTreeException(failure);
+    }
+
+    void Require(bool condition, string code) { if (!condition) Fail(code); }
+
+    TValue Execute<TValue>(DesktopSelector selector, uint expected, Func<TValue> operation)
+    {
+        Begin(selector, expected);
+        try { Budget.Check(); Require(pid > 0, "query-owned-pid"); return operation(); }
+        catch (DesktopTreeException) { throw; }
+        catch (DesktopTreeGuardException ex) { Fail(ex.Message); }
+        catch (Exception ex)
+        {
+            Fail(ex.GetType().Name == "ElementNotAvailableException" ? "query-element-unavailable" : "query-provider-failure");
+        }
+        throw new InvalidOperationException();
+    }
+
+    string NodeIdentity(TNode node)
+    {
+        int[] id = adapter.Identity(node);
+        Require(id != null && id.Length > 0 && id.Length <= 32, "query-runtime-id");
+        return string.Join(",", id);
+    }
+
+    uint Resolve(TNode node, uint expected)
+    {
+        var ancestors = new HashSet<string>(StringComparer.Ordinal);
+        for (int depth = 0; node != null; depth++)
+        {
+            Budget.Visit(depth);
+            Require(adapter.ProcessId(node) == pid, "query-uia-pid");
+            Require(ancestors.Add(NodeIdentity(node)), "query-parent-cycle");
+            uint handle = adapter.Handle(node);
+            if (handle != 0)
+            {
+                bool alive = adapter.Alive(handle);
+                bool own = adapter.NativePid(handle) == pid;
+                Require(alive && own, alive ? "query-native-pid" : "query-native-gone");
+                context.PreviouslyOwnedHandle = handle;
+                context.AliveBefore = alive;
+                context.OwnPidBefore = own;
+                uint root = adapter.NativeRoot(handle);
+                Require(root != 0 && adapter.NativePid(root) == pid, "query-native-root-pid");
+                context.OwnedRootBefore = root;
+                context.RootMatchesBefore = root == expected;
+                Require(adapter.Alive(root), "query-native-root-gone");
+                return root;
+            }
+            node = adapter.Parent(node);
+        }
+        Fail("query-raw-parent-missing");
+        return 0;
+    }
+
+    (uint owner, string windowClass) RootFacts(uint handle)
+    {
+        Require(handle != 0 && adapter.Alive(handle), "query-root-gone");
+        Require(adapter.NativePid(handle) == pid, "query-root-pid");
+        context.PreviouslyOwnedHandle = handle;
+        context.AliveBefore = context.OwnPidBefore = true;
+        Require(adapter.NativeRoot(handle) == handle, "query-root-self");
+        context.OwnedRootBefore = handle;
+        context.RootMatchesBefore = handle == context.ExpectedOwnedRoot;
+        string windowClass = adapter.Class(handle);
+        Require(windowClass == "#32770" || (DesktopPolicy.AvaloniaClass(windowClass) &&
+            (expectedClass == null || windowClass == expectedClass)), "query-root-class");
+        uint owner = adapter.Owner(handle), next = owner;
+        var seen = new HashSet<uint> { handle };
+        for (int depth = 0; next != 0; depth++)
+        {
+            Require(depth < 8 && seen.Add(next), "query-owner-bound");
+            Require(adapter.Alive(next) && adapter.NativePid(next) == pid, "query-owner-pid");
+            Require(adapter.NativeRoot(next) == next && DesktopPolicy.AvaloniaClass(adapter.Class(next)),
+                "query-owner-root");
+            next = adapter.Owner(next);
+        }
+        return (owner, windowClass);
+    }
+
+    DesktopOwnedWindow<TNode> Register(uint handle)
+    {
+        var before = RootFacts(handle);
+        TNode element = adapter.FromHandle(handle);
+        Require(element != null && adapter.ProcessId(element) == pid, "query-root-uia-pid");
+        Require(adapter.Handle(element) == handle, "query-root-uia-handle");
+        string identity = NodeIdentity(element);
+        bool visible = adapter.Visible(handle) && !adapter.Offscreen(element);
+        var after = RootFacts(handle);
+        Require(before == after, "query-root-changed");
+        if (roots.TryGetValue(handle, out var known))
+        {
+            Require(known.Owner == after.owner && known.Class == after.windowClass &&
+                known.Identity == identity, "query-root-alias");
+            if (known.Visible != visible) { known.Visible = visible; Revision++; }
+            return known;
+        }
+        Require(windows.Count < 8, "query-window-bound");
+        var root = new DesktopOwnedWindow<TNode> { Handle = handle, Owner = after.owner,
+            Class = after.windowClass, Identity = identity, Element = element, Visible = visible };
+        roots.Add(handle, root);
+        windows.Add(root);
+        pending.Enqueue(root);
+        Revision++;
+        return root;
+    }
+
+    void CrossRoot(uint expected, uint root)
+    {
+        Register(root);
+        var todo = new Stack<uint>();
+        var seen = new HashSet<uint>();
+        todo.Push(root);
+        while (todo.Count != 0)
+        {
+            Budget.Check();
+            uint current = todo.Pop();
+            Require(current != expected, "query-window-cycle");
+            if (!seen.Add(current) || !edges.TryGetValue(current, out var children)) continue;
+            foreach (uint child in children) todo.Push(child);
+        }
+        if (!edges.TryGetValue(expected, out var outgoing))
+            edges.Add(expected, outgoing = new HashSet<uint>());
+        outgoing.Add(root);
+    }
+
+    void Walk(TNode parent, uint expected, int depth, DesktopSelector selector,
+        List<TNode> matches, int maximum, HashSet<string> visited)
+    {
+        TNode node = adapter.FirstChild(parent);
+        while (node != null)
+        {
+            Budget.Visit(depth);
+            NodeContext(expected);
+            Require(adapter.ProcessId(node) == pid, "query-uia-pid");
+            Require(visited.Add(NodeIdentity(node)), "query-node-cycle");
+            uint root = Resolve(node, expected);
+            if (root != expected)
+            {
+                CrossRoot(expected, root);
+                Require(Resolve(node, expected) == root, "query-sibling-root-changed");
+                node = adapter.NextSibling(node);
+                continue;
+            }
+            if (selector != DesktopSelector.Discovery && adapter.Matches(node, selector))
+            {
+                Require(Resolve(node, expected) == expected, "query-match-root-changed");
+                matches.Add(node);
+                Require(matches.Count <= maximum, "query-match-bound");
+            }
+            Require(Resolve(node, expected) == expected, "query-descent-root-changed");
+            Walk(node, expected, depth + 1, selector, matches, maximum, visited);
+            Require(Resolve(node, expected) == expected, "query-sibling-root-changed");
+            node = adapter.NextSibling(node);
+        }
+    }
+
+    void Drain()
+    {
+        while (pending.Count != 0)
+        {
+            var root = pending.Dequeue();
+            Register(root.Handle);
+            Walk(root.Element, root.Handle, 1, DesktopSelector.Discovery, new List<TNode>(), 0,
+                new HashSet<string>(StringComparer.Ordinal) { root.Identity });
+        }
+    }
+
+    internal void Discover() => Execute(DesktopSelector.Discovery, 0, () =>
+    {
+        var seeds = adapter.Seeds();
+        Require(seeds != null && seeds.Count <= 8, "query-seed-bound");
+        foreach (var seed in seeds)
+        {
+            Require(seed != null && adapter.ProcessId(seed) == pid, "query-seed-pid");
+            uint handle = adapter.Handle(seed);
+            Require(handle != 0 && Resolve(seed, 0) == handle, "query-seed-root");
+            Register(handle);
+        }
+        Drain();
+        return true;
+    });
+
+    internal void Seed(TNode node) => Execute(DesktopSelector.Discovery, 0, () =>
+    {
+        Require(node != null && adapter.ProcessId(node) == pid, "query-seed-pid");
+        uint handle = adapter.Handle(node);
+        Require(handle != 0 && Resolve(node, 0) == handle, "query-seed-root");
+        Register(handle);
+        Drain();
+        return true;
+    });
+
+    internal List<TNode> Find(uint window, TNode subtree, DesktopSelector selector, int maximum) =>
+        Execute(selector, window, () =>
+        {
+            Require(maximum > 0 && maximum <= 16, "query-result-limit");
+            Require(selector >= DesktopSelector.Main && selector <= DesktopSelector.ConfirmationMessage, "query-selector");
+            var root = Register(window);
+            TNode start = subtree ?? root.Element;
+            Require(Resolve(start, window) == window, "query-subtree-root");
+            var matches = new List<TNode>();
+            Walk(start, window, 1, selector, matches, maximum,
+                new HashSet<string>(StringComparer.Ordinal) { NodeIdentity(start) });
+            Drain();
+            return matches;
+        });
+
+    internal void Validate(uint window, TNode node, DesktopSelector selector = DesktopSelector.Membership) => Execute(selector, window, () =>
+    {
+        Register(window);
+        Require(node != null && Resolve(node, window) == window, "control-native-root");
+        return true;
+    });
+
+    internal bool Visible(DesktopOwnedWindow<TNode> root) => Execute(DesktopSelector.Discovery, root.Handle, () =>
+    {
+        Register(root.Handle);
+        return root.Visible;
+    });
+
+    internal TValue Read<TValue>(uint window, TNode node, DesktopSelector selector, Func<TValue> read) =>
+        Execute(selector, window, () =>
+        {
+            Register(window);
+            Require(node != null && Resolve(node, window) == window, "control-native-root");
+            TValue value = Budget.Call(read);
+            Require(Resolve(node, window) == window, "query-read-root-changed");
+            return value;
+        });
+
+    internal uint WindowKey(TNode node, DesktopSelector selector) => Execute(selector, 0, () =>
+    {
+        Require(node != null && adapter.ProcessId(node) == pid, "query-window-uia-pid");
+        uint handle = adapter.Handle(node);
+        Require(handle != 0 && Resolve(node, handle) == handle, "query-window-native-root");
+        Register(handle);
+        return handle;
+    });
+
+    internal void CheckRevision(int revision) => Execute(DesktopSelector.Discovery, 0, () =>
+    {
+        Require(Revision == revision, "query-topology-changed");
+        return true;
+    });
+}
+
+internal sealed class DesktopStartupSample<TNode> where TNode : class
+{
+    readonly List<TNode> windows = new List<TNode>();
+    readonly List<DesktopStartupRoot> roots = new List<DesktopStartupRoot>();
+    internal DesktopOwnedTree<TNode> Tree { get; }
+    internal IReadOnlyList<TNode> Windows => windows;
+    internal IReadOnlyList<DesktopStartupRoot> Roots => roots;
+    internal int Revision { get; }
+
+    DesktopStartupSample(DesktopOwnedTree<TNode> tree) { Tree = tree; Revision = tree.Revision; }
+
+    internal static DesktopStartupSample<TNode> Capture(DesktopOwnedTree<TNode> tree,
+        Func<DesktopOwnedWindow<TNode>, DesktopStartupRoot> project)
+    {
+        var sample = new DesktopStartupSample<TNode>(tree);
+        sample.CheckRevision();
+        for (int i = 0; i < tree.Windows.Count; i++)
+        {
+            var window = tree.Windows[i];
+            bool visible = tree.Visible(window);
+            sample.CheckRevision();
+            if (!visible) continue;
+            var projection = project(window);
+            // A later query must not invalidate a root already projected or skipped.
+            sample.CheckRevision();
+            sample.windows.Add(window.Element);
+            sample.roots.Add(projection);
+        }
+        sample.CheckRevision();
+        return sample;
+    }
+
+    internal DesktopStartupDecision Observe(DesktopStartupObservation observation, long at,
+        bool loadingExists, bool revalidate)
+    {
+        CheckRevision();
+        return revalidate ? observation.Revalidate(at, Roots, loadingExists) :
+            observation.Observe(at, Roots, loadingExists);
+    }
+
+    internal void CheckRevision() => Tree.CheckRevision(Revision);
+}
+
 // Native/UIA ownership and control ancestry are checked before these projections.
 public sealed class DesktopStartupRoot
 {

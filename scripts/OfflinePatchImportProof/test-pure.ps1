@@ -35,6 +35,8 @@ function ProofEnvelope {
         if($snapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
         $startupCases=[DesktopPolicyTests]::RunStartupTests()
         if($startupCases -ne 75) { throw 'Startup observation case inventory changed.' }
+        $ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
+        if($ownedTreeCases -ne 108) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
         . (Join-Path $PSScriptRoot 'Configuration.ps1')
         . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
@@ -48,6 +50,7 @@ function ProofEnvelope {
             cases = $policyCases
             installedSnapshotCases = $snapshotCases
             startupObservationCases = $startupCases
+            ownedTreeCases = $ownedTreeCases
             processImageCases = $imageCases
             runtimeBindingCases = $bindingCases
             windowsLexicalCases = $lexicalCases

@@ -41,6 +41,7 @@ public sealed class DesktopResult
     public string[] BeforeInvalid { get; set; }
     public string[] AfterInvalid { get; set; }
     public DesktopEvent[] Events { get; set; }
+    public DesktopQueryFailure QueryFailure { get; set; }
 }
 
 // One ordinary app, one worker, one attempt. A stalled UIA/PrintWindow call cannot
@@ -166,7 +167,7 @@ public sealed class BoundedDesktopSmoke
             Require(!dispatch.IsClosed, "cancelled");
             Require(events.Count < 240, "event-bound");
             events.Add(new DesktopEvent { Utc = DateTime.UtcNow.ToString("o"), ElapsedMs = clock.ElapsedMilliseconds,
-                Kind = kind, Code = code, Window = handle.ToInt64() });
+                Kind = kind, Code = code, Window = Key(handle) });
         }
     }
 
@@ -214,7 +215,13 @@ public sealed class BoundedDesktopSmoke
         finally { dispatch.End(); }
     }
 
-    static IntPtr Handle(AutomationElement element) => new IntPtr(element.Current.NativeWindowHandle);
+    static uint Key(IntPtr handle) => DesktopHwnd.Key(handle.ToInt64());
+    static bool Same(IntPtr first, IntPtr second) => DesktopHwnd.Same(first, second);
+    IntPtr Handle(AutomationElement element)
+    {
+        Require(element != null && element.Current.ProcessId == pid, "uia-handle-pid");
+        return DesktopHwnd.Pointer(DesktopHwnd.Key(element.Current.NativeWindowHandle));
+    }
     static int Pid(IntPtr window) { uint id; Native.GetWindowThreadProcessId(window, out id); return checked((int)id); }
     string Class(IntPtr window)
     {
@@ -226,14 +233,14 @@ public sealed class BoundedDesktopSmoke
 
     bool OwnerChain(IntPtr window)
     {
-        var seen = new HashSet<IntPtr> { window };
+        var seen = new HashSet<uint> { Key(window) };
         for (int i = 0; i < 8; i++)
         {
             if (Pid(window) != pid) return false;
-            window = Native.GetWindow(window, 4);
+            window = DesktopHwnd.Pointer(Key(Native.GetWindow(window, 4)));
             if (window == IntPtr.Zero) return true;
-            if (!seen.Add(window) || Pid(window) != pid || !Native.IsWindow(window) ||
-                Native.GetAncestor(window, 2) != window || !DesktopPolicy.AvaloniaClass(Class(window)))
+            if (!seen.Add(Key(window)) || Pid(window) != pid || !Native.IsWindow(window) ||
+                !Same(Native.GetAncestor(window, 2), window) || !DesktopPolicy.AvaloniaClass(Class(window)))
                 return false;
         }
         return false;
@@ -242,99 +249,167 @@ public sealed class BoundedDesktopSmoke
     void ValidateWindow(AutomationElement window, string expectedClass = null)
     {
         Identity();
+        Require(window != null && window.Current.ProcessId == pid, "window-uia-pid");
         IntPtr h = Handle(window);
         string actual = Class(h);
         string expected = expectedClass ?? avaloniaClass;
         if (expected == null) { Require(DesktopPolicy.AvaloniaClass(actual), "avalonia-class"); expected = actual; }
-        Require(DesktopPolicy.Window(pid, Pid(h), window.Current.ProcessId, h.ToInt64(),
-            Native.GetAncestor(h, 2).ToInt64(), actual, expected,
+        Require(DesktopPolicy.Window(pid, Pid(h), window.Current.ProcessId, Key(h),
+            Key(Native.GetAncestor(h, 2)), actual, expected,
             Native.IsWindow(h) && Native.IsWindowVisible(h) && !window.Current.IsOffscreen,
             OwnerChain(h)), "window-ownership");
     }
 
-    List<AutomationElement> Windows(bool startup = false)
+    sealed class OwnedTreeAdapter : IDesktopOwnedTreeAdapter<AutomationElement>
+    {
+        readonly BoundedDesktopSmoke owner;
+        public DesktopTreeBudget Budget { private get; set; }
+        internal OwnedTreeAdapter(BoundedDesktopSmoke owner) { this.owner = owner; }
+        public IReadOnlyList<AutomationElement> Seeds()
+        {
+            var desktop = Budget.Call(() => AutomationElement.RootElement);
+            var seeds = Budget.Call(() => desktop.FindAll(TreeScope.Children,
+                new PropertyCondition(AutomationElement.ProcessIdProperty, owner.pid)));
+            if (seeds.Count > 8) throw new DesktopTreeGuardException("query-seed-bound");
+            var result = new List<AutomationElement>();
+            for (int i = 0; i < seeds.Count; i++) result.Add(seeds[i]);
+            return result;
+        }
+        public int ProcessId(AutomationElement node) => Budget.Call(() => node.Current.ProcessId);
+        public int[] Identity(AutomationElement node) => Budget.Call(() => node.GetRuntimeId());
+        public uint Handle(AutomationElement node) => Budget.Call(() => DesktopHwnd.Key(node.Current.NativeWindowHandle));
+        public AutomationElement Parent(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetParent(node));
+        public AutomationElement FirstChild(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetFirstChild(node));
+        public AutomationElement NextSibling(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetNextSibling(node));
+        public AutomationElement FromHandle(uint handle) => Budget.Call(() => AutomationElement.FromHandle(DesktopHwnd.Pointer(handle)));
+        public bool Alive(uint handle) => Budget.Call(() => Native.IsWindow(DesktopHwnd.Pointer(handle)));
+        public int NativePid(uint handle) => Budget.Call(() => Pid(DesktopHwnd.Pointer(handle)));
+        public uint NativeRoot(uint handle) => Budget.Call(() => Key(Native.GetAncestor(DesktopHwnd.Pointer(handle), 2)));
+        public uint Owner(uint handle) => Budget.Call(() => Key(Native.GetWindow(DesktopHwnd.Pointer(handle), 4)));
+        public string Class(uint handle) => Budget.Call(() =>
+        {
+            var text = new StringBuilder(128);
+            if (Native.GetClassNameW(DesktopHwnd.Pointer(handle), text, text.Capacity) <= 0)
+                throw new DesktopTreeGuardException("query-native-class-unavailable");
+            return text.ToString();
+        });
+        public bool Visible(uint handle) => Budget.Call(() => Native.IsWindowVisible(DesktopHwnd.Pointer(handle)));
+        public bool Offscreen(AutomationElement node) => Budget.Call(() => node.Current.IsOffscreen);
+        public bool Matches(AutomationElement node, DesktopSelector selector)
+        {
+            switch (selector)
+            {
+                case DesktopSelector.Loading:
+                    return Budget.Call(() => node.Current.ControlType) == ControlType.Text &&
+                        Budget.Call(() => node.Current.Name) == "Recovering patch database…";
+                case DesktopSelector.FilenameEdit:
+                    return Budget.Call(() => node.Current.ControlType) == ControlType.Edit;
+                case DesktopSelector.Row:
+                    return Budget.Call(() => node.Current.ControlType) == ControlType.ListItem;
+                case DesktopSelector.RowName:
+                    return Budget.Call(() => node.Current.Name) == ExpectedRow;
+                default:
+                    string id;
+                    switch (selector)
+                    {
+                        case DesktopSelector.Main: id = MainButton; break;
+                        case DesktopSelector.Wizard: id = SetupWizardButton; break;
+                        case DesktopSelector.Import: id = ImportButton; break;
+                        case DesktopSelector.Status: id = StatusLabel; break;
+                        case DesktopSelector.List: id = PatchList; break;
+                        case DesktopSelector.FilenameHost: id = "1148"; break;
+                        case DesktopSelector.PickerOpen: id = "1"; break;
+                        case DesktopSelector.ConfirmationYes: id = "MessageBoxContent_Yes_Button"; break;
+                        case DesktopSelector.ConfirmationMessage: id = "MessageBoxContent_Message_Label"; break;
+                        default: throw new DesktopTreeGuardException("query-selector");
+                    }
+                    return Budget.Call(() => node.Current.AutomationId) == id;
+            }
+        }
+    }
+
+    TValue TreeCall<TValue>(Func<TValue> operation)
+    {
+        try { return operation(); }
+        catch (DesktopTreeException ex)
+        {
+            lock (sync) { if (result.QueryFailure == null) result.QueryFailure = ex.Failure; }
+            throw new Refusal(ex.Message);
+        }
+    }
+
+    DesktopOwnedTree<AutomationElement> NewTree(AutomationElement seed = null)
     {
         Identity();
-        // The desktop is only a provider query root; no unrelated element is read or traversed.
-        var owned = AutomationElement.RootElement.FindAll(TreeScope.Children,
-            new PropertyCondition(AutomationElement.ProcessIdProperty, pid));
-        Require(owned.Count <= 8, "owned-window-bound");
-        var found = new List<AutomationElement>();
-        for (int i = 0; i < owned.Count; i++)
+        var tree = new DesktopOwnedTree<AutomationElement>(new OwnedTreeAdapter(this), pid, avaloniaClass, stage, () =>
         {
-            Guard();
-            Require(owned[i].Current.ProcessId == pid, "foreign-root");
-            IntPtr h = Handle(owned[i]);
-            if (h == IntPtr.Zero)
-            {
-                Require(!startup || owned[i].Current.IsOffscreen, "startup-root-native-handle");
-                continue;
-            }
-            Require(Pid(h) == pid, "owned-root-native-pid");
-            if (!Native.IsWindowVisible(h) || owned[i].Current.IsOffscreen) continue;
-            string c = Class(h);
-            Require(c == "#32770" || DesktopPolicy.AvaloniaClass(c), "unexpected-owned-class");
-            ValidateWindow(owned[i], c == "#32770" ? c : avaloniaClass);
-            found.Add(owned[i]);
-        }
-        return found;
+            try { Guard(); }
+            catch (Refusal ex) { throw new DesktopTreeGuardException(ex.Message); }
+        });
+        TreeCall(() => { if (seed == null) tree.Discover(); else tree.Seed(seed); return true; });
+        return tree;
     }
 
-    // A provider subtree is visited only after validating its exact native top-level.
-    // Every returned descendant must remain inside that same PID/native root.
-    List<AutomationElement> Find(AutomationElement window, Condition condition, int max = 16)
+    static DesktopSelector Selector(string id)
     {
-        string c = Class(Handle(window));
-        ValidateWindow(window, c == "#32770" ? c : avaloniaClass);
-        var matches = window.FindAll(TreeScope.Descendants, condition);
-        Require(matches.Count <= max, "control-bound");
-        var found = new List<AutomationElement>();
-        for (int i = 0; i < matches.Count; i++)
+        switch (id)
         {
-            ValidateControl(matches[i], window);
-            found.Add(matches[i]);
+            case MainButton: return DesktopSelector.Main;
+            case SetupWizardButton: return DesktopSelector.Wizard;
+            case ImportButton: return DesktopSelector.Import;
+            case StatusLabel: return DesktopSelector.Status;
+            case PatchList: return DesktopSelector.List;
+            case "MessageBoxContent_Yes_Button": return DesktopSelector.ConfirmationYes;
+            case "MessageBoxContent_Message_Label": return DesktopSelector.ConfirmationMessage;
+            default: throw new Refusal("query-selector");
         }
-        return found;
     }
 
-    void ValidateControl(AutomationElement control, AutomationElement window)
+    List<AutomationElement> Find(AutomationElement window, DesktopSelector selector, int max = 16,
+        AutomationElement subtree = null, DesktopOwnedTree<AutomationElement> tree = null)
     {
-        Identity();
-        Require(control.Current.ProcessId == pid, "foreign-control");
-        AutomationElement current = control;
-        IntPtr expected = Handle(window);
-        for (int depth = 0; depth < 32 && current != null; depth++)
-        {
-            Require(current.Current.ProcessId == pid, "foreign-control-ancestor");
-            IntPtr h = Handle(current);
-            if (h != IntPtr.Zero)
-            {
-                Require(Pid(h) == pid && Native.GetAncestor(h, 2) == expected, "control-native-root");
-                if (h == expected) return;
-            }
-            current = TreeWalker.ControlViewWalker.GetParent(current);
-        }
-        throw new Refusal("control-ancestry-bound");
+        tree = tree ?? NewTree(window);
+        return TreeCall(() => tree.Find(tree.WindowKey(window, selector), subtree, selector, max));
     }
 
-    AutomationElement Control(AutomationElement window, string id, ControlType type, bool active = true)
+    TValue QueryRead<TValue>(DesktopOwnedTree<AutomationElement> tree, AutomationElement window,
+        AutomationElement node, DesktopSelector selector, Func<TValue> read)
     {
-        var found = Find(window, new PropertyCondition(AutomationElement.AutomationIdProperty, id));
+        return TreeCall(() => tree.Read(tree.WindowKey(window, selector), node, selector, read));
+    }
+
+    void ValidateControl(AutomationElement control, AutomationElement window,
+        DesktopSelector selector = DesktopSelector.Membership)
+    {
+        var tree = NewTree(window);
+        TreeCall(() => { tree.Validate(tree.WindowKey(window, selector), control, selector); return true; });
+    }
+
+    AutomationElement Control(AutomationElement window, string id, ControlType type, bool active = true,
+        DesktopOwnedTree<AutomationElement> tree = null)
+    {
+        tree = tree ?? NewTree(window);
+        var selector = Selector(id);
+        var found = Find(window, selector, tree: tree);
         Require(found.Count <= 1, "ambiguous-control");
         if (found.Count == 0) return null;
         var control = found[0];
-        Require(control.Current.ControlType == type, "control-type");
-        if (active && (!control.Current.IsEnabled || control.Current.IsOffscreen)) return null;
+        Require(QueryRead(tree, window, control, selector, () => control.Current.ControlType) == type, "control-type");
+        if (active && (!QueryRead(tree, window, control, selector, () => control.Current.IsEnabled) ||
+            QueryRead(tree, window, control, selector, () => control.Current.IsOffscreen))) return null;
         return control;
     }
 
     AutomationElement WindowFor(string id, ControlType type, bool active = true)
     {
         AutomationElement result = null;
-        foreach (var window in Windows())
+        var tree = NewTree();
+        for (int i = 0; i < tree.Windows.Count; i++)
         {
-            if (Class(Handle(window)) == "#32770") continue;
-            if (Control(window, id, type, active) == null) continue;
+            var owned = tree.Windows[i];
+            if (!TreeCall(() => tree.Visible(owned)) || owned.Class == "#32770") continue;
+            var window = owned.Element;
+            if (Control(window, id, type, active, tree) == null) continue;
             Require(result == null, "ambiguous-window");
             result = window;
         }
@@ -358,56 +433,47 @@ public sealed class BoundedDesktopSmoke
         Require(control != null, "action-control-missing");
         var invoke = (InvokePattern)control.GetCurrentPattern(InvokePattern.Pattern);
         Action("invoke:" + id, window);
-        ValidateControl(control, window);
+        ValidateControl(control, window, Selector(id));
         Require(control.Current.IsEnabled && !control.Current.IsOffscreen, "action-control-state");
         Dispatch(() => invoke.Invoke());
     }
 
-    sealed class StartupSample
+    DesktopStartupSample<AutomationElement> ReadStartupSample()
     {
-        public readonly List<AutomationElement> Windows = new List<AutomationElement>();
-        public readonly List<DesktopStartupRoot> Roots = new List<DesktopStartupRoot>();
-    }
-
-    StartupSample ReadStartupSample()
-    {
-        var sample = new StartupSample();
-        foreach (var window in Windows(true))
+        var tree = NewTree();
+        return TreeCall(() => DesktopStartupSample<AutomationElement>.Capture(tree, owned =>
         {
-            IntPtr h = Handle(window);
-            string windowClass = Class(h);
+            var window = owned.Element;
+            string windowClass = owned.Class;
             Require(DesktopPolicy.AvaloniaClass(windowClass), "startup-root-class");
-            var mainControl = Control(window, MainButton, ControlType.Button, false);
-            var wizardControl = Control(window, SetupWizardButton, ControlType.Button, false);
+            var mainControl = Control(window, MainButton, ControlType.Button, false, tree);
+            var wizardControl = Control(window, SetupWizardButton, ControlType.Button, false, tree);
             bool loading = false;
-            if (window.Current.Name == "FEBuilderGBA")
+            if (QueryRead(tree, window, window, DesktopSelector.Loading, () => window.Current.Name) == "FEBuilderGBA")
             {
-                var labels = Find(window, new AndCondition(
-                    new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Text),
-                    new PropertyCondition(AutomationElement.NameProperty, "Recovering patch database…")));
+                var labels = Find(window, DesktopSelector.Loading, tree: tree);
                 Require(labels.Count <= 1, "startup-ambiguous-loading-control");
-                loading = labels.Count == 1 && !labels[0].Current.IsOffscreen;
+                loading = labels.Count == 1 &&
+                    !QueryRead(tree, window, labels[0], DesktopSelector.Loading, () => labels[0].Current.IsOffscreen);
             }
-            sample.Windows.Add(window);
-            sample.Roots.Add(new DesktopStartupRoot(h.ToInt64(), Native.GetWindow(h, 4).ToInt64(),
-                windowClass, Native.IsWindow(h) && Native.IsWindowVisible(h) && !window.Current.IsOffscreen,
-                mainControl != null && !mainControl.Current.IsOffscreen, loading,
-                wizardControl != null && !wizardControl.Current.IsOffscreen));
-        }
-        return sample;
+            return new DesktopStartupRoot(owned.Handle, owned.Owner,
+                windowClass, TreeCall(() => tree.Visible(owned)),
+                mainControl != null && !QueryRead(tree, window, mainControl, DesktopSelector.Main,
+                    () => mainControl.Current.IsOffscreen), loading,
+                wizardControl != null && !QueryRead(tree, window, wizardControl, DesktopSelector.Wizard,
+                    () => wizardControl.Current.IsOffscreen));
+        }));
     }
 
     DesktopStartupDecision ObserveStartup(DesktopStartupObservation observation,
-        StartupSample sample, bool revalidate)
+        DesktopStartupSample<AutomationElement> sample, bool revalidate)
     {
         bool loadingExists = observation.LoadingObserved &&
-            Native.IsWindow(new IntPtr(observation.LoadingHandle));
+            Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle));
         DesktopStartupDecision decision;
         try
         {
-            decision = revalidate
-                ? observation.Revalidate(clock.ElapsedMilliseconds, sample.Roots, loadingExists)
-                : observation.Observe(clock.ElapsedMilliseconds, sample.Roots, loadingExists);
+            decision = TreeCall(() => sample.Observe(observation, clock.ElapsedMilliseconds, loadingExists, revalidate));
         }
         catch (InvalidOperationException ex) { throw new Refusal(ex.Message); }
         bool firstLoading;
@@ -424,7 +490,7 @@ public sealed class BoundedDesktopSmoke
         }
         if (firstLoading)
             Record("observation", "loading-visible:Recovering-patch-database",
-                new IntPtr(observation.LoadingHandle));
+                DesktopHwnd.Pointer((uint)observation.LoadingHandle));
         return decision;
     }
 
@@ -447,33 +513,37 @@ public sealed class BoundedDesktopSmoke
                     {
                         ValidateWindow(window, decision.WindowClass);
                         IntPtr h = Handle(window);
-                        if (h.ToInt64() == decision.MainHandle)
+                        if (Key(h) == decision.MainHandle)
                         {
-                            var control = Control(window, MainButton, ControlType.Button, false);
-                            Require(control != null && !control.Current.IsOffscreen,
+                            var control = Control(window, MainButton, ControlType.Button, false, acceptance.Tree);
+                            Require(control != null && !QueryRead(acceptance.Tree, window, control,
+                                DesktopSelector.Main, () => control.Current.IsOffscreen),
                                 "startup-main-acceptance-control");
                             acceptedMain = window;
                         }
                         else
                         {
-                            Require(h.ToInt64() == decision.WizardHandle &&
-                                Native.GetWindow(h, 4).ToInt64() == decision.MainHandle,
+                            Require(Key(h) == decision.WizardHandle &&
+                                Key(Native.GetWindow(h, 4)) == decision.MainHandle,
                                 "startup-setup-wizard");
-                            var control = Control(window, SetupWizardButton, ControlType.Button, false);
-                            Require(control != null && !control.Current.IsOffscreen,
+                            var control = Control(window, SetupWizardButton, ControlType.Button, false, acceptance.Tree);
+                            Require(control != null && !QueryRead(acceptance.Tree, window, control,
+                                DesktopSelector.Wizard, () => control.Current.IsOffscreen),
                                 "startup-wizard-acceptance-control");
                         }
                     }
                     Require(acceptedMain != null, "startup-main-acceptance-root");
                     Require(!observation.LoadingObserved ||
-                        !Native.IsWindow(new IntPtr(observation.LoadingHandle)),
+                        !Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle)),
                         "startup-loading-still-present");
                     ValidateWindow(acceptedMain, decision.WindowClass);
-                    var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false);
-                    Require(mainControl != null && !mainControl.Current.IsOffscreen,
+                    var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree);
+                    Require(mainControl != null && !QueryRead(acceptance.Tree, acceptedMain, mainControl,
+                        DesktopSelector.Main, () => mainControl.Current.IsOffscreen),
                         "startup-main-acceptance-control");
+                    TreeCall(() => { acceptance.CheckRevision(); return true; });
                     main = acceptedMain;
-                    mainHandle = new IntPtr(decision.MainHandle);
+                    mainHandle = DesktopHwnd.Pointer((uint)decision.MainHandle);
                     lock (sync) result.StartupRoute = decision.Route;
                     Record("observation", decision.Route, mainHandle);
                     return;
@@ -493,7 +563,7 @@ public sealed class BoundedDesktopSmoke
             var wizard = WindowFor("ContentRepoSetupWizard_Close_Button", ControlType.Button);
             if (wizard != null)
             {
-                Require(!wizardClosed && Native.GetWindow(Handle(wizard), 4) == mainHandle, "setup-wizard-owner");
+                Require(!wizardClosed && Same(Native.GetWindow(Handle(wizard), 4), mainHandle), "setup-wizard-owner");
                 wizardClosed = true;
                 Invoke(wizard, "ContentRepoSetupWizard_Close_Button");
             }
@@ -502,7 +572,7 @@ public sealed class BoundedDesktopSmoke
         Invoke(main, MainButton);
         editor = Await(() => WindowFor(ImportButton, ControlType.Button));
         editorHandle = Handle(editor);
-        Require(editorHandle != mainHandle && Native.GetWindow(editorHandle, 4) == IntPtr.Zero,
+        Require(!Same(editorHandle, mainHandle) && Key(Native.GetWindow(editorHandle, 4)) == 0,
             "nonmodal-editor-root");
         Require(Control(editor, PatchList, ControlType.List) != null, "editor-list-missing");
         Record("observation", "real-patch-manager-open", editorHandle);
@@ -511,11 +581,15 @@ public sealed class BoundedDesktopSmoke
     AutomationElement Picker()
     {
         AutomationElement selected = null;
-        foreach (var window in Windows())
+        var tree = NewTree();
+        for (int i = 0; i < tree.Windows.Count; i++)
         {
-            if (Class(Handle(window)) != "#32770") continue;
-            Require(Native.GetWindow(Handle(window), 4) == editorHandle &&
-                (window.Current.Name == "Import Patch Database ZIP" || window.Current.Name == "Open"),
+            var owned = tree.Windows[i];
+            if (!TreeCall(() => tree.Visible(owned)) || owned.Class != "#32770") continue;
+            var window = owned.Element;
+            string title = QueryRead(tree, window, window, DesktopSelector.PickerOpen, () => window.Current.Name);
+            Require(owned.Owner == Key(editorHandle) &&
+                (title == "Import Patch Database ZIP" || title == "Open"),
                 "picker-title-owner");
             Require(selected == null, "ambiguous-picker");
             selected = window;
@@ -529,47 +603,49 @@ public sealed class BoundedDesktopSmoke
         Invoke(editor, ImportButton);
         var picker = Await(Picker);
         IntPtr pickerHandle = Handle(picker);
-        var fields = Find(picker, new PropertyCondition(AutomationElement.AutomationIdProperty, "1148"));
+        var tree = NewTree(picker);
+        var fields = Find(picker, DesktopSelector.FilenameHost, tree: tree);
         Require(fields.Count == 1, "filename-host");
         var field = fields[0];
-        if (field.Current.ControlType != ControlType.Edit)
+        if (QueryRead(tree, picker, field, DesktopSelector.FilenameHost, () => field.Current.ControlType) != ControlType.Edit)
         {
-            var edits = field.FindAll(TreeScope.Descendants,
-                new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.Edit));
+            var edits = Find(picker, DesktopSelector.FilenameEdit, 1, field, tree);
             Require(edits.Count == 1, "filename-edit");
             field = edits[0];
         }
-        ValidateControl(field, picker);
+        ValidateControl(field, picker, DesktopSelector.FilenameEdit);
         IntPtr fieldHandle = Handle(field);
         Require(fieldHandle != IntPtr.Zero && Class(fieldHandle) == "Edit" &&
-            Pid(fieldHandle) == pid && Native.GetAncestor(fieldHandle, 2) == pickerHandle &&
+            Pid(fieldHandle) == pid && Same(Native.GetAncestor(fieldHandle, 2), pickerHandle) &&
             field.Current.IsEnabled && !field.Current.IsOffscreen, "filename-native-identity");
         var value = (ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);
-        Require(!value.Current.IsReadOnly && Native.GetForegroundWindow() == pickerHandle, "picker-not-active");
+        Require(!value.Current.IsReadOnly && Same(Native.GetForegroundWindow(), pickerHandle), "picker-not-active");
         Action("picker-set-exact-" + name + "-fixture", picker);
         Dispatch(() => value.SetValue(path));
         Require(value.Current.Value == path, "filename-value-mismatch");
-        var buttons = Find(picker, new PropertyCondition(AutomationElement.AutomationIdProperty, "1"));
+        var buttons = Find(picker, DesktopSelector.PickerOpen, tree: tree);
         AutomationElement open = null;
         foreach (var candidate in buttons)
         {
             IntPtr h = Handle(candidate);
-            if (candidate.Current.ControlType != ControlType.Button || h == IntPtr.Zero ||
-                Class(h) != "Button" || Native.GetDlgCtrlID(h) != 1 ||
-                (candidate.Current.Name != "Open" && candidate.Current.Name != "&Open")) continue;
+            if (QueryRead(tree, picker, candidate, DesktopSelector.PickerOpen,
+                () => candidate.Current.ControlType) != ControlType.Button || h == IntPtr.Zero ||
+                Class(h) != "Button" || Native.GetDlgCtrlID(h) != 1) continue;
+            string title = QueryRead(tree, picker, candidate, DesktopSelector.PickerOpen, () => candidate.Current.Name);
+            if (title != "Open" && title != "&Open") continue;
             Require(open == null, "ambiguous-open");
             open = candidate;
         }
         Require(open != null, "logical-open-missing");
         IntPtr button = Handle(open);
         Action("single-owned-active-picker-BM_CLICK", picker);
-        ValidateControl(field, picker);
-        ValidateControl(open, picker);
+        ValidateControl(field, picker, DesktopSelector.FilenameEdit);
+        ValidateControl(open, picker, DesktopSelector.PickerOpen);
         Require(Pid(button) == pid && Pid(fieldHandle) == pid && value.Current.Value == path &&
-            DesktopPolicy.Picker(pickerHandle.ToInt64(), Native.GetAncestor(fieldHandle, 2).ToInt64(),
-                Native.GetAncestor(button, 2).ToInt64(),
-                Native.GetWindow(pickerHandle, 4) == editorHandle && OwnerChain(pickerHandle),
-                Native.GetForegroundWindow() == pickerHandle,
+            DesktopPolicy.Picker(Key(pickerHandle), Key(Native.GetAncestor(fieldHandle, 2)),
+                Key(Native.GetAncestor(button, 2)),
+                Same(Native.GetWindow(pickerHandle, 4), editorHandle) && OwnerChain(pickerHandle),
+                Same(Native.GetForegroundWindow(), pickerHandle),
                 Native.IsWindowEnabled(pickerHandle) && Native.IsWindowEnabled(button) &&
                 Native.IsWindowVisible(button) && open.Current.IsEnabled && !open.Current.IsOffscreen,
                 Class(fieldHandle), Class(button), Native.GetDlgCtrlID(button)), "open-predicates-refused");
@@ -585,30 +661,30 @@ public sealed class BoundedDesktopSmoke
 
     string Status()
     {
-        var label = Control(editor, StatusLabel, ControlType.Text, false);
-        if (label == null || label.Current.IsOffscreen) return "";
-        string text = label.Current.Name;
+        var tree = NewTree(editor);
+        var label = Control(editor, StatusLabel, ControlType.Text, false, tree);
+        if (label == null || QueryRead(tree, editor, label, DesktopSelector.Status, () => label.Current.IsOffscreen)) return "";
+        string text = QueryRead(tree, editor, label, DesktopSelector.Status, () => label.Current.Name);
         Require(text != null && text.Length <= 4096, "status-bound");
         return text;
     }
 
     string Row()
     {
-        var list = Control(editor, PatchList, ControlType.List);
+        var tree = NewTree(editor);
+        var list = Control(editor, PatchList, ControlType.List, tree: tree);
         Require(list != null, "patch-list");
-        var rows = list.FindAll(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.ControlTypeProperty, ControlType.ListItem));
+        var rows = Find(editor, DesktopSelector.Row, 1, list, tree);
         Require(rows.Count == 1, "expected-single-row");
-        ValidateControl(rows[0], editor);
-        Require(!rows[0].Current.IsOffscreen, "row-not-visible");
-        var names = rows[0].FindAll(TreeScope.Descendants,
-            new PropertyCondition(AutomationElement.NameProperty, ExpectedRow));
-        bool matched = rows[0].Current.Name == ExpectedRow;
+        ValidateControl(rows[0], editor, DesktopSelector.Row);
+        Require(!QueryRead(tree, editor, rows[0], DesktopSelector.Row, () => rows[0].Current.IsOffscreen), "row-not-visible");
+        var names = Find(editor, DesktopSelector.RowName, 2, rows[0], tree);
+        bool matched = QueryRead(tree, editor, rows[0], DesktopSelector.RowName, () => rows[0].Current.Name) == ExpectedRow;
         Require(names.Count <= 2, "row-name-bound");
         for (int i = 0; i < names.Count; i++)
         {
-            ValidateControl(names[i], editor);
-            matched |= !names[i].Current.IsOffscreen;
+            ValidateControl(names[i], editor, DesktopSelector.RowName);
+            matched |= !QueryRead(tree, editor, names[i], DesktopSelector.RowName, () => names[i].Current.IsOffscreen);
         }
         Require(matched, "expected-row-missing");
         return ExpectedRow;
@@ -621,13 +697,16 @@ public sealed class BoundedDesktopSmoke
         Choose(valid, "valid");
         Stage("valid-confirmation-import", 30000);
         var confirmation = Await(() => WindowFor("MessageBoxContent_Yes_Button", ControlType.Button));
+        var confirmationTree = NewTree(confirmation);
         // Current8ad constructs EditorHostWindow before configuring MessageBoxContent.
         // Its native title stays the default; the actual prompt below identifies the operation.
-        Require(Native.GetWindow(Handle(confirmation), 4) == editorHandle &&
-            confirmation.Current.Name == "FEBuilderGBA", "confirmation-owner-title");
-        var message = Control(confirmation, "MessageBoxContent_Message_Label", ControlType.Text);
+        Require(Same(Native.GetWindow(Handle(confirmation), 4), editorHandle) &&
+            QueryRead(confirmationTree, confirmation, confirmation, DesktopSelector.ConfirmationYes,
+                () => confirmation.Current.Name) == "FEBuilderGBA", "confirmation-owner-title");
+        var message = Control(confirmation, "MessageBoxContent_Message_Label", ControlType.Text, tree: confirmationTree);
         Require(message != null, "confirmation-message");
-        string text = message.Current.Name;
+        string text = QueryRead(confirmationTree, confirmation, message, DesktopSelector.ConfirmationMessage,
+            () => message.Current.Name);
         Require(text != null && text.Length <= 4096 &&
             text.StartsWith("Import the validated patch database for FE8U?", StringComparison.Ordinal) &&
             text.Contains("Target: " + database) && text.Contains("Files: 2;") &&

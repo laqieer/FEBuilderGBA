@@ -46,6 +46,62 @@ checks are not an atomic desktop snapshot. Historical `missing-loading-observati
 attempts remain failed and consumed; new runtime proof needs newly authenticated
 source, preparation and a separate grant.
 
+## Owned-window query topology
+
+UIA ancestry is not native window membership: an owned modal window can be a UIA
+descendant of its owner while retaining a distinct `GA_ROOT`. Desktop own-PID
+children are therefore seeds, not an exhaustive window list. The real driver
+uses `DesktopOwnedTree` with its `AutomationElement` adapter; modeled-adapter
+regressions execute that same traversal without UIA/native calls.
+Both pure runners enforce 108 named `ownedTreeCases` (the original 94 traversal
+cases plus 14 projection/refresh cases), separately from the
+unchanged 522 policy, 26 snapshot and 75 startup-observation cases.
+
+The bounded raw walker verifies UIA PID before other node access and resolves
+membership through the nearest nonzero HWND in RawView ancestry. Native PID,
+live `GA_ROOT`, top-level identity, class and bounded owner-chain validation
+remain mandatory. A distinct validated own root is queued separately and its
+subtree is pruned from the owner's control search. `GA_ROOTOWNER` is never an
+admission shortcut. An invisible valid own seed can still expose a visible owned
+window. Consistent root rediscovery is deduplicated; conflicting aliases, cycles
+and duplicate control matches refuse the attempt.
+
+Startup, wizard/editor/confirmation discovery, picker host/nested-edit/open
+queries, and row/name/status lookups share this boundary. Fixed selectors read
+content only after membership checks. The shared production projection helper
+freezes its epoch before inspecting any root, including hidden roots that may be
+skipped. It checks that same epoch after every visibility read and projection
+callback, before deciding readiness, and at final acceptance. An observed change
+refuses the sample instead of adopting a newer epoch that could conceal an
+earlier omission. Candidate and acceptance-refresh model tests use this actual
+orchestration. Existing wizard, picker owner/title,
+typed-control, enabled, foreground and action-time checks remain.
+
+Each sample/query has hard limits of eight canonical windows, 4,096 raw-node
+visits, depth 32, and 65,536 adapter-issued UIA/Win32 calls. Runtime IDs are bounded
+to 32 integers and owner chains to eight. Parent resolution, discovery, matching
+and diagnostics share the budget. Counters do not measure provider-internal RPCs.
+Calls check existing absolute stage/global deadlines before and after; a blocked
+provider still relies on the unchanged joined-worker/runner termination boundary.
+
+HWND comparisons use their documented low 32 significant bits and sign-extended
+native-call representation. This normalization is not applied to process handles
+or arbitrary pointers, and never replaces native PID/root validation.
+
+`QueryFailure` records at most one fixed stage/selector/predicate and bounded
+ownership/counter snapshot. Only previously positively owned HWNDs are included;
+foreign handles/PIDs and all names, text, values, paths and runtime IDs are
+suppressed. A failure may refresh its known owned handle once, using at most four
+remaining budgeted native calls. If cancellation/deadline intervenes, after-state
+can be unavailable; diagnostics do not mask the original refusal.
+
+Stale/unavailable roots and ownership failures are not retried or converted to
+missing controls. These samples are not atomic and do not prove absence of
+same-PID HWND reuse. Attempt `329` remains failed/consumed: its exact offending
+selector/HWND was not recorded, so the topology defect is not an attestation of
+that attempt's precise cause. A new real desktop attempt requires current SOURCE,
+fresh preparation and a separate one-use grant.
+
 ## Reviewable source
 
 `scripts\OfflinePatchImportProof` contains:
