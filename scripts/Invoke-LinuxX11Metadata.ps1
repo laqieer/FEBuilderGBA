@@ -3,10 +3,12 @@
 [CmdletBinding()]
 param([string]$PacketPath)
 
-function Get-MetadataPolicy {
-    [pscustomobject]@{
+function Get-MetadataPolicy([switch]$IsolationInterface) {
+    $policy = [pscustomobject]@{
         Root = 'C:\Projects\laqieer\FEBuilderGBA\TestResults\worktrees\issue-2160-linux-x11-20260913T075332Z'
         Stem = 'issue-2160-current-metadata-20260914T090444Z'
+        Schema = 'issue2160-current-metadata-v1'
+        IsolationInterface = [bool]$IsolationInterface
         SourcePaths = @(
             '.github/workflows/crossplatform.yml'
             'docs/LINUX-DESKTOP-AUTOMATION.md'
@@ -24,6 +26,28 @@ function Get-MetadataPolicy {
             'linux-x11-smoke-6b01e234-20260913T095854Z-6f9c2a10/receipt.json' = '94ff7a9f9cd0b60aae7b42c110a6a8248f5cf4de29fb735a810fee79cf0d4716'
         }
     }
+    if ($IsolationInterface) {
+        $policy.Stem = 'issue-2160-isolation-interface-20260914T130000Z'
+        $policy.Schema = 'issue2160-isolation-interface-v1'
+        $prefix = 'issue-2160-current-metadata-20260914T090444Z.'
+        $policy.Historical[$prefix + 'packet.json'] = '4a5c8b9855cbcc862977e8fc627e27dc09ca2672b4e809fc426d7c43b32972fb'
+        $policy.Historical[$prefix + 'before.json'] = 'f0fb71cf3e5c9caf478c41cc164a0ff0266f538ea8f7a38993a2904615334678'
+        $policy.Historical[$prefix + 'stdout.json'] = 'fa09dbfec71b54aab0cfb5ba26b0e72e50096c447aefbea3c17808ec9baa4560'
+        $policy.Historical[$prefix + 'stderr.txt'] = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'
+        $policy.Historical[$prefix + 'outer.json'] = 'f2e1cb38e8bd3377744a3239602520da38ecca5e27aed647154335ffa82c86ea'
+        $policy.Historical[$prefix + 'after.json'] = 'f0fb71cf3e5c9caf478c41cc164a0ff0266f538ea8f7a38993a2904615334678'
+        $policy.Historical[$prefix + 'result.json'] = 'b5b4945c8a2bc58a9aebbd0cd2f264a218359fdacb764e3c3902e60044dde02d'
+        $policy.Historical[$prefix + 'hashes.json'] = 'b3c93e877ae3420339fb2837faba19a876e99b3d0f587564f08e669b5510ecca'
+    }
+    return $policy
+}
+
+function Get-MetadataPacketPolicy([string]$Path) {
+    foreach ($interface in @($false, $true)) {
+        $policy = Get-MetadataPolicy -IsolationInterface:$interface
+        if ($Path -ceq ($policy.Root + '\' + $policy.Stem + '.packet.json')) { return $policy }
+    }
+    throw 'One of the two exact absolute packet paths is required.'
 }
 
 function ConvertFrom-MetadataPacket([string]$Json) {
@@ -54,15 +78,15 @@ function ConvertFrom-MetadataPacket([string]$Json) {
             }
         }
         if ($packet.Count -ne 5) { throw 'Missing packet keys.' }
-        $policy = Get-MetadataPolicy
-        if ($packet['schema'] -cne 'issue2160-current-metadata-v1' -or
+        $policy = Get-MetadataPolicy -IsolationInterface:($packet['schema'] -ceq 'issue2160-isolation-interface-v1')
+        if ($packet['schema'] -cne $policy.Schema -or
             $packet['expectedHead'] -cnotmatch '\A[0-9a-f]{40}\z' -or
             $packet['receiptStem'] -cne $policy.Stem) { throw 'Packet binding mismatch.' }
         if ($packet['sourceSha256'].Count -ne $policy.SourcePaths.Count) { throw 'Wrong source pin set.' }
         foreach ($name in $policy.SourcePaths) {
             if (-not $packet['sourceSha256'].ContainsKey($name)) { throw 'Missing exact source pin.' }
         }
-        if ($packet['historicalSha256'].Count -ne 2) { throw 'Wrong historical pin set.' }
+        if ($packet['historicalSha256'].Count -ne $policy.Historical.Count) { throw 'Wrong historical pin set.' }
         foreach ($pin in $policy.Historical.GetEnumerator()) {
             if (-not $packet['historicalSha256'].ContainsKey($pin.Key) -or
                 $packet['historicalSha256'][$pin.Key] -cne $pin.Value) { throw 'Historical receipt mapping mismatch.' }
@@ -73,7 +97,7 @@ function ConvertFrom-MetadataPacket([string]$Json) {
     }
 }
 
-function New-MetadataStartInfo {
+function New-MetadataStartInfo([switch]$IsolationInterface) {
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = 'C:\Windows\System32\wsl.exe'
     $info.WorkingDirectory = (Get-MetadataPolicy).Root
@@ -91,8 +115,9 @@ function New-MetadataStartInfo {
         '/mnt/c/Projects/laqieer/FEBuilderGBA/TestResults/worktrees/issue-2160-linux-x11-20260913T075332Z'
         '--exec', '/usr/bin/env', '-i', 'PATH=/usr/bin:/bin', 'LANG=C.UTF-8'
         'PYTHONDONTWRITEBYTECODE=1', '/usr/bin/python3', '-I', '-S', '-B'
-        'scripts/linux_x11_metadata.py', '--observe'
+        'scripts/linux_x11_metadata.py'
     )) { $info.ArgumentList.Add($argument) }
+    $info.ArgumentList.Add($(if ($IsolationInterface) { '--observe-isolation-interface' } else { '--observe' }))
     return $info
 }
 
@@ -337,7 +362,8 @@ function Get-MetadataHash([byte[]]$Bytes) {
 }
 
 function Get-MetadataSnapshot($Packet) {
-    $policy = Get-MetadataPolicy
+    $policy = Get-MetadataPolicy -IsolationInterface:($Packet['schema'] -ceq 'issue2160-isolation-interface-v1')
+    if ($policy.IsolationInterface) { Assert-MetadataHead $Packet['expectedHead'] }
     $snapshot = [ordered]@{ expected_head = $Packet['expectedHead']; sources = [ordered]@{}; historical = [ordered]@{} }
     foreach ($name in $policy.SourcePaths) {
         $hash = Get-MetadataHash (Read-MetadataBytes (Join-Path $policy.Root $name.Replace('/', '\')) 1048576)
@@ -349,7 +375,65 @@ function Get-MetadataSnapshot($Packet) {
         if ($hash -cne $pin.Value) { throw 'Historical receipt changed.' }
         $snapshot.historical[$pin.Key] = $hash
     }
+    if ($policy.IsolationInterface) { Assert-MetadataHead $Packet['expectedHead'] }
     return $snapshot
+}
+
+function Assert-MetadataHead([string]$ExpectedHead) {
+    $root = (Get-MetadataPolicy).Root
+    $gitRoot = 'C:\Projects\laqieer\FEBuilderGBA\.git'
+    $worktreeName = 'issue-2160-linux-x11-20260913T075332Z'
+    $gitDirectory = $gitRoot + '\worktrees\' + $worktreeName
+    $gitFile = [Text.Encoding]::UTF8.GetString((Read-MetadataBytes ($root + '\.git') 256)).TrimEnd("`r", "`n")
+    if ($gitFile -cne ('gitdir: ' + $gitDirectory.Replace('\', '/'))) { throw 'Fixed worktree Git binding changed.' }
+    $head = [Text.Encoding]::UTF8.GetString((Read-MetadataBytes ($gitDirectory + '\HEAD') 256)).TrimEnd("`r", "`n")
+    if ($head -cne 'ref: refs/heads/fix/issue-2160-linux-x11-attribution') { throw 'Fixed branch binding changed.' }
+    $actual = [Text.Encoding]::UTF8.GetString((Read-MetadataBytes ($gitRoot + '\refs\heads\fix\issue-2160-linux-x11-attribution') 256)).TrimEnd("`r", "`n")
+    if ($ExpectedHead -cnotmatch '\A[0-9a-f]{40}\z' -or $actual -cne $ExpectedHead) { throw 'Current HEAD pin mismatch.' }
+}
+
+function Assert-MetadataReceipt($Observed, $Policy) {
+    if ($Observed['schema'] -cne $Policy.Schema -or $Observed['status'] -cne 'observed' -or
+        $Observed['cleanup_failures'].Count -ne 0 -or $Observed['elapsed_seconds'] -ge 3) { throw 'Metadata receipt did not pass.' }
+    foreach ($flag in @('native_attempted', 'primitive_accepted', 'application_accepted', 'isolation_accepted')) {
+        if ($Observed[$flag] -isnot [bool] -or $Observed[$flag]) { throw 'Invalid observation-only flag.' }
+    }
+    if ($Observed['checks'].Count -ne 7 -or @($Observed['checks'].Values | Where-Object { $_ -isnot [bool] -or -not $_ }).Count -ne 0) { throw 'Metadata identity checks did not pass.' }
+    if (-not $Policy.IsolationInterface) { return }
+    foreach ($flag in @('namespace_attempted', 'descendant_cleanup_proven')) {
+        if ($Observed[$flag] -isnot [bool] -or $Observed[$flag]) { throw 'Invalid interface-only flag.' }
+    }
+    foreach ($flag in @('binary_documentation_attempted', 'binary_documentation_observed')) {
+        if ($Observed[$flag] -isnot [bool] -or -not $Observed[$flag]) { throw 'Binary documentation was not observed.' }
+    }
+    if ($Observed['descriptor_bound_including_setup'] -gt 16 -or $Observed['commands'].Count -ne 2) { throw 'Interface resource bound mismatch.' }
+    $binary = $Observed['binary']
+    if ($binary['path'] -cne '/usr/bin/unshare' -or $binary['kind'] -cne 'regular' -or
+        $binary['mode'] -cne '0755' -or $binary['uid'] -ne 0 -or $binary['gid'] -ne 0 -or
+        $binary['sha256'] -cnotmatch '\A[0-9a-f]{64}\z' -or $binary['bytes'] -gt 1048576 -or
+        $binary['file_capabilities_absent'] -isnot [bool] -or -not $binary['file_capabilities_absent']) { throw 'Binary identity receipt did not pass.' }
+    $index = 0
+    foreach ($option in @('--version', '--help')) {
+        $command = $Observed['commands'][$index]
+        $stdoutLimit = if ($index -eq 0) { 512 } else { 8192 }
+        if ($command['option'] -cne $option -or $command['attempted'] -isnot [bool] -or -not $command['attempted'] -or
+            $command['normal_completion'] -isnot [bool] -or -not $command['normal_completion'] -or
+            $command['termination_confirmed'] -isnot [bool] -or -not $command['termination_confirmed'] -or
+            $command['kill_attempted'] -isnot [bool] -or $command['kill_attempted'] -or
+            $command['exit_code'] -ne 0 -or $null -ne $command['failure'] -or
+            $command['elapsed_seconds'] -ge 1) { throw 'Incomplete binary documentation command.' }
+        foreach ($name in @('stdout', 'stderr')) {
+            $stream = $command['streams'][$name]
+            $limit = if ($name -ceq 'stdout') { $stdoutLimit } else { 512 }
+            $raw = [Convert]::FromBase64String($stream['base64'])
+            if ($stream['limit'] -ne $limit -or $raw.Length -gt $limit -or
+                $raw.Length -ne $stream['observed_bytes'] -or
+                $stream['eof'] -isnot [bool] -or -not $stream['eof'] -or
+                $stream['overflow'] -isnot [bool] -or $stream['overflow'] -or
+                $null -ne $stream['error'] -or ($name -ceq 'stderr' -and $raw.Length -ne 0)) { throw 'Incomplete binary documentation stream.' }
+        }
+        $index++
+    }
 }
 
 function Write-MetadataBytes([string]$Path, [byte[]]$Bytes) {
@@ -364,12 +448,13 @@ function Write-MetadataJson([string]$Path, $Value) {
 }
 
 function Invoke-MetadataOperation([string]$Path) {
-    $policy = Get-MetadataPolicy
+    $policy = Get-MetadataPacketPolicy $Path
     if (-not $IsWindows -or [IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..')) -cne $policy.Root) { throw 'Fixed Windows worktree required.' }
     $packetName = Join-Path $policy.Root ($policy.Stem + '.packet.json')
     if ([string]::IsNullOrWhiteSpace($Path) -or [IO.Path]::GetFullPath($Path) -cne $packetName) { throw 'Exact packet path required.' }
     $packetBytes = Read-MetadataBytes $packetName 16384
     $packet = ConvertFrom-MetadataPacket ([Text.UTF8Encoding]::new($false, $true).GetString($packetBytes))
+    if ($packet['schema'] -cne $policy.Schema) { throw 'Packet path/profile mismatch.' }
     $paths = [ordered]@{}
     foreach ($suffix in @('before.json', 'stdout.json', 'stderr.txt', 'outer.json', 'after.json', 'result.json', 'hashes.json')) {
         $output = Join-Path $policy.Root ($policy.Stem + '.' + $suffix)
@@ -382,7 +467,7 @@ function Invoke-MetadataOperation([string]$Path) {
     $before = Get-MetadataSnapshot $packet
     Write-MetadataJson $paths['before.json'] $before
     $process = [Diagnostics.Process]::new()
-    $process.StartInfo = New-MetadataStartInfo
+    $process.StartInfo = New-MetadataStartInfo -IsolationInterface:$policy.IsolationInterface
     $clock = [Diagnostics.Stopwatch]::StartNew()
     $now = { $clock.Elapsed.TotalSeconds }.GetNewClosure()
     $wait = {
@@ -403,20 +488,28 @@ function Invoke-MetadataOperation([string]$Path) {
         application_accepted = $false; isolation_accepted = $false
         descendant_cleanup_proven = $false
     }
+    if ($policy.IsolationInterface) {
+        $result['binary_documentation_attempted'] = if ($capture.Record.started) { $null } else { $false }
+        $result['binary_documentation_observed'] = $false
+        $result['namespace_attempted'] = $false
+    }
+    $observationPassed = $false
     try {
         $after = Get-MetadataSnapshot $packet
         Write-MetadataJson $paths['after.json'] $after
+        if ($policy.IsolationInterface -and (Get-MetadataHash (Read-MetadataBytes $packetName 16384)) -cne (Get-MetadataHash $packetBytes)) { throw 'Immutable packet changed.' }
+        $observed = [Text.UTF8Encoding]::new($false, $true).GetString($capture.Stdout) | ConvertFrom-Json -AsHashtable
+        if ($policy.IsolationInterface -and $observed['schema'] -ceq $policy.Schema -and
+            $observed['binary_documentation_attempted'] -is [bool]) {
+            $result['binary_documentation_attempted'] = $observed['binary_documentation_attempted']
+        }
         if (-not $capture.Record.ok) { throw 'Outer capture did not pass.' }
         if ($capture.Stderr.Length -ne 0) { throw 'Metadata produced stderr.' }
-        $observed = [Text.UTF8Encoding]::new($false, $true).GetString($capture.Stdout) | ConvertFrom-Json -AsHashtable
-        if ($observed['schema'] -cne 'issue2160-current-metadata-v1' -or $observed['status'] -cne 'observed' -or
-            $observed['cleanup_failures'].Count -ne 0 -or $observed['elapsed_seconds'] -ge 3) { throw 'Metadata receipt did not pass.' }
-        foreach ($flag in @('native_attempted', 'primitive_accepted', 'application_accepted', 'isolation_accepted')) {
-            if ($observed[$flag] -isnot [bool] -or $observed[$flag]) { throw 'Invalid metadata-only flag.' }
-        }
-        if ($observed['checks'].Count -ne 7 -or @($observed['checks'].Values | Where-Object { $_ -isnot [bool] -or -not $_ }).Count -ne 0) { throw 'Metadata identity checks did not pass.' }
+        Assert-MetadataReceipt $observed $policy
         $result.status = 'observed; independent diagnosis required'
-        $result.metadata_observed = $true
+        if ($policy.IsolationInterface) { $result['binary_documentation_observed'] = $true }
+        else { $result.metadata_observed = $true }
+        $observationPassed = $true
     } catch {
         $result.failure = Get-MetadataShortError $_.Exception
     }
@@ -428,7 +521,7 @@ function Invoke-MetadataOperation([string]$Path) {
     }
     Write-MetadataJson $paths['hashes.json'] $hashes
     Write-Output (ConvertTo-Json -InputObject $result -Compress)
-    if (-not $result.metadata_observed) { throw 'Bounded metadata observation failed; no retry authorized.' }
+    if (-not $observationPassed) { throw 'Bounded observation failed; no retry authorized.' }
 }
 
 if ($MyInvocation.InvocationName -ne '.') {

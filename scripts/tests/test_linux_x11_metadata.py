@@ -2,6 +2,8 @@
 """Injected metadata contracts: no host/guest metadata or process operations."""
 
 import gzip
+import base64
+import errno
 import importlib.util
 import json
 import posixpath
@@ -70,8 +72,9 @@ class FakeOS:
         node = self.nodes[name]
         return types.SimpleNamespace(
             st_dev=1, st_ino=node["inode"], st_mode=node["mode"],
-            st_uid=1000, st_gid=1000,
+            st_uid=node.get("uid", 1000), st_gid=node.get("gid", 1000),
             st_size=len(node["target"] or node["data"]),
+            st_mtime_ns=node.get("mtime", 0), st_ctime_ns=node.get("ctime", 0),
         )
 
     def open(self, path, flags, *, dir_fd=None):
@@ -323,7 +326,303 @@ class MetadataContracts(unittest.TestCase):
                 patch("os.stat", side_effect=AssertionError("metadata on import")):
             spec.loader.exec_module(module)
         parser = metadata.argument_parser()
-        self.assertEqual({"observe", "help"}, {a.dest for a in parser._actions})
+        self.assertEqual(
+            {"observe", "observe_isolation_interface", "help"},
+            {a.dest for a in parser._actions},
+        )
+
+
+class InterfaceOS(FakeOS):
+    def __init__(self):
+        super().__init__()
+        self.add("/usr/bin/unshare", stat.S_IFREG | 0o755, b"verified ELF fixture")
+        self.nodes["/usr/bin/unshare"].update(uid=0, gid=0)
+        self.capability_error = errno.ENODATA
+        self.pipes = {}
+        self.nonblocking = []
+
+    def getxattr(self, descriptor, name):
+        assert self.handles[descriptor] == "/usr/bin/unshare"
+        assert name == "security.capability"
+        if self.capability_error:
+            raise OSError(self.capability_error, "injected capability result")
+        return b""
+
+    def set_blocking(self, descriptor, blocking):
+        assert not blocking
+        self.nonblocking.append(descriptor)
+
+    def read(self, descriptor, count):
+        if descriptor in self.pipes:
+            return self.pipes[descriptor].read(count)
+        return super().read(descriptor, count)
+
+
+class InterfacePipe:
+    def __init__(self, fake, descriptor, data):
+        self.fake, self.descriptor, self.data = fake, descriptor, data
+        self.position = 0
+        self.closed = False
+        self.pending = False
+        self.error = None
+        self.close_error = False
+        self.requests = []
+        fake.pipes[descriptor] = self
+
+    def fileno(self):
+        return self.descriptor
+
+    def read(self, count):
+        assert 0 < count <= 4096
+        self.requests.append(count)
+        if self.error:
+            raise OSError("injected read failure")
+        if self.pending:
+            raise BlockingIOError()
+        value = self.data[self.position:self.position + count]
+        self.position += len(value)
+        return value
+
+    def close(self):
+        self.closed = True
+        if self.close_error:
+            raise OSError("injected pipe close failure")
+
+
+class InterfaceHarness:
+    def __init__(self):
+        self.os = InterfaceOS()
+        self.seconds = 0.0
+        self.calls = []
+        self.children = []
+        self.outputs = [b"unshare fixture\n", b"literal help fixture\n"]
+        self.errors = [b"", b""]
+        self.returncode = 0
+        self.spawn_error = False
+        self.pending = False
+        self.wait_error = False
+        self.on_spawn = None
+        self.max_live = 0
+
+    def clock(self):
+        return self.seconds
+
+    def select(self, readers, writers, errors, timeout):
+        self.seconds += min(timeout, 0.01)
+        return readers, [], []
+
+    def spawn(self, args, **kwargs):
+        assert not any(c.poll() is None for c in self.children)
+        self.calls.append((args, kwargs))
+        # CPython 3.12 Popen setup: /dev/null, two pipe pairs, errpipe pair.
+        self.max_live = max(self.max_live, 3 + len(self.os.handles) + 7)
+        if self.spawn_error:
+            raise OSError("injected descriptor-exec setup failure")
+        index = len(self.children)
+        child = types.SimpleNamespace(
+            stdout=InterfacePipe(self.os, 1001 + index * 2, self.outputs[index]),
+            stderr=InterfacePipe(self.os, 1002 + index * 2, self.errors[index]),
+            returncode=None if self.pending else self.returncode,
+            kills=0, waits=[],
+        )
+        child.stdout.pending = self.pending
+        child.stderr.pending = self.pending
+        child.poll = lambda: child.returncode
+
+        def kill():
+            child.kills += 1
+            if not self.wait_error:
+                child.returncode = -9
+
+        def wait(timeout):
+            child.waits.append(timeout)
+            assert 0 < timeout <= 3 - self.seconds
+            if self.wait_error:
+                self.seconds += timeout
+                raise TimeoutError("injected confirmation deadline")
+            return child.returncode
+
+        child.kill, child.wait = kill, wait
+        self.children.append(child)
+        if self.on_spawn:
+            self.on_spawn(child)
+        return child
+
+    def run(self, **changes):
+        return metadata.observe_isolation_interface(
+            os_api=self.os, clock=self.clock, identity=identity(**changes),
+            spawn=self.spawn, select_ready=self.select,
+        )
+
+
+class IsolationInterfaceContracts(unittest.TestCase):
+    def assert_failed(self, harness, expected_calls=1):
+        result = harness.run()
+        self.assertEqual("failed", result["status"])
+        self.assertFalse(result["binary_documentation_observed"])
+        self.assertEqual(expected_calls, len(harness.calls))
+        self.assertFalse(harness.os.handles)
+        for child in harness.children:
+            self.assertTrue(child.stdout.closed and child.stderr.closed)
+        return result
+
+    def test_two_literal_commands_execute_only_the_retained_descriptor(self):
+        harness = InterfaceHarness()
+        result = harness.run()
+        self.assertEqual("observed", result["status"])
+        self.assertEqual("issue2160-isolation-interface-v1", result["schema"])
+        self.assertTrue(result["binary_documentation_attempted"])
+        self.assertTrue(result["binary_documentation_observed"])
+        self.assertEqual(2, len(harness.calls))
+        for (args, options), flag in zip(harness.calls, ("--version", "--help")):
+            self.assertEqual(("/usr/bin/unshare", flag), args)
+            descriptor, = options["pass_fds"]
+            self.assertEqual(f"/proc/self/fd/{descriptor}", options["executable"])
+            self.assertEqual({
+                "PATH": "/usr/bin:/bin", "LANG": "C.UTF-8",
+                "PYTHONDONTWRITEBYTECODE": "1",
+            }, options["env"])
+            self.assertFalse(options["shell"])
+            self.assertTrue(options["close_fds"])
+            self.assertEqual(0, options["bufsize"])
+        self.assertEqual(harness.calls[0][1]["pass_fds"], harness.calls[1][1]["pass_fds"])
+        self.assertLessEqual(harness.max_live, 16)
+        self.assertEqual(harness.max_live, result["descriptor_bound_including_setup"])
+        self.assertFalse(harness.os.handles)
+        self.assertTrue(all(p.closed for p in harness.os.pipes.values()))
+        self.assertLessEqual(len(metadata.encode_result(result)), 16384)
+        for flag in (
+            "native_attempted", "namespace_attempted", "primitive_accepted",
+            "application_accepted", "isolation_accepted", "descendant_cleanup_proven",
+        ):
+            self.assertIs(result[flag], False)
+        self.assertEqual(
+            harness.outputs,
+            [base64.b64decode(c["streams"]["stdout"]["base64"]) for c in result["commands"]],
+        )
+
+    def test_all_fixed_identity_mismatches_fail_before_binary_access_or_spawn(self):
+        for changes in (
+            {"uid": 0}, {"euid": 0}, {"platform": "win32"}, {"cwd": "/elsewhere"},
+            {"python": "/other"}, {"version": (3, 13, 0)}, {"architecture": "arm64"},
+        ):
+            with self.subTest(changes=changes):
+                harness = InterfaceHarness()
+                result = harness.run(**changes)
+                self.assertEqual("failed", result["status"])
+                self.assertFalse(result["binary_documentation_attempted"])
+                self.assertFalse(harness.calls or harness.os.opened)
+
+    def test_binary_ownership_mode_type_and_capabilities_are_fail_closed(self):
+        for change in (
+            {"uid": 1000}, {"gid": 1000}, {"mode": stat.S_IFREG | 0o4755},
+            {"mode": stat.S_IFREG | 0o775}, {"mode": stat.S_IFLNK | 0o777},
+        ):
+            with self.subTest(change=change):
+                harness = InterfaceHarness()
+                harness.os.nodes["/usr/bin/unshare"].update(change)
+                self.assert_failed(harness, 0)
+        for capability_error in (None, errno.EPERM, errno.ENOTSUP):
+            harness = InterfaceHarness()
+            harness.os.capability_error = capability_error
+            self.assert_failed(harness, 0)
+
+    def test_binary_read_is_capped_with_one_overflow_sentinel(self):
+        harness = InterfaceHarness()
+        harness.os.nodes["/usr/bin/unshare"]["data"] = b"x" * (1048576 + 1)
+        self.assert_failed(harness, 0)
+        self.assertLessEqual(sum(n for _, n in harness.os.reads), 1048577)
+
+    def test_exact_binary_cap_and_eof_is_not_overflow(self):
+        harness = InterfaceHarness()
+        harness.os.nodes["/usr/bin/unshare"]["data"] = b"x" * 1048576
+        self.assertEqual("observed", harness.run()["status"])
+        self.assertEqual(1, harness.os.reads[-1][1])
+
+    def test_no_descriptor_exec_fallback_after_setup_failure(self):
+        harness = InterfaceHarness()
+        harness.spawn_error = True
+        result = self.assert_failed(harness)
+        self.assertTrue(result["binary_documentation_attempted"])
+        self.assertLessEqual(harness.max_live, 16)
+
+    def test_identity_drift_after_first_child_prevents_second(self):
+        for field, value in (("inode", 999), ("mtime", 1), ("ctime", 1)):
+            with self.subTest(field=field):
+                harness = InterfaceHarness()
+                harness.on_spawn = lambda child: harness.os.nodes["/usr/bin/unshare"].update(
+                    {field: value},
+                )
+                self.assert_failed(harness)
+
+    def test_nonzero_exit_and_any_stderr_prevent_second_child(self):
+        harness = InterfaceHarness()
+        harness.returncode = 1
+        self.assert_failed(harness)
+        harness = InterfaceHarness()
+        harness.errors[0] = b"bounded diagnostic"
+        self.assert_failed(harness)
+
+    def test_exact_stdout_caps_and_eof_pass(self):
+        harness = InterfaceHarness()
+        harness.outputs = [b"x" * 512, b"y" * 8192]
+        result = harness.run()
+        self.assertEqual("observed", result["status"])
+        for command in result["commands"]:
+            self.assertTrue(command["streams"]["stdout"]["eof"])
+        self.assertTrue(all(1 in c.stdout.requests for c in harness.children))
+
+    def test_each_stdout_cap_retains_at_most_one_sentinel_and_stops(self):
+        for index, cap in ((0, 512), (1, 8192)):
+            harness = InterfaceHarness()
+            harness.outputs[index] = b"x" * (cap + 100)
+            result = self.assert_failed(harness, index + 1)
+            stream = result["commands"][index]["streams"]["stdout"]
+            self.assertTrue(stream["overflow"])
+            self.assertEqual(cap + 1, stream["observed_bytes"])
+            self.assertEqual(cap, len(base64.b64decode(stream["base64"])))
+            self.assertFalse(stream["eof"])
+
+    def test_stderr_cap_is_not_mistaken_for_complete_diagnostics(self):
+        harness = InterfaceHarness()
+        harness.errors[0] = b"x" * 600
+        result = self.assert_failed(harness)
+        stream = result["commands"][0]["streams"]["stderr"]
+        self.assertEqual(513, stream["observed_bytes"])
+        self.assertTrue(stream["overflow"])
+
+    def test_timeout_aborts_only_original_child_once_with_remaining_budget(self):
+        for wait_error in (False, True):
+            harness = InterfaceHarness()
+            harness.pending = True
+            harness.wait_error = wait_error
+            result = self.assert_failed(harness)
+            child = harness.children[0]
+            self.assertEqual(1, child.kills)
+            self.assertLessEqual(harness.seconds, 3)
+            self.assertFalse(result["commands"][0]["streams"]["stdout"]["eof"])
+            self.assertEqual(not wait_error, result["commands"][0]["termination_confirmed"])
+
+    def test_read_and_close_errors_fail_without_a_second_child(self):
+        for kind in ("read", "close", "setup"):
+            harness = InterfaceHarness()
+            if kind == "setup":
+                harness.os.set_blocking = lambda *a: (_ for _ in ()).throw(OSError())
+            else:
+                harness.on_spawn = lambda child: setattr(
+                    child.stdout, "error" if kind == "read" else "close_error", True,
+                )
+            result = self.assert_failed(harness)
+            if kind == "close":
+                self.assertTrue(result["cleanup_failures"])
+
+    def test_profile_cli_modes_are_mutually_exclusive_and_fixed(self):
+        parser = metadata.argument_parser()
+        self.assertTrue(parser.parse_args(["--observe-isolation-interface"]).observe_isolation_interface)
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--observe", "--observe-isolation-interface"])
+        with self.assertRaises(SystemExit):
+            parser.parse_args(["--observe-isolation-interface", "--command", "other"])
 
 
 if __name__ == "__main__":

@@ -11,16 +11,16 @@ function Assert-Rejected([scriptblock]$Action) {
     try { $null = & $Action } catch { $rejected = $true }
     Assert-True $rejected 'Expected fail-closed rejection.'
 }
-function New-TestPacket {
-    $policy = Get-MetadataPolicy
+function New-TestPacket([switch]$IsolationInterface) {
+    $policy = Get-MetadataPolicy -IsolationInterface:$IsolationInterface
     $sources = [ordered]@{}
     foreach ($name in $policy.SourcePaths) { $sources[$name] = '0' * 64 }
     return [ordered]@{
-        schema = 'issue2160-current-metadata-v1'
+        schema = $policy.Schema
         expectedHead = '0' * 40
         sourceSha256 = $sources
         historicalSha256 = $policy.Historical
-        receiptStem = 'issue-2160-current-metadata-20260914T090444Z'
+        receiptStem = $policy.Stem
     }
 }
 
@@ -55,6 +55,122 @@ $expectedArguments = @(
     'scripts/linux_x11_metadata.py', '--observe'
 )
 Assert-True (($info.ArgumentList -join "`n") -ceq ($expectedArguments -join "`n")) 'Literal argv changed.'
+
+$interfacePolicy = Get-MetadataPolicy -IsolationInterface
+$interfacePacket = New-TestPacket -IsolationInterface
+$interfaceJson = $interfacePacket | ConvertTo-Json -Depth 8 -Compress
+$interfaceParsed = ConvertFrom-MetadataPacket $interfaceJson
+Assert-True ($interfaceParsed['schema'] -ceq 'issue2160-isolation-interface-v1') 'Wrong interface schema.'
+Assert-True ($interfaceParsed['historicalSha256'].Count -eq 10) 'N1 must preserve exactly ten historical inputs.'
+Assert-True ($interfaceParsed['sourceSha256'].Count -eq 10) 'N1 must pin all ten SOURCE paths.'
+Assert-True ((Get-MetadataPolicy).Historical.Count -eq 2) 'Metadata mode history changed.'
+Assert-True ($interfacePolicy.Stem -ceq 'issue-2160-isolation-interface-20260914T130000Z') 'N1 allocation changed.'
+Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson -replace 'isolation-interface-v1', 'current-metadata-v1') }
+Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson -replace 'isolation-interface-20260914T130000Z', 'current-metadata-20260914T090444Z') }
+Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson -replace '"schema":', '"schema":"duplicate","schema":') }
+Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson -replace '"schema":', '"Schema":') }
+Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson -replace '"schema":', '"command":"--user","schema":') }
+foreach ($pin in $interfacePolicy.Historical.GetEnumerator()) {
+    Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson.Replace($pin.Value, '0' * 64)) }
+    Assert-Rejected { ConvertFrom-MetadataPacket ($interfaceJson.Replace($pin.Key, 'unexpected-history.json')) }
+}
+$interfaceInfo = New-MetadataStartInfo -IsolationInterface
+$interfaceArguments = @($expectedArguments)
+$interfaceArguments[-1] = '--observe-isolation-interface'
+Assert-True (($interfaceInfo.ArgumentList -join "`n") -ceq ($interfaceArguments -join "`n")) 'Only the final guest mode may change.'
+Assert-True ($interfaceInfo.Environment.Count -eq 3) 'Interface Windows environment leaked.'
+foreach ($key in $info.Environment.Keys) {
+    Assert-True ($interfaceInfo.Environment[$key] -ceq $info.Environment[$key]) 'Interface environment changed.'
+}
+foreach ($policy in @((Get-MetadataPolicy), $interfacePolicy)) {
+    $fixedPacket = $policy.Root + '\' + $policy.Stem + '.packet.json'
+    $selected = Get-MetadataPacketPolicy $fixedPacket
+    Assert-True ($selected.Schema -ceq $policy.Schema) 'Exact absolute profile selection failed.'
+    Assert-Rejected { Get-MetadataPacketPolicy ($policy.Stem + '.packet.json') }
+    Assert-Rejected { Get-MetadataPacketPolicy ($fixedPacket + '.other') }
+    Assert-Rejected { Get-MetadataPacketPolicy $fixedPacket.ToUpperInvariant() }
+}
+
+$originalReader = ${function:Read-MetadataBytes}
+try {
+    $script:fakeHead = '0' * 40
+    $script:fakeBranch = 'ref: refs/heads/fix/issue-2160-linux-x11-attribution'
+    $script:headReads = [Collections.Generic.List[string]]::new()
+    function Read-MetadataBytes([string]$Path, [int]$Limit) {
+        Assert-True ($Limit -eq 256) 'Unexpected head-read limit.'
+        $script:headReads.Add($Path)
+        $value = switch -CaseSensitive ($Path) {
+            'C:\Projects\laqieer\FEBuilderGBA\TestResults\worktrees\issue-2160-linux-x11-20260913T075332Z\.git' {
+                'gitdir: C:/Projects/laqieer/FEBuilderGBA/.git/worktrees/issue-2160-linux-x11-20260913T075332Z'
+            }
+            'C:\Projects\laqieer\FEBuilderGBA\.git\worktrees\issue-2160-linux-x11-20260913T075332Z\HEAD' { $script:fakeBranch }
+            'C:\Projects\laqieer\FEBuilderGBA\.git\refs\heads\fix\issue-2160-linux-x11-attribution' { $script:fakeHead }
+            default { throw 'Unexpected Git metadata path.' }
+        }
+        return ,([Text.Encoding]::UTF8.GetBytes($value + "`n"))
+    }
+    Assert-MetadataHead ('0' * 40)
+    Assert-True ($script:headReads.Count -eq 3) 'Head verification must have three fixed reads.'
+    $script:fakeHead = '1' * 40
+    Assert-Rejected { Assert-MetadataHead ('0' * 40) }
+    $script:fakeHead = '0' * 40
+    $script:fakeBranch = 'ref: refs/heads/other'
+    Assert-Rejected { Assert-MetadataHead ('0' * 40) }
+} finally { ${function:Read-MetadataBytes} = $originalReader }
+
+function New-InterfaceReceipt {
+    $commands = @()
+    foreach ($option in @('--version', '--help')) {
+        $limit = if ($option -ceq '--version') { 512 } else { 8192 }
+        $commands += @{
+            option = $option; attempted = $true; normal_completion = $true
+            exit_code = 0; failure = $null; kill_attempted = $false
+            termination_confirmed = $true; elapsed_seconds = 0.02
+            streams = @{
+                stdout = @{ limit = $limit; observed_bytes = 3; eof = $true; overflow = $false; error = $null; base64 = 'YWJj' }
+                stderr = @{ limit = 512; observed_bytes = 0; eof = $true; overflow = $false; error = $null; base64 = '' }
+            }
+        }
+    }
+    return @{
+        schema = 'issue2160-isolation-interface-v1'; status = 'observed'
+        cleanup_failures = @(); elapsed_seconds = 0.1
+        checks = @{ platform = $true; uid = $true; euid = $true; python = $true; version = $true; architecture = $true; cwd = $true }
+        binary_documentation_attempted = $true; binary_documentation_observed = $true
+        native_attempted = $false; namespace_attempted = $false; primitive_accepted = $false
+        application_accepted = $false; isolation_accepted = $false; descendant_cleanup_proven = $false
+        descriptor_bound_including_setup = 14
+        commands = $commands
+        binary = @{ path = '/usr/bin/unshare'; kind = 'regular'; mode = '0755'; uid = 0; gid = 0; sha256 = '0' * 64; bytes = 20; file_capabilities_absent = $true }
+    }
+}
+Assert-MetadataReceipt (New-InterfaceReceipt) $interfacePolicy
+foreach ($field in @('native_attempted', 'namespace_attempted', 'primitive_accepted', 'application_accepted', 'isolation_accepted', 'descendant_cleanup_proven')) {
+    $receipt = New-InterfaceReceipt
+    $receipt[$field] = $true
+    Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
+}
+foreach ($field in @('binary_documentation_attempted', 'binary_documentation_observed')) {
+    $receipt = New-InterfaceReceipt
+    $receipt[$field] = $false
+    Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
+}
+foreach ($field in @('eof', 'overflow', 'error', 'observed_bytes')) {
+    $receipt = New-InterfaceReceipt
+    $receipt.commands[0].streams.stdout[$field] = switch ($field) {
+        'eof' { $false }; 'overflow' { $true }; 'error' { 'injected' }; 'observed_bytes' { 4 }
+    }
+    Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
+}
+$receipt = New-InterfaceReceipt
+$receipt.commands[1].option = '--user'
+Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
+$receipt = New-InterfaceReceipt
+$receipt.descriptor_bound_including_setup = 17
+Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
+$receipt = New-InterfaceReceipt
+$receipt.commands[0].elapsed_seconds = 1
+Assert-Rejected { Assert-MetadataReceipt $receipt $interfacePolicy }
 
 function New-FakePipe([byte[]]$Bytes, [bool]$Pending = $false) {
     $pipe = [pscustomobject]@{

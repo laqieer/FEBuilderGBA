@@ -220,3 +220,69 @@ Required CI runs the Python pure/injected observer contracts alongside the X11
 pure suite on all three operating systems, and fake-only PowerShell supervisor
 contracts on Windows. These tests do not invoke WSL, inspect host `/tmp` or `/proc`,
 start a child process, or run either production entry point.
+
+### N1: fixed unshare interface observation, not isolation
+
+[Accepted N1 plan](https://github.com/laqieer/FEBuilderGBA/issues/2160#issuecomment-5664098984)
+adds the mutually exclusive `--observe-isolation-interface` profile to these
+same tracked helpers. Importing/dot-sourcing them remains inert. This is source
+support, **not permission to execute the profile**: a fresh pushed-head
+SOURCE/security/CI gate, exact immutable operational packet acceptance, and a
+separate posted/read-back one-use grant are required before a production call.
+Both earlier metadata grants are consumed. No production call or packet is
+created by the tests.
+
+The closed `issue2160-isolation-interface-v1` packet has the same five
+case-sensitive keys and ten SOURCE paths as metadata mode. Its fixed allocation
+stem is `issue-2160-isolation-interface-20260914T130000Z` (not an observation
+timestamp). Only its exact absolute packet path, or the original metadata
+profile's exact absolute packet path, is accepted. N1 additionally pins all eight
+completed current-metadata files alongside both original smoke receipts: exactly
+ten historical inputs. It rejects a changed packet, head, source/history pin,
+schema/path pairing, duplicate/extra key, reparse path, or existing output.
+The N1 head check reads only the fixed worktree `.git` binding, its registered
+`HEAD`, and the fixed branch's loose ref; unavailable/packed-only refs fail
+closed rather than launching Git or searching for a fallback. It changes none
+of this Git metadata. All seven evidence outputs are exclusive-create in the
+existing worktree; preserve historical files byte-for-byte and unstaged.
+
+The sixteen WSL arguments and cleared Windows/guest environments are unchanged
+except for the final literal mode. After the same seven guest identity checks,
+N1 no-follow-opens only the fixed `/usr/bin/unshare`, verifies a root-owned
+regular `0755` file without a file-capability attribute, and hashes at most
+1 MiB plus an overflow sentinel. Its descriptor and path identity, size and
+timestamps are revalidated before and after each command. The same retained
+file is executed through `/proc/self/fd/<owned-fd>`, never a path-search or
+path-race fallback, with literal argv0 `/usr/bin/unshare` and, sequentially,
+only `--version` then `--help`. It uses null stdin and a fixed three-variable
+environment. Descriptor execution failure stops the profile.
+
+Only one child may be alive. The pinned CPython 3.12 subprocess setup is budgeted
+as seven descriptors (null stdin, two pipe pairs, exec-error pipe pair), plus the
+three standard descriptors and four retained traversal/binary descriptors:
+fourteen, below the maximum sixteen. Failed subprocess construction relies on
+the pinned standard library's setup-descriptor cleanup; acquired child streams
+and the retained binary/traversal descriptors are closed on every outcome.
+No additional selector descriptor, accumulated child, shell, pager or generic
+runner is used.
+
+Version stdout is capped at 512 bytes, help stdout at 8192, and each child's
+stderr at 512, each with one overflow sentinel. Raw retained bytes use bounded
+base64 only in the private receipt; total serialized output must still fit
+16384 bytes. EOF, overflow, read error and pending output are distinct.
+Each capture gets at most one second within the existing three-second guest
+deadline; original-child-only abort/confirmation uses only the remaining
+aggregate time, not a renewed cleanup budget. Any stderr, nonzero exit, timeout,
+overflow, missing EOF, identity drift or cleanup failure prohibits the next
+command. The Windows supervisor retains its existing 5+5-second budgets,
+16384/4096-byte caps and fair completed-sibling capture. Operating-system stalls
+are not a hard real-time guarantee; deadline/cleanup failure cannot pass.
+
+`binary_documentation_attempted` and `binary_documentation_observed` are distinct
+from metadata/native acceptance. The outer attempted value is unknown (`null`)
+when the guest started but did not return a usable attempt flag. Namespace,
+native, primitive, application, isolation and descendant-cleanup acceptance
+remain false. Help/version observation proves neither namespace permission nor
+working isolation. N2 must be separately designed and reviewed from actual N1
+evidence; no namespace creation, private filesystem work, remount, chmod,
+installation, display access or native/application retry follows from N1.
