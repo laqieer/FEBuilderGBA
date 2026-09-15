@@ -188,6 +188,84 @@ public class DesktopProbeSupervisorTests
         Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ParsePacket(Json(data)));
     }
 
+    public static IEnumerable<object[]> SuperscriptDevicePaths()
+    {
+        foreach (string prefix in new[] { "COM", "LPT" })
+            foreach (string digit in new[] { "\u00b9", "\u00b2", "\u00b3" })
+            {
+                string name = prefix + digit;
+                yield return [name];
+                yield return [name.ToLowerInvariant() + ".dll"];
+                yield return [@"nested\" + (prefix == "COM" ? "cOm" : "lPt") + digit + ".dll"];
+                yield return [@"nested\" + name + @"\resource.dll"];
+            }
+    }
+
+    public static IEnumerable<object[]> SuperscriptAbsoluteDeviceFields()
+    {
+        foreach (object[] row in SuperscriptDevicePaths())
+            foreach (string field in new[] { "host", "toolDirectory", "evidenceDirectory", "systemRoot" })
+                yield return [field, row[0]];
+    }
+
+    public static IEnumerable<object[]> NearMissDevicePaths()
+    {
+        foreach (string path in new[] { "COM0", "LPT0", "COM10", "LPT10",
+            "COM\u2074", "LPT\u2074", "COM\u00b9x", "nested\\xLPT\u00b2\\resource.dll" })
+            yield return [path];
+    }
+
+    public static IEnumerable<object[]> NearMissAbsoluteDeviceFields()
+    {
+        foreach (object[] row in NearMissDevicePaths())
+            foreach (string field in new[] { "host", "toolDirectory", "evidenceDirectory", "systemRoot" })
+                yield return [field, row[0]];
+    }
+
+    [Theory]
+    [MemberData(nameof(SuperscriptDevicePaths))]
+    public void ClosureRejectsDocumentedSuperscriptDeviceAliases(string path)
+    {
+        var data = JsonNode.Parse(Json(PacketData()))!;
+        data["files"]!.AsArray().Add(new JsonObject
+        {
+            ["root"] = "tool", ["path"] = path, ["bytes"] = 10, ["sha256"] = Hash
+        });
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ParsePacket(Json(data)));
+    }
+
+    [Theory]
+    [MemberData(nameof(SuperscriptAbsoluteDeviceFields))]
+    public void AbsoluteFieldsRejectDocumentedSuperscriptDeviceAliases(string field, string path)
+    {
+        var data = JsonNode.Parse(Json(PacketData()))!;
+        if (field == "host") data["host"]!["path"] = @"C:\root\" + path + @"\dotnet.exe";
+        else data[field] = @"C:\root\" + path;
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ParsePacket(Json(data)));
+    }
+
+    [Theory]
+    [MemberData(nameof(NearMissDevicePaths))]
+    public void ClosureAcceptsOrdinaryDeviceNameNearMisses(string path)
+    {
+        var data = JsonNode.Parse(Json(PacketData()))!;
+        data["files"]!.AsArray().Add(new JsonObject
+        {
+            ["root"] = "tool", ["path"] = path, ["bytes"] = 10, ["sha256"] = Hash
+        });
+        Assert.NotNull(ProbeSupervisor.ParsePacket(Json(data)));
+    }
+
+    [Theory]
+    [MemberData(nameof(NearMissAbsoluteDeviceFields))]
+    public void AbsoluteFieldsAcceptOrdinaryDeviceNameNearMisses(string field, string path)
+    {
+        var data = JsonNode.Parse(Json(PacketData()))!;
+        if (field == "host") data["host"]!["path"] = @"C:\root\" + path + @"\dotnet.exe";
+        else data[field] = @"C:\root\" + path;
+        Assert.NotNull(ProbeSupervisor.ParsePacket(Json(data)));
+    }
+
     [Fact]
     public void ClosureRejectsDuplicatePathsMissingRootsAndOversize()
     {
@@ -333,6 +411,78 @@ public class DesktopProbeSupervisorTests
         Assert.False(fixture.FactoryCalled);
         Assert.False(fixture.Admission.Consumed);
         Assert.True(fixture.Admission.Pins.Disposed);
+    }
+
+    [Theory]
+    [InlineData(585)]
+    [InlineData(601)]
+    public void ProductionConsumeReportsSuccessfulMarkerBeforeLateGrantRefusal(int elapsedSeconds)
+    {
+        var fixture = new Fixture();
+        var packet = Packet();
+        var grant = Grant(packet);
+        int writes = 0;
+        var admission = new ProbeSupervisor.RuntimeAdmission(packet, grant, Hash, TextWriter.Null,
+            () => fixture.Admission.UtcNowTicks,
+            (packetHash, grantHash) =>
+            {
+                Assert.Equal(Hash, packetHash);
+                Assert.Equal(Hash, grantHash);
+                writes++;
+                fixture.Admission.Consumed = true;
+                fixture.Admission.UtcNowTicks += TimeSpan.FromSeconds(elapsedSeconds).Ticks;
+            });
+        fixture.Admission.ConsumeOverride = admission.Consume;
+
+        var report = fixture.Run(packet, grant);
+
+        Assert.Equal(1, writes);
+        Assert.True(fixture.Admission.Consumed);
+        Assert.True(report.ConsumptionAttempted);
+        Assert.True(report.Consumed);
+        Assert.Equal("AdmissionFailed", report.Outcome);
+        Assert.Same(report, fixture.Admission.PublishedReport);
+        Assert.Equal(1, fixture.Admission.PublishCalls);
+        Assert.False(fixture.FactoryCalled);
+        Assert.False(report.Started);
+        Assert.Equal(0, fixture.Child.StartCalls);
+        Assert.True(fixture.Admission.Pins.Disposed);
+        Assert.False(fixture.Admission.Retained);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProductionConsumeWriterFailureDoesNotRetryOrProveMarkerAbsent(bool mayHaveWritten)
+    {
+        var fixture = new Fixture();
+        var packet = Packet();
+        var grant = Grant(packet);
+        int writes = 0;
+        var admission = new ProbeSupervisor.RuntimeAdmission(packet, grant, Hash, TextWriter.Null,
+            () => fixture.Admission.UtcNowTicks,
+            (_, _) =>
+            {
+                writes++;
+                fixture.Admission.Consumed = mayHaveWritten;
+                throw new IOException("simulated uncertain marker write");
+            });
+        fixture.Admission.ConsumeOverride = admission.Consume;
+
+        var report = fixture.Run(packet, grant);
+
+        Assert.Equal(1, writes);
+        Assert.Equal(mayHaveWritten, fixture.Admission.Consumed);
+        Assert.True(report.ConsumptionAttempted);
+        Assert.False(report.Consumed);
+        Assert.Equal("AdmissionFailed", report.Outcome);
+        Assert.Same(report, fixture.Admission.PublishedReport);
+        Assert.Equal(1, fixture.Admission.PublishCalls);
+        Assert.False(fixture.FactoryCalled);
+        Assert.False(report.Started);
+        Assert.Equal(0, fixture.Child.StartCalls);
+        Assert.True(fixture.Admission.Pins.Disposed);
+        Assert.False(fixture.Admission.Retained);
     }
 
     [Fact]
@@ -524,6 +674,9 @@ public class DesktopProbeSupervisorTests
         public HeldPins Pins { get; } = new();
         public bool PinFailure, MarkerFailure, PublishFailure, Consumed, Retained;
         public long PinDelayTicks;
+        public Action<ProbePacket, string, string>? ConsumeOverride;
+        public ProbeReport? PublishedReport;
+        public int PublishCalls;
         public IDisposable VerifyAndHold(ProbePacket packet)
         {
             if (PinFailure) throw new IOException("private pin failure");
@@ -532,11 +685,18 @@ public class DesktopProbeSupervisorTests
         }
         public void Consume(ProbePacket packet, string packetHash, string grantHash)
         {
+            if (ConsumeOverride != null)
+            {
+                ConsumeOverride(packet, packetHash, grantHash);
+                return;
+            }
             if (MarkerFailure || Consumed) throw new IOException("already consumed");
             Consumed = true;
         }
         public void Publish(ProbePacket packet, string packetHash, string grantHash, ProbeReport report)
         {
+            PublishCalls++;
+            PublishedReport = report;
             if (PublishFailure) throw new IOException("private report failure");
         }
         public void Retain(IProbeChild child, IDisposable pins, ProbeReport report) => Retained = true;
@@ -616,10 +776,10 @@ public class DesktopProbeSupervisorTests
         public Child Child { get; }
         public bool FactoryCalled;
         public Fixture() => Child = new(Clock, Admission);
-        public ProbeReport Run()
+        public ProbeReport Run(ProbePacket? packet = null, ProbeGrant? grant = null)
         {
-            var packet = Packet();
-            return ProbeSupervisor.Execute(packet, Grant(packet), Hash, Hash, Admission,
+            packet ??= Packet();
+            return ProbeSupervisor.Execute(packet, grant ?? Grant(packet), Hash, Hash, Admission,
                 () => { FactoryCalled = true; return Child; }, Clock);
         }
     }

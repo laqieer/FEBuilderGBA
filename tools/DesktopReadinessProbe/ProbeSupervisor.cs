@@ -103,7 +103,7 @@ internal static class ProbeSupervisor
         Require(value.Length > 0 && value is not "." and not ".." &&
             !value.EndsWith('.') && !value.EndsWith(' ') &&
             !value.Any(c => c < 32 || "<>:\"/\\|?*".Contains(c)) &&
-            !Matches(value.Split('.')[0], @"\A(?i:CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])\z"));
+            !Matches(value.Split('.')[0], @"\A(?i:CON|PRN|AUX|NUL|(?:COM|LPT)[1-9\u00b9\u00b2\u00b3])\z"));
     }
 
     private static string Absolute(string value)
@@ -559,10 +559,11 @@ internal static class ProbeSupervisor
         }
     }
 
-    private sealed class RuntimeAdmission(ProbePacket packet, ProbeGrant grant,
-        string packetHash, TextWriter output) : IProbeAdmission
+    internal sealed class RuntimeAdmission(ProbePacket packet, ProbeGrant grant,
+        string packetHash, TextWriter output, Func<long>? utcNowTicks = null,
+        Action<string, string>? writeMarker = null) : IProbeAdmission
     {
-        public long UtcNowTicks => DateTime.UtcNow.Ticks;
+        public long UtcNowTicks => utcNowTicks?.Invoke() ?? DateTime.UtcNow.Ticks;
         public bool Published { get; private set; }
         private string Marker => Path.Combine(packet.EvidenceDirectory, packet.AttemptId + ".consumed.json");
         private string Receipt => Path.Combine(packet.EvidenceDirectory, packet.AttemptId + ".receipt.json");
@@ -683,11 +684,16 @@ internal static class ProbeSupervisor
         public void Consume(ProbePacket value, string hash, string grantHash)
         {
             Reserve();
+            if (writeMarker == null) PersistMarker(hash, grantHash);
+            else writeMarker(hash, grantHash);
+        }
+
+        private void PersistMarker(string hash, string grantHash)
+        {
             Ancestry(packet.EvidenceDirectory);
             Require(!Path.Exists(Receipt));
             WriteNew(Marker, new { schema = "desktop-probe-consumed-v1", packet.AttemptId,
                 packetSha256 = hash, grantSha256 = grantHash });
-            Reserve();
         }
 
         private static void WriteNew(string path, object value)

@@ -223,6 +223,57 @@ Keep the machine-specific packet, grant, paths, pins and outcomes private.
 Do not save a private reusable wrapper or substitute the feature-specific proof
 loader's GUI/restaging modes.
 
+#### Independent bootstrap and parent admission
+
+The external trust root is the platform-provided parent tool executor and its
+configured PowerShell startup mechanism, together with the existing Windows
+OS/security loader and trust store. This is an environmental assumption to
+accept or reject, not a claim the candidate binary makes about itself. It does
+not require an infinite bootstrap chain or establish a complete OS/PowerShell
+dependency closure.
+
+Before submitting the separately granted invocation, the parent independently
+verifies through that trusted tool, outside the candidate process:
+
+1. Exact pushed source/tree, accepted gates/build provenance, actual issuer
+   authority, and raw packet/grant/command hashes and approval readbacks.
+2. The tool-selected engine binding and exact engine/SMA, x86 muxer, selected
+   numeric-maximum hostfxr, runtime and every supervisor/E2E/metadata file pin.
+   Verify applicable Microsoft signer identities and signature validity;
+   a valid signer does not permit a different hash. Locally built assemblies
+   rely on reviewed build provenance and exact bytes, not invented signatures.
+3. Complete actual version-directory/file inventories, canonical non-device
+   paths, reparse-free ancestry, x86 host identity and generated exact
+   Core/Desktop versions with roll-forward disabled.
+4. Exact literal command bytes and the one approved lowercase-hex grant-hash
+   substitution, within 2048 UTF-8 bytes. Re-read packet/grant bytes, check
+   consumed/receipt destinations are absent, and verify the at-most-600-second
+   grant window with at least 16 seconds remaining. Preserve fresh hashes,
+   observations, tool mode and owner-liveness facts in private evidence.
+
+The invocation must be the next action after final admission. Intervening
+actions, delay requiring revalidation, drift or any unknown/failed fact require
+renewed admission or refusal. Do not install, restore, build, copy, repair or
+repin during admission. Runtime self-checks and held files are defense in depth;
+they do not authenticate the binary's earlier loading.
+
+Initial engine selection, startup/profile behavior and initial environment are
+within the trusted platform boundary. Do not invent a tool-provided `-NoProfile`
+guarantee. The reviewed literal clears only its own transport process environment,
+without printing names or values, and sets the fixed Windows/.NET allowlist
+before invoking the absolute muxer. It does not retroactively authenticate the
+preloaded engine or change persistent/user/machine environment settings.
+
+Quiescence is required from accepted capture through parent precheck and initial
+loading: no writes to the scoped source/output, engine/runtime installations,
+packet/grant/transport bytes, path ancestry or trusted tool startup configuration.
+Coordinate the absence of build/editor/installer/update writes without changing
+permissions. No external lock or atomic check/load transaction is asserted; the
+remaining TOCTOU risk is conditional on this truthful assumption. If quiescence
+cannot be maintained, do not execute.
+
+#### Build and freeze
+
 Build the existing public sources with the already-installed approved runtime
 version, then freeze the actual generated outputs:
 
@@ -334,8 +385,26 @@ bounded streams/EOFs, exit and cleanup. Console output is a bounded
 result preserves native exit 0/2/3; other outcomes return 4. `Blocked` and
 `Unknown` remain non-ready observations, not GUI admission.
 
-On `CleanupUnconfirmed`, retain the **detached original owner** and all original
-child/pin ownership even if reporting fails. Do not stop that owner. A later
+For an independently granted session-attached attempt, use asynchronous execution
+with `detach: false`. Keep the original parent CLI session, tool owner and public
+supervisor alive until original-child exit is positively confirmed, including
+indefinitely unresolved cleanup. Retain the actual returned original shell ID;
+do not replace the owner or reopen a PID. Do not cancel/stop the tool, shut down
+the CLI or impose an outer kill/timeout while custody is unresolved.
+
+Attached processes do not survive CLI shutdown. This explicitly replaces an
+unconditional detached-owner requirement with a conditional original-session
+liveness requirement; the production retention loop cannot outlive termination
+of its owner. If session continuity cannot be maintained, native execution is
+blocked. A generic background request or prior detached wording is not permission
+for `detach: true`: survival after CLI exit requires explicit user intent and a
+separately reviewed lifetime binding. Unexpected tool/OS session loss is loss of
+the environmental assumption, not confirmed cleanup.
+
+On `CleanupUnconfirmed`, retain the **original owner** and all original child/pin
+ownership even if reporting fails. Grant expiry, a receipt or missing output
+does not end custody; the 10+5+1 decision framework is not an owner deadline.
+Do not stop that owner. A later
 confirmed exit produces a separate `.reaped.json` when reporting is possible;
 it does not promote the failed attempt or permit another probe. A receipt alone
 never establishes successful cleanup, readiness or application proof.
