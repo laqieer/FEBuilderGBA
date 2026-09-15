@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -17,7 +18,7 @@ public static class DesktopPolicy
     public static bool AvaloniaClass(string name)
     {
         Guid parsed;
-        return name != null && name.StartsWith("Avalonia-", StringComparison.Ordinal) &&
+        return name != null && name.Length == 45 && name.StartsWith("Avalonia-", StringComparison.Ordinal) &&
             Guid.TryParseExact(name.Substring(9), "D", out parsed);
     }
 
@@ -85,6 +86,69 @@ internal static class DesktopHwnd
     internal static uint Key(long value) => unchecked((uint)value);
     internal static IntPtr Pointer(uint value) => new IntPtr(unchecked((int)value));
     internal static bool Same(IntPtr first, IntPtr second) => Key(first.ToInt64()) == Key(second.ToInt64());
+}
+
+internal enum DesktopRootKind { Avalonia, NativeDialog }
+
+internal sealed class DesktopRootBindings
+{
+    sealed class Binding
+    {
+        internal readonly string Class;
+        internal string Identity;
+        internal uint Owner;
+        internal Binding(string windowClass) { Class = windowClass; }
+    }
+    readonly Dictionary<uint, Binding> roots = new Dictionary<uint, Binding>();
+    internal int Count => roots.Count;
+
+    internal static bool ValidClass(string windowClass) =>
+        windowClass == "#32770" || DesktopPolicy.AvaloniaClass(windowClass);
+
+    // Only the native/root/owner validation path admits these records.
+    internal void BindNativeClass(uint handle, string windowClass)
+    {
+        if (handle == 0 || !ValidClass(windowClass)) throw new DesktopTreeGuardException("query-root-class");
+        if (roots.TryGetValue(handle, out var known))
+        {
+            if (known.Class != windowClass) throw new DesktopTreeGuardException("query-root-class-changed");
+            return;
+        }
+        if (roots.Count >= 32) throw new DesktopTreeGuardException("query-root-history-bound");
+        roots.Add(handle, new Binding(windowClass));
+    }
+
+    internal void BindCanonical(uint handle, string windowClass, string identity, uint owner)
+    {
+        if (string.IsNullOrEmpty(identity) || identity.Length > 512)
+            throw new DesktopTreeGuardException("query-runtime-id");
+        BindNativeClass(handle, windowClass);
+        var known = roots[handle];
+        if (known.Identity != null && known.Identity != identity)
+            throw new DesktopTreeGuardException("query-root-alias");
+        if (known.Identity == null) known.Identity = identity;
+        known.Owner = owner;
+    }
+
+    internal bool Matches(uint handle, string windowClass) =>
+        roots.TryGetValue(handle, out var known) && known.Identity != null && known.Class == windowClass;
+    internal bool HasCanonical(uint handle) => roots.TryGetValue(handle, out var known) && known.Identity != null;
+    internal bool MatchesProjection(uint handle, string windowClass, uint owner) =>
+        roots.TryGetValue(handle, out var known) && known.Identity != null &&
+        known.Class == windowClass && known.Owner == owner;
+    internal bool KnownNativeOwner(uint handle) => handle == 0 ||
+        (roots.TryGetValue(handle, out var known) && DesktopPolicy.AvaloniaClass(known.Class));
+    internal DesktopRootKind Kind(uint handle)
+    {
+        if (!roots.TryGetValue(handle, out var known) || known.Identity == null)
+            throw new DesktopTreeGuardException("query-root-unbound");
+        return known.Class == "#32770" ? DesktopRootKind.NativeDialog : DesktopRootKind.Avalonia;
+    }
+    internal string Expected(uint handle, DesktopRootKind kind)
+    {
+        if (Kind(handle) != kind) throw new DesktopTreeGuardException("query-root-kind");
+        return roots[handle].Class;
+    }
 }
 
 internal enum DesktopSelector
@@ -286,7 +350,8 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
 {
     readonly IDesktopOwnedTreeAdapter<TNode> adapter;
     readonly int pid;
-    readonly string expectedClass, stage;
+    readonly string stage;
+    readonly DesktopRootBindings bindings;
     readonly Dictionary<uint, DesktopOwnedWindow<TNode>> roots = new Dictionary<uint, DesktopOwnedWindow<TNode>>();
     readonly List<DesktopOwnedWindow<TNode>> windows = new List<DesktopOwnedWindow<TNode>>();
     readonly Queue<DesktopOwnedWindow<TNode>> pending = new Queue<DesktopOwnedWindow<TNode>>();
@@ -296,12 +361,12 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
     internal IReadOnlyList<DesktopOwnedWindow<TNode>> Windows => windows;
     internal int Revision { get; private set; }
 
-    internal DesktopOwnedTree(IDesktopOwnedTreeAdapter<TNode> adapter, int pid, string expectedClass,
+    internal DesktopOwnedTree(IDesktopOwnedTreeAdapter<TNode> adapter, int pid, DesktopRootBindings bindings,
         string stage, Action guard)
     {
         this.adapter = adapter;
         this.pid = pid;
-        this.expectedClass = expectedClass;
+        this.bindings = bindings ?? new DesktopRootBindings();
         this.stage = stage;
         Budget = new DesktopTreeBudget(guard);
         adapter.Budget = Budget;
@@ -415,18 +480,21 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         context.OwnedRootBefore = handle;
         context.RootMatchesBefore = handle == context.ExpectedOwnedRoot;
         string windowClass = adapter.Class(handle);
-        Require(windowClass == "#32770" || (DesktopPolicy.AvaloniaClass(windowClass) &&
-            (expectedClass == null || windowClass == expectedClass)), "query-root-class");
+        Require(DesktopRootBindings.ValidClass(windowClass), "query-root-class");
         uint owner = adapter.Owner(handle), next = owner;
         var seen = new HashSet<uint> { handle };
+        var owners = new List<(uint handle, string windowClass)>();
         for (int depth = 0; next != 0; depth++)
         {
             Require(depth < 8 && seen.Add(next), "query-owner-bound");
             Require(adapter.Alive(next) && adapter.NativePid(next) == pid, "query-owner-pid");
-            Require(adapter.NativeRoot(next) == next && DesktopPolicy.AvaloniaClass(adapter.Class(next)),
-                "query-owner-root");
+            string ownerClass = adapter.Class(next);
+            Require(adapter.NativeRoot(next) == next && DesktopPolicy.AvaloniaClass(ownerClass), "query-owner-root");
+            owners.Add((next, ownerClass));
             next = adapter.Owner(next);
         }
+        foreach (var parent in owners) bindings.BindNativeClass(parent.handle, parent.windowClass);
+        bindings.BindNativeClass(handle, windowClass);
         return (owner, windowClass);
     }
 
@@ -440,6 +508,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         bool visible = adapter.Visible(handle) && !adapter.Offscreen(element);
         var after = RootFacts(handle);
         Require(before == after, "query-root-changed");
+        bindings.BindCanonical(handle, after.windowClass, identity, after.owner);
         if (roots.TryGetValue(handle, out var known))
         {
             Require(known.Owner == after.owner && known.Class == after.windowClass &&
@@ -603,6 +672,22 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         return true;
     });
 
+    internal void ValidateWindow(TNode node, DesktopRootKind kind, uint? expectedOwner = null) =>
+        Execute(DesktopSelector.Membership, 0, () =>
+    {
+        Require(node != null && adapter.ProcessId(node) == pid, "query-window-uia-pid");
+        uint handle = adapter.Handle(node);
+        Require(handle != 0 && Resolve(node, handle) == handle, "query-window-native-root");
+        var root = Register(handle);
+        Require(NodeIdentity(node) == root.Identity, "query-root-alias");
+        Require(root.Class == bindings.Expected(handle, kind), "query-root-class-changed");
+        Require(!expectedOwner.HasValue || root.Owner == expectedOwner.Value, "query-window-owner");
+        Require(adapter.Visible(handle) && !adapter.Offscreen(node), "query-window-hidden");
+        Require(Resolve(node, handle) == handle, "query-window-native-root");
+        Register(handle);
+        return true;
+    });
+
     internal bool Visible(DesktopOwnedWindow<TNode> root) => Execute(DesktopSelector.Discovery, root.Handle, () =>
     {
         Register(root.Handle);
@@ -737,9 +822,15 @@ public sealed class DesktopStartupObservation
     public long LoadingHandle { get; private set; }
     public long LoadingAt { get; private set; } = -1;
     public string WindowClass { get; private set; }
+    public string LoadingWindowClass { get; private set; }
+    readonly Dictionary<long, string> classes = new Dictionary<long, string>();
+    readonly DesktopRootBindings bindings;
     long previousAt = -1;
     string failure;
     DesktopStartupDecision candidate;
+
+    public DesktopStartupObservation() { }
+    internal DesktopStartupObservation(DesktopRootBindings bindings) { this.bindings = bindings; }
 
     void Require(bool condition, string reason)
     {
@@ -781,9 +872,19 @@ public sealed class DesktopStartupObservation
         int unknown = 0;
         foreach (var root in roots)
         {
-            Require(root != null && root.Handle != 0 && root.Visible, "startup-root-projection");
+            Require(root != null && root.Handle > 0 && root.Handle <= uint.MaxValue && root.Visible,
+                "startup-root-projection");
             Require(handles.Add(root.Handle), "startup-duplicate-root");
             Require(DesktopPolicy.AvaloniaClass(root.WindowClass), "startup-root-class");
+            if (bindings != null)
+                Require(bindings.Matches((uint)root.Handle, root.WindowClass), "startup-class-changed");
+            if (classes.TryGetValue(root.Handle, out var knownClass))
+                Require(knownClass == root.WindowClass, "startup-class-changed");
+            else
+            {
+                Require(classes.Count < 32, "startup-class-history-bound");
+                classes.Add(root.Handle, root.WindowClass);
+            }
             int roles = (root.MainControlVisible ? 1 : 0) + (root.LoadingLabelVisible ? 1 : 0) +
                 (root.SetupWizardControlVisible ? 1 : 0);
             Require(roles <= 1, "startup-root-role");
@@ -812,17 +913,16 @@ public sealed class DesktopStartupObservation
                 LoadingObserved = true;
                 LoadingHandle = loading.Handle;
                 LoadingAt = at;
-                Require(WindowClass == null || WindowClass == loading.WindowClass, "startup-class-changed");
-                WindowClass = loading.WindowClass;
+                LoadingWindowClass = loading.WindowClass;
             }
+            Require(LoadingWindowClass == loading.WindowClass, "startup-class-changed");
         }
-        if (WindowClass != null)
-            foreach (var root in roots)
-                Require(root.WindowClass == WindowClass, "startup-class-changed");
         Require(LoadingObserved || !loadingExists, "startup-loading-projection");
         if (main != null && wizard != null)
-            Require(wizard.Handle != main.Handle && wizard.Owner == main.Handle &&
-                wizard.WindowClass == main.WindowClass, "startup-setup-wizard");
+        {
+            Require(wizard.Handle != main.Handle, "startup-wizard-handle");
+            Require(wizard.Owner == main.Handle, "startup-wizard-owner");
+        }
         if (main == null || unknown != 0 || loading != null || (LoadingObserved && loadingExists))
             return new DesktopStartupDecision();
 
@@ -830,10 +930,77 @@ public sealed class DesktopStartupObservation
             Require(DesktopPolicy.Handoff(true, LoadingAt, at, LoadingHandle, main.Handle,
                 !loadingExists, main.Visible && main.MainControlVisible), "startup-handoff-refused");
         WindowClass = main.WindowClass;
-        foreach (var root in roots)
-            Require(root.WindowClass == WindowClass, "startup-class-changed");
         return new DesktopStartupDecision(LoadingObserved ? ObservedRoute : UnobservedRoute,
             main.Handle, wizard?.Handle ?? 0, WindowClass);
+    }
+}
+
+public sealed class DesktopStartupFailureRoot
+{
+    public long Handle { get; }
+    public long Owner { get; }
+    public string WindowClass { get; }
+    public bool Visible { get; }
+    public bool MainControlVisible { get; }
+    public bool LoadingLabelVisible { get; }
+    public bool SetupWizardControlVisible { get; }
+    internal DesktopStartupFailureRoot(DesktopStartupRoot root)
+    {
+        Handle = root.Handle; Owner = root.Owner; WindowClass = root.WindowClass;
+        Visible = root.Visible; MainControlVisible = root.MainControlVisible;
+        LoadingLabelVisible = root.LoadingLabelVisible; SetupWizardControlVisible = root.SetupWizardControlVisible;
+    }
+}
+
+public sealed class DesktopStartupFailure
+{
+    public string Predicate { get; }
+    public ReadOnlyCollection<DesktopStartupFailureRoot> Roots { get; }
+    internal DesktopStartupFailure(string predicate, DesktopStartupFailureRoot[] roots)
+    {
+        Predicate = predicate; Roots = Array.AsReadOnly(roots);
+    }
+}
+
+internal sealed class DesktopStartupFailureCapture
+{
+    static readonly HashSet<string> Predicates = new HashSet<string>(StringComparer.Ordinal)
+    {
+        "startup-observation-order", "startup-acceptance-candidate", "startup-acceptance-changed",
+        "startup-root-bound", "startup-root-projection", "startup-duplicate-root", "startup-root-class",
+        "startup-root-role", "startup-duplicate-main", "startup-duplicate-loading", "startup-duplicate-wizard",
+        "startup-loading-changed", "startup-class-changed", "startup-class-history-bound",
+        "startup-loading-projection", "startup-wizard-handle", "startup-wizard-owner", "startup-handoff-refused",
+        "startup-main-acceptance-control", "startup-main-acceptance-root", "startup-wizard-acceptance-control",
+        "startup-loading-still-present"
+    };
+    bool attempted;
+    internal DesktopStartupFailure Value { get; private set; }
+
+    internal void Record(string predicate, IReadOnlyList<DesktopStartupRoot> roots, DesktopRootBindings bindings)
+    {
+        if (attempted) return;
+        attempted = true;
+        // This path copies validated data only; optional diagnostics cannot replace the original failure.
+        try
+        {
+            if (predicate == null || !Predicates.Contains(predicate) || roots == null || roots.Count > 8 ||
+                bindings == null) return;
+            var seen = new HashSet<long>();
+            var copy = new DesktopStartupFailureRoot[roots.Count];
+            for (int i = 0; i < roots.Count; i++)
+            {
+                var root = roots[i];
+                if (root == null || root.Handle <= 0 || root.Handle > uint.MaxValue || !seen.Add(root.Handle) ||
+                    root.Owner < 0 || root.Owner > uint.MaxValue ||
+                    !bindings.MatchesProjection((uint)root.Handle, root.WindowClass, (uint)root.Owner) ||
+                    !bindings.KnownNativeOwner((uint)root.Owner)) return;
+                copy[i] = new DesktopStartupFailureRoot(root);
+            }
+            // Fixed ASCII predicates/classes, UInt32 handles and eight seven-field rows fit within 4 KiB.
+            Value = new DesktopStartupFailure(predicate, copy);
+        }
+        catch { /* The already-latched refusal remains authoritative. */ }
     }
 }
 

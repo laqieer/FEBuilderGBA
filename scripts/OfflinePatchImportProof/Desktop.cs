@@ -43,6 +43,7 @@ public sealed class DesktopResult
     public string[] AfterInvalid { get; set; }
     public DesktopEvent[] Events { get; set; }
     public DesktopQueryFailure QueryFailure { get; set; }
+    public DesktopStartupFailure StartupFailure { get; set; }
     public Dictionary<string, object> InitialImageObservation { get; set; }
     public Dictionary<string, object> ImageFailure { get; set; }
 }
@@ -69,9 +70,11 @@ public sealed class BoundedDesktopSmoke
     readonly List<DesktopEvent> events = new List<DesktopEvent>();
     readonly DesktopResult result = new DesktopResult();
     readonly DesktopDispatchGate dispatch = new DesktopDispatchGate();
+    readonly DesktopRootBindings rootBindings = new DesktopRootBindings();
+    readonly DesktopStartupFailureCapture startupFailure = new DesktopStartupFailureCapture();
     string stage = "loading-handoff";
     long stageAt, stageLimit = 45000;
-    string avaloniaClass;
+    DesktopStartupSample<AutomationElement> startupSample;
     AutomationElement main, editor;
     IntPtr mainHandle, editorHandle;
     bool workerPassed;
@@ -110,8 +113,11 @@ public sealed class BoundedDesktopSmoke
             try { Workflow(); lock (sync) workerPassed = true; }
             catch (Exception ex)
             {
+                if (ex is Refusal && stage == "loading-handoff")
+                    startupFailure.Record(ex.Message, startupSample?.Roots, rootBindings);
                 lock (sync)
                 {
+                    result.StartupFailure = startupFailure.Value;
                     workerFailure = ex is Refusal ? ex.Message : ex.GetType().Name;
                     if (ex is Refusal && ex.Message == "deadline") result.TimedOut = true;
                 }
@@ -247,11 +253,13 @@ public sealed class BoundedDesktopSmoke
         }
     }
 
-    void Action(string code, AutomationElement window)
+    void Action(string code, AutomationElement window, uint? expectedOwner = null)
     {
         Identity();
         Require(BoundedWindowsReadiness.Capture().Ready, "readiness-lost");
-        ValidateWindow(window, Class(Handle(window)) == "#32770" ? "#32770" : avaloniaClass);
+        uint handle = Key(Handle(window));
+        Require(rootBindings.HasCanonical(handle), "query-root-unbound");
+        ValidateWindow(window, rootBindings.Kind(handle), expectedOwner);
         Record("action", code, Handle(window));
         Guard();
     }
@@ -295,18 +303,11 @@ public sealed class BoundedDesktopSmoke
         return false;
     }
 
-    void ValidateWindow(AutomationElement window, string expectedClass = null)
+    void ValidateWindow(AutomationElement window, DesktopRootKind kind = DesktopRootKind.Avalonia,
+        uint? expectedOwner = null)
     {
-        Identity();
-        Require(window != null && window.Current.ProcessId == pid, "window-uia-pid");
-        IntPtr h = Handle(window);
-        string actual = Class(h);
-        string expected = expectedClass ?? avaloniaClass;
-        if (expected == null) { Require(DesktopPolicy.AvaloniaClass(actual), "avalonia-class"); expected = actual; }
-        Require(DesktopPolicy.Window(pid, Pid(h), window.Current.ProcessId, Key(h),
-            Key(Native.GetAncestor(h, 2)), actual, expected,
-            Native.IsWindow(h) && Native.IsWindowVisible(h) && !window.Current.IsOffscreen,
-            OwnerChain(h)), "window-ownership");
+        var tree = NewTree(window);
+        TreeCall(() => { tree.ValidateWindow(window, kind, expectedOwner); return true; });
     }
 
     sealed class OwnedTreeAdapter : IDesktopOwnedTreeAdapter<AutomationElement>
@@ -423,7 +424,7 @@ public sealed class BoundedDesktopSmoke
     DesktopOwnedTree<AutomationElement> NewTree(AutomationElement seed = null)
     {
         Identity();
-        var tree = new DesktopOwnedTree<AutomationElement>(new OwnedTreeAdapter(this), pid, avaloniaClass, stage, () =>
+        var tree = new DesktopOwnedTree<AutomationElement>(new OwnedTreeAdapter(this), pid, rootBindings, stage, () =>
         {
             try { Guard(); }
             catch (Refusal ex) { throw new DesktopTreeGuardException(ex.Message); }
@@ -461,10 +462,16 @@ public sealed class BoundedDesktopSmoke
     }
 
     void ValidateControl(AutomationElement control, AutomationElement window,
-        DesktopSelector selector = DesktopSelector.Membership)
+        DesktopSelector selector = DesktopSelector.Membership, uint? expectedOwner = null)
     {
         var tree = NewTree(window);
-        TreeCall(() => { tree.Validate(tree.WindowKey(window, selector), control, selector); return true; });
+        TreeCall(() =>
+        {
+            uint handle = tree.WindowKey(window, selector);
+            tree.ValidateWindow(window, rootBindings.Kind(handle), expectedOwner);
+            tree.Validate(handle, control, selector);
+            return true;
+        });
     }
 
     AutomationElement Control(AutomationElement window, string id, ControlType type, bool active = true,
@@ -514,16 +521,20 @@ public sealed class BoundedDesktopSmoke
         var control = Control(window, id, ControlType.Button);
         Require(control != null, "action-control-missing");
         var invoke = (InvokePattern)control.GetCurrentPattern(InvokePattern.Pattern);
-        Action("invoke:" + id, window);
-        ValidateControl(control, window, Selector(id));
+        uint? expectedOwner = id == SetupWizardButton ? (uint?)Key(mainHandle) :
+            id == "MessageBoxContent_Yes_Button" ? Key(editorHandle) :
+            id == ImportButton ? 0u : (uint?)null;
+        Action("invoke:" + id, window, expectedOwner);
+        ValidateControl(control, window, Selector(id), expectedOwner);
         Require(control.Current.IsEnabled && !control.Current.IsOffscreen, "action-control-state");
         Dispatch(() => invoke.Invoke());
     }
 
     DesktopStartupSample<AutomationElement> ReadStartupSample()
     {
+        startupSample = null;
         var tree = NewTree();
-        return TreeCall(() => DesktopStartupSample<AutomationElement>.Capture(tree, owned =>
+        var sample = TreeCall(() => DesktopStartupSample<AutomationElement>.Capture(tree, owned =>
         {
             var window = owned.Element;
             string windowClass = owned.Class;
@@ -545,6 +556,8 @@ public sealed class BoundedDesktopSmoke
                 wizardControl != null && !QueryRead(tree, window, wizardControl, DesktopSelector.Wizard,
                     () => wizardControl.Current.IsOffscreen));
         }));
+        startupSample = sample;
+        return sample;
     }
 
     DesktopStartupDecision ObserveStartup(DesktopStartupObservation observation,
@@ -566,8 +579,7 @@ public sealed class BoundedDesktopSmoke
             result.LoadingObservedAtMs = observation.LoadingAt;
             if (observation.WindowClass != null)
             {
-                avaloniaClass = observation.WindowClass;
-                result.AvaloniaWindowClass = avaloniaClass;
+                result.AvaloniaWindowClass = observation.WindowClass;
             }
         }
         if (firstLoading)
@@ -579,7 +591,7 @@ public sealed class BoundedDesktopSmoke
     void Handoff()
     {
         Stage("loading-handoff", 45000);
-        var observation = new DesktopStartupObservation();
+        var observation = new DesktopStartupObservation(rootBindings);
         while (true)
         {
             var sample = ReadStartupSample();
@@ -593,7 +605,7 @@ public sealed class BoundedDesktopSmoke
                     AutomationElement acceptedMain = null;
                     foreach (var window in acceptance.Windows)
                     {
-                        ValidateWindow(window, decision.WindowClass);
+                        ValidateWindow(window);
                         IntPtr h = Handle(window);
                         if (Key(h) == decision.MainHandle)
                         {
@@ -605,9 +617,8 @@ public sealed class BoundedDesktopSmoke
                         }
                         else
                         {
-                            Require(Key(h) == decision.WizardHandle &&
-                                Key(Native.GetWindow(h, 4)) == decision.MainHandle,
-                                "startup-setup-wizard");
+                            Require(Key(h) == decision.WizardHandle, "startup-wizard-handle");
+                            Require(Key(Native.GetWindow(h, 4)) == decision.MainHandle, "startup-wizard-owner");
                             var control = Control(window, SetupWizardButton, ControlType.Button, false, acceptance.Tree);
                             Require(control != null && !QueryRead(acceptance.Tree, window, control,
                                 DesktopSelector.Wizard, () => control.Current.IsOffscreen),
@@ -618,7 +629,9 @@ public sealed class BoundedDesktopSmoke
                     Require(!observation.LoadingObserved ||
                         !Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle)),
                         "startup-loading-still-present");
-                    ValidateWindow(acceptedMain, decision.WindowClass);
+                    ValidateWindow(acceptedMain);
+                    Require(rootBindings.Expected((uint)decision.MainHandle, DesktopRootKind.Avalonia) ==
+                        decision.WindowClass, "startup-class-changed");
                     var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree);
                     Require(mainControl != null && !QueryRead(acceptance.Tree, acceptedMain, mainControl,
                         DesktopSelector.Main, () => mainControl.Current.IsOffscreen),
@@ -695,14 +708,14 @@ public sealed class BoundedDesktopSmoke
             Require(edits.Count == 1, "filename-edit");
             field = edits[0];
         }
-        ValidateControl(field, picker, DesktopSelector.FilenameEdit);
+        ValidateControl(field, picker, DesktopSelector.FilenameEdit, Key(editorHandle));
         IntPtr fieldHandle = Handle(field);
         Require(fieldHandle != IntPtr.Zero && Class(fieldHandle) == "Edit" &&
             Pid(fieldHandle) == pid && Same(Native.GetAncestor(fieldHandle, 2), pickerHandle) &&
             field.Current.IsEnabled && !field.Current.IsOffscreen, "filename-native-identity");
         var value = (ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);
         Require(!value.Current.IsReadOnly && Same(Native.GetForegroundWindow(), pickerHandle), "picker-not-active");
-        Action("picker-set-exact-" + name + "-fixture", picker);
+        Action("picker-set-exact-" + name + "-fixture", picker, Key(editorHandle));
         Dispatch(() => value.SetValue(path));
         Require(value.Current.Value == path, "filename-value-mismatch");
         var buttons = Find(picker, DesktopSelector.PickerOpen, tree: tree);
@@ -720,9 +733,9 @@ public sealed class BoundedDesktopSmoke
         }
         Require(open != null, "logical-open-missing");
         IntPtr button = Handle(open);
-        Action("single-owned-active-picker-BM_CLICK", picker);
-        ValidateControl(field, picker, DesktopSelector.FilenameEdit);
-        ValidateControl(open, picker, DesktopSelector.PickerOpen);
+        Action("single-owned-active-picker-BM_CLICK", picker, Key(editorHandle));
+        ValidateControl(field, picker, DesktopSelector.FilenameEdit, Key(editorHandle));
+        ValidateControl(open, picker, DesktopSelector.PickerOpen, Key(editorHandle));
         Require(Pid(button) == pid && Pid(fieldHandle) == pid && value.Current.Value == path &&
             DesktopPolicy.Picker(Key(pickerHandle), Key(Native.GetAncestor(fieldHandle, 2)),
                 Key(Native.GetAncestor(button, 2)),
@@ -815,7 +828,7 @@ public sealed class BoundedDesktopSmoke
         Record("assertion", "invalid-rejected-row-database-ROM-and-both-ZIPs-unchanged", editorHandle);
         Stage("normal-main-close-editor-still-open", 20000);
         ValidateWindow(main);
-        ValidateWindow(editor);
+        ValidateWindow(editor, expectedOwner: 0);
         Require(Control(editor, ImportButton, ControlType.Button) != null && Row() == ExpectedRow,
             "editor-not-open-before-close");
         var close = (WindowPattern)main.GetCurrentPattern(WindowPattern.Pattern);
@@ -858,7 +871,7 @@ public sealed class BoundedDesktopSmoke
     void Capture()
     {
         Require(Row() == ExpectedRow && Status() == Success, "capture-editor-state");
-        Action("PrintWindow-owned-editor-only", editor);
+        Action("PrintWindow-owned-editor-only", editor, 0);
         Native.Rect rect;
         Require(Native.GetWindowRect(editorHandle, out rect), "capture-rectangle");
         int width = rect.R - rect.L, height = rect.B - rect.T;
@@ -870,7 +883,7 @@ public sealed class BoundedDesktopSmoke
                 IntPtr dc = graphics.GetHdc();
                 try
                 {
-                    ValidateWindow(editor);
+                    ValidateWindow(editor, expectedOwner: 0);
                     Dispatch(() => Require(Native.PrintWindow(editorHandle, dc, 2), "PrintWindow-failed-no-fallback"));
                 }
                 finally { graphics.ReleaseHdc(dc); }

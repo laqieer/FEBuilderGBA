@@ -82,9 +82,40 @@ function ProofEnvelope {
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
                 if($report.startupObservationCases -ne 75) { throw 'Startup observation case inventory changed.' }
+                [DesktopPolicyTests]::AssertStartupCaseInventory()
                 $report.ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
                 if($report.ownedTreeCases -ne 146) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
                 [DesktopPolicyTests]::AssertOwnedTreeCaseInventory()
+                $windowIdentityCases=[DesktopPolicyTests]::RunWindowIdentityTests()
+                if($windowIdentityCases -ne 57){throw 'Window identity case inventory changed.'}
+                [DesktopPolicyTests]::AssertWindowIdentityCaseInventory()
+                $startupDiagnosticSerializationCases=0
+                foreach($sample in [DesktopPolicyTests]::StartupDiagnosticSamples){
+                    foreach($shape in @('compact','pretty','nested')){
+                        $json=if($shape -ceq 'compact'){$sample|ConvertTo-Json -Depth 8 -Compress}
+                            elseif($shape -ceq 'pretty'){$sample|ConvertTo-Json -Depth 8}
+                            else{@{gui=@{StartupFailure=$sample}}|ConvertTo-Json -Depth 10}
+                        Assert-Proof ([Text.Encoding]::UTF8.GetByteCount($json) -le 4096) 'Startup diagnostic byte bound.'
+                        $decoded=ConvertFrom-Json $json -AsHashtable
+                        if($shape -ceq 'nested'){$decoded=$decoded.gui.StartupFailure}
+                        Assert-ProofKeys $decoded @('Predicate','Roots')
+                        Assert-Proof ($decoded.Predicate -is [string] -and $decoded.Predicate.Length -le 64 -and
+                            $decoded.Roots -is [array] -and $decoded.Roots.Count -le 8) 'Startup diagnostic envelope.'
+                        foreach($row in $decoded.Roots){
+                            Assert-ProofKeys $row @('Handle','Owner','WindowClass','Visible','MainControlVisible','LoadingLabelVisible','SetupWizardControlVisible')
+                            Assert-Proof (($row.Handle -is [int] -or $row.Handle -is [long]) -and $row.Handle -gt 0 -and
+                                $row.Handle -le [uint]::MaxValue -and ($row.Owner -is [int] -or $row.Owner -is [long]) -and
+                                $row.Owner -ge 0 -and $row.Owner -le [uint]::MaxValue) 'Startup diagnostic handles.'
+                            Assert-Proof ($row.WindowClass -ceq '#32770' -or ($row.WindowClass.Length -eq 45 -and
+                                [DesktopPolicy]::AvaloniaClass($row.WindowClass))) 'Startup diagnostic class.'
+                            foreach($key in @('Visible','MainControlVisible','LoadingLabelVisible','SetupWizardControlVisible')){
+                                Assert-Proof ($row[$key] -is [bool]) 'Startup diagnostic role type.'
+                            }
+                        }
+                        $startupDiagnosticSerializationCases++
+                    }
+                }
+                if($startupDiagnosticSerializationCases -ne 12){throw 'Startup diagnostic serialization inventory changed.'}
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

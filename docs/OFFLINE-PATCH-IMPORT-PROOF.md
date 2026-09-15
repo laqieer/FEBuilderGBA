@@ -12,7 +12,7 @@ and separately counted pure regressions; it does not change application startup.
 Both pure runners enforce all 75 startup-observation cases separately from the
 unchanged 522 policy and 26 installed-snapshot cases.
 The result records `StartupRoute`, `LoadingObserved`, `LoadingObservedAtMs` and
-the bound `AvaloniaWindowClass`:
+the legacy, **main-window-only** `AvaloniaWindowClass`:
 
 * `real-main-visible-and-loading-destroyed`: loading was positively observed.
   That observation is sticky. Only the original strict `DesktopPolicy.Handoff`
@@ -27,7 +27,7 @@ Each observation classifies the complete bounded visible owned-root sample befor
 deciding. Unknown extra roots block readiness regardless of enumeration order;
 duplicate handles/candidates, invalid projections and nonmonotonic polling
 observations refuse the attempt. The sole ancillary-root exception is at most one
-same-class, distinct, immediate-main-owned setup wizard with the unique visible
+independently class-bound, distinct, immediate-main-owned setup wizard with the unique visible
 `ContentRepoSetupWizard_Close_Button`. A title, owner chain alone, native picker,
 missing close control or another root is insufficient. No wizard is closed here:
 only the existing owned-control invocation in `OpenEditor` may close it.
@@ -45,6 +45,94 @@ editor screenshot and normal-close requirements are unchanged. These sampled
 checks are not an atomic desktop snapshot. Historical `missing-loading-observation`
 attempts remain failed and consumed; new runtime proof needs newly authenticated
 source, preparation and a separate grant.
+
+## Per-window class identity
+
+Avalonia 11.3.18
+[`WindowImpl.CreateWindow`](https://github.com/AvaloniaUI/Avalonia/blob/11.3.18/src/Windows/Avalonia.Win32/WindowImpl.cs#L959-L990)
+assigns an instance class name with a fresh GUID before `RegisterClassEx`.
+The class is not process-global. Main, loading, wizard, editor and confirmation
+windows can legitimately have different `Avalonia-<GUID>` classes; different
+handles are also allowed to share a valid class.
+
+One attempt-owned `DesktopRootBindings` ledger is shared by every new tree,
+refresh, window/control validation and action boundary. A normalized HWND is
+bound only after fresh native alive/PID/`GA_ROOT`, class-kind and owner-chain
+checks. Canonical UIA identity is attached after its PID/handle/runtime-ID checks
+and stable before/after native facts. Valid Avalonia classes have the exact
+45-character prefix/GUID shape; the native-dialog path permits only `#32770`.
+Native child `Edit`/`Button` handles are not root-class bindings.
+
+The exact class and canonical identity cannot change for a known handle, even
+across new trees or after a window closes. There is no eviction or rebinding.
+The separate historical ledger is capped at 32 distinct root handles for this
+one attempt; the current catalog/sample remains capped at eight. Overflow
+refuses. This is continuity evidence, not an assertion that all same-PID HWND
+reuse is detectable. Native PID/root/owner facts are still read afresh.
+
+`ValidateWindow` uses the shared tree validator, not a just-read class passed
+back as its own expectation. Actions require a previously canonical root and
+revalidate its kind, class, identity, visibility and applicable role owner.
+Wizard, confirmation and native picker actions retain their exact expected
+owners; the editor remains nonmodal. Picker title/control/foreground rules and
+all query/deadline/join/cleanup limits are unchanged. Owner facts may be refreshed
+after validation; they are not inferred from class equality.
+
+Startup tracks classes by handle, with a separate `LoadingWindowClass`. A
+loading-C to main-A plus wizard-B handoff is valid when all the original
+chronology, destruction, uniqueness, ownership and epoch requirements pass.
+The legacy `WindowClass`/`DesktopResult.AvaloniaWindowClass` label describes only
+the main window and stays null while only loading has been bound. Main
+candidate/revalidation identity and same-handle class continuity remain strict.
+
+### Owned-only startup failure diagnostic
+
+`DesktopResult.StartupFailure` is one optional immutable snapshot, separate from
+`QueryFailure`. The actual worker failure path invokes the shared
+`DesktopStartupFailureCapture` helper for a fixed startup predicate and the most
+recent complete current startup sample. A new incomplete capture clears the
+sample rather than publishing an older poll as its operands.
+
+At most eight rows contain only canonical handle, last validated own owner (or
+zero), the exact bound GUID class or `#32770`, and visible/main/loading/wizard
+booleans. Class, canonical identity and owner must agree with already validated
+ledger data. The closed reason allowlist, fixed ASCII class/number bounds and
+eight-row shape keep the diagnostic below 4 KiB; both pure runners additionally
+check actual compact, pretty and nested GUI serialization. There are no
+names/text/values/runtime IDs/foreign PIDs/paths or arbitrary exception messages.
+The historical ledger is never dumped.
+
+Capture copies immutable values without any new UIA/native query, and latches
+one attempt. Unbound, duplicate, unsafe or oversized data and unknown predicates
+leave the diagnostic null; diagnostic-source exceptions cannot replace the
+original refusal. Query-engine errors still use `QueryFailure`. A snapshot is
+descriptive last-validated evidence, not a new live observation, authentication
+or success token.
+
+### Class-assumption test migration
+
+The prior 75 startup and 146 ownership names are explicitly mapped, not claimed
+byte-identical. Startup replaces `wizard-wrong-class`,
+`observed-class-remains-pinned`, and `observed-wizard-class-remains-pinned` with
+distinct-window-class positives. The latched `"class"` rejection now mutates
+the same observed loading HWND. Ownership replaces
+`bound-avalonia-class-is-required` with
+`same-hwnd-class-remains-bound-across-trees`. The other names retain their
+invariants with a distinct-class wizard in the adapter model. Exact migrated
+75/146 names are asserted in both runners.
+
+An additional 57 independently named cases exercise the real shared
+policy/driver-validator model across seven root lifetimes, five distinct GUID
+classes, two native pickers, cross-query/operation mutations, owner/kind/history
+refusals and the actual diagnostic capture helper. Four safe snapshots drive
+12 real serializer checks. These are asserted locals, not new runtime report
+counters. The existing 522/26 and image/terminal/88/72 inventories remain
+unchanged; only the optional nested `StartupFailure` DTO is added.
+
+Attempt `0affa` remains failed/consumed. Its `startup-setup-wizard` result did
+not record the compound guard's exact failing operands. The backend source
+proves the cross-window class assumption invalid, not the historical owner/class
+facts. No old attempt or grant is revived by this correction.
 
 ## Owned-window query topology
 

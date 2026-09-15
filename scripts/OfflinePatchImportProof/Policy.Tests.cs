@@ -180,6 +180,7 @@ public static class DesktopPolicyTests
         internal readonly Dictionary<uint, OwnedNode> Roots = new Dictionary<uint, OwnedNode>();
         internal readonly List<OwnedNode> SeedNodes = new List<OwnedNode>();
         internal readonly List<string> Reads = new List<string>();
+        internal readonly DesktopRootBindings Bindings = new DesktopRootBindings();
         internal Action<string, OwnedNode> Before = null;
         internal Action GuardAction = () => { };
         internal Func<IReadOnlyList<OwnedNode>, IReadOnlyList<OwnedNode>> SeedResults = null;
@@ -193,7 +194,8 @@ public static class DesktopPolicyTests
             Wizard = Add(Main, 3, 200);
             Close = Add(Wizard, 4, 0, DesktopSelector.Wizard);
             Native.Add(100, new OwnedNative { Root = 100 });
-            Native.Add(200, new OwnedNative { Root = 200, Owner = 100 });
+            Native.Add(200, new OwnedNative { Root = 200, Owner = 100,
+                Class = "Avalonia-22222222-2222-2222-2222-222222222222" });
             Roots.Add(100, Main); Roots.Add(200, Wizard);
             SeedNodes.Add(Main);
         }
@@ -229,8 +231,8 @@ public static class DesktopPolicyTests
             return value();
         }
         TValue Read<TValue>(string name, OwnedNode node, Func<TValue> value) => Budget.Call(() => Observe(name, node, value));
-        internal DesktopOwnedTree<OwnedNode> Tree(string expectedClass = null) =>
-            new DesktopOwnedTree<OwnedNode>(this, 7, expectedClass, "loading-handoff", () => GuardAction());
+        internal DesktopOwnedTree<OwnedNode> Tree() =>
+            new DesktopOwnedTree<OwnedNode>(this, 7, Bindings, "loading-handoff", () => GuardAction());
         public IReadOnlyList<OwnedNode> Seeds()
         {
             var seeds = Read("seeds", null, () =>
@@ -308,6 +310,388 @@ public static class DesktopPolicyTests
     public static string[] OwnedTreeCaseNames => ownedTreeCaseNames.ToArray();
     public static string[] OwnedTreeCaseFailures => ownedTreeCaseFailures.ToArray();
     public static Dictionary<string, long>[] OwnedTreeScaleProfiles => ownedTreeScaleProfiles.ToArray();
+    static readonly List<string> startupCaseNames = new List<string>();
+    static readonly List<string> startupCaseFailures = new List<string>();
+    public static string[] StartupCaseNames => startupCaseNames.ToArray();
+    public static string[] StartupCaseFailures => startupCaseFailures.ToArray();
+    static readonly List<string> windowIdentityCaseNames = new List<string>();
+    static readonly List<string> windowIdentityCaseFailures = new List<string>();
+    static readonly List<DesktopStartupFailure> startupDiagnosticSamples = new List<DesktopStartupFailure>();
+    public static string[] WindowIdentityCaseNames => windowIdentityCaseNames.ToArray();
+    public static string[] WindowIdentityCaseFailures => windowIdentityCaseFailures.ToArray();
+    public static DesktopStartupFailure[] StartupDiagnosticSamples => startupDiagnosticSamples.ToArray();
+    sealed class ThrowingStartupRoots : IReadOnlyList<DesktopStartupRoot>
+    {
+        public int Count => throw new InvalidOperationException("PRIVATE diagnostic source");
+        public DesktopStartupRoot this[int index] => throw new InvalidOperationException("PRIVATE diagnostic row");
+        public IEnumerator<DesktopStartupRoot> GetEnumerator() => throw new InvalidOperationException();
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    public static Dictionary<string, long> RunDistinctClassLifecycle()
+    {
+        const string mainClass = "Avalonia-11111111-1111-1111-1111-111111111111";
+        const string wizardClass = "Avalonia-22222222-2222-2222-2222-222222222222";
+        const string loadingClass = "Avalonia-33333333-3333-3333-3333-333333333333";
+        const string editorClass = "Avalonia-44444444-4444-4444-4444-444444444444";
+        const string confirmationClass = "Avalonia-55555555-5555-5555-5555-555555555555";
+        var model = new OwnedModel();
+        model.Native[100].Class = mainClass; model.Native[200].Class = wizardClass;
+        OwnedNode Root(uint handle, int id, OwnedNode parent, uint owner, string windowClass)
+        {
+            var node = model.Add(parent, id, handle);
+            model.Native.Add(handle, new OwnedNative { Root = handle, Owner = owner, Class = windowClass });
+            model.Roots.Add(handle, node);
+            return node;
+        }
+        void Close(uint handle, OwnedNode parent)
+        {
+            parent?.Children.Remove(model.Roots[handle]);
+            model.SeedNodes.Remove(model.Roots[handle]);
+            model.Native[handle].Alive = false;
+        }
+        var loading = Root(300, 10, null, 0, loadingClass);
+        model.Add(loading, 11, 0, DesktopSelector.Loading);
+        model.SeedNodes.Clear(); model.SeedNodes.Add(loading);
+        var observation = new DesktopStartupObservation(model.Bindings);
+        if (ProjectStartup(model).Observe(observation, 10, true, false).Ready)
+            throw new InvalidOperationException("Loading-only lifecycle became ready.");
+        Close(300, null); model.SeedNodes.Add(model.Main);
+        var sample = ProjectStartup(model);
+        var decision = sample.Observe(observation, 20, false, false);
+        if (!decision.Ready || decision.MainHandle != 100 || decision.WizardHandle != 200)
+            throw new InvalidOperationException("Distinct-class main/wizard lifecycle failed.");
+        Close(200, model.Main);
+        var editor = Root(400, 20, null, 0, editorClass); model.SeedNodes.Add(editor);
+        model.Add(editor, 21, 0, DesktopSelector.Import);
+        var tree = model.Tree(); tree.Discover(); tree.ValidateWindow(editor, DesktopRootKind.Avalonia, 0);
+        var picker = Root(500, 30, editor, 400, "#32770");
+        tree = model.Tree(); tree.Discover(); tree.ValidateWindow(picker, DesktopRootKind.NativeDialog, 400);
+        Close(500, editor);
+        var confirmation = Root(600, 40, editor, 400, confirmationClass);
+        model.Add(confirmation, 41, 0, DesktopSelector.ConfirmationYes);
+        tree = model.Tree(); tree.Discover(); tree.ValidateWindow(confirmation, DesktopRootKind.Avalonia, 400);
+        Close(600, editor);
+        picker = Root(700, 50, editor, 400, "#32770");
+        tree = model.Tree(); tree.Discover(); tree.ValidateWindow(picker, DesktopRootKind.NativeDialog, 400);
+        Close(700, editor);
+        tree = model.Tree(); tree.Discover();
+        tree.ValidateWindow(model.Main, DesktopRootKind.Avalonia); tree.ValidateWindow(editor, DesktopRootKind.Avalonia, 0);
+        if (observation.WindowClass != mainClass || observation.LoadingWindowClass != loadingClass ||
+            model.Bindings.Count != 7) throw new InvalidOperationException("Per-window lifecycle bindings lost.");
+        return new Dictionary<string, long> { ["distinctRootLifetimes"] = 7, ["avaloniaClasses"] = 5,
+            ["nativePickers"] = 2, ["finalWindows"] = tree.Windows.Count };
+    }
+
+    public static int RunWindowIdentityTests()
+    {
+        const string mainClass = "Avalonia-11111111-1111-1111-1111-111111111111";
+        const string otherClass = "Avalonia-33333333-3333-3333-3333-333333333333";
+        windowIdentityCaseNames.Clear(); windowIdentityCaseFailures.Clear(); startupDiagnosticSamples.Clear();
+        void Verify(bool value)
+        {
+            if (!value) throw new InvalidOperationException("Unexpected window-identity result.");
+        }
+        void Case(string name, Action action)
+        {
+            if (windowIdentityCaseNames.Contains(name)) throw new InvalidOperationException("Duplicate window-identity case.");
+            windowIdentityCaseNames.Add(name);
+            try { action(); }
+            catch (Exception ex) { windowIdentityCaseFailures.Add(name + ": " + ex.Message); }
+        }
+        void Refused(Action action, string reason)
+        {
+            try { action(); }
+            catch (DesktopTreeException ex) when (ex.Message == reason) { return; }
+            catch (DesktopTreeGuardException ex) when (ex.Message == reason) { return; }
+            catch (InvalidOperationException ex) when (ex.Message == reason) { return; }
+            throw new InvalidOperationException("Expected window-identity refusal: " + reason);
+        }
+        OwnedNode AddRoot(OwnedModel model, uint handle, int id, uint owner = 100, string windowClass = otherClass)
+        {
+            var root = model.Add(model.Main, id, handle);
+            model.Native.Add(handle, new OwnedNative { Root = handle, Owner = owner, Class = windowClass });
+            model.Roots.Add(handle, root);
+            return root;
+        }
+        (OwnedModel model, IReadOnlyList<DesktopStartupRoot> roots) Snapshot(int count = 2)
+        {
+            var model = new OwnedModel();
+            for (int i = 2; i < count; i++) AddRoot(model, (uint)(300 + i), 10 + i);
+            var tree = model.Tree(); tree.Discover();
+            var sample = DesktopStartupSample<OwnedNode>.Capture(tree, root =>
+                new DesktopStartupRoot(root.Handle, root.Owner, root.Class, tree.Visible(root), false, false, false));
+            return (model, sample.Roots);
+        }
+        void RejectSnapshot(string name, Func<IReadOnlyList<DesktopStartupRoot>, IReadOnlyList<DesktopStartupRoot>> alter)
+        {
+            Case(name, () =>
+            {
+                var fixture = Snapshot();
+                var capture = new DesktopStartupFailureCapture();
+                capture.Record("startup-root-role", alter(fixture.roots), fixture.model.Bindings);
+                Verify(capture.Value == null);
+            });
+        }
+        Case("distinct-class-real-query-lifecycle", () => Verify(RunDistinctClassLifecycle()["distinctRootLifetimes"] == 7));
+        Case("different-main-wizard-fast-route", () =>
+        {
+            var model = new OwnedModel(); var sample = ProjectStartup(model);
+            var observation = new DesktopStartupObservation(model.Bindings);
+            var decision = sample.Observe(observation, 10, false, false);
+            Verify(decision.Ready && decision.MainHandle == 100 && decision.WizardHandle == 200 &&
+                observation.WindowClass == model.Native[100].Class && observation.LoadingWindowClass == null);
+        });
+        Case("same-valid-class-different-handles-allowed", () =>
+        {
+            var model = new OwnedModel(); model.Native[200].Class = mainClass;
+            Verify(ProjectStartup(model).Observe(new DesktopStartupObservation(model.Bindings), 10, false, false).Ready);
+        });
+        Case("fresh-trees-share-canonical-class-bindings", () =>
+        {
+            var model = new OwnedModel();
+            for (int i = 0; i < 3; i++) model.Tree().Discover();
+            Verify(model.Bindings.Count == 2 && model.Bindings.Matches(100, mainClass) &&
+                model.Bindings.Matches(200, model.Native[200].Class));
+        });
+        Case("same-main-hwnd-class-mutation-at-operation-refused", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Native[100].Class = otherClass;
+            Refused(() => model.Tree().ValidateWindow(model.Main, DesktopRootKind.Avalonia), "query-root-class-changed");
+        });
+        Case("same-wizard-hwnd-class-mutation-across-tree-refused", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Native[200].Class = otherClass;
+            Refused(() => model.Tree().Discover(), "query-root-class-changed");
+        });
+        Case("owner-class-continuity-without-owner-seed", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Native[100].Class = otherClass;
+            model.SeedNodes.Clear(); model.SeedNodes.Add(model.Wizard);
+            Refused(() => model.Tree().Discover(), "query-root-class-changed");
+        });
+        Case("canonical-runtime-identity-mutation-across-tree-refused", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Main.RuntimeId = new[] { 999 };
+            Refused(() => model.Tree().Discover(), "query-root-alias");
+        });
+        Case("window-argument-canonical-alias-refused", () =>
+        {
+            var model = new OwnedModel(); var tree = model.Tree(); tree.Discover();
+            var alias = model.Add(null, 999, 100);
+            Refused(() => tree.ValidateWindow(alias, DesktopRootKind.Avalonia), "query-root-alias");
+        });
+        Case("native-child-handle-is-not-root-binding", () =>
+        {
+            var model = new OwnedModel(); model.MainButton.Handle = 150;
+            model.Native.Add(150, new OwnedNative { Root = 100, Class = "Button" });
+            var tree = model.Tree(); tree.Discover();
+            Verify(!model.Bindings.HasCanonical(150) && model.Bindings.Count == 2);
+            Refused(() => tree.ValidateWindow(model.MainButton, DesktopRootKind.Avalonia), "query-window-native-root");
+        });
+        Case("native-picker-kind-is-not-avalonia", () =>
+        {
+            var model = new OwnedModel(); var picker = AddRoot(model, 300, 10, 100, "#32770");
+            var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.ValidateWindow(picker, DesktopRootKind.Avalonia), "query-root-kind");
+        });
+        Case("avalonia-kind-is-not-native-picker", () =>
+        {
+            var model = new OwnedModel(); var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.ValidateWindow(model.Main, DesktopRootKind.NativeDialog), "query-root-kind");
+        });
+        foreach (string badClass in new[] { "", "other", "Avalonia-invalid", mainClass + " ", mainClass + new string(' ', 5000) })
+            Case("invalid-class-shape-" + (badClass.Length > 45 ? badClass.Length.ToString() : badClass), () =>
+            {
+                var model = new OwnedModel(); model.Native[200].Class = badClass;
+                Refused(() => model.Tree().Discover(), "query-root-class");
+            });
+        Case("class-kind-mutation-does-not-rebind", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Native[200].Class = "#32770";
+            Refused(() => model.Tree().Discover(), "query-root-class-changed");
+        });
+        Case("closed-handle-class-binding-not-evicted", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover();
+            model.Main.Children.Remove(model.Wizard); model.Native[200].Alive = false; model.Tree().Discover();
+            model.Main.Children.Add(model.Wizard); model.Native[200].Alive = true; model.Native[200].Class = otherClass;
+            Refused(() => model.Tree().Discover(), "query-root-class-changed");
+        });
+        Case("closed-handle-canonical-identity-not-rebound", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover();
+            model.Main.Children.Remove(model.Wizard); model.Native[200].Alive = false; model.Tree().Discover();
+            model.Main.Children.Add(model.Wizard); model.Native[200].Alive = true; model.Wizard.RuntimeId = new[] { 999 };
+            Refused(() => model.Tree().Discover(), "query-root-alias");
+        });
+        Case("foreign-reassigned-root-is-not-class-authorized", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover(); model.Native[100].Pid = 8;
+            Refused(() => model.Tree().ValidateWindow(model.Main, DesktopRootKind.Avalonia), "query-native-pid");
+        });
+        foreach (string role in new[] { "wizard", "editor", "confirmation", "picker" })
+            Case("operation-owner-rechecked-" + role, () =>
+            {
+                var model = new OwnedModel();
+                uint expectedOwner = role == "wizard" ? 100u : role == "editor" ? 0u : 400u;
+                if (role == "confirmation" || role == "picker") AddRoot(model, 400, 20, 0);
+                var root = AddRoot(model, 300, 10, role == "wizard" ? 0u : 100u,
+                    role == "picker" ? "#32770" : otherClass);
+                var tree = model.Tree(); tree.Discover();
+                Refused(() => tree.ValidateWindow(root, role == "picker" ? DesktopRootKind.NativeDialog :
+                    DesktopRootKind.Avalonia, expectedOwner), "query-window-owner");
+            });
+        Case("history-32-then-33-without-eviction", () =>
+        {
+            var model = new OwnedModel(); model.Tree().Discover();
+            model.Main.Children.Remove(model.Wizard); model.Native[200].Alive = false;
+            for (int i = 0; i < 30; i++)
+            {
+                uint h = (uint)(300 + i); var root = AddRoot(model, h, 100 + i);
+                var tree = model.Tree(); tree.Discover(); tree.ValidateWindow(root, DesktopRootKind.Avalonia, 100);
+                model.Main.Children.Remove(root); model.Native[h].Alive = false;
+            }
+            Verify(model.Bindings.Count == 32);
+            AddRoot(model, 400, 200);
+            Refused(() => model.Tree().Discover(), "query-root-history-bound");
+            Verify(model.Bindings.Count == 32);
+        });
+        Case("startup-history-32-then-33", () =>
+        {
+            var observation = new DesktopStartupObservation();
+            for (int i = 1; i <= 32; i++)
+                Verify(observation.Observe(i, new[] { new DesktopStartupRoot(i, 0, mainClass, true, true, false, false) }, false).Ready);
+            Refused(() => observation.Observe(33,
+                new[] { new DesktopStartupRoot(33, 0, mainClass, true, true, false, false) }, false), "startup-class-history-bound");
+        });
+        Case("same-loading-handle-class-mutation-remains-negative", () =>
+        {
+            var observation = new DesktopStartupObservation();
+            observation.Observe(1, new[] { new DesktopStartupRoot(100, 0, mainClass, true, false, true, false) }, true);
+            Refused(() => observation.Observe(2,
+                new[] { new DesktopStartupRoot(100, 0, otherClass, true, false, true, false) }, true), "startup-class-changed");
+        });
+        Case("same-wizard-handle-class-mutation-remains-negative", () =>
+        {
+            var observation = new DesktopStartupObservation();
+            var main = new DesktopStartupRoot(100, 0, mainClass, true, true, false, false);
+            observation.Observe(1, new[] { main, new DesktopStartupRoot(200, 100, mainClass, true, false, false, true) }, false);
+            Refused(() => observation.Revalidate(2,
+                new[] { main, new DesktopStartupRoot(200, 100, otherClass, true, false, false, true) }, false), "startup-class-changed");
+        });
+        Case("actual-policy-failure-publishes-owned-specific-snapshot", () =>
+        {
+            var model = new OwnedModel(); model.Native[200].Owner = 0;
+            var sample = ProjectStartup(model); var capture = new DesktopStartupFailureCapture();
+            string reason = null;
+            try { sample.Observe(new DesktopStartupObservation(model.Bindings), 10, false, false); }
+            catch (InvalidOperationException ex) { reason = ex.Message; }
+            Verify(reason == "startup-wizard-owner");
+            int reads = model.Reads.Count;
+            capture.Record(reason, sample.Roots, model.Bindings);
+            Verify(model.Reads.Count == reads && capture.Value != null && capture.Value.Predicate == reason &&
+                capture.Value.Roots.Count == 2 && capture.Value.Roots[0].WindowClass != capture.Value.Roots[1].WindowClass);
+            startupDiagnosticSamples.Add(capture.Value);
+        });
+        Case("eight-bound-root-diagnostic", () =>
+        {
+            var fixture = Snapshot(8); var capture = new DesktopStartupFailureCapture();
+            int reads = fixture.model.Reads.Count;
+            capture.Record("startup-root-role", fixture.roots, fixture.model.Bindings);
+            Verify(capture.Value != null && capture.Value.Roots.Count == 8 && fixture.model.Reads.Count == reads);
+            startupDiagnosticSamples.Add(capture.Value);
+        });
+        Case("maximum-handle-diagnostic-serialization-shape", () =>
+        {
+            var model = new OwnedModel(); model.SeedNodes.Clear(); model.Native.Clear(); model.Roots.Clear();
+            for (int i = 0; i < 8; i++)
+            {
+                uint handle = uint.MaxValue - (uint)i;
+                var node = model.Add(null, 100 + i, handle);
+                model.Native.Add(handle, new OwnedNative { Root = handle, Class = otherClass });
+                model.Roots.Add(handle, node); model.SeedNodes.Add(node);
+            }
+            var tree = model.Tree(); tree.Discover();
+            var roots = new List<DesktopStartupRoot>();
+            foreach (var root in tree.Windows)
+                roots.Add(new DesktopStartupRoot(root.Handle, root.Owner, root.Class, true, true, true, true));
+            Refused(() => new DesktopStartupObservation(model.Bindings).Observe(10, roots, false), "startup-root-role");
+            var capture = new DesktopStartupFailureCapture();
+            capture.Record("startup-root-role", roots, model.Bindings);
+            Verify(capture.Value != null && capture.Value.Roots.Count == 8);
+            startupDiagnosticSamples.Add(capture.Value);
+        });
+        Case("native-dialog-diagnostic-is-fixed-owned-class", () =>
+        {
+            var model = new OwnedModel(); AddRoot(model, 300, 10, 100, "#32770");
+            var tree = model.Tree(); tree.Discover();
+            var roots = new List<DesktopStartupRoot>();
+            foreach (var root in tree.Windows)
+                roots.Add(new DesktopStartupRoot(root.Handle, root.Owner, root.Class, true, false, false, false));
+            var capture = new DesktopStartupFailureCapture();
+            capture.Record("startup-root-class", roots, model.Bindings);
+            Verify(capture.Value != null && capture.Value.Roots[2].WindowClass == "#32770");
+            startupDiagnosticSamples.Add(capture.Value);
+        });
+        Case("diagnostic-frozen-and-one-attempt", () =>
+        {
+            var fixture = Snapshot(); var input = new List<DesktopStartupRoot>(fixture.roots);
+            var capture = new DesktopStartupFailureCapture(); capture.Record("startup-root-role", input, fixture.model.Bindings);
+            var frozen = capture.Value; input.Clear();
+            capture.Record("startup-wizard-owner", input, fixture.model.Bindings);
+            Verify(frozen != null && ReferenceEquals(frozen, capture.Value) && frozen.Roots.Count == 2 &&
+                frozen.Predicate == "startup-root-role");
+        });
+        Case("diagnostic-does-not-query-after-native-state-changes", () =>
+        {
+            var fixture = Snapshot(); fixture.model.Native[100].Pid = 8;
+            fixture.model.Before = (name, node) => throw new InvalidOperationException("No failure-time adapter access.");
+            int reads = fixture.model.Reads.Count; var capture = new DesktopStartupFailureCapture();
+            capture.Record("startup-root-role", fixture.roots, fixture.model.Bindings);
+            Verify(capture.Value != null && fixture.model.Reads.Count == reads);
+        });
+        foreach (string reason in new[] { "PRIVATE VALUE", "query-native-pid", "", "Startup-root-role" })
+            Case("unknown-diagnostic-predicate-" + reason, () =>
+            {
+                var fixture = Snapshot(); var capture = new DesktopStartupFailureCapture();
+                capture.Record(reason, fixture.roots, fixture.model.Bindings);
+                capture.Record("startup-root-role", fixture.roots, fixture.model.Bindings);
+                Verify(capture.Value == null);
+            });
+        Case("null-diagnostic-bindings-refused", () =>
+        {
+            var fixture = Snapshot(); var capture = new DesktopStartupFailureCapture();
+            capture.Record("startup-root-role", fixture.roots, null); Verify(capture.Value == null);
+        });
+        Case("diagnostic-source-error-never-replaces-failure", () =>
+        {
+            var fixture = Snapshot(); var capture = new DesktopStartupFailureCapture();
+            capture.Record("startup-root-role", new ThrowingStartupRoots(), fixture.model.Bindings);
+            Verify(capture.Value == null);
+            capture.Record("startup-root-role", fixture.roots, fixture.model.Bindings);
+            Verify(capture.Value == null);
+        });
+        RejectSnapshot("null-diagnostic-roots-refused", roots => null);
+        RejectSnapshot("null-diagnostic-row-refused", roots => new DesktopStartupRoot[] { null });
+        RejectSnapshot("duplicate-diagnostic-root-refused", roots => new[] { roots[0], roots[0] });
+        RejectSnapshot("ninth-diagnostic-root-refused", roots => new DesktopStartupRoot[9]);
+        foreach (long handle in new[] { 0L, -1L, (long)uint.MaxValue + 1, 999L })
+            RejectSnapshot("unbound-diagnostic-handle-" + handle, roots =>
+                new[] { new DesktopStartupRoot(handle, 0, mainClass, true, true, false, false) });
+        foreach (long owner in new[] { -1L, (long)uint.MaxValue + 1, 999L })
+            RejectSnapshot("unbound-diagnostic-owner-" + owner, roots =>
+                new[] { new DesktopStartupRoot(100, owner, mainClass, true, true, false, false) });
+        foreach (long owner in new[] { 100L, 200L })
+            RejectSnapshot("known-but-unobserved-diagnostic-owner-" + owner, roots =>
+                new[] { new DesktopStartupRoot(100, owner, mainClass, true, true, false, false) });
+        foreach (string windowClass in new[] { otherClass, "PRIVATE CLASS", mainClass + new string(' ', 5000) })
+            RejectSnapshot("unbound-diagnostic-class-" + windowClass.Length, roots =>
+                new[] { new DesktopStartupRoot(100, 0, windowClass, true, true, false, false) });
+        if (windowIdentityCaseFailures.Count != 0)
+            throw new InvalidOperationException("Window-identity cases failed: " + string.Join("; ", windowIdentityCaseFailures));
+        return windowIdentityCaseNames.Count;
+    }
 
     public static void AssertOwnedTreeCaseInventory()
     {
@@ -315,8 +699,27 @@ public static class DesktopPolicyTests
             throw new InvalidOperationException("Owned-tree inventory incomplete.");
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
-        if (digest != "82bf31556950da6396b76c3d3a72b5de315d2f988ace9386f0044c46725edff1")
+        if (digest != "a71b278f9d82083304e2cd1cc7e932ab920a5de660614c34353fb44601c83671")
             throw new InvalidOperationException("Owned-tree case names/order changed.");
+    }
+
+    public static void AssertStartupCaseInventory()
+    {
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", startupCaseNames)))).ToLowerInvariant();
+        if (startupCaseNames.Count != 75 || startupCaseFailures.Count != 0 ||
+            digest != "0e4ee056e2b08d79ac650bdcd368cc3e4b4a9d3b5f09edc273507a679d5910eb")
+            throw new InvalidOperationException("Startup case inventory changed.");
+    }
+
+    public static void AssertWindowIdentityCaseInventory()
+    {
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", windowIdentityCaseNames)))).ToLowerInvariant();
+        if (windowIdentityCaseNames.Count != 57 || windowIdentityCaseFailures.Count != 0 ||
+            startupDiagnosticSamples.Count != 4 ||
+            digest != "4e9cf5a22747adedbe9d24c13c774d0d8529d249de199c73b5c0567f3c024e8c")
+            throw new InvalidOperationException("Window identity case inventory changed.");
     }
 
     public static Dictionary<string, long> RunOwnedTreeScaleTests() => ScaleProfile(24, 0, false);
@@ -648,11 +1051,11 @@ public static class DesktopPolicyTests
                 var model = new OwnedModel(); model.Native[200].Class = windowClass;
                 Refused(() => model.Tree().Discover(), "query-root-class");
             });
-        Case("bound-avalonia-class-is-required", () =>
+        Case("same-hwnd-class-remains-bound-across-trees", () =>
         {
-            var model = new OwnedModel();
-            Refused(() => model.Tree("Avalonia-22222222-2222-2222-2222-222222222222").Discover(),
-                "query-root-class");
+            var model = new OwnedModel(); model.Tree().Discover();
+            model.Native[100].Class = "Avalonia-33333333-3333-3333-3333-333333333333";
+            Refused(() => model.Tree().Discover(), "query-root-class-changed");
         });
         Case("foreign-owner-refused", () =>
         {
@@ -1462,6 +1865,8 @@ public static class DesktopPolicyTests
 
     public static int RunStartupTests()
     {
+        startupCaseNames.Clear();
+        startupCaseFailures.Clear();
         const string firstClass = "Avalonia-11111111-1111-1111-1111-111111111111";
         const string otherClass = "Avalonia-22222222-2222-2222-2222-222222222222";
         int count = 0;
@@ -1483,8 +1888,9 @@ public static class DesktopPolicyTests
         }
         void Case(string name, Action action)
         {
+            startupCaseNames.Add(name);
             try { action(); }
-            catch (Exception ex) { throw new InvalidOperationException("Startup case failed: " + name, ex); }
+            catch (Exception ex) { startupCaseFailures.Add(name + ": " + ex.Message); }
             count++;
         }
         DesktopStartupObservation Observed()
@@ -1492,7 +1898,7 @@ public static class DesktopPolicyTests
             var state = new DesktopStartupObservation();
             Verify(!state.Observe(5, new[] { Loading() }, true).Ready);
             Verify(state.LoadingObserved && state.LoadingAt == 5 && state.LoadingHandle == 100 &&
-                state.WindowClass == firstClass);
+                state.LoadingWindowClass == firstClass && state.WindowClass == null);
             return state;
         }
         Case("main-first-honest-fast-route", () =>
@@ -1584,11 +1990,10 @@ public static class DesktopPolicyTests
             Case("wizard-wrong-immediate-owner-" + owner, () =>
                 Refused(() => new DesktopStartupObservation().Observe(10,
                     new[] { Root(), Root(300, main: false, wizard: true, owner: owner) }, false),
-                    "startup-setup-wizard"));
-        Case("wizard-wrong-class", () =>
-            Refused(() => new DesktopStartupObservation().Observe(10,
-                new[] { Root(), Root(300, main: false, wizard: true, owner: 200, windowClass: otherClass) }, false),
-                "startup-setup-wizard"));
+                    "startup-wizard-owner"));
+        Case("wizard-distinct-class-valid", () =>
+            Verify(new DesktopStartupObservation().Observe(10,
+                new[] { Root(), Root(300, main: false, wizard: true, owner: 200, windowClass: otherClass) }, false).Ready));
         Case("wizard-missing-visible-control-is-unknown", () =>
             Verify(!new DesktopStartupObservation().Observe(10,
                 new[] { Root(), Root(300, main: false, owner: 200) }, false).Ready));
@@ -1642,13 +2047,11 @@ public static class DesktopPolicyTests
             Case("invalid-native-class-" + (windowClass ?? "null"), () =>
                 Refused(() => new DesktopStartupObservation().Observe(10,
                     new[] { Root(windowClass: windowClass) }, false), "startup-root-class"));
-        Case("observed-class-remains-pinned", () =>
-            Refused(() => Observed().Observe(10, new[] { Root(windowClass: otherClass) }, false),
-                "startup-class-changed"));
-        Case("observed-wizard-class-remains-pinned", () =>
-            Refused(() => Observed().Observe(10,
-                new[] { Root(), Root(300, main: false, wizard: true, owner: 200, windowClass: otherClass) }, false),
-                "startup-class-changed"));
+        Case("observed-loading-to-distinct-main-class-valid", () =>
+            Verify(Observed().Observe(10, new[] { Root(windowClass: otherClass) }, false).Ready));
+        Case("observed-owned-wizard-distinct-class-valid", () =>
+            Verify(Observed().Observe(10,
+                new[] { Root(), Root(300, main: false, wizard: true, owner: 200, windowClass: otherClass) }, false).Ready));
         Case("observed-loading-handle-cannot-change", () =>
             Refused(() => Observed().Observe(10, new[] { Root(101, main: false, loading: true), Root() }, false),
                 "startup-loading-changed"));
@@ -1746,7 +2149,7 @@ public static class DesktopPolicyTests
             state.Observe(10, new[] { Root(), Wizard() }, false);
             Refused(() => state.Revalidate(11,
                 new[] { Root(), Root(300, main: false, wizard: true, owner: 999) }, false),
-                "startup-setup-wizard");
+                "startup-wizard-owner");
         });
         Case("acceptance-wizard-control-rechecked", () =>
         {
@@ -1785,7 +2188,8 @@ public static class DesktopPolicyTests
                         break;
                     case "class":
                         reason = "startup-class-changed";
-                        reject = () => state.Observe(10, new[] { Root(windowClass: otherClass) }, false);
+                        reject = () => state.Observe(10,
+                            new[] { Root(100, main: false, loading: true, windowClass: otherClass) }, true);
                         break;
                     default:
                         reason = "startup-handoff-refused";
@@ -1796,6 +2200,8 @@ public static class DesktopPolicyTests
                 Refused(() => state.Observe(20, new[] { Root() }, false), reason);
                 Verify(state.LoadingObserved);
             });
+        if (startupCaseFailures.Count != 0)
+            throw new InvalidOperationException("Startup cases failed: " + string.Join("; ", startupCaseFailures));
         return count;
     }
 

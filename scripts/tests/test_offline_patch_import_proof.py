@@ -416,7 +416,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
         aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
         validation = (PACKAGE / "validate-helper.ps1").read_text(encoding="utf-8")
-        for token in ("new DesktopStartupObservation()", "ReadStartupSample()",
+        for token in ("new DesktopStartupObservation(rootBindings)", "ReadStartupSample()",
                       "sample.Observe(observation, clock.ElapsedMilliseconds, loadingExists, revalidate)",
                       "result.StartupRoute = decision.Route",
                       "result.LoadingObserved = observation.LoadingObserved",
@@ -424,7 +424,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
             self.assertIn(token, desktop)
         self.assertNotIn('"missing-loading-observation"', desktop)
         for token in ("DesktopPolicy.Handoff(true, LoadingAt", "unknown != 0",
-                      "wizard.Owner == main.Handle", "wizard.WindowClass == main.WindowClass",
+                      "wizard.Owner == main.Handle", "startup-wizard-owner",
                       "startup-duplicate-root", "startup-duplicate-main", "startup-duplicate-loading",
                       "startup-duplicate-wizard", "startup-observation-order", "startup-acceptance-changed",
                       "main-visible-loading-not-observed", "real-main-visible-and-loading-destroyed"):
@@ -432,7 +432,8 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         handoff = desktop[desktop.index("    void Handoff()"):desktop.index("    void OpenEditor()")]
         self.assertLess(handoff.index("ReadStartupSample()"), handoff.index("ObserveStartup("))
         self.assertIn("ObserveStartup(observation, acceptance, true)", handoff)
-        self.assertIn("ValidateWindow(window, decision.WindowClass)", handoff)
+        self.assertIn("ValidateWindow(window)", handoff)
+        self.assertNotIn("ValidateWindow(window, decision.WindowClass)", handoff)
         self.assertIn("Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree)", handoff)
         self.assertIn("acceptance.RefreshAndCheckRevision()", handoff)
         self.assertNotIn("Invoke(", handoff)
@@ -464,7 +465,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertIn("TreeWalker.RawViewWalker.GetParent(node)", desktop)
         self.assertNotIn("GetFirstChild", desktop)
         self.assertNotIn("GetNextSibling", desktop)
-        for token in ("tree.Find(tree.WindowKey(window, selector)", "tree.Validate(tree.WindowKey(",
+        for token in ("tree.Find(tree.WindowKey(window, selector)", "tree.Validate(handle, control, selector)",
                       "tree.Read(tree.WindowKey(", "DesktopStartupSample<AutomationElement>.Capture(tree, owned =>"):
             self.assertIn(token, desktop)
         for token in ("DesktopSelector.Loading", "DesktopSelector.FilenameHost",
@@ -530,7 +531,7 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
             self.assertIn("ownedTreeCases", runner)
             self.assertRegex(runner, r"ownedTreeCases -ne 146")
             self.assertIn("[DesktopPolicyTests]::AssertOwnedTreeCaseInventory()", runner)
-        self.assertIn("82bf31556950da6396b76c3d3a72b5de315d2f988ace9386f0044c46725edff1", tests)
+        self.assertIn("a71b278f9d82083304e2cd1cc7e932ab920a5de660614c34353fb44601c83671", tests)
 
     def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
         policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
@@ -634,6 +635,98 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         self.assertLess(writer.index("'flush'"), writer.index("'close'"))
         self.assertLess(writer.index("'close'"), writer.index("'hash'"))
         self.assertLess(writer.index("'hash'"), writer.index("'acknowledgement'"))
+
+    def test_window_class_identity_is_per_handle_across_driver_operations(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        self.assertIn("name.Length == 45", policy)
+        self.assertIn("roots.Count >= 32", policy)
+        self.assertIn("known.Class != windowClass", policy)
+        self.assertIn("known.Identity != null && known.Identity != identity", policy)
+        self.assertIn("if (known.Identity == null) known.Identity = identity", policy)
+        self.assertIn("bindings.BindCanonical(handle, after.windowClass, identity, after.owner)", policy)
+        self.assertIn("bindings.BindNativeClass(parent.handle, parent.windowClass)", policy)
+        self.assertNotIn("readonly string expectedClass", policy)
+        self.assertNotIn("avaloniaClass", desktop)
+        self.assertNotIn("string expectedClass", desktop)
+        self.assertIn("pid, rootBindings, stage", desktop)
+        validation = desktop[desktop.index("    void ValidateWindow("):desktop.index("    sealed class OwnedTreeAdapter")]
+        self.assertIn("tree.ValidateWindow(window, kind, expectedOwner)", validation)
+        self.assertNotIn("Class(", validation)
+        action = desktop[desktop.index("    void Action("):desktop.index("    void Dispatch(")]
+        self.assertLess(action.index("rootBindings.HasCanonical(handle)"),
+                        action.index("rootBindings.Kind(handle)"))
+        self.assertNotIn("Class(", action)
+        self.assertIn("ValidateControl(control, window, Selector(id), expectedOwner)", desktop)
+        self.assertIn('Action("PrintWindow-owned-editor-only", editor, 0)', desktop)
+        self.assertIn("ValidateWindow(editor, expectedOwner: 0)", desktop)
+
+    def test_startup_classes_are_stable_per_handle_not_shared_across_windows(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        observation = policy[policy.index("public sealed class DesktopStartupObservation"):
+                             policy.index("public sealed class DesktopStartupFailureRoot")]
+        self.assertIn("classes.TryGetValue(root.Handle", observation)
+        self.assertIn("classes.Count < 32", observation)
+        self.assertIn("knownClass == root.WindowClass", observation)
+        self.assertIn("LoadingWindowClass = loading.WindowClass", observation)
+        self.assertIn("WindowClass = main.WindowClass", observation)
+        self.assertNotIn("WindowClass = loading.WindowClass;", observation.replace("LoadingWindowClass = loading.WindowClass;", ""))
+        self.assertNotIn("root.WindowClass == WindowClass", observation)
+        self.assertNotIn("wizard.WindowClass == main.WindowClass", observation)
+        self.assertIn("candidate.MainHandle == expected.MainHandle", observation)
+        self.assertIn("candidate.WindowClass == expected.WindowClass", observation)
+        self.assertIn('"startup-wizard-owner"', observation)
+        self.assertIn('"startup-wizard-handle"', observation)
+
+    def test_startup_failure_capture_is_closed_immutable_and_has_no_live_reads(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        root = policy[policy.index("public sealed class DesktopStartupFailureRoot"):
+                      policy.index("public sealed class DesktopStartupFailure\n")]
+        fields = set(re.findall(r"public\s+\w+\s+(\w+)\s*\{\s*get;\s*\}", root))
+        self.assertEqual({"Handle", "Owner", "WindowClass", "Visible", "MainControlVisible",
+                          "LoadingLabelVisible", "SetupWizardControlVisible"}, fields)
+        capture = policy[policy.index("internal sealed class DesktopStartupFailureCapture"):
+                         policy.index("public static class InstalledDatabaseSnapshot")]
+        for token in ("if (attempted) return", "attempted = true", "Predicates.Contains(predicate)",
+                      "roots.Count > 8", "!seen.Add(root.Handle)", "bindings.MatchesProjection(",
+                      "bindings.KnownNativeOwner(", "new DesktopStartupFailureRoot(root)"):
+            self.assertIn(token, capture)
+        self.assertNotRegex(capture, r"adapter\.|Native\.|TreeWalker|NewTree|ReadStartupSample|GetProcess|\.Current\.")
+        self.assertIn("Roots = Array.AsReadOnly(roots)", policy)
+        self.assertIn("public DesktopStartupFailure StartupFailure", desktop)
+        self.assertIn('if (ex is Refusal && stage == "loading-handoff")', desktop)
+        self.assertIn("startupFailure.Record(ex.Message, startupSample?.Roots, rootBindings)", desktop)
+        self.assertIn("result.StartupFailure = startupFailure.Value", desktop)
+        sample = desktop[desktop.index("    DesktopStartupSample<AutomationElement> ReadStartupSample"):
+                         desktop.index("    DesktopStartupDecision ObserveStartup")]
+        self.assertLess(sample.index("startupSample = null"), sample.index("NewTree()"))
+        self.assertLess(sample.index("DesktopStartupSample<AutomationElement>.Capture"), sample.index("startupSample = sample"))
+        self.assertNotIn("StartupFailure", (PACKAGE / "run.ps1").read_text(encoding="utf-8"))
+        self.assertNotIn("StartupFailure", (PACKAGE / "launch.ps1").read_text(encoding="utf-8"))
+
+    def test_window_identity_and_diagnostic_suites_are_wired_without_report_counters(self):
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        for token in ("RunDistinctClassLifecycle", "actual-policy-failure-publishes-owned-specific-snapshot",
+                      "history-32-then-33-without-eviction", "same-main-hwnd-class-mutation-at-operation-refused",
+                      "canonical-runtime-identity-mutation-across-tree-refused",
+                      "maximum-handle-diagnostic-serialization-shape",
+                      "known-but-unobserved-diagnostic-owner-", "diagnostic-source-error-never-replaces-failure",
+                      "4e9cf5a22747adedbe9d24c13c774d0d8529d249de199c73b5c0567f3c024e8c",
+                      "0e4ee056e2b08d79ac650bdcd368cc3e4b4a9d3b5f09edc273507a679d5910eb"):
+            self.assertIn(token, tests)
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            text = (PACKAGE / name).read_text(encoding="utf-8")
+            for token in ("[DesktopPolicyTests]::AssertStartupCaseInventory()",
+                          "[DesktopPolicyTests]::RunWindowIdentityTests()",
+                          "[DesktopPolicyTests]::AssertWindowIdentityCaseInventory()",
+                          "$windowIdentityCases -ne 57", "$startupDiagnosticSerializationCases -ne 12",
+                          "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096",
+                          "Assert-ProofKeys $decoded @('Predicate','Roots')",
+                          "@('compact','pretty','nested')"):
+                self.assertIn(token, text)
+            self.assertNotRegex(text, r"\$report\.(?:windowIdentityCases|startupDiagnosticSerializationCases)")
+            self.assertNotRegex(text, r"(?m)^\s*(?:windowIdentityCases|startupDiagnosticSerializationCases)\s*=")
 
 
 if __name__ == "__main__":
