@@ -158,9 +158,10 @@ public static class DesktopPolicyTests
         internal int Id, Pid = 7;
         internal long Handle;
         internal int[] RuntimeId = null;
-        internal OwnedNode Parent, Next = null;
-        internal bool OverrideNext = false, Offscreen = false, NullIdentity = false;
-        internal DesktopSelector Selector;
+        internal OwnedNode Parent;
+        internal bool Offscreen = false, NullIdentity = false;
+        internal string AutomationId = "", Name = "";
+        internal DesktopQueryControl Control;
         internal readonly List<OwnedNode> Children = new List<OwnedNode>();
     }
 
@@ -181,6 +182,9 @@ public static class DesktopPolicyTests
         internal readonly List<string> Reads = new List<string>();
         internal Action<string, OwnedNode> Before = null;
         internal Action GuardAction = () => { };
+        internal Func<IReadOnlyList<OwnedNode>, IReadOnlyList<OwnedNode>> SeedResults = null;
+        internal Func<OwnedNode, DesktopSelector, IReadOnlyList<OwnedNode>, IReadOnlyList<OwnedNode>> CandidateResults = null;
+        internal int SeedQueries, CandidateQueries, ProviderNodes, ProviderProperties;
         internal OwnedNode Main, MainButton, Wizard, Close;
         internal OwnedModel()
         {
@@ -196,32 +200,95 @@ public static class DesktopPolicyTests
         internal OwnedNode Add(OwnedNode parent, int id, long handle = 0,
             DesktopSelector selector = DesktopSelector.Discovery)
         {
-            var node = new OwnedNode { Id = id, Handle = handle, Parent = parent, Selector = selector };
+            var node = new OwnedNode { Id = id, Handle = handle, Parent = parent,
+                Control = handle == 0 ? DesktopQueryControl.Unknown : DesktopQueryControl.Window,
+                Name = handle == 0 ? "" : "FEBuilderGBA" };
+            switch (selector)
+            {
+                case DesktopSelector.Main: node.AutomationId = DesktopCandidateQuery.MainButton; node.Control = DesktopQueryControl.Button; break;
+                case DesktopSelector.Wizard: node.AutomationId = DesktopCandidateQuery.WizardButton; node.Control = DesktopQueryControl.Button; break;
+                case DesktopSelector.Import: node.AutomationId = DesktopCandidateQuery.ImportButton; node.Control = DesktopQueryControl.Button; break;
+                case DesktopSelector.Status: node.AutomationId = DesktopCandidateQuery.StatusLabel; node.Control = DesktopQueryControl.Text; break;
+                case DesktopSelector.List: node.AutomationId = DesktopCandidateQuery.PatchList; node.Control = DesktopQueryControl.List; break;
+                case DesktopSelector.Loading: node.Control = DesktopQueryControl.Text; node.Name = DesktopCandidateQuery.LoadingName; break;
+                case DesktopSelector.FilenameHost: node.AutomationId = "1148"; node.Control = DesktopQueryControl.Edit; break;
+                case DesktopSelector.FilenameEdit: node.Control = DesktopQueryControl.Edit; break;
+                case DesktopSelector.PickerOpen: node.AutomationId = "1"; node.Control = DesktopQueryControl.Button; break;
+                case DesktopSelector.Row: node.Control = DesktopQueryControl.ListItem; break;
+                case DesktopSelector.RowName: node.Control = DesktopQueryControl.Text; node.Name = DesktopCandidateQuery.ExpectedRow; break;
+                case DesktopSelector.ConfirmationYes: node.AutomationId = "MessageBoxContent_Yes_Button"; node.Control = DesktopQueryControl.Button; break;
+                case DesktopSelector.ConfirmationMessage: node.AutomationId = "MessageBoxContent_Message_Label"; node.Control = DesktopQueryControl.Text; break;
+            }
             parent?.Children.Add(node);
             return node;
         }
-        TValue Read<TValue>(string name, OwnedNode node, Func<TValue> value) => Budget.Call(() =>
+        TValue Observe<TValue>(string name, OwnedNode node, Func<TValue> value)
         {
             Reads.Add(name + ":" + (node?.Id ?? 0));
             Before?.Invoke(name, node);
             return value();
-        });
+        }
+        TValue Read<TValue>(string name, OwnedNode node, Func<TValue> value) => Budget.Call(() => Observe(name, node, value));
         internal DesktopOwnedTree<OwnedNode> Tree(string expectedClass = null) =>
             new DesktopOwnedTree<OwnedNode>(this, 7, expectedClass, "loading-handoff", () => GuardAction());
-        public IReadOnlyList<OwnedNode> Seeds() => Read("seeds", null, () => SeedNodes);
+        public IReadOnlyList<OwnedNode> Seeds()
+        {
+            var seeds = Read("seeds", null, () =>
+            {
+                SeedQueries++;
+                IReadOnlyList<OwnedNode> found = SeedNodes.FindAll(node => node.Pid == 7);
+                return SeedResults == null ? found : SeedResults(found);
+            });
+            return DesktopCandidateQuery.Collect(Budget,
+                () => Observe("seed-count", null, () => seeds.Count),
+                index => Observe("seed-item", seeds[index], () => seeds[index]), 8);
+        }
         public int ProcessId(OwnedNode node) => Read("pid", node, () => node.Pid);
         public int[] Identity(OwnedNode node) => Read("identity", node, () =>
             node.NullIdentity ? null : node.RuntimeId ?? new[] { node.Id });
         public uint Handle(OwnedNode node) => Read("handle", node, () => DesktopHwnd.Key(node.Handle));
         public OwnedNode Parent(OwnedNode node) => Read("parent", node, () => node.Parent);
-        public OwnedNode FirstChild(OwnedNode node) => Read("child", node, () => node.Children.Count == 0 ? null : node.Children[0]);
-        public OwnedNode NextSibling(OwnedNode node) => Read("sibling", node, () =>
+        static object Property(OwnedNode node, DesktopQueryProperty property)
         {
-            if (node.OverrideNext) return node.Next;
-            if (node.Parent == null) return null;
-            int at = node.Parent.Children.IndexOf(node) + 1;
-            return at < node.Parent.Children.Count ? node.Parent.Children[at] : null;
-        });
+            switch (property)
+            {
+                case DesktopQueryProperty.ProcessId: return node.Pid;
+                case DesktopQueryProperty.NativeWindowHandle: return unchecked((int)DesktopHwnd.Key(node.Handle));
+                case DesktopQueryProperty.ControlType: return node.Control;
+                case DesktopQueryProperty.AutomationId: return node.AutomationId;
+                case DesktopQueryProperty.Name: return node.Name;
+                default: throw new InvalidOperationException("Unknown modeled property.");
+            }
+        }
+        public IReadOnlyList<OwnedNode> Candidates(OwnedNode subtree, DesktopSelector selector)
+        {
+            var predicate = DesktopCandidateQuery.Compile(new DesktopPredicateCompiler<OwnedNode>((node, property) =>
+            {
+                ProviderProperties++;
+                return Property(node, property);
+            }), 7, selector);
+            var candidates = Read("candidates-" + selector, subtree, () =>
+            {
+                CandidateQueries++;
+                var matches = new List<OwnedNode>();
+                var pending = new Stack<OwnedNode>();
+                var visited = new HashSet<OwnedNode> { subtree };
+                for (int i = subtree.Children.Count - 1; i >= 0; i--) pending.Push(subtree.Children[i]);
+                while (pending.Count != 0)
+                {
+                    var node = pending.Pop();
+                    if (!visited.Add(node)) continue;
+                    ProviderNodes++;
+                    if (predicate(node)) matches.Add(node);
+                    for (int i = node.Children.Count - 1; i >= 0; i--) pending.Push(node.Children[i]);
+                }
+                return CandidateResults == null ? matches : CandidateResults(subtree, selector, matches);
+            });
+            if (candidates == null) return null;
+            return DesktopCandidateQuery.Collect(Budget,
+                () => Observe("candidate-count", subtree, () => candidates.Count),
+                index => Observe("candidate-item", candidates[index], () => candidates[index]));
+        }
         public OwnedNode FromHandle(uint handle) => Read("from-handle", null, () => Roots.TryGetValue(handle, out var node) ? node : null);
         public bool Alive(uint handle) => Read("alive", null, () => Native.TryGetValue(handle, out var native) && native.Alive);
         public int NativePid(uint handle) => Read("native-pid", null, () => Native.TryGetValue(handle, out var native) ? native.Pid : 0);
@@ -230,12 +297,104 @@ public static class DesktopPolicyTests
         public string Class(uint handle) => Read("class", null, () => Native[handle].Class);
         public bool Visible(uint handle) => Read("visible", null, () => Native[handle].Visible);
         public bool Offscreen(OwnedNode node) => Read("offscreen", node, () => node.Offscreen);
-        public bool Matches(OwnedNode node, DesktopSelector selector) =>
-            Read("match-" + selector, node, () => node.Selector == selector);
+        public bool Matches(OwnedNode node, DesktopSelector selector) => Observe("match-" + selector, node, () =>
+            DesktopCandidateQuery.Compile(new DesktopPredicateCompiler<OwnedNode>((candidate, property) =>
+                Read("property-" + property, candidate, () => Property(candidate, property))), 7, selector)(node));
+    }
+
+    static readonly List<string> ownedTreeCaseNames = new List<string>();
+    static readonly List<string> ownedTreeCaseFailures = new List<string>();
+    static readonly List<Dictionary<string, long>> ownedTreeScaleProfiles = new List<Dictionary<string, long>>();
+    public static string[] OwnedTreeCaseNames => ownedTreeCaseNames.ToArray();
+    public static string[] OwnedTreeCaseFailures => ownedTreeCaseFailures.ToArray();
+    public static Dictionary<string, long>[] OwnedTreeScaleProfiles => ownedTreeScaleProfiles.ToArray();
+
+    public static void AssertOwnedTreeCaseInventory()
+    {
+        if (ownedTreeCaseNames.Count != 146 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
+            throw new InvalidOperationException("Owned-tree inventory incomplete.");
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
+        if (digest != "82bf31556950da6396b76c3d3a72b5de315d2f988ace9386f0044c46725edff1")
+            throw new InvalidOperationException("Owned-tree case names/order changed.");
+    }
+
+    public static Dictionary<string, long> RunOwnedTreeScaleTests() => ScaleProfile(24, 0, false);
+
+    static Dictionary<string, long> ScaleProfile(int depth, int nativeChildren, bool wizardFirst)
+    {
+        var model = new OwnedModel();
+        model.Main.Children.Remove(model.MainButton);
+        var parent = model.Main;
+        for (int i = 0; i < depth; i++) parent = model.Add(parent, 100 + i);
+        parent.Children.Add(model.MainButton);
+        model.MainButton.Parent = parent;
+        for (int i = 0; i < 10000; i++)
+        {
+            var irrelevant = model.Add(model.Main, 1000 + i);
+            irrelevant.Control = i % 2 == 0 ? DesktopQueryControl.Text : DesktopQueryControl.Button;
+            irrelevant.AutomationId = "irrelevant-" + i;
+            irrelevant.Name = "Unrelated modeled content " + i;
+        }
+        for (int i = 0; i < nativeChildren; i++)
+        {
+            uint handle = (uint)(500 + i);
+            model.Add(model.Main, 12000 + i, handle).Control = DesktopQueryControl.Button;
+            model.Native.Add(handle, new OwnedNative { Root = 100, Class = "Button" });
+        }
+        if (wizardFirst) model.SeedNodes.Insert(0, model.Wizard);
+        DesktopStartupSample<OwnedNode> sample;
+        try { sample = ProjectStartup(model); }
+        catch (DesktopTreeException ex)
+        {
+            ex.Data["nodes"] = ex.Failure.Nodes;
+            ex.Data["calls"] = ex.Failure.Calls;
+            ex.Data["windows"] = ex.Failure.Windows;
+            ex.Data["seedQueries"] = model.Reads.FindAll(x => x == "seeds:0").Count;
+            ex.Data["rawNavigationCalls"] = model.Reads.FindAll(x =>
+                x.StartsWith("child:", StringComparison.Ordinal) || x.StartsWith("sibling:", StringComparison.Ordinal)).Count;
+            throw;
+        }
+        var observation = new DesktopStartupObservation();
+        var decision = sample.Observe(observation, 10, false, false);
+        if (!decision.Ready || decision.MainHandle != 100 || decision.WizardHandle != 200 ||
+            sample.Tree.Budget.Nodes > 4096 || sample.Tree.Budget.Calls > 65536)
+            throw new InvalidOperationException("Representative full-graph startup scale failed.");
+        long candidateNodes = sample.Tree.Budget.Nodes, candidateCalls = sample.Tree.Budget.Calls;
+        long candidateQueries = model.CandidateQueries, seedQueries = model.SeedQueries;
+        var acceptance = ProjectStartup(model);
+        if (!acceptance.Observe(observation, 11, false, true).Ready)
+            throw new InvalidOperationException("Full-graph acceptance failed.");
+        acceptance.RefreshAndCheckRevision();
+        foreach (string read in model.Reads)
+        {
+            int separator = read.LastIndexOf(':');
+            if (separator >= 0 && int.TryParse(read.Substring(separator + 1), out int id) &&
+                id >= 1000 && id < 11000)
+                throw new InvalidOperationException("Irrelevant provider node reached client inspection.");
+        }
+        if (acceptance.Tree.Budget.Nodes > 4096 || acceptance.Tree.Budget.Calls > 65536 ||
+            model.CandidateQueries <= 0 || model.CandidateQueries + model.SeedQueries > 160 ||
+            model.ProviderNodes < 10000)
+            throw new InvalidOperationException("Scale query or client budget changed.");
+        return new Dictionary<string, long>
+        {
+            ["irrelevantNodes"] = 10000, ["ancestorDepth"] = depth, ["nativeChildren"] = nativeChildren,
+            ["wizardFirst"] = wizardFirst ? 1 : 0,
+            ["nodes"] = candidateNodes, ["calls"] = candidateCalls,
+            ["candidateFrameQueries"] = candidateQueries, ["candidateFrameSeedQueries"] = seedQueries,
+            ["acceptanceNodes"] = acceptance.Tree.Budget.Nodes, ["acceptanceCalls"] = acceptance.Tree.Budget.Calls,
+            ["windows"] = sample.Tree.Windows.Count,
+            ["seedQueries"] = model.SeedQueries, ["candidateQueries"] = model.CandidateQueries,
+            ["providerNodes"] = model.ProviderNodes, ["providerProperties"] = model.ProviderProperties
+        };
     }
 
     public static int RunOwnedTreeTests()
     {
+        ownedTreeCaseNames.Clear();
+        ownedTreeCaseFailures.Clear();
+        ownedTreeScaleProfiles.Clear();
         int count = 0;
         var names = new HashSet<string>(StringComparer.Ordinal);
         void Verify(bool condition)
@@ -246,7 +405,8 @@ public static class DesktopPolicyTests
         {
             if (!names.Add(name)) throw new InvalidOperationException("Duplicate owned-tree case.");
             try { action(); }
-            catch (Exception ex) { throw new InvalidOperationException("Owned-tree case failed: " + name, ex); }
+            catch (Exception ex) { ownedTreeCaseFailures.Add(name + ": " + ex.Message); }
+            ownedTreeCaseNames.Add(name);
             count++;
         }
         DesktopQueryFailure Refused(Action action, string predicate)
@@ -298,7 +458,8 @@ public static class DesktopPolicyTests
         {
             var model = new OwnedModel(); var tree = model.Tree(); tree.Discover(); model.Reads.Clear();
             Verify(tree.Find(100, null, DesktopSelector.Wizard, 1).Count == 0);
-            Verify(!model.Reads.Contains("match-Wizard:4") && !model.Reads.Contains("child:3"));
+            Verify(!model.Reads.Contains("match-Wizard:4") && !model.Reads.Contains("property-Name:4") &&
+                model.CandidateQueries > 0 && model.ProviderProperties > 0);
         });
         Case("subtree-root-is-excluded", () =>
         {
@@ -415,16 +576,21 @@ public static class DesktopPolicyTests
         });
         Case("foreign-uia-pid-before-all-other-node-access", () =>
         {
-            var model = new OwnedModel(); model.MainButton.Pid = 8; var tree = model.Tree();
-            var failure = Refused(() => tree.Discover(), "query-uia-pid");
+            var model = new OwnedModel(); var tree = model.Tree(); tree.Discover();
+            model.MainButton.Pid = 8;
+            model.CandidateResults = (root, selector, found) =>
+                selector == DesktopSelector.Main ? new[] { model.MainButton } : found;
+            model.Reads.Clear();
+            var failure = Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-uia-pid");
             foreach (string read in model.Reads)
-                if (read.EndsWith(":2", StringComparison.Ordinal)) Verify(read == "pid:2");
+                if (read.EndsWith(":2", StringComparison.Ordinal)) Verify(read == "pid:2" || read == "candidate-item:2");
             Verify(failure.PreviouslyOwnedHandle == 0 && failure.OwnedRootBefore == 0 &&
                 failure.OwnedRootAfter == 0 && failure.ExpectedOwnedRoot == 100);
         });
         Case("foreign-seed-pid-before-handle", () =>
         {
             var model = new OwnedModel(); model.Main.Pid = 8; var tree = model.Tree();
+            model.SeedResults = found => new[] { model.Main };
             Refused(() => tree.Discover(), "query-seed-pid");
             Verify(!model.Reads.Contains("handle:1") && !model.Reads.Contains("child:1"));
         });
@@ -449,13 +615,15 @@ public static class DesktopPolicyTests
         {
             var model = new OwnedModel(); var foreign = model.Add(null, 5, 900); foreign.Pid = 8;
             model.MainButton.Parent = foreign; var tree = model.Tree();
-            Refused(() => tree.Discover(), "query-uia-pid");
+            tree.Discover();
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-uia-pid");
             Verify(!model.Reads.Contains("handle:5") && !model.Reads.Contains("parent:5"));
         });
         Case("missing-raw-parent-refused", () =>
         {
             var model = new OwnedModel(); model.MainButton.Parent = null;
-            Refused(() => model.Tree().Discover(), "query-raw-parent-missing");
+            var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-raw-parent-missing");
         });
         Case("missing-native-root-refused", () =>
         {
@@ -524,50 +692,56 @@ public static class DesktopPolicyTests
             Case("runtime-identity-length-" + length, () =>
             {
                 var model = new OwnedModel(); model.MainButton.RuntimeId = new int[length];
-                Refused(() => model.Tree().Discover(), "query-runtime-id");
+                var tree = model.Tree(); tree.Discover();
+                Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-runtime-id");
             });
         Case("null-runtime-identity-refused", () =>
         {
             var model = new OwnedModel(); model.MainButton.NullIdentity = true;
-            Refused(() => model.Tree().Discover(), "query-runtime-id");
+            var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-runtime-id");
         });
         Case("32-runtime-identity-components-allowed", () =>
         {
             var model = new OwnedModel(); model.MainButton.RuntimeId = new int[32];
-            model.Tree().Discover();
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Find(100, null, DesktopSelector.Main, 1).Count == 1);
         });
         Case("duplicate-raw-node-identity-refused", () =>
         {
-            var model = new OwnedModel(); model.MainButton.RuntimeId = new[] { 1 };
+            var model = new OwnedModel();
+            model.Add(model.Main, 5, 0, DesktopSelector.Main).RuntimeId = new[] { 2 };
+            var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 16), "query-node-cycle");
+        });
+        Case("provider-query-root-echo-refused", () =>
+        {
+            var model = new OwnedModel();
+            model.CandidateResults = (root, selector, found) => new[] { root };
             Refused(() => model.Tree().Discover(), "query-node-cycle");
         });
-        Case("raw-child-cycle-refused", () =>
+        Case("duplicate-provider-candidate-refused", () =>
         {
-            var model = new OwnedModel(); model.MainButton.Children.Add(model.Main);
-            Refused(() => model.Tree().Discover(), "query-node-cycle");
-        });
-        Case("raw-sibling-cycle-refused", () =>
-        {
-            var model = new OwnedModel(); model.MainButton.OverrideNext = true; model.MainButton.Next = model.MainButton;
+            var model = new OwnedModel();
+            model.CandidateResults = (root, selector, found) =>
+                root == model.Main ? new[] { model.Wizard, model.Wizard } : found;
             Refused(() => model.Tree().Discover(), "query-node-cycle");
         });
         Case("raw-parent-cycle-refused", () =>
         {
             var model = new OwnedModel(); model.MainButton.Parent = model.MainButton;
-            Refused(() => model.Tree().Discover(), "query-parent-cycle");
+            var tree = model.Tree(); tree.Discover();
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-parent-cycle");
         });
         foreach (int depth in new[] { 32, 33 })
             Case("raw-depth-" + depth, () =>
             {
                 var model = new OwnedModel(); model.Main.Children.Clear(); var parent = model.Main;
-                for (int i = 1; i <= depth; i++)
-                {
-                    parent = model.Add(parent, 10 + i, 150);
-                }
-                model.Native.Add(150, new OwnedNative { Root = 100 });
-                var tree = model.Tree();
-                if (depth == 32) tree.Discover();
-                else Refused(() => tree.Discover(), "query-depth");
+                for (int i = 1; i < depth; i++) parent = model.Add(parent, 10 + i);
+                model.Add(parent, 100, 0, DesktopSelector.Main);
+                var tree = model.Tree(); tree.Discover();
+                if (depth == 32) Verify(tree.Find(100, null, DesktopSelector.Main, 1).Count == 1);
+                else Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-depth");
             });
         foreach (int windows in new[] { 8, 9 })
             Case("canonical-window-count-" + windows, () =>
@@ -582,7 +756,7 @@ public static class DesktopPolicyTests
         {
             var model = new OwnedModel(); for (int i = 1; i < 9; i++) model.SeedNodes.Add(model.Main);
             Refused(() => model.Tree().Discover(), "query-seed-bound");
-            Verify(model.Reads.Count == 1 && model.Reads[0] == "seeds:0");
+            Verify(model.Reads.Count == 2 && model.Reads[0] == "seeds:0" && model.Reads[1] == "seed-count:0");
         });
         Case("node-budget-exact-and-one-over", () =>
         {
@@ -593,11 +767,20 @@ public static class DesktopPolicyTests
             int reads = 0;
             GuardRefused(() => budget.Call(() => ++reads), "query-budget-closed"); Verify(reads == 0);
         });
-        Case("actual-traversal-node-budget-refuses-wide-tree", () =>
+        Case("irrelevant-wide-provider-tree-does-not-charge-client-nodes", () =>
         {
             var model = new OwnedModel();
             for (int i = 0; i < 1100; i++) model.Add(model.Main, 1000 + i);
-            Refused(() => model.Tree().Discover(), "query-node-bound");
+            var tree = model.Tree(); tree.Discover();
+            Verify(model.ProviderNodes > 1100 && tree.Budget.Nodes < 100);
+        });
+        Case("actual-candidate-ancestry-exhausts-unchanged-node-budget", () =>
+        {
+            var model = new OwnedModel(); var parent = model.Main;
+            for (int i = 0; i < 20; i++) parent = model.Add(parent, 100 + i);
+            for (int i = 0; i < 200; i++) model.Add(parent, 1000 + i).Control = DesktopQueryControl.Window;
+            var failure = Refused(() => model.Tree().Discover(), "query-node-bound");
+            Verify(failure.Nodes == 4096);
         });
         Case("call-budget-exact-and-one-over", () =>
         {
@@ -620,7 +803,9 @@ public static class DesktopPolicyTests
         });
         Case("latched-failure-has-no-further-adapter-calls", () =>
         {
-            var model = new OwnedModel(); model.MainButton.Pid = 8; var tree = model.Tree();
+            var model = new OwnedModel(); model.MainButton.Pid = 8;
+            model.CandidateResults = (root, selector, found) => new[] { model.MainButton };
+            var tree = model.Tree();
             var failure = Refused(() => tree.Discover(), "query-uia-pid"); int reads = model.Reads.Count;
             Verify(ReferenceEquals(failure, Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-uia-pid")));
             Verify(reads == model.Reads.Count);
@@ -628,7 +813,7 @@ public static class DesktopPolicyTests
         Case("provider-message-never-leaks", () =>
         {
             var model = new OwnedModel(); model.Before = (name, node) =>
-            { if (name == "handle" && node == model.MainButton) throw new Exception("PRIVATE NAME VALUE"); };
+            { if (name == "candidates-Discovery" && node == model.Main) throw new Exception("PRIVATE NAME VALUE"); };
             var failure = Refused(() => model.Tree().Discover(), "query-provider-failure");
             Verify(failure.Stage == "loading-handoff" && failure.Selector == "Discovery" &&
                 failure.Predicate == "query-provider-failure");
@@ -736,7 +921,7 @@ public static class DesktopPolicyTests
             model.Native.Add(high, new OwnedNative { Root = 100, Pid = 8 });
             Refused(() => model.Tree().Discover(), "query-native-pid");
         });
-        Case("query-discovered-root-is-drained-before-return", () =>
+        Case("query-discovered-root-is-drained-before-refusal", () =>
         {
             var model = new OwnedModel(); var tree = model.Tree(); tree.Discover(); bool added = false;
             model.Before = (name, node) =>
@@ -747,8 +932,8 @@ public static class DesktopPolicyTests
                     model.Add(extra, 6, 0, DesktopSelector.ConfirmationYes);
                 }
             };
-            Verify(tree.Find(100, null, DesktopSelector.Main, 1).Count == 1);
-            Verify(tree.Windows.Count == 3 && model.Reads.Contains("child:5"));
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-topology-changed");
+            Verify(tree.Windows.Count == 3 && model.Reads.Contains("candidates-Discovery:5"));
         });
         Case("discovered-unknown-root-blocks-startup-projection", () =>
         {
@@ -797,7 +982,7 @@ public static class DesktopPolicyTests
         Case("unavailable-provider-is-refused-without-retry", () =>
         {
             var model = new OwnedModel(); model.Before = (name, node) =>
-            { if (name == "child" && node == model.MainButton) throw new ElementNotAvailableException(); };
+            { if (name == "candidates-Discovery" && node == model.Main) throw new ElementNotAvailableException(); };
             var tree = model.Tree(); Refused(() => tree.Discover(), "query-element-unavailable");
             int reads = model.Reads.Count;
             Refused(() => tree.Discover(), "query-element-unavailable"); Verify(reads == model.Reads.Count);
@@ -854,7 +1039,8 @@ public static class DesktopPolicyTests
         Case("new-observed-root-invalidates-acceptance-revision", () =>
         {
             var model = new OwnedModel(); var tree = model.Tree(); tree.Discover(); int revision = tree.Revision;
-            AddRoot(model, 300, 5, model.Main); tree.Find(100, null, DesktopSelector.Main, 1);
+            AddRoot(model, 300, 5, model.Main);
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-topology-changed");
             Refused(() => tree.CheckRevision(revision), "query-topology-changed");
         });
         Case("observed-visibility-change-invalidates-acceptance-revision", () =>
@@ -870,7 +1056,10 @@ public static class DesktopPolicyTests
             Refused(() => tree.Read(100, model.MainButton, DesktopSelector.Main, () => ++reads), "query-uia-pid");
             Verify(reads == 0);
         });
-        return count + RunProjectionTests();
+        int total = count + RunProjectionTests() + RunCandidateTests();
+        if (ownedTreeCaseFailures.Count != 0)
+            throw new InvalidOperationException("Owned-tree cases failed: " + string.Join("; ", ownedTreeCaseFailures));
+        return total;
     }
 
     static DesktopStartupSample<OwnedNode> ProjectStartup(OwnedModel model)
@@ -878,10 +1067,238 @@ public static class DesktopPolicyTests
         var tree = model.Tree();
         tree.Discover();
         return DesktopStartupSample<OwnedNode>.Capture(tree, root =>
-            new DesktopStartupRoot(root.Handle, root.Owner, root.Class, tree.Visible(root),
-                tree.Find(root.Handle, null, DesktopSelector.Main, 1).Count == 1,
-                tree.Find(root.Handle, null, DesktopSelector.Loading, 1).Count == 1,
-                tree.Find(root.Handle, null, DesktopSelector.Wizard, 1).Count == 1));
+        {
+            bool Control(DesktopSelector selector, DesktopQueryControl type)
+            {
+                var found = tree.Find(root.Handle, null, selector, 1);
+                if (found.Count == 0) return false;
+                var node = found[0];
+                var actualType = tree.Read(root.Handle, node, selector, () =>
+                {
+                    model.Reads.Add("content-type:" + node.Id);
+                    return node.Control;
+                });
+                if (actualType != type) throw new InvalidOperationException("control-type");
+                return !tree.Read(root.Handle, node, selector, () =>
+                {
+                    model.Reads.Add("content-offscreen:" + node.Id);
+                    return node.Offscreen;
+                });
+            }
+            return new DesktopStartupRoot(root.Handle, root.Owner, root.Class, tree.Visible(root),
+                Control(DesktopSelector.Main, DesktopQueryControl.Button),
+                Control(DesktopSelector.Loading, DesktopQueryControl.Text),
+                Control(DesktopSelector.Wizard, DesktopQueryControl.Button));
+        });
+    }
+
+    static int RunCandidateTests()
+    {
+        int count = 0;
+        void Verify(bool condition)
+        {
+            if (!condition) throw new InvalidOperationException("Unexpected candidate-query result.");
+        }
+        void Case(string name, Action action)
+        {
+            if (ownedTreeCaseNames.Contains(name)) throw new InvalidOperationException("Duplicate candidate case.");
+            try { action(); }
+            catch (Exception ex) { ownedTreeCaseFailures.Add(name + ": " + ex.Message); }
+            ownedTreeCaseNames.Add(name); count++;
+        }
+        DesktopQueryFailure Refused(Action action, string code)
+        {
+            try { action(); }
+            catch (DesktopTreeException ex) when (ex.Message == code) { return ex.Failure; }
+            throw new InvalidOperationException("Expected candidate refusal: " + code);
+        }
+        OwnedNode ExtraRoot(OwnedModel model, bool visible = true)
+        {
+            var node = model.Add(model.Main, 500, 300);
+            model.Native.Add(300, new OwnedNative { Root = 300, Owner = 100, Visible = visible });
+            model.Roots.Add(300, node);
+            return node;
+        }
+        for (int value = (int)DesktopSelector.Main; value <= (int)DesktopSelector.ConfirmationMessage; value++)
+        {
+            var selector = (DesktopSelector)value;
+            Case("compiled-selector-subtree-" + selector, () =>
+            {
+                var model = new OwnedModel();
+                var host = model.Add(model.Main, 5);
+                var target = model.Add(host, 6, 0, selector);
+                model.Add(model.Main, 7, 0, selector);
+                var tree = model.Tree(); tree.Discover();
+                var found = tree.Find(100, host, selector, 1);
+                Verify(found.Count == 1 && found[0] == target && model.CandidateQueries > 0 && model.ProviderNodes > 0);
+            });
+        }
+        Case("compiled-window-predicate-with-default-zero-handle", () =>
+        {
+            var model = new OwnedModel();
+            var windowPeer = model.Add(model.Main, 5); windowPeer.Control = DesktopQueryControl.Window;
+            var irrelevant = model.Add(model.Main, 6);
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Windows.Count == 2 && model.Reads.Contains("pid:5") && !model.Reads.Contains("pid:6"));
+        });
+        Case("compiled-native-child-predicate-does-not-create-window", () =>
+        {
+            var model = new OwnedModel(); model.MainButton.Handle = 150;
+            model.MainButton.Control = DesktopQueryControl.Button;
+            model.Native.Add(150, new OwnedNative { Root = 100, Class = "Button" });
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Windows.Count == 2 && model.Reads.Contains("handle:2"));
+        });
+        Case("id-filter-preserves-wrong-type-candidate", () =>
+        {
+            var model = new OwnedModel(); model.MainButton.Control = DesktopQueryControl.Text;
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Find(100, null, DesktopSelector.Main, 1)[0] == model.MainButton);
+            bool refused = false;
+            try { ProjectStartup(model); }
+            catch (InvalidOperationException ex) when (ex.Message == "control-type") { refused = true; }
+            Verify(refused);
+        });
+        Case("provider-pid-filter-omits-irrelevant-foreign-nodes", () =>
+        {
+            var model = new OwnedModel(); var foreign = model.Add(model.Main, 5, 0, DesktopSelector.Main);
+            foreign.Pid = 8;
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Find(100, null, DesktopSelector.Main, 1)[0] == model.MainButton);
+            Verify(!model.Reads.Contains("pid:5") && !model.Reads.Contains("property-Name:5"));
+        });
+        Case("null-provider-candidate-collection-refused", () =>
+        {
+            var model = new OwnedModel(); model.CandidateResults = (root, selector, found) => null;
+            Refused(() => model.Tree().Discover(), "query-candidate-list");
+        });
+        Case("null-provider-candidate-refused", () =>
+        {
+            var model = new OwnedModel(); model.CandidateResults = (root, selector, found) => new OwnedNode[] { null };
+            Refused(() => model.Tree().Discover(), "query-candidate-null");
+        });
+        Case("257-provider-candidates-refused-before-items", () =>
+        {
+            var model = new OwnedModel();
+            model.CandidateResults = (root, selector, found) => new OwnedNode[257];
+            Refused(() => model.Tree().Discover(), "query-candidate-bound");
+            Verify(!model.Reads.Exists(x => x.StartsWith("candidate-item:", StringComparison.Ordinal)));
+        });
+        Case("256-provider-candidates-accepted-within-client-budget", () =>
+        {
+            var model = new OwnedModel(); model.Main.Children.Clear();
+            for (int i = 0; i < 256; i++) model.Add(model.Main, 1000 + i).Control = DesktopQueryControl.Window;
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Windows.Count == 1 && tree.Budget.Nodes < 4096 && tree.Budget.Calls < 65536);
+        });
+        Case("candidate-count-respects-remaining-node-budget", () =>
+        {
+            var budget = new DesktopTreeBudget(() => { });
+            for (int i = 0; i < 4090; i++) budget.Visit(0);
+            int reads = 0; bool refused = false;
+            try { DesktopCandidateQuery.Collect<object>(budget, () => 7, index => { reads++; return new object(); }); }
+            catch (DesktopTreeGuardException ex) when (ex.Message == "query-node-bound") { refused = true; }
+            Verify(refused && reads == 0 && budget.Nodes == 4090);
+        });
+        Case("negative-candidate-count-refused-before-items", () =>
+        {
+            var budget = new DesktopTreeBudget(() => { }); int reads = 0; bool refused = false;
+            try { DesktopCandidateQuery.Collect<object>(budget, () => -1, index => { reads++; return new object(); }); }
+            catch (DesktopTreeGuardException ex) when (ex.Message == "query-candidate-bound") { refused = true; }
+            Verify(refused && reads == 0);
+        });
+        Case("same-root-out-of-subtree-candidate-refused-before-match", () =>
+        {
+            var model = new OwnedModel(); var host = model.Add(model.Main, 5);
+            var tree = model.Tree(); tree.Discover(); model.Reads.Clear();
+            model.CandidateResults = (root, selector, found) =>
+                selector == DesktopSelector.Main ? new[] { model.MainButton } : found;
+            Refused(() => tree.Find(100, host, DesktopSelector.Main, 1), "query-candidate-subtree");
+            Verify(!model.Reads.Contains("match-Main:2"));
+        });
+        Case("subtree-reparent-during-match-refused", () =>
+        {
+            var model = new OwnedModel(); var host = model.Add(model.Main, 5);
+            var target = model.Add(host, 6, 0, DesktopSelector.Main);
+            var tree = model.Tree(); tree.Discover();
+            model.Before = (name, node) => { if (name == "match-Main" && node == target) node.Parent = model.Main; };
+            Refused(() => tree.Find(100, host, DesktopSelector.Main, 1), "query-candidate-subtree");
+        });
+        Case("candidate-filter-lie-refused-not-missing", () =>
+        {
+            var model = new OwnedModel(); var unrelated = model.Add(model.Main, 5);
+            var tree = model.Tree(); tree.Discover();
+            model.CandidateResults = (root, selector, found) =>
+                selector == DesktopSelector.Main ? new[] { unrelated } : found;
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-candidate-filter");
+        });
+        Case("candidate-runtime-alias-during-match-refused", () =>
+        {
+            var model = new OwnedModel(); var tree = model.Tree(); tree.Discover();
+            model.Before = (name, node) =>
+            {
+                if (name == "match-Main" && node == model.MainButton) node.RuntimeId = new[] { 999 };
+            };
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-node-alias");
+        });
+        Case("candidate-item-pid-change-refused-before-content", () =>
+        {
+            var model = new OwnedModel(); var tree = model.Tree(); tree.Discover();
+            model.Before = (name, node) => { if (name == "candidate-item" && node == model.MainButton) node.Pid = 8; };
+            Refused(() => tree.Find(100, null, DesktopSelector.Main, 1), "query-uia-pid");
+            Verify(!model.Reads.Contains("match-Main:2"));
+        });
+        Case("candidate-rpc-deadline-closes-before-collection-access", () =>
+        {
+            var model = new OwnedModel();
+            model.Before = (name, node) =>
+            {
+                if (name == "candidates-Discovery")
+                    model.GuardAction = () => { throw new DesktopTreeGuardException("deadline"); };
+            };
+            Refused(() => model.Tree().Discover(), "deadline");
+            Verify(model.CandidateQueries == 1 && !model.Reads.Exists(x => x.StartsWith("candidate-count:", StringComparison.Ordinal)));
+        });
+        Case("candidate-item-deadline-closes-before-membership", () =>
+        {
+            var model = new OwnedModel();
+            model.Before = (name, node) =>
+            {
+                if (name == "candidate-item")
+                    model.GuardAction = () => { throw new DesktopTreeGuardException("deadline"); };
+            };
+            Refused(() => model.Tree().Discover(), "deadline");
+            Verify(!model.Reads.Contains("pid:3"));
+        });
+        Case("candidate-item-provider-failure-is-not-skipped", () =>
+        {
+            var model = new OwnedModel();
+            model.Before = (name, node) => { if (name == "candidate-item") throw new ElementNotAvailableException(); };
+            Refused(() => model.Tree().Discover(), "query-element-unavailable");
+        });
+        Case("root-relations-refresh-does-not-cache-old-ancestry", () =>
+        {
+            var model = new OwnedModel(); model.Native[200].Owner = 0;
+            var tree = model.Tree(); tree.Discover();
+            model.Main.Children.Remove(model.Wizard);
+            model.Wizard.Children.Add(model.Main);
+            model.Main.Parent = model.Wizard; model.Wizard.Parent = null;
+            model.SeedNodes.Clear(); model.SeedNodes.Add(model.Wizard);
+            tree.RefreshCatalog();
+            Verify(tree.Find(200, null, DesktopSelector.Wizard, 1)[0] == model.Close);
+        });
+        foreach (bool visible in new[] { false, true })
+            Case("unmatched-late-root-invalidates-final-acceptance-" + visible, () =>
+            {
+                var model = new OwnedModel(); var sample = ProjectStartup(model);
+                Verify(sample.Observe(new DesktopStartupObservation(), 10, false, false).Ready);
+                ExtraRoot(model, visible);
+                Refused(() => sample.RefreshAndCheckRevision(), "query-topology-changed");
+            });
+        foreach (int depth in new[] { 0, 24, 31 })
+            Case("full-graph-scale-depth-" + depth, () =>
+                ownedTreeScaleProfiles.Add(ScaleProfile(depth, depth == 31 ? 20 : 0, depth == 31)));
+        return count;
     }
 
     static int RunProjectionTests()
@@ -896,7 +1313,8 @@ public static class DesktopPolicyTests
         {
             if (!names.Add(name)) throw new InvalidOperationException("Duplicate projection case.");
             try { action(); }
-            catch (Exception ex) { throw new InvalidOperationException("Projection case failed: " + name, ex); }
+            catch (Exception ex) { ownedTreeCaseFailures.Add(name + ": " + ex.Message); }
+            ownedTreeCaseNames.Add(name);
             count++;
         }
         void Refused(Action action, string code = "query-topology-changed")
@@ -965,17 +1383,19 @@ public static class DesktopPolicyTests
             };
             Refused(() => ProjectStartup(model));
         });
-        Case("visibility-change-before-first-projection-read-refuses", () =>
+        Case("pre-capture-refresh-includes-newly-visible-root", () =>
         {
             var model = Unknown(); var tree = model.Tree(); tree.Discover();
             model.Native[300].Visible = true;
-            Refused(() => DesktopStartupSample<OwnedNode>.Capture(tree, root =>
-                new DesktopStartupRoot(root.Handle, root.Owner, root.Class, true, false, false, false)));
+            var sample = DesktopStartupSample<OwnedNode>.Capture(tree, root =>
+                new DesktopStartupRoot(root.Handle, root.Owner, root.Class, true, false, false, false));
+            Verify(sample.Roots.Count == 3 && !sample.Observe(new DesktopStartupObservation(), 10, false, false).Ready);
         });
         Case("observed-change-between-capture-and-decision-refuses", () =>
         {
             var model = Unknown(); var sample = ProjectStartup(model); int revision = sample.Revision;
-            model.Native[300].Visible = true; sample.Tree.Find(100, null, DesktopSelector.Main, 1);
+            model.Native[300].Visible = true;
+            Refused(() => sample.Tree.Find(100, null, DesktopSelector.Main, 1));
             Verify(sample.Revision == revision && sample.Tree.Revision != revision);
             Refused(() => sample.Observe(new DesktopStartupObservation(), 10, false, false));
         });
@@ -985,8 +1405,8 @@ public static class DesktopPolicyTests
             Verify(ProjectStartup(model).Observe(observation, 10, false, false).Ready);
             var refresh = ProjectStartup(model);
             Verify(refresh.Observe(observation, 11, false, true).Ready);
-            model.Native[300].Visible = true; refresh.Tree.Find(100, null, DesktopSelector.Main, 1);
-            Refused(() => refresh.CheckRevision());
+            model.Native[300].Visible = true;
+            Refused(() => refresh.RefreshAndCheckRevision());
         });
         Case("stable-hidden-root-keeps-honest-candidate-and-refresh", () =>
         {
@@ -1013,7 +1433,7 @@ public static class DesktopPolicyTests
         });
         Case("stable-observed-loading-route-remains-strict", () =>
         {
-            var model = Unknown(visible: true); model.Roots[300].Selector = DesktopSelector.Loading;
+            var model = Unknown(visible: true);
             model.Add(model.Roots[300], 6, 0, DesktopSelector.Loading);
             var observation = new DesktopStartupObservation();
             Verify(!ProjectStartup(model).Observe(observation, 10, false, false).Ready && observation.LoadingObserved);
@@ -1025,7 +1445,7 @@ public static class DesktopPolicyTests
         });
         Case("stable-missing-main-control-does-not-become-ready", () =>
         {
-            var model = new OwnedModel(); model.MainButton.Selector = DesktopSelector.Discovery;
+            var model = new OwnedModel(); model.MainButton.AutomationId = "";
             Verify(!ProjectStartup(model).Observe(new DesktopStartupObservation(), 10, false, false).Ready);
         });
         Case("projection-preserves-specific-ownership-refusal", () =>

@@ -52,12 +52,12 @@ public sealed class DesktopResult
 // runner process. Only the outer launcher may clean up the app, after runner exit.
 public sealed class BoundedDesktopSmoke
 {
-    const string MainButton = "Main_PatchManager_Button";
-    const string SetupWizardButton = "ContentRepoSetupWizard_Close_Button";
-    const string ImportButton = "PatchManager_ImportPatchDatabase_Button";
-    const string StatusLabel = "PatchManager_StatusMessage_Label";
-    const string PatchList = "PatchManager_PatchList_List";
-    const string ExpectedRow = "Offline ZIP Proof";
+    const string MainButton = DesktopCandidateQuery.MainButton;
+    const string SetupWizardButton = DesktopCandidateQuery.WizardButton;
+    const string ImportButton = DesktopCandidateQuery.ImportButton;
+    const string StatusLabel = DesktopCandidateQuery.StatusLabel;
+    const string PatchList = DesktopCandidateQuery.PatchList;
+    const string ExpectedRow = DesktopCandidateQuery.ExpectedRow;
     const string Success = "Imported patch database for FE8U; list refreshed. No patches were applied. Restart recommended for cached data.";
     readonly Process app;
     readonly SafeProcessHandle appHandle;
@@ -311,6 +311,37 @@ public sealed class BoundedDesktopSmoke
 
     sealed class OwnedTreeAdapter : IDesktopOwnedTreeAdapter<AutomationElement>
     {
+        sealed class ConditionCompiler : IDesktopQueryCompiler<Condition>
+        {
+            public Condition Equal(DesktopQueryProperty property, object value)
+            {
+                AutomationProperty id;
+                switch (property)
+                {
+                    case DesktopQueryProperty.ProcessId: id = AutomationElement.ProcessIdProperty; break;
+                    case DesktopQueryProperty.NativeWindowHandle: id = AutomationElement.NativeWindowHandleProperty; break;
+                    case DesktopQueryProperty.AutomationId: id = AutomationElement.AutomationIdProperty; break;
+                    case DesktopQueryProperty.Name: id = AutomationElement.NameProperty; break;
+                    case DesktopQueryProperty.ControlType:
+                        id = AutomationElement.ControlTypeProperty;
+                        switch ((DesktopQueryControl)value)
+                        {
+                            case DesktopQueryControl.Window: value = ControlType.Window; break;
+                            case DesktopQueryControl.Text: value = ControlType.Text; break;
+                            case DesktopQueryControl.Edit: value = ControlType.Edit; break;
+                            case DesktopQueryControl.ListItem: value = ControlType.ListItem; break;
+                            default: throw new DesktopTreeGuardException("query-selector");
+                        }
+                        break;
+                    default: throw new DesktopTreeGuardException("query-selector");
+                }
+                return new PropertyCondition(id, value);
+            }
+            public Condition And(Condition first, Condition second) => new AndCondition(first, second);
+            public Condition Or(Condition first, Condition second) => new OrCondition(first, second);
+            public Condition Not(Condition condition) => new NotCondition(condition);
+        }
+
         readonly BoundedDesktopSmoke owner;
         public DesktopTreeBudget Budget { private get; set; }
         internal OwnedTreeAdapter(BoundedDesktopSmoke owner) { this.owner = owner; }
@@ -319,17 +350,29 @@ public sealed class BoundedDesktopSmoke
             var desktop = Budget.Call(() => AutomationElement.RootElement);
             var seeds = Budget.Call(() => desktop.FindAll(TreeScope.Children,
                 new PropertyCondition(AutomationElement.ProcessIdProperty, owner.pid)));
-            if (seeds.Count > 8) throw new DesktopTreeGuardException("query-seed-bound");
-            var result = new List<AutomationElement>();
-            for (int i = 0; i < seeds.Count; i++) result.Add(seeds[i]);
-            return result;
+            return DesktopCandidateQuery.Collect(Budget, () => seeds.Count, index => seeds[index], 8);
         }
         public int ProcessId(AutomationElement node) => Budget.Call(() => node.Current.ProcessId);
         public int[] Identity(AutomationElement node) => Budget.Call(() => node.GetRuntimeId());
         public uint Handle(AutomationElement node) => Budget.Call(() => DesktopHwnd.Key(node.Current.NativeWindowHandle));
         public AutomationElement Parent(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetParent(node));
-        public AutomationElement FirstChild(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetFirstChild(node));
-        public AutomationElement NextSibling(AutomationElement node) => Budget.Call(() => TreeWalker.RawViewWalker.GetNextSibling(node));
+        public IReadOnlyList<AutomationElement> Candidates(AutomationElement subtree, DesktopSelector selector)
+        {
+            var condition = DesktopCandidateQuery.Compile(new ConditionCompiler(), owner.pid, selector);
+            var candidates = Budget.Call(() =>
+            {
+                var request = new CacheRequest
+                {
+                    TreeScope = TreeScope.Element,
+                    TreeFilter = Automation.RawViewCondition,
+                    AutomationElementMode = AutomationElementMode.Full
+                };
+                using (request.Activate())
+                    return subtree.FindAll(TreeScope.Descendants, condition);
+            });
+            // Count is checked after provider materialization, before client iteration/copy.
+            return DesktopCandidateQuery.Collect(Budget, () => candidates.Count, index => candidates[index]);
+        }
         public AutomationElement FromHandle(uint handle) => Budget.Call(() => AutomationElement.FromHandle(DesktopHwnd.Pointer(handle)));
         public bool Alive(uint handle) => Budget.Call(() => Native.IsWindow(DesktopHwnd.Pointer(handle)));
         public int NativePid(uint handle) => Budget.Call(() => Pid(DesktopHwnd.Pointer(handle)));
@@ -344,37 +387,27 @@ public sealed class BoundedDesktopSmoke
         });
         public bool Visible(uint handle) => Budget.Call(() => Native.IsWindowVisible(DesktopHwnd.Pointer(handle)));
         public bool Offscreen(AutomationElement node) => Budget.Call(() => node.Current.IsOffscreen);
-        public bool Matches(AutomationElement node, DesktopSelector selector)
+        object Property(AutomationElement node, DesktopQueryProperty property)
         {
-            switch (selector)
+            switch (property)
             {
-                case DesktopSelector.Loading:
-                    return Budget.Call(() => node.Current.ControlType) == ControlType.Text &&
-                        Budget.Call(() => node.Current.Name) == "Recovering patch database…";
-                case DesktopSelector.FilenameEdit:
-                    return Budget.Call(() => node.Current.ControlType) == ControlType.Edit;
-                case DesktopSelector.Row:
-                    return Budget.Call(() => node.Current.ControlType) == ControlType.ListItem;
-                case DesktopSelector.RowName:
-                    return Budget.Call(() => node.Current.Name) == ExpectedRow;
-                default:
-                    string id;
-                    switch (selector)
-                    {
-                        case DesktopSelector.Main: id = MainButton; break;
-                        case DesktopSelector.Wizard: id = SetupWizardButton; break;
-                        case DesktopSelector.Import: id = ImportButton; break;
-                        case DesktopSelector.Status: id = StatusLabel; break;
-                        case DesktopSelector.List: id = PatchList; break;
-                        case DesktopSelector.FilenameHost: id = "1148"; break;
-                        case DesktopSelector.PickerOpen: id = "1"; break;
-                        case DesktopSelector.ConfirmationYes: id = "MessageBoxContent_Yes_Button"; break;
-                        case DesktopSelector.ConfirmationMessage: id = "MessageBoxContent_Message_Label"; break;
-                        default: throw new DesktopTreeGuardException("query-selector");
-                    }
-                    return Budget.Call(() => node.Current.AutomationId) == id;
+                case DesktopQueryProperty.ProcessId: return ProcessId(node);
+                case DesktopQueryProperty.NativeWindowHandle: return Budget.Call(() => node.Current.NativeWindowHandle);
+                case DesktopQueryProperty.AutomationId: return Budget.Call(() => node.Current.AutomationId);
+                case DesktopQueryProperty.Name: return Budget.Call(() => node.Current.Name);
+                case DesktopQueryProperty.ControlType:
+                    var type = Budget.Call(() => node.Current.ControlType);
+                    if (type == ControlType.Window) return DesktopQueryControl.Window;
+                    if (type == ControlType.Text) return DesktopQueryControl.Text;
+                    if (type == ControlType.Edit) return DesktopQueryControl.Edit;
+                    if (type == ControlType.ListItem) return DesktopQueryControl.ListItem;
+                    return DesktopQueryControl.Unknown;
+                default: throw new DesktopTreeGuardException("query-selector");
             }
         }
+        public bool Matches(AutomationElement node, DesktopSelector selector) =>
+            DesktopCandidateQuery.Compile(new DesktopPredicateCompiler<AutomationElement>(Property),
+                owner.pid, selector)(node);
     }
 
     TValue TreeCall<TValue>(Func<TValue> operation)
@@ -590,7 +623,7 @@ public sealed class BoundedDesktopSmoke
                     Require(mainControl != null && !QueryRead(acceptance.Tree, acceptedMain, mainControl,
                         DesktopSelector.Main, () => mainControl.Current.IsOffscreen),
                         "startup-main-acceptance-control");
-                    TreeCall(() => { acceptance.CheckRevision(); return true; });
+                    TreeCall(() => { acceptance.RefreshAndCheckRevision(); return true; });
                     main = acceptedMain;
                     mainHandle = DesktopHwnd.Pointer((uint)decision.MainHandle);
                     lock (sync) result.StartupRoute = decision.Route;

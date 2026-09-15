@@ -83,7 +83,8 @@ function ProofEnvelope {
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
                 if($report.startupObservationCases -ne 75) { throw 'Startup observation case inventory changed.' }
                 $report.ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
-                if($report.ownedTreeCases -ne 108) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
+                if($report.ownedTreeCases -ne 146) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
+                [DesktopPolicyTests]::AssertOwnedTreeCaseInventory()
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

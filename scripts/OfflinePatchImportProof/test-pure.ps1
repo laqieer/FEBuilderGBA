@@ -48,7 +48,8 @@ function ProofEnvelope {
         $startupCases=[DesktopPolicyTests]::RunStartupTests()
         if($startupCases -ne 75) { throw 'Startup observation case inventory changed.' }
         $ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
-        if($ownedTreeCases -ne 108) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
+        if($ownedTreeCases -ne 146) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
+        [DesktopPolicyTests]::AssertOwnedTreeCaseInventory()
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
         . (Join-Path $PSScriptRoot 'restage\RestagePolicy.ps1')
         $imageReportingCases=Invoke-RetainedImageReportingTests

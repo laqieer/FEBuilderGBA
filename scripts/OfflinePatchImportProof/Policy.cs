@@ -93,6 +93,94 @@ internal enum DesktopSelector
     FilenameHost, FilenameEdit, PickerOpen, Row, RowName, ConfirmationYes, ConfirmationMessage
 }
 
+internal enum DesktopQueryProperty { ProcessId, NativeWindowHandle, ControlType, AutomationId, Name }
+internal enum DesktopQueryControl { Unknown, Window, Text, Edit, ListItem, Button, List }
+
+internal interface IDesktopQueryCompiler<TCondition>
+{
+    TCondition Equal(DesktopQueryProperty property, object value);
+    TCondition And(TCondition first, TCondition second);
+    TCondition Or(TCondition first, TCondition second);
+    TCondition Not(TCondition condition);
+}
+
+internal sealed class DesktopPredicateCompiler<TNode> : IDesktopQueryCompiler<Func<TNode, bool>>
+{
+    readonly Func<TNode, DesktopQueryProperty, object> read;
+    internal DesktopPredicateCompiler(Func<TNode, DesktopQueryProperty, object> read) { this.read = read; }
+    public Func<TNode, bool> Equal(DesktopQueryProperty property, object value) => node => Equals(read(node, property), value);
+    public Func<TNode, bool> And(Func<TNode, bool> first, Func<TNode, bool> second) => node => first(node) && second(node);
+    public Func<TNode, bool> Or(Func<TNode, bool> first, Func<TNode, bool> second) => node => first(node) || second(node);
+    public Func<TNode, bool> Not(Func<TNode, bool> condition) => node => !condition(node);
+}
+
+internal static class DesktopCandidateQuery
+{
+    internal const string MainButton = "Main_PatchManager_Button";
+    internal const string WizardButton = "ContentRepoSetupWizard_Close_Button";
+    internal const string ImportButton = "PatchManager_ImportPatchDatabase_Button";
+    internal const string StatusLabel = "PatchManager_StatusMessage_Label";
+    internal const string PatchList = "PatchManager_PatchList_List";
+    internal const string LoadingName = "Recovering patch database…";
+    internal const string ExpectedRow = "Offline ZIP Proof";
+
+    internal static TCondition Compile<TCondition>(IDesktopQueryCompiler<TCondition> compiler,
+        int pid, DesktopSelector selector)
+    {
+        if (pid <= 0) throw new DesktopTreeGuardException("query-owned-pid");
+        TCondition selected;
+        switch (selector)
+        {
+            case DesktopSelector.Discovery:
+                selected = compiler.Or(compiler.Equal(DesktopQueryProperty.ControlType, DesktopQueryControl.Window),
+                    compiler.Not(compiler.Equal(DesktopQueryProperty.NativeWindowHandle, 0)));
+                break;
+            case DesktopSelector.Loading:
+                selected = compiler.And(compiler.Equal(DesktopQueryProperty.ControlType, DesktopQueryControl.Text),
+                    compiler.Equal(DesktopQueryProperty.Name, LoadingName));
+                break;
+            case DesktopSelector.FilenameEdit:
+                selected = compiler.Equal(DesktopQueryProperty.ControlType, DesktopQueryControl.Edit); break;
+            case DesktopSelector.Row:
+                selected = compiler.Equal(DesktopQueryProperty.ControlType, DesktopQueryControl.ListItem); break;
+            case DesktopSelector.RowName:
+                selected = compiler.Equal(DesktopQueryProperty.Name, ExpectedRow); break;
+            default:
+                string id;
+                switch (selector)
+                {
+                    case DesktopSelector.Main: id = MainButton; break;
+                    case DesktopSelector.Wizard: id = WizardButton; break;
+                    case DesktopSelector.Import: id = ImportButton; break;
+                    case DesktopSelector.Status: id = StatusLabel; break;
+                    case DesktopSelector.List: id = PatchList; break;
+                    case DesktopSelector.FilenameHost: id = "1148"; break;
+                    case DesktopSelector.PickerOpen: id = "1"; break;
+                    case DesktopSelector.ConfirmationYes: id = "MessageBoxContent_Yes_Button"; break;
+                    case DesktopSelector.ConfirmationMessage: id = "MessageBoxContent_Message_Label"; break;
+                    default: throw new DesktopTreeGuardException("query-selector");
+                }
+                selected = compiler.Equal(DesktopQueryProperty.AutomationId, id);
+                break;
+        }
+        return compiler.And(compiler.Equal(DesktopQueryProperty.ProcessId, pid), selected);
+    }
+
+    internal static IReadOnlyList<TNode> Collect<TNode>(DesktopTreeBudget budget,
+        Func<int> count, Func<int, TNode> item, int maximum = 256)
+    {
+        int length = budget.Call(count);
+        budget.Candidates(length, maximum);
+        var result = new List<TNode>(length);
+        for (int i = 0; i < length; i++)
+        {
+            int index = i;
+            result.Add(budget.Call(() => item(index)));
+        }
+        return result;
+    }
+}
+
 public sealed class DesktopQueryFailure
 {
     public string Stage { get; set; }
@@ -145,6 +233,14 @@ internal sealed class DesktopTreeBudget
         if (error != null) { Closed = true; throw new DesktopTreeGuardException(error); }
         Nodes++;
     }
+    internal void Candidates(int count, int maximum = 256)
+    {
+        Check();
+        string error = (maximum != 8 && maximum != 256) || count < 0 || count > maximum ?
+            (maximum == 8 ? "query-seed-bound" : "query-candidate-bound") :
+            count > 4096 - Nodes ? "query-node-bound" : null;
+        if (error != null) { Closed = true; throw new DesktopTreeGuardException(error); }
+    }
     internal TValue Call<TValue>(Func<TValue> read)
     {
         Check();
@@ -164,8 +260,7 @@ internal interface IDesktopOwnedTreeAdapter<TNode> where TNode : class
     int[] Identity(TNode node);
     uint Handle(TNode node);
     TNode Parent(TNode node);
-    TNode FirstChild(TNode node);
-    TNode NextSibling(TNode node);
+    IReadOnlyList<TNode> Candidates(TNode subtree, DesktopSelector selector);
     TNode FromHandle(uint handle);
     bool Alive(uint handle);
     int NativePid(uint handle);
@@ -350,6 +445,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             Require(known.Owner == after.owner && known.Class == after.windowClass &&
                 known.Identity == identity, "query-root-alias");
             if (known.Visible != visible) { known.Visible = visible; Revision++; }
+            known.Element = element;
             return known;
         }
         Require(windows.Count < 8, "query-window-bound");
@@ -381,50 +477,74 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         outgoing.Add(root);
     }
 
-    void Walk(TNode parent, uint expected, int depth, DesktopSelector selector,
-        List<TNode> matches, int maximum, HashSet<string> visited)
+    void WithinSubtree(TNode node, string ancestor)
     {
-        TNode node = adapter.FirstChild(parent);
-        while (node != null)
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        for (int depth = 0; node != null; depth++)
         {
             Budget.Visit(depth);
-            NodeContext(expected);
             Require(adapter.ProcessId(node) == pid, "query-uia-pid");
-            Require(visited.Add(NodeIdentity(node)), "query-node-cycle");
+            string identity = NodeIdentity(node);
+            Require(seen.Add(identity), "query-parent-cycle");
+            if (identity == ancestor) return;
+            node = adapter.Parent(node);
+        }
+        Fail("query-candidate-subtree");
+    }
+
+    void Candidates(TNode parent, uint expected, DesktopSelector selector, List<TNode> matches, int maximum)
+    {
+        Require(adapter.ProcessId(parent) == pid, "query-uia-pid");
+        string parentIdentity = NodeIdentity(parent);
+        var candidates = adapter.Candidates(parent, selector);
+        Require(candidates != null, "query-candidate-list");
+        Budget.Candidates(candidates.Count);
+        var visited = new HashSet<string>(StringComparer.Ordinal) { parentIdentity };
+        foreach (TNode node in candidates)
+        {
+            NodeContext(expected);
+            Require(node != null, "query-candidate-null");
             uint root = Resolve(node, expected);
+            string identity = NodeIdentity(node);
+            Require(visited.Add(identity), "query-node-cycle");
             if (root != expected)
             {
                 CrossRoot(expected, root);
                 Require(Resolve(node, expected) == root, "query-sibling-root-changed");
-                node = adapter.NextSibling(node);
                 continue;
             }
-            if (selector != DesktopSelector.Discovery && adapter.Matches(node, selector))
+            WithinSubtree(node, parentIdentity);
+            bool matched = adapter.Matches(node, selector);
+            Require(Resolve(node, expected) == expected, "query-match-root-changed");
+            WithinSubtree(node, parentIdentity);
+            Require(NodeIdentity(node) == identity, "query-node-alias");
+            Require(matched, "query-candidate-filter");
+            if (selector != DesktopSelector.Discovery)
             {
-                Require(Resolve(node, expected) == expected, "query-match-root-changed");
                 matches.Add(node);
                 Require(matches.Count <= maximum, "query-match-bound");
             }
-            Require(Resolve(node, expected) == expected, "query-descent-root-changed");
-            Walk(node, expected, depth + 1, selector, matches, maximum, visited);
-            Require(Resolve(node, expected) == expected, "query-sibling-root-changed");
-            node = adapter.NextSibling(node);
         }
+        Require(Resolve(parent, expected) == expected, "query-subtree-root");
+        Require(NodeIdentity(parent) == parentIdentity, "query-subtree-changed");
     }
 
     void Drain()
     {
+        var scanned = new HashSet<uint>();
         while (pending.Count != 0)
         {
             var root = pending.Dequeue();
+            if (!scanned.Add(root.Handle)) continue;
             Register(root.Handle);
-            Walk(root.Element, root.Handle, 1, DesktopSelector.Discovery, new List<TNode>(), 0,
-                new HashSet<string>(StringComparer.Ordinal) { root.Identity });
+            Candidates(root.Element, root.Handle, DesktopSelector.Discovery, new List<TNode>(), 0);
+            Register(root.Handle);
         }
     }
 
-    internal void Discover() => Execute(DesktopSelector.Discovery, 0, () =>
+    void Refresh()
     {
+        edges.Clear();
         var seeds = adapter.Seeds();
         Require(seeds != null && seeds.Count <= 8, "query-seed-bound");
         foreach (var seed in seeds)
@@ -434,7 +554,19 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             Require(handle != 0 && Resolve(seed, 0) == handle, "query-seed-root");
             Register(handle);
         }
+        foreach (var root in windows) pending.Enqueue(root);
         Drain();
+    }
+
+    internal void Discover() => Execute(DesktopSelector.Discovery, 0, () =>
+    {
+        Refresh();
+        return true;
+    });
+
+    internal void RefreshCatalog() => Execute(DesktopSelector.Discovery, 0, () =>
+    {
+        Refresh();
         return true;
     });
 
@@ -444,7 +576,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         uint handle = adapter.Handle(node);
         Require(handle != 0 && Resolve(node, 0) == handle, "query-seed-root");
         Register(handle);
-        Drain();
+        Refresh();
         return true;
     });
 
@@ -456,10 +588,11 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             var root = Register(window);
             TNode start = subtree ?? root.Element;
             Require(Resolve(start, window) == window, "query-subtree-root");
+            int revision = Revision;
             var matches = new List<TNode>();
-            Walk(start, window, 1, selector, matches, maximum,
-                new HashSet<string>(StringComparer.Ordinal) { NodeIdentity(start) });
-            Drain();
+            Candidates(start, window, selector, matches, maximum);
+            Refresh();
+            Require(Revision == revision, "query-topology-changed");
             return matches;
         });
 
@@ -516,33 +649,41 @@ internal sealed class DesktopStartupSample<TNode> where TNode : class
     internal static DesktopStartupSample<TNode> Capture(DesktopOwnedTree<TNode> tree,
         Func<DesktopOwnedWindow<TNode>, DesktopStartupRoot> project)
     {
+        tree.RefreshCatalog();
         var sample = new DesktopStartupSample<TNode>(tree);
         sample.CheckRevision();
         for (int i = 0; i < tree.Windows.Count; i++)
         {
             var window = tree.Windows[i];
             bool visible = tree.Visible(window);
+            tree.RefreshCatalog();
             sample.CheckRevision();
             if (!visible) continue;
             var projection = project(window);
             // A later query must not invalidate a root already projected or skipped.
+            tree.RefreshCatalog();
             sample.CheckRevision();
             sample.windows.Add(window.Element);
             sample.roots.Add(projection);
         }
-        sample.CheckRevision();
+        sample.RefreshAndCheckRevision();
         return sample;
     }
 
     internal DesktopStartupDecision Observe(DesktopStartupObservation observation, long at,
         bool loadingExists, bool revalidate)
     {
-        CheckRevision();
+        RefreshAndCheckRevision();
         return revalidate ? observation.Revalidate(at, Roots, loadingExists) :
             observation.Observe(at, Roots, loadingExists);
     }
 
     internal void CheckRevision() => Tree.CheckRevision(Revision);
+    internal void RefreshAndCheckRevision()
+    {
+        Tree.RefreshCatalog();
+        CheckRevision();
+    }
 }
 
 // Native/UIA ownership and control ancestry are checked before these projections.

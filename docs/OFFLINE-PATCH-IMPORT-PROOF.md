@@ -52,37 +52,117 @@ UIA ancestry is not native window membership: an owned modal window can be a UIA
 descendant of its owner while retaining a distinct `GA_ROOT`. Desktop own-PID
 children are therefore seeds, not an exhaustive window list. The real driver
 uses `DesktopOwnedTree` with its `AutomationElement` adapter; modeled-adapter
-regressions execute that same traversal without UIA/native calls.
-Both pure runners enforce 108 named `ownedTreeCases` (the original 94 traversal
-cases plus 14 projection/refresh cases), separately from the
-unchanged 522 policy, 26 snapshot and 75 startup-observation cases.
+regressions execute the production query compiler, candidate collector, ownership
+algorithm and startup projection without UIA/native calls. Both pure runners
+enforce **146 named `ownedTreeCases`**, their exact ordered-name digest and three
+full-graph scale profiles. These are separate from the unchanged 522 policy,
+26 snapshot and 75 startup-observation cases.
 
-The bounded raw walker verifies UIA PID before other node access and resolves
-membership through the nearest nonzero HWND in RawView ancestry. Native PID,
-live `GA_ROOT`, top-level identity, class and bounded owner-chain validation
-remain mandatory. A distinct validated own root is queued separately and its
-subtree is pruned from the owner's control search. `GA_ROOTOWNER` is never an
-admission shortcut. An invisible valid own seed can still expose a visible owned
-window. Consistent root rediscovery is deduplicated; conflicting aliases, cycles
-and duplicate control matches refuse the attempt.
+### Closed candidate queries
 
-Startup, wizard/editor/confirmation discovery, picker host/nested-edit/open
-queries, and row/name/status lookups share this boundary. Fixed selectors read
-content only after membership checks. The shared production projection helper
-freezes its epoch before inspecting any root, including hidden roots that may be
-skipped. It checks that same epoch after every visibility read and projection
-callback, before deciding readiness, and at final acceptance. An observed change
-refuses the sample instead of adopting a newer epoch that could conceal an
-earlier omission. Candidate and acceptance-refresh model tests use this actual
-orchestration. Existing wizard, picker owner/title,
+The former client `FirstChild`/`NextSibling` descendant walk is replaced, not
+given a larger quota. The only desktop search remains own-PID
+`FindAll(TreeScope.Children)`, with at most eight returned seeds. Descendant
+queries are allowed only below a validated own window or subtree and only for
+the closed `DesktopCandidateQuery` compiler. This deliberately revises the old
+blanket no-Descendants contract.
+
+Window discovery uses own PID and either the concrete UIA `ControlType.Window`
+or a nonzero native handle. Avalonia 11.3.18
+[window peers](https://github.com/AvaloniaUI/Avalonia/blob/11.3.18/src/Avalonia.Controls/Automation/Peers/WindowBaseAutomationPeer.cs)
+map to Window; the Win32
+[root provider](https://github.com/AvaloniaUI/Avalonia/blob/11.3.18/src/Windows/Avalonia.Win32.Automation/RootAutomationNode.cs)
+supplies the HWND host provider. Virtual peers must not be assumed to expose
+their own HWND; the UIA handle property has an Int32/default-zero contract.
+The Windows compiler passes actual `ControlType` objects, not guessed type names
+or an integer substituted for that API type.
+
+Control queries preserve the existing fixed selector meanings: exact
+AutomationIds; Text plus the fixed loading label; Edit; ListItem; or the fixed
+expected row name. ID searches do not prefilter away wrong-type matches:
+callers still reject the wrong type. PID is always part of the provider
+condition. No caller-supplied name, value, condition or search scope is accepted.
+Raw-view, element-only full-reference requests add no cached name/value or
+ownership proof.
+
+Provider evaluation of those fixed predicates may inspect properties internally.
+Filtering is **not ownership authorization**. Returned nodes are checked for UIA
+PID before other client properties, then resolved through fresh nearest-nonzero
+RawView ancestry to live native PID/`GA_ROOT`/root-PID facts. Runtime-ID cycles,
+depth 32, top-level identity, class and owner-chain checks remain. Same-root
+native child handles are not promoted to windows. Only a positively validated
+different own root is registered/queued and excluded from the requesting root's
+controls; foreign, unavailable or inconsistent candidates fail, never become
+"missing" through a catch/skip. This is client boundary pruning, not a claim
+that the provider stopped traversing that subtree.
+
+For same-root candidates, fresh bounded raw ancestry also has to reach the
+requested subtree before and after selector verification. Duplicate identities,
+root echoes, scope escapes, changed identities and nonmatching provider results
+refuse. Names/values and actions remain behind ownership checks. No raw ancestry
+is cached across queries. Consistent native root rediscovery is deduplicated,
+with fresh root providers/facts; conflicting aliases or cross-native-root cycles
+refuse. Root relationship edges are rebuilt on catalog refresh.
+
+### Catalog and epoch
+
+Startup, wizard/editor/confirmation, picker host/nested-edit/open, and row/name/
+status queries all use this boundary. Catalog refresh includes current own-PID
+desktop seeds, all known roots, and newly discovered roots drained to closure.
+Find refreshes the catalog before returning and refuses an observed revision
+change. Startup refreshes before freezing an epoch and after visibility and
+projection work, including hidden roots. Decisions and final acceptance refresh
+and check the same frozen epoch. No newer epoch is silently adopted after a
+skipped/projected root. Late unmatched roots therefore cannot disappear merely
+because they match no control selector. Existing wizard, picker owner/title,
 typed-control, enabled, foreground and action-time checks remain.
 
-Each sample/query has hard limits of eight canonical windows, 4,096 raw-node
-visits, depth 32, and 65,536 adapter-issued UIA/Win32 calls. Runtime IDs are bounded
-to 32 integers and owner chains to eight. Parent resolution, discovery, matching
-and diagnostics share the budget. Counters do not measure provider-internal RPCs.
-Calls check existing absolute stage/global deadlines before and after; a blocked
+### What the limits measure
+
+Each tree/sample still has eight canonical windows, **4,096 client candidate/
+ancestor observation occurrences**, depth 32, and **65,536 budgeted adapter
+UIA/Win32 calls**. Each fresh resolution/scope walk charges every inspected node
+again; these are not unique-node counts. There is no per-selector reset.
+Runtime IDs stay limited to 32 integers and owner chains to eight.
+
+Each returned candidate collection is checked against **256** and the remaining
+node allowance before client iteration/copy; control matches retain their
+existing 1..16 bound. An oversized collection refuses rather than truncates.
+`FindAll` has no provider-side count limit: its result may already be materialized
+before Count is checked. Provider/core traversal, allocation, predicate work and
+internal RPCs are not included in Nodes/Calls and have no new hard memory/work
+bound. Absolute deadlines are checked before/after adapter calls. A blocked
 provider still relies on the unchanged joined-worker/runner termination boundary.
+
+The modeled provider evaluates the shared compiled conditions over a full graph,
+not a prepared list of winners. Scale cases contain 10,000 irrelevant text/button
+peers, deep raw ancestors through the depth-32 boundary, an owned wizard, native
+same-root children and candidate/acceptance refreshes. They assert results and
+client budgets, count seed/candidate queries and separately expose modeled
+provider work. Model success and real Windows output-only compilation are not
+live provider or GUI acceptance.
+
+### Migration of the previous 108 cases
+
+The previous suite was 94 traversal cases plus 14 projection/refresh cases.
+All 108 have mapped coverage, but adapter/navigation-dependent bodies are
+**not byte-identical**. 103 names retain their invariant; affected fixtures now
+exercise returned candidates or explicit raw membership rather than assume that
+discovery visits every irrelevant virtual node. Five names are replaced:
+
+| Previous name | Current mapped coverage |
+| --- | --- |
+| `raw-child-cycle-refused` | `provider-query-root-echo-refused`: a Descendants response cannot echo its root. Raw parent and cross-native-root cycle checks remain separately tested. |
+| `raw-sibling-cycle-refused` | `duplicate-provider-candidate-refused`: duplicate result identities refuse. Provider-internal navigation is not claimed client-inspected. |
+| `actual-traversal-node-budget-refuses-wide-tree` | `irrelevant-wide-provider-tree-does-not-charge-client-nodes`: irrelevant provider work is excluded. A new deep-candidate case actually exhausts the unchanged 4096 cap. |
+| `query-discovered-root-is-drained-before-return` | `query-discovered-root-is-drained-before-refusal`: a newly found root is drained, then invalidates the query epoch. |
+| `visibility-change-before-first-projection-read-refuses` | `pre-capture-refresh-includes-newly-visible-root`: changes discovered before freezing are included; changes after freezing still refuse. |
+
+Thirty-eight additional cases cover the compiler, all fixed selectors, candidate
+caps, scope/alias/provider faults, deadlines, catalog refresh and scale profiles.
+The resulting 146-name inventory is asserted in both runners without adding
+runtime JSON fields. Image/terminal and preparation-exit test inventories are
+unchanged.
 
 HWND comparisons use their documented low 32 significant bits and sign-extended
 native-call representation. This normalization is not applied to process handles
@@ -101,6 +181,12 @@ same-PID HWND reuse. Attempt `329` remains failed/consumed: its exact offending
 selector/HWND was not recorded, so the topology defect is not an attestation of
 that attempt's precise cause. A new real desktop attempt requires current SOURCE,
 fresh preparation and a separate one-use grant.
+
+Attempt `d2` also remains failed/consumed. Its `query-node-bound` report measured
+4096 occurrences and 17736 calls across two roots; it did not record 4096 unique
+controls or the exact UIA shape. This motivates the query/accounting correction,
+not a claim about a specific provider defect. No failed attempt is revived and
+no further live validation is authorized by pure/model results.
 
 ## Retained executable-image observations
 
@@ -162,8 +248,8 @@ The ten PowerShell observer cases now test one-query behavior; their old
 module-null polling/getter-exit expectations are intentionally replaced.
 Both pure runners separately execute 32 fake-native cases through the actual
 reader, without OS queries. Aggregate also runs 16 diagnostic publication/schema
-cases through the real reporting functions. The original 522/26/75/108 and
-restage/runtime-binding inventories remain separate.
+cases through the real reporting functions. The 522/26/75, current owned-tree,
+and restage/runtime-binding inventories remain separate.
 Both pure runners additionally assert the exact ordered names of 88 modeled
 preparation-exit cases and 72 diagnostic/terminal-publication cases, separately
 from those original inventories. They use the actual bridge and writers without
