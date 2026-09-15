@@ -8,7 +8,9 @@ try
     {
         AutoFlush = true
     };
-    return ProbeCommand.Run(args, () => DesktopReadiness.Probe(), output);
+    return args.Length > 0 && args[0] == "--supervise-own-desktop"
+        ? ProbeSupervisor.Run(args, output)
+        : ProbeCommand.Run(args, () => DesktopReadiness.Probe(), output);
 }
 catch (Exception)
 {

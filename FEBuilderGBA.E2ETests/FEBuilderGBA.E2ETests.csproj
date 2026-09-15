@@ -37,8 +37,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- Share only the pure dispatcher; the executable references this project's built DLL. -->
+    <!-- Tests inject supervision boundaries; the executable references this project's built DLL. -->
     <Compile Include="..\tools\DesktopReadinessProbe\ProbeCommand.cs" Link="Helpers\ProbeCommand.cs" />
+    <Compile Include="..\tools\DesktopReadinessProbe\ProbeSupervisor.cs" Link="Helpers\ProbeSupervisor.cs" />
   </ItemGroup>
 
   <ItemGroup>
