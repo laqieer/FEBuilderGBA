@@ -59,6 +59,29 @@ last few editors is lower-risk than leaving it half-applied.
 
 ## For reviewers & AI agents
 
+Interactive Avalonia startup uses an inert recovery root before constructing
+the shell. Desktop handoff assigns and shows the real main window before
+closing the loading window, retaining `OnMainWindowClose` shutdown behavior.
+Patch Manager metadata/status/filter work runs on detached ROM snapshots;
+only current results are bulk-published on the dispatcher. Import success
+is latched at commit, separately from refresh and cleanup outcomes. Existing
+synchronous helpers remain for non-interactive callers.
+
+Managed patch actions verify the published content identity of the complete
+admitted `config/patch2` tree under its existing filesystem lease. This detects
+completed import/Git replacements, including unchanged-length payload edits,
+not just current contention. Verification runs off the dispatcher; ownership
+spans dependencies, clean-ROM dialogs, backups, ROM/undo and status work.
+After an action, managed entries require a fresh async publication before
+another action. Translation discovers and applies under the same scoped lease.
+No unmanaged workspace is created to obtain read ownership.
+
+Headless event-gated tests demonstrate scheduling, ownership and stale-result
+handling, not real application responsiveness or the actual desktop window
+handoff and shutdown. Ordinary desktop regression validation and the separate
+optional large-fixture experiment (with its original size/time limits) are described in
+[Android offline import](ANDROID.md#52-offline-patch-database-zip-import).
+
 When triaging an issue or scoping a PR:
 
 1. **Is it a new GUI feature?** → target `FEBuilderGBA.Avalonia`. Reject/redirect

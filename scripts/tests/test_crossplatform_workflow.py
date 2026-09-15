@@ -51,6 +51,78 @@ def run_command(step: str) -> str:
         if line.startswith("        ") and line.strip()
     )
 
+PROOF_HOST_CHECK = """$ErrorActionPreference = 'Stop'
+$null = Get-Command pwsh -CommandType Application -ErrorAction Stop
+if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7 -or $PSVersionTable.PSVersion -lt [version]'7.5') { throw 'Supported PowerShell 7.5+ required.' }"""
+PROOF_COMMAND = r"""$ErrorActionPreference = 'Stop'
+& pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+python -m unittest scripts.tests.test_offline_patch_import_proof -v
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"""
+
+
+def assert_offline_proof_contract(text: str) -> None:
+    build = all_job_blocks(text)["build"]
+    header = build.split("    steps:", 1)[0]
+    if re.search(r"(?mi)^\s*(?:if|continue-on-error|allow-failure|allowed-failure|exclude)\s*:", header):
+        raise AssertionError("Proof job/matrix bypass")
+    matrix = re.findall(r"(?m)^          - check_name: (.+)\n            runner: (.+)$", header)
+    if matrix != [("ubuntu-latest", "ubuntu-latest"), ("macos-latest", "macos-15"), ("windows-latest", "windows-latest")]:
+        raise AssertionError("Proof must run on the unchanged three-OS matrix")
+    pairs = named_steps(build)
+    names = [name for name, _ in pairs]
+    for name, expected in (("Require preinstalled PowerShell 7", PROOF_HOST_CHECK),
+                           ("Run offline patch-import proof pure tests", PROOF_COMMAND)):
+        if names.count(name) != 1:
+            raise AssertionError("Exactly one unconditional proof step required")
+        step = pairs[names.index(name)][1]
+        metadata = re.findall(r"(?m)^      (\S+):\s*(.*)$", step)
+        if metadata != [("shell", "pwsh"), ("run", "|")]:
+            raise AssertionError("Proof shell/step bypass")
+        if run_command(step) != expected:
+            raise AssertionError("Exact fail-closed proof invocation required")
+    if not names.index("Setup .NET 10.0") < names.index("Require preinstalled PowerShell 7") < names.index("Run offline patch-import proof pure tests"):
+        raise AssertionError("Proof prerequisite ordering")
+    if text.count(r"& pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1") != 1:
+        raise AssertionError("Duplicate proof invocation")
+
+
+class OfflineProofWorkflowContractTests(unittest.TestCase):
+    def test_exact_three_os_proof_contract(self):
+        assert_offline_proof_contract(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    def test_each_failure_bypass_is_rejected(self):
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        step = "    - name: Run offline patch-import proof pure tests\n"
+        mutations = {
+            "step-if": (step, step + "      if: false\n"),
+            "step-continue": (step, step + "      continue-on-error: true\n"),
+            "job-if": ("  build:\n", "  build:\n    if: false\n"),
+            "job-continue": ("  build:\n", "  build:\n    continue-on-error: true\n"),
+            "allowed-matrix-failure": ("            runner: macos-15\n", "            runner: macos-15\n            allow-failure: true\n"),
+            "matrix-exclude": ("    strategy:\n", "    strategy:\n      exclude: [ubuntu-latest]\n"),
+            "two-os": ("          - check_name: macos-latest\n            runner: macos-15\n", ""),
+            "wrong-shell": ("      shell: pwsh\n", "      shell: bash\n"),
+            "ignored-native-exit": ("{ exit $LASTEXITCODE }", "{ exit 0 }"),
+            "success-wrapper": ("& pwsh -NoLogo", "try { & pwsh -NoLogo"),
+            "retry": ("& pwsh -NoLogo", "retry & pwsh -NoLogo"),
+            "filter": (r"test-pure.ps1" + "\n", r"test-pure.ps1 -Filter fast" + "\n"),
+            "suppression": ("$ErrorActionPreference = 'Stop'", "$ErrorActionPreference = 'Continue'"),
+            "missing-host-check": ("$null = Get-Command pwsh -CommandType Application -ErrorAction Stop", "# missing availability check"),
+            "missing-version": ("$PSVersionTable.PSVersion.Major -ne 7", "$false"),
+            "conditional-host-check": ("    - name: Require preinstalled PowerShell 7\n", "    - name: Require preinstalled PowerShell 7\n      if: false\n"),
+            "host-after-tests": ("    - name: Require preinstalled PowerShell 7\n", "    - name: Missing host check\n"),
+            "duplicate-step": (step, step + step),
+            "hidden-extra-command": ("        python -m unittest scripts.tests.test_offline_patch_import_proof -v", "        exit 0\n        python -m unittest scripts.tests.test_offline_patch_import_proof -v"),
+        }
+        for name, (before, after) in mutations.items():
+            with self.subTest(bypass=name):
+                self.assertIn(before, text)
+                changed = text.replace(before, after, 1)
+                self.assertNotEqual(text, changed)
+                with self.assertRaises(AssertionError):
+                    assert_offline_proof_contract(changed)
+
 
 class CrossPlatformWorkflowContractTests(unittest.TestCase):
     @classmethod

@@ -536,12 +536,19 @@ namespace FEBuilderGBA.Avalonia.Views
         /// </summary>
         string InstallChapterNameToTextPatch(ROM rom)
         {
+            using var ownership = new PatchManagerRefreshService.ReadOwnership();
+            if (!ownership.TryEnter()) return PatchManagerViewModel.PatchDatabaseBusyMessage;
             try
             {
                 string version = rom.RomInfo.VersionToFilename;
-                string patchDir = PatchManagerViewModel.ResolvePatchDirectory(version);
+                var location = PatchManagerViewModel.ResolvePatchLocation(version);
+                ownership.Acquire(location, version);
+                string patchDir = location.Directory;
                 string lang = PatchMetadataCore.GetLanguageSuffix();
                 var infos = PatchMetadataCore.EnumeratePatches(patchDir, rom, lang);
+                var after = PatchDatabaseOperationLeaseCore.ProbeExisting(location.BaseDirectory, version, patchDir);
+                if (!ownership.Managed && after.Managed)
+                    return PatchManagerViewModel.PatchDatabaseChangedMessage;
 
                 // Match the WF ChapterNameToText installer patch by name.
                 var target = infos.FirstOrDefault(p =>
@@ -566,6 +573,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.UndoService.Rollback();
                     throw;
                 }
+            }
+            catch (PatchDatabaseOperationLeaseCore.BusyException)
+            {
+                return PatchManagerViewModel.PatchDatabaseBusyMessage;
             }
             catch (Exception ex)
             {
