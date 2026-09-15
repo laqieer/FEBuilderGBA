@@ -3,6 +3,152 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
+using Microsoft.Win32.SafeHandles;
+
+public static class RetainedProcessImageTests
+{
+    const string Expected = @"C:\expected\tool.exe";
+    sealed class NativeModel
+    {
+        internal string Path = Expected;
+        internal bool Fail, Throw, BadTerminator;
+        internal uint? Length;
+        internal int Error, Calls, Capacity;
+        internal uint Flags;
+        internal IntPtr Handle;
+        internal bool Query(IntPtr handle, uint flags, char[] buffer, ref uint characters, out int error)
+        {
+            Calls++; Handle = handle; Flags = flags; Capacity = buffer.Length;
+            if (Throw) throw new InvalidOperationException("Private exception must not be disclosed.");
+            Path.CopyTo(0, buffer, 0, Math.Min(Path.Length, buffer.Length));
+            characters = Length ?? (uint)Path.Length;
+            if (BadTerminator && characters < buffer.Length) buffer[characters] = 'x';
+            error = Error;
+            return !Fail;
+        }
+    }
+    static void Check(bool value) { if (!value) throw new Exception("Retained-image model assertion failed."); }
+    static SafeProcessHandle Fake() => new SafeProcessHandle(
+        IntPtr.Size == 8 ? new IntPtr(0x12345678000000abL) : new IntPtr(0x123400ab), false);
+    static ProcessImageRead ReadInjected(SafeProcessHandle handle, NativeModel model)
+    {
+        var method = typeof(BoundedProcessImage).GetMethod(nameof(BoundedProcessImage.Read),
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        if (method == null) throw new InvalidOperationException("Internal image-reader seam missing.");
+        var query = Delegate.CreateDelegate(method.GetParameters()[1].ParameterType, model, nameof(NativeModel.Query));
+        return (ProcessImageRead)method.Invoke(null, new object[] { handle, query });
+    }
+    static ProcessImageRead Read(NativeModel model)
+    {
+        using (var handle = Fake()) return ReadInjected(handle, model);
+    }
+    static Dictionary<string, object> Describe(ProcessImageRead read, string expected = Expected,
+        StringComparison comparison = StringComparison.Ordinal) =>
+        BoundedProcessImage.Describe(read, expected, comparison, "prepare-initial");
+
+    public static int Run()
+    {
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        Action<string, Action> test = (name, body) =>
+        {
+            Check(names.Add(name));
+            try { body(); } catch (Exception ex) { throw new Exception("Retained image case: " + name, ex); }
+        };
+        test("matching-executable", () => Check((string)Describe(Read(new NativeModel()))["code"] == "image-observed"));
+        test("different-executable", () => Check((string)Describe(Read(new NativeModel { Path = @"C:\other\tool.exe" }))["code"] == "image-mismatch"));
+        test("ordinal-case-refusal", () => Check((string)Describe(Read(new NativeModel { Path = Expected.ToUpperInvariant() }))["code"] == "image-mismatch"));
+        test("fixed-windows-case", () => Check((string)Describe(Read(new NativeModel { Path = Expected.ToUpperInvariant() }), Expected, StringComparison.OrdinalIgnoreCase)["code"] == "image-observed"));
+        test("flags-zero", () => { var m = new NativeModel(); Read(m); Check(m.Flags == 0 && m.Calls == 1); });
+        test("fixed-buffer", () => { var m = new NativeModel(); Read(m); Check(m.Capacity == 32768 && m.Calls == 1); });
+        test("full-width-borrowed-handle", () =>
+        {
+            var m = new NativeModel(); using (var h = Fake())
+            { ReadInjected(h, m); Check(m.Handle == h.DangerousGetHandle() && m.Calls == 1); }
+        });
+        test("success-does-not-dispose-owner", () =>
+        {
+            using (var h = Fake()) { ReadInjected(h, new NativeModel()); Check(!h.IsClosed); }
+        });
+        test("failure-does-not-dispose-owner", () =>
+        {
+            using (var h = Fake()) { ReadInjected(h, new NativeModel { Fail = true }); Check(!h.IsClosed); }
+        });
+        test("zero-handle-no-query", () =>
+        {
+            var m = new NativeModel(); using (var h = new SafeProcessHandle(IntPtr.Zero, false))
+            { Check(ReadInjected(h, m).Code == "invalid-handle" && m.Calls == 0); }
+        });
+        test("minus-one-no-query", () =>
+        {
+            var m = new NativeModel(); using (var h = new SafeProcessHandle(new IntPtr(-1), false))
+            { Check(ReadInjected(h, m).Code == "invalid-handle" && m.Calls == 0); }
+        });
+        test("closed-handle-no-query", () =>
+        {
+            var m = new NativeModel(); var h = Fake(); h.Dispose();
+            Check(ReadInjected(h, m).Code == "invalid-handle" && m.Calls == 0);
+        });
+        test("null-handle-no-query", () =>
+        {
+            var m = new NativeModel(); Check(ReadInjected(null, m).Code == "invalid-handle" && m.Calls == 0);
+        });
+        foreach (int error in new[] { 5, 6, 31, 122, 0 })
+        {
+            int value = error;
+            test("native-error-" + value, () =>
+            {
+                var m = new NativeModel { Fail = true, Error = value }; var r = Read(m);
+                Check(r.Code == "native-error" && r.NativeError == value && r.Path == null && m.Calls == 1);
+            });
+        }
+        test("zero-length", () => Check(Read(new NativeModel { Length = 0 }).Code == "invalid-image"));
+        test("capacity-length", () => Check(Read(new NativeModel { Length = 32768 }).Code == "invalid-image"));
+        test("out-of-bounds-length", () => Check(Read(new NativeModel { Length = uint.MaxValue }).Code == "invalid-image"));
+        test("missing-terminator", () => Check(Read(new NativeModel { BadTerminator = true }).Code == "invalid-image"));
+        test("embedded-nul", () => Check(Read(new NativeModel { Path = "a\0b" }).Code == "invalid-image"));
+        test("unpaired-high-surrogate", () => Check(Read(new NativeModel { Path = "a\ud800" }).Code == "invalid-image"));
+        test("unpaired-low-surrogate", () => Check(Read(new NativeModel { Path = "a\udc00" }).Code == "invalid-image"));
+        test("maximum-valid-image", () =>
+        {
+            var path = @"C:\" + new string('a', 32764); var r = Read(new NativeModel { Path = path });
+            Check(r.Path == path && r.Characters == 32767 && (string)Describe(r, path)["code"] == "image-observed");
+        });
+        test("failed-buffer-not-disclosed", () =>
+        {
+            var d = Describe(Read(new NativeModel { Fail = true, Path = "private-buffer", Error = 5 }));
+            Check(d["observedPathPreview"] == null && d["observedPathSha256"] == null && d["returnedChars"] == null);
+        });
+        test("bounded-preview-and-digest", () =>
+        {
+            var path = @"C:\" + new string('a', 252) + "\ud83d\ude00" + new string('b', 20);
+            var d = Describe(Read(new NativeModel { Path = path }), path);
+            Check(((string)d["observedPathPreview"]).Length == 255 && (bool)d["previewTruncated"] &&
+                (string)d["observedPathSha256"] == (string)d["expectedPathSha256"]);
+        });
+        test("full-comparison-beyond-preview", () =>
+        {
+            var prefix = @"C:\" + new string('a', 300);
+            var d = Describe(Read(new NativeModel { Path = prefix + "x" }), prefix + "y");
+            Check((string)d["code"] == "image-mismatch" && (string)d["observedPathSha256"] != (string)d["expectedPathSha256"]);
+        });
+        test("exception-releases-borrow", () =>
+        {
+            var m = new NativeModel { Throw = true }; var h = Fake(); var r = ReadInjected(h, m);
+            Check(r.Code == "query-exception" && m.Calls == 1 && r.Path == null && !h.IsClosed);
+            h.Dispose(); Check(h.IsClosed);
+        });
+        test("no-prefix-normalization", () =>
+            Check((string)Describe(Read(new NativeModel { Path = @"\\?\" + Expected }))["code"] == "image-mismatch"));
+        test("independent-initial-cleanup-snapshots", () =>
+        {
+            var first = Describe(Read(new NativeModel { Fail = true, Error = 5 }));
+            var later = Describe(Read(new NativeModel())); later["code"] = "changed";
+            Check((string)first["code"] == "native-error" && (int)first["nativeError"] == 5);
+        });
+        Check(names.Count == 32);
+        return names.Count;
+    }
+}
 
 public static class DesktopPolicyTests
 {

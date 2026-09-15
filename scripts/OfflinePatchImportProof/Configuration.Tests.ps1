@@ -6,6 +6,70 @@ function Assert-ProofTestThrows([scriptblock]$Action) {
     }
     Assert-Proof $failed 'Expected refusal.'
 }
+function Invoke-RetainedImageReportingTests {
+    function Image {
+        [BoundedProcessImage]::Describe(
+            [ProcessImageRead]::new('C:\expected\tool.exe','image-observed',$null,1,$true,20),
+            'C:\expected\tool.exe',[StringComparison]::Ordinal,'supervision-child-initial')
+    }
+    function Record($image) {
+        New-RTerminalRecord @{exe='C:\expected\tool.exe';hostSha256=('1'*64)} @{imageObservation=$image}
+    }
+    function Reject([scriptblock]$change) {
+        $value=Image;& $change $value
+        Assert-ProofTestThrows { $null=Record $value }
+    }
+    $cases=@(
+        @{name='valid';run={$r=Record (Image);Assert-Proof ($r.imageObservation.code -ceq 'image-observed') 'Image projection.'}},
+        @{name='null';run={$r=Record $null;Assert-Proof ($null -eq $r.imageObservation) 'Optional historical diagnostic.'}},
+        @{name='extra-key';run={Reject {param($d) $d['extra']=$true}}},
+        @{name='missing-key';run={Reject {param($d) $null=$d.Remove('method')}}},
+        @{name='wrong-type';run={Reject {param($d) $d['handleValid']='true'}}},
+        @{name='unknown-role';run={Reject {param($d) $d['role']='foreign-process'}}},
+        @{name='unknown-code';run={Reject {param($d) $d['code']='trusted'}}},
+        @{name='wrong-flags';run={Reject {param($d) $d['flags']=1}}},
+        @{name='query-count';run={Reject {param($d) $d['queries']=2}}},
+        @{name='error-type';run={Reject {param($d) $d['nativeError']='5'}}},
+        @{name='length-bound';run={Reject {param($d) $d['returnedChars']=32768}}},
+        @{name='preview-bound';run={Reject {param($d) $d['observedPathPreview']='a'*257}}},
+        @{name='json-bound';run={Reject {param($d) $d['expectedPathSha256']='a'*5000}}},
+        @{name='reserved-binding';run={
+            Assert-ProofTestThrows { $null=New-RTerminalRecord @{exe='host';hostSha256=('1'*64);imageObservation=$null} @{} }
+        }},
+        @{name='terminal-snapshot-freeze';run={
+            $d=Image;$memory=@{terminal=$null;receipt=$null}
+            Assert-ProofTestThrows {
+              $null=Invoke-RTerminalPublication -Bindings @{exe='host';hostSha256=('1'*64)} `
+                -Observations @{failure='original';imageObservation=$d} `
+                -WriteTerminal {param($Bytes) $memory.terminal=$Bytes.Clone();$d['code']='image-mismatch';$true} `
+                -WriteReceipt {param($Bytes) $memory.receipt=$Bytes.Clone();$true}
+            }
+            $terminal=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($memory.terminal))
+            $receipt=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($memory.receipt))
+            Assert-Proof ($terminal.imageObservation.code -ceq 'image-observed' -and
+                $receipt.imageObservation.code -ceq 'image-observed' -and $d.code -ceq 'image-mismatch') 'Frozen first observation.'
+        }},
+        @{name='diagnostic-cannot-promote';run={
+            $memory=@{verifies=0;receipt=$null}
+            Assert-ProofTestThrows {
+              $null=Invoke-RTerminalPublication -Bindings @{exe='host';hostSha256=('1'*64)} `
+                -Observations @{failure='original';imageObservation=(Image)} `
+                -WriteTerminal {param($Bytes) $true} `
+                -VerifyOutput {$memory.verifies++;throw 'Verification must not be admitted.'} `
+                -WriteReceipt {param($Bytes) $memory.receipt=$Bytes.Clone();$true}
+            }
+            $r=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($memory.receipt))
+            Assert-Proof (!$r.passed -and $memory.verifies -eq 0 -and $r.failure -ceq 'original') 'Diagnostic promoted failure.'
+        }}
+    )
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal);$executed=0
+    foreach($case in $cases) {
+        Assert-Proof ($seen.Add($case.name)) 'Unique image reporting case.'
+        & $case.run;$executed++
+    }
+    Assert-Proof ($executed -eq 16) 'Image reporting inventory.'
+    return $executed
+}
 function Invoke-ProofPureCase($Case) {
     if($Case.name -cin @('inventory-json-depth-bound','receipt-completion-depth-bound')){
         $null=& $Case.run 3>&1
@@ -171,7 +235,39 @@ function Write-ProofTestBytes([string]$Path,[byte[]]$Bytes) {
 function Write-ProofTestJson([string]$Path,$Value) {
     Write-ProofTestBytes $Path ([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $Value -Depth 32 -Compress)))
 }
-function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed','CompilePassed','BindingAccepted','OuterSource','HistoryExtra','HistoryMissing')][string]$InvalidType='None') {
+function Get-ProofTestCompileReferences {
+    $names=@(
+        'Microsoft.Win32.Primitives.dll','System.Text.RegularExpressions.dll','System.Runtime.dll',
+        'System.Runtime.InteropServices.dll','System.Runtime.Extensions.dll','System.ComponentModel.Primitives.dll',
+        'System.ComponentModel.dll','System.ComponentModel.TypeConverter.dll','System.Collections.dll',
+        'System.Collections.Concurrent.dll','System.Diagnostics.Process.dll','System.Diagnostics.Debug.dll',
+        'System.Diagnostics.TraceSource.dll','System.Drawing.Primitives.dll','System.IO.dll',
+        'System.IO.FileSystem.dll','System.Security.Cryptography.dll','System.Text.Encoding.Extensions.dll',
+        'System.Threading.dll','System.Threading.Thread.dll','System.Threading.ThreadPool.dll',
+        'System.Threading.Tasks.dll','System.Memory.dll','System.ObjectModel.dll','System.Console.dll','System.Linq.dll'
+    )
+    foreach($name in $names){
+        $path=Join-Path (Join-Path $PSHOME 'ref') $name
+        Assert-ProofPath $path -Existing
+        $file=[IO.FileInfo]::new($path)
+        Assert-Proof ($file.Length -gt 0 -and $file.Length -le 268435456) 'Test compiler reference length.'
+        $row=@{path=$path;bytes=$file.Length;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()}
+        $null=Read-ProofPinnedBytes $row 268435456
+        $row
+    }
+}
+function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed','CompilePassed','BindingAccepted','OuterSource','HistoryExtra','HistoryMissing')][string]$InvalidType='None',[object[]]$CompileReferences) {
+    if($PSBoundParameters.ContainsKey('CompileReferences')){
+        Assert-Proof ($null -ne $CompileReferences -and $CompileReferences.Count -eq 26) 'Test compiler reference inventory.'
+        $expected=@(Get-ProofTestCompileReferences)
+        for($i=0;$i -lt 26;$i++){
+            $row=$CompileReferences[$i]
+            Assert-ProofPin $row
+            Assert-Proof ($row.path -ceq $expected[$i].path -and $row.bytes -eq $expected[$i].bytes -and
+                $row.sha256 -ceq $expected[$i].sha256) 'Test compiler reference pin.'
+            $null=Read-ProofPinnedBytes $row 268435456
+        }
+    }
     $prior='1'*32;$head='2'*40;$tree='3'*40
     $b=Join-Path $Root 'build';$d=Join-Path $Root 'desktop';$r=Join-Path $Root 'history'
     $donor=Join-Path $d ('inputs-'+$prior)
@@ -195,6 +291,7 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
         @{path=$name;bytes=$pin.bytes;sha256=$pin.sha256}
     })
     $refs=@(for($i=0;$i -lt 26;$i++){@{path=(Join-Path $Root ("host\ref-$i.dat"));bytes=1;sha256=('4'*64)}})
+    if($PSBoundParameters.ContainsKey('CompileReferences')){$refs=@($CompileReferences | ForEach-Object {$_.Clone()})}
     $manifest=[ordered]@{schema='windows-desktop-bounded-input-v1';applicationSource=$head;runId=$prior;syntheticRomFormat='fe8u-synthetic-huffman-v1';
         powershellHost=@{path=$hostPin.path;sha256=$hostPin.sha256};appFiles=@($apps)+@($configRow);fixtures=$fixtures;
         runtimeAssemblies=$runtime;compileReferences=$refs;installedFiles=@(
@@ -304,6 +401,43 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
             receipts=$configuredReceipts.ToArray();expected=@{payload=$manifestPin;files=605;bytes=$total}}}
     $configurationPin=Write-ProofTestJson (Join-Path $Root 'configuration.json') $configuration
     return @{config=$configuration;pin=$configurationPin;manifest=$manifest}
+}
+function Invoke-CompilerReferenceFixtureTests([string]$Root) {
+    if(!$IsWindows){return 0}
+    $cases=0
+    $references=@(Get-ProofTestCompileReferences)
+    Assert-Proof ($references.Count -eq 26) 'Real reference fixture count.';$cases++
+    $plain=New-ProofRestageFixture (Join-Path $Root 'reference-default')
+    Assert-Proof ($plain.manifest.compileReferences.Count -eq 26 -and
+        @($plain.manifest.compileReferences | Where-Object {$_.bytes -ne 1 -or $_.path -notmatch 'ref-[0-9]+\.dat$'}).Count -eq 0) 'Default reference fixtures changed.';$cases++
+    $real=New-ProofRestageFixture (Join-Path $Root 'reference-real') -CompileReferences $references
+    $config=Read-ProofPinnedJson $real.pin
+    $manifest=Read-ProofPinnedJson $config.restage.manifest
+    $metadata=Read-ProofPinnedJson $config.restage.metadata
+    foreach($rows in @(@($manifest.compileReferences),@($metadata.compileReferences))){
+        Assert-Proof ($rows.Count -eq 26) 'Derived reference fixture count.'
+        for($i=0;$i -lt 26;$i++){
+            Assert-Proof ($rows[$i].path -ceq $references[$i].path -and $rows[$i].sha256 -ceq $references[$i].sha256 -and
+                $rows[$i].bytes -eq $references[$i].bytes) 'Derived reference pin changed.'
+            $null=Read-ProofPinnedBytes $rows[$i] 268435456
+        }
+        $cases++
+    }
+    $history=Read-ProofPinnedJson $config.restage.history
+    Assert-Proof ($history.evidence.inputManifest.sha256 -ceq $config.restage.manifest.sha256 -and
+        $history.evidence.metadata.sha256 -ceq $config.restage.metadata.sha256) 'Reference history was not derived coherently.';$cases++
+    foreach($receipt in $config.restage.receipts){
+        $value=Read-ProofPinnedJson $receipt.pin
+        Assert-Proof ($value.toolMetadataSha256 -ceq $config.restage.metadata.sha256) 'Stage reference metadata mismatch.'
+    };$cases++
+    $missing=Join-Path $Root 'reference-missing'
+    Assert-ProofTestThrows {New-ProofRestageFixture $missing -CompileReferences @($references | Select-Object -First 25)}
+    Assert-Proof (![IO.Directory]::Exists($missing)) 'Missing references allocated a fixture.';$cases++
+    $changed=@($references | ForEach-Object {$_.Clone()});$changed[0].sha256='0'*64
+    $invalid=Join-Path $Root 'reference-invalid'
+    Assert-ProofTestThrows {New-ProofRestageFixture $invalid -CompileReferences $changed}
+    Assert-Proof (![IO.Directory]::Exists($invalid)) 'Invalid reference allocated a fixture.';$cases++
+    return $cases
 }
 function Invoke-ReportingWriterTests([string]$Root) {
     . (Get-PinnedProofLibrary -Library NonCopySupervisor)

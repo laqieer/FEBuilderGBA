@@ -271,12 +271,53 @@ function Test-RExternalDeadlineExceeded([double]$Elapsed,[double]$External) {
     Assert-R ([double]::IsFinite($Elapsed) -and $Elapsed -ge 0 -and $External -cin @(100,310)) 'Invalid external deadline observation.'
     return ($Elapsed -ge $External)
 }
+function Assert-RImageObservation($Value) {
+    Assert-RKeys $Value @('schema','role','method','flags','code','queries','handleValid','nativeError',
+        'capacity','returnedChars','expectedPathSha256','observedPathSha256','observedPathLength',
+        'observedPathPreview','previewTruncated','remainingBeforeMs','remainingAfterMs')
+    Assert-R ($Value.schema -ceq 'retained-process-image-observation-v1' -and
+        $Value.method -ceq 'QueryFullProcessImageNameW') 'Image diagnostic schema/method.'
+    Assert-R ($Value.role -is [string] -and $Value.role -cin @('prepare-initial','prepare-cleanup',
+        'launch-runner-initial','launch-runner-cleanup','launch-app-retain','launch-app-cleanup',
+        'run-self','run-app-initial','desktop-app','supervision-self','supervision-child-initial',
+        'supervision-child-cleanup')) 'Image diagnostic role.'
+    Assert-R ($Value.code -is [string] -and $Value.code -cin @('not-queried','invalid-handle','native-error',
+        'query-exception','invalid-image','image-observed','image-mismatch','image-deadline',
+        'exit-check-failed','exited-unobserved','image-source-failed','identity-refused')) 'Image diagnostic code.'
+    foreach($key in @('flags','queries','capacity')) {
+        Assert-R ($Value[$key] -is [int] -or $Value[$key] -is [long]) 'Image diagnostic integer.'
+    }
+    Assert-R ($Value.flags -eq 0 -and $Value.queries -in @(0,1) -and $Value.capacity -eq 32768) 'Image query bounds.'
+    foreach($key in @('handleValid','previewTruncated')) {
+        Assert-R ($null -eq $Value[$key] -or $Value[$key] -is [bool]) 'Image diagnostic nullable boolean.'
+    }
+    Assert-R ($null -eq $Value.nativeError -or
+        (($Value.nativeError -is [int] -or $Value.nativeError -is [long]) -and
+            $Value.nativeError -ge [int]::MinValue -and $Value.nativeError -le [int]::MaxValue)) 'Image native error.'
+    foreach($key in @('returnedChars','observedPathLength')) {
+        Assert-R ($null -eq $Value[$key] -or (($Value[$key] -is [int] -or $Value[$key] -is [long]) -and
+            $Value[$key] -ge 1 -and $Value[$key] -le 32767)) 'Image diagnostic length.'
+    }
+    Assert-R ($Value.expectedPathSha256 -is [string] -and $Value.expectedPathSha256 -cmatch '^[0-9a-f]{64}$') 'Expected image digest.'
+    Assert-R ($null -eq $Value.observedPathSha256 -or ($Value.observedPathSha256 -is [string] -and
+        $Value.observedPathSha256 -cmatch '^[0-9a-f]{64}$')) 'Observed image digest.'
+    Assert-R ($null -eq $Value.observedPathPreview -or ($Value.observedPathPreview -is [string] -and
+        $Value.observedPathPreview.Length -le 256)) 'Image preview bound.'
+    foreach($key in @('remainingBeforeMs','remainingAfterMs')) {
+        Assert-R ($null -eq $Value[$key] -or (($Value[$key] -is [int] -or $Value[$key] -is [long] -or
+            $Value[$key] -is [double] -or $Value[$key] -is [decimal]) -and
+            [double]::IsFinite([double]$Value[$key]))) 'Image diagnostic budget.'
+    }
+    $bytes=[Text.UTF8Encoding]::new($false,$true).GetBytes(($Value|ConvertTo-Json -Depth 4 -Compress))
+    Assert-R ($bytes.Length -le 4096) 'Image diagnostic byte bound.'
+}
 function New-RTerminalRecord([Collections.IDictionary]$Bindings,[Collections.IDictionary]$Observations) {
     Assert-R ($null -ne $Bindings -and $null -ne $Observations) 'Explicit terminal bindings and observations required.'
     $booleans=@('exitConfirmed','outputConfirmed','timedOut','environmentCleared','stdinClosed','drainingBeforeImageObservation','stdoutEof','stderrEof','custodyConfirmed')
     $integers=@('pid','startTicks','exitCode','killAttempts','stdoutBytes','stderrBytes')
     $strings=@('image','failure')
-    $names=$booleans+$integers+$strings
+    $images=@('selfImageObservation','imageObservation','cleanupImageObservation')
+    $names=$booleans+$integers+$strings+$images
     $reserved=$names+@('passed','terminalEvidenceOnly','terminalEvidenceSha256','terminalPublicationConfirmed','outputVerificationConfirmed','inventoryPublicationConfirmed','reportingFailure','receiptCompletionFailure','outputVerification','outputInventorySha256','outputInventoryBytes','outputInventoryCount')
     Assert-R ($Bindings.Contains('exe') -and $Bindings.exe -is [string] -and $Bindings.Contains('hostSha256') -and $Bindings.hostSha256 -is [string]) 'Expected host bindings required.'
     $record=[ordered]@{}
@@ -289,7 +330,8 @@ function New-RTerminalRecord([Collections.IDictionary]$Bindings,[Collections.IDi
         Assert-R ($names -ccontains $key) 'Unexpected terminal observation.'
         $value=$Observations[$key]
         if($null -ne $value) {
-            if($booleans -ccontains $key) { Assert-R ($value -is [bool]) 'Terminal observation must be boolean or null.' }
+            if($images -ccontains $key) { Assert-RImageObservation $value }
+            elseif($booleans -ccontains $key) { Assert-R ($value -is [bool]) 'Terminal observation must be boolean or null.' }
             elseif($integers -ccontains $key) { Assert-R ($value -is [int] -or $value -is [long]) 'Terminal observation must be integer or null.' }
             else { Assert-R ($value -is [string] -and $value.Length -le 2048) 'Terminal observation string bound/type.' }
         }

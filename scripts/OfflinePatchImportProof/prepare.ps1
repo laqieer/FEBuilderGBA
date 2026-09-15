@@ -153,20 +153,21 @@ function ProofEnvelope {
             }
             foreach ($k in $environment.Keys) { $info.Environment[$k]=[string]$environment[$k] }
             $p=[Diagnostics.Process]::new(); $p.StartInfo=$info
-            $out=$null; $err=$null; $cts=[Threading.CancellationTokenSource]::new()
+            $out=$null; $err=$null; $retainedHandle=$null; $cts=[Threading.CancellationTokenSource]::new()
             try {
                 $out=[IO.File]::Open($record.stdout,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
                 $err=[IO.File]::Open($record.stderr,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::Read)
                 $deadline=[Math]::Min($limit,$clock.Elapsed.TotalSeconds+$seconds)
                 if (!$p.Start()) { throw 'Process start failed.' }
-                $record.pid=$p.Id; $handle=$p.Handle
+                $retainedHandle=$p.SafeHandle; $record.pid=$p.Id
                 $record.startTicks=$p.StartTime.ToUniversalTime().Ticks
                 $copyOut=$p.StandardOutput.BaseStream.CopyToAsync($out,81920,$cts.Token)
                 $copyErr=$p.StandardError.BaseStream.CopyToAsync($err,81920,$cts.Token)
-                $record.imageObservation=Get-ProcessImageObservation `
-                    { $p.HasExited } { $p.MainModule } `
+                $record.imageObservation=@{}
+                $null=Get-ProcessImageObservation `
+                    { $p.HasExited } { [BoundedProcessImage]::Read($retainedHandle) } `
                     { ($deadline-$clock.Elapsed.TotalSeconds)*1000 } `
-                    { param([int]$milliseconds) [Threading.Thread]::Sleep($milliseconds) } $exe
+                    $exe ([StringComparison]::OrdinalIgnoreCase) prepare-initial $record.imageObservation
                 while ($true) {
                     Assert-ProofProcessDeadline $record $clock.Elapsed.TotalSeconds $deadline
                     $exited=$p.WaitForExit([int][Math]::Min(100,[Math]::Max(0,[Math]::Floor(($deadline-$clock.Elapsed.TotalSeconds)*1000))))
@@ -192,9 +193,15 @@ function ProofEnvelope {
                 if ($record.pid -and !$p.HasExited) {
                     $record.cleanup='refused-or-incomplete'
                     try {
-                        if ($record.startTicks -and $p.Id -eq $record.pid -and $p.StartTime.ToUniversalTime().Ticks -eq $record.startTicks -and $p.MainModule.FileName -ieq $exe) {
+                        if ($record.startTicks -and $p.Id -eq $record.pid -and $p.StartTime.ToUniversalTime().Ticks -eq $record.startTicks) {
+                            $cleanupClock=[Diagnostics.Stopwatch]::StartNew()
+                            $record.cleanupImageObservation=@{}
+                            $cleanupImage=Get-ProcessImageObservation { $p.HasExited } `
+                                { [BoundedProcessImage]::Read($retainedHandle) } { 5000-$cleanupClock.ElapsedMilliseconds } `
+                                $exe ([StringComparison]::OrdinalIgnoreCase) prepare-cleanup $record.cleanupImageObservation
+                            if($cleanupImage.state -cne 'image-observed') { throw 'Cleanup image unobserved.' }
                             $p.Kill()
-                            $record.cleanup=$(if($p.WaitForExit(5000)){'retained-process-killed; NOT descendant cleanup'}else{'retained-process-kill-incomplete'})
+                            $record.cleanup=$(if($p.WaitForExit([int][Math]::Max(0,5000-$cleanupClock.ElapsedMilliseconds))){'retained-process-killed; NOT descendant cleanup'}else{'retained-process-kill-incomplete'})
                         }
                     } catch { $record.cleanup='retained-process-cleanup-failed' }
                 }
@@ -293,6 +300,8 @@ function ProofEnvelope {
         $report.toolMetadataSha256=$proofConfiguration.preparation.metadata.sha256
         JsonNew "$control\attempt.json" $report
         try {
+            Add-Type -Path "$Code\Readiness.cs" -ReferencedAssemblies @($tools.compileReferences | ForEach-Object path)
+            Budget
             if($Stage -ceq 'Validate') {
                 $report.processImageCases=& "$Code\ProcessImage.Tests.ps1"
                 if($report.processImageCases -ne 10) { throw 'Ten pure process-image cases required.' }

@@ -102,6 +102,48 @@ selector/HWND was not recorded, so the topology defect is not an attestation of
 that attempt's precise cause. A new real desktop attempt requires current SOURCE,
 fresh preparation and a separate one-use grant.
 
+## Retained executable-image observations
+
+`Readiness.cs` contains the one shared `BoundedProcessImage` reader. It borrows
+an existing `SafeProcessHandle` and calls
+[QueryFullProcessImageNameW](https://learn.microsoft.com/en-us/windows/win32/api/winbase/nf-winbase-queryfullprocessimagenamew)
+once with flags zero and a 32,768-character buffer. It never reopens by PID,
+enumerates modules, grows/retries a buffer, sleeps until a match, or disposes the
+owner's handle. Invalid/closed handles, access denial, native errors, malformed
+results and actual mismatches refuse. Full-width process handles are not HWNDs.
+The existing single receipt-bound app acquisition remains; its handle and
+PID/start-time tuple are bound before querying its image.
+
+All preparation, launcher, runner, desktop and supervision image/cleanup checks
+use that reader. Existing per-caller Ordinal/OrdinalIgnoreCase comparisons remain;
+no prefix, alias or short-name normalization is added. Only preparation's existing
+fast-tool route can report `exited-unobserved`, without claiming an image match.
+Cleanup makes at most one separate guarded observation and cannot erase an initial
+failure or authorize app cleanup before confirmed runner exit.
+
+Initial/failure and separate cleanup facts are retained in existing owned receipts.
+The closed diagnostic is at most 4 KiB: fixed role/method/refusal, native error,
+handle validity, query/length/budget facts, path digests, and at most 256 UTF-16
+units of a successfully queried **owned executable** path. It contains no failed
+buffer, arguments, environment, module list or foreign-process contents.
+Diagnostics are not authentication or success tokens. Source/reference pins
+precede compilation; imports of supervisor writer libraries do not compile or
+query. Reopened sources still require quiescence, not an OS-sandbox claim.
+
+The ten PowerShell observer cases now test one-query behavior; their old
+module-null polling/getter-exit expectations are intentionally replaced.
+Both pure runners separately execute 32 fake-native cases through the actual
+reader, without OS queries. Aggregate also runs 16 diagnostic publication/schema
+cases through the real reporting functions. The original 522/26/75/108 and
+restage/runtime-binding inventories remain separate.
+
+Attempt `d297` remains failed/consumed: the initial mismatching module path was
+not recorded, though later guarded cleanup matched and confirmed retained-child
+exit. Module enumeration can return incorrect information while its list is
+uninitialized/changing; this explains the mechanism change, not that attempt's
+precise cause. No old preparation or grant is restored. Fresh SOURCE, push,
+independently granted preparation and separate GUI authorization remain required.
+
 ## Reviewable source
 
 `scripts\OfflinePatchImportProof` contains:
@@ -110,7 +152,7 @@ fresh preparation and a separate one-use grant.
 | --- | --- |
 | `Desktop.cs` | The feature-specific ordinary `--rom` → observed-loading/main or main-first → Patch Manager → native picker flow, valid and invalid ZIP assertions, one editor-only PrintWindow, and normal close. |
 | `Policy.cs`, `Policy.Tests.cs`, `Readiness.cs` | Own-session admission, bounded dispatch, retained-process cleanup decisions, worker containment, the original 522 policy cases, 26 installed-snapshot checks and 75 startup-observation cases. |
-| `RuntimeBinding*`, `ProcessImage*` | Pinned runtime identity and bounded process-image observation; 22 and 10 original cases. Windows-form path checks remain Windows lexical checks on every OS. |
+| `RuntimeBinding*`, `ProcessImage*` | Pinned runtime identity and one-read retained-image observation; 22 binding and 10 updated observer cases. Windows-form path checks remain Windows lexical checks on every OS. |
 | `prepare.ps1`, `validate-helper.ps1` | Fixed Build/Validate/Inputs operations, pinned local tools, fixture tests and output-only compilation. The existing `scripts\SyntheticProofFixtures` project remains the only ROM fixture generator. |
 | `run.ps1`, `launch.ps1` | Ordinary GUI runner and retained-runner/application supervisor. No global input, focus manipulation, PID enumeration, recursive kill, screenshot fallback, or timeout promotion. |
 | `Configuration*`, `configuration.example.json` | Bounded data-only inputs, source closure, relocation/no-effect tests, and real staging/writer integration fixtures. |
@@ -121,7 +163,7 @@ fresh preparation and a separate one-use grant.
 published in this same PR. It accepts no script text, command path, environment,
 or arbitrary arguments. Fixed modes map to fixed source entrypoints.
 
-## Pure validation (no machine configuration)
+## Helper validation (no private machine configuration)
 
 Use an existing PowerShell 7.5+ installation (major version 7). The three-OS CI job requires the
 preinstalled supported host and fails if it is absent; it never installs a host
@@ -154,9 +196,36 @@ entrypoint below the loader's unchanged 65,536-byte ceiling. Both the runner and
 supervisor require the complete combined inventory. Private execution results
 are historical evidence, not substitutes for running this public suite.
 
-Windows additionally compiles both original output-only shapes using existing
+Windows additionally compiles the actual launcher (`Readiness + Policy`) and
+runner (`Readiness + Policy + Desktop`) output-only shapes using existing
 PowerShell reference assemblies. It does not load or invoke the resulting desktop
 assembly. No full GUI-containing E2E suite is run.
+
+The existing Windows supervised-success integration additionally starts one
+authenticated PowerShell worker and checks its retained executable image and the
+supervisor's own image. Only this case opts into the fixed 26 current
+`PSHOME\ref` compiler DLLs; all negative/inert fixture defaults remain synthetic.
+Reference rows and dependent input, metadata and history pins are constructed
+together. Eight separately counted fixture checks cover the real/default rows,
+coherent provenance and refusal before allocation for missing or altered pins.
+Missing references fail; the suite does not install tools or bypass admission.
+The Windows aggregate compiles the reader as its own test-owned assembly, matching
+the supervisor's standalone source compilation, then compiles the modeled tests
+against it. The reader is loaded from bytes into the default assembly context,
+so its fixture DLL is not held open when successful test data is deleted. The
+aggregate emits its success report only after its fixture cleanup completes.
+This prevents duplicate type definitions when the live case loads
+the same authenticated reader. The tests invoke the existing internal delegate
+seam through reflection; production visibility and native dispatch are unchanged.
+
+This live integration is not a pure/native-free test. A successful Windows
+aggregate reports `liveProcessImageIntegrationCases=1` and `native_calls=true`;
+other platforms report zero and false, with zero Windows reference-fixture cases.
+`gui_authorization` remains false: neither the integration nor output-only
+compilation invokes desktop readiness, UIA, application startup, input or capture.
+Review the complete source and obtain the applicable safe-to-run acceptance
+before running a changed live integration. Its existing single-worker custody,
+raw-output limits, time budgets and no-retry rules remain unchanged.
 
 Both production writer adapters are tested with real files and injected clock
 observations at 105/315 seconds, including optional verification/completion

@@ -12,6 +12,117 @@ PACKAGE = ROOT / "scripts" / "OfflinePatchImportProof"
 
 
 class OfflinePatchImportProofContractTests(unittest.TestCase):
+    def test_supervised_fixture_constructs_real_reference_provenance(self):
+        fixture = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
+        loader_tests = (ROOT / "scripts/WindowsDesktopProof/PinnedLoader.Tests.ps1").read_text(encoding="utf-8")
+        self.assertIn("function Get-ProofTestCompileReferences", fixture)
+        self.assertIn("$PSBoundParameters.ContainsKey('CompileReferences')", fixture)
+        self.assertIn("Read-ProofPinnedBytes $row", fixture)
+        self.assertIn("-CompileReferences (Get-ProofTestCompileReferences)", loader_tests)
+        self.assertLess(loader_tests.index("-CompileReferences (Get-ProofTestCompileReferences)"),
+                        loader_tests.index("'supervised-configuration.json'"))
+        names = re.findall(r"'([^']+\.dll)'", fixture[
+            fixture.index("function Get-ProofTestCompileReferences"):
+            fixture.index("function New-ProofRestageFixture")])
+        self.assertEqual(26, len(names))
+        self.assertEqual(26, len(set(names)))
+        self.assertIn("System.Diagnostics.Process.dll", names)
+        self.assertIn("System.Runtime.InteropServices.dll", names)
+        self.assertIn('("host\\ref-$i.dat")', fixture)
+
+    def test_live_image_integration_is_reported_without_gui_authorization(self):
+        aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        loader_tests = (ROOT / "scripts/WindowsDesktopProof/PinnedLoader.Tests.ps1").read_text(encoding="utf-8")
+        self.assertIn("Invoke-CompilerReferenceFixtureTests $root", aggregate)
+        self.assertIn("compilerReferenceFixtureCases = $referenceCases", aggregate)
+        self.assertIn("liveProcessImageIntegrationCases = [int]$IsWindows", aggregate)
+        self.assertIn("native_calls = [bool]$IsWindows", aggregate)
+        self.assertIn("gui_authorization = $false", aggregate)
+        self.assertIn("$result.selfImageObservation.code -cne 'image-observed'", loader_tests)
+        self.assertIn("$result.imageObservation.code -cne 'image-observed'", loader_tests)
+        self.assertIn("$readerAssembly=Join-Path $root 'Readiness.tests.dll'", aggregate)
+        self.assertIn("[Runtime.Loader.AssemblyLoadContext]::Default.LoadFromStream($readerStream)", aggregate)
+        self.assertIn("finally{$readerStream.Dispose()}", aggregate)
+        self.assertIn("-ReferencedAssemblies @($references + $readerAssembly)", aggregate)
+        self.assertLess(aggregate.index("[IO.Directory]::Delete($root,$true)"),
+                        aggregate.index("$result | ConvertTo-Json -Compress"))
+
+    def test_retained_image_reader_uses_one_borrowed_handle_query(self):
+        reader = (PACKAGE / "Readiness.cs").read_text(encoding="utf-8")
+        self.assertEqual(2, reader.count("QueryFullProcessImageNameW("))
+        self.assertIn("Capacity = 32768", reader)
+        self.assertIn("PreviewLimit = 256", reader)
+        self.assertIn("DefaultDllImportSearchPaths(DllImportSearchPath.System32)", reader)
+        self.assertIn("query(retainedHandle.DangerousGetHandle(), 0, buffer", reader)
+        self.assertLess(reader.index("DangerousAddRef"), reader.index("query(retainedHandle"))
+        self.assertIn("finally { if (borrowed) retainedHandle.DangerousRelease(); }", reader)
+        self.assertNotRegex(reader, r"MainModule|EnumProcessModules|OpenProcess|GetProcessById|Thread.Sleep")
+        self.assertNotIn("DesktopPolicy", reader)
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        self.assertIn("typeof(BoundedProcessImage).GetMethod(nameof(BoundedProcessImage.Read)", tests)
+        self.assertIn("ReadInjected(h, m)", tests)
+        self.assertIn("Delegate.CreateDelegate(method.GetParameters()[1].ParameterType", tests)
+        self.assertIn("new SafeProcessHandle", tests)
+        self.assertIn("Check(names.Count == 32)", tests)
+
+    def test_all_image_consumers_use_the_shared_retained_reader(self):
+        roles = {
+            "prepare.ps1": ("prepare-initial", "prepare-cleanup"),
+            "launch.ps1": ("launch-runner-initial", "launch-runner-cleanup", "launch-app-retain", "launch-app-cleanup"),
+            "run.ps1": ("run-self", "run-app-initial"),
+            "Desktop.cs": ("desktop-app",),
+            "supervision/NonCopySupervisor.ps1": ("supervision-self", "supervision-child-initial", "supervision-child-cleanup"),
+        }
+        for name, required in roles.items():
+            text = (PACKAGE / name).read_text(encoding="utf-8")
+            with self.subTest(name=name):
+                self.assertNotIn(".MainModule", text)
+                self.assertIn("SafeHandle", text)
+                self.assertRegex(text, r"BoundedProcessImage\]?[:.]")
+                for role in required:
+                    self.assertIn(role, text)
+                if name != "launch.ps1":
+                    self.assertNotIn("GetProcessById", text)
+        launch = (PACKAGE / "launch.ps1").read_text(encoding="utf-8")
+        self.assertLess(launch.index("$candidateHandle=$candidate.SafeHandle"),
+                        launch.index("$candidate.StartTime"))
+        self.assertLess(launch.index("$candidate.StartTime"),
+                        launch.index("[BoundedProcessImage]::Read($candidateHandle)"))
+        run = (PACKAGE / "run.ps1").read_text(encoding="utf-8")
+        self.assertLess(run.index("$stdoutDrain ="), run.index("run-app-initial"))
+        self.assertLess(run.index("'app-identity.json'"), run.index("run-app-initial"))
+        self.assertLess(run.index("Add-Type -Path"), run.index("[BoundedProcessImage]::Read($hostHandle)"))
+        supervisor = (PACKAGE / "supervision/NonCopySupervisor.ps1").read_text(encoding="utf-8")
+        self.assertLess(supervisor.index("function Invoke-ProofSupervision"), supervisor.index("Add-Type"))
+        self.assertLess(supervisor.index("Read-ProofPinnedBytes $row"), supervisor.index("Add-Type"))
+        self.assertLess(supervisor.index("supervision-child-cleanup"), supervisor.index("$child.Kill()"))
+
+    def test_image_failure_publication_and_all_inventories_are_wired(self):
+        bridge = (PACKAGE / "ProcessImage.ps1").read_text(encoding="utf-8")
+        self.assertNotRegex(bridge, r"ReadMainModule|DelayMilliseconds|Sleep|while\s*\(")
+        self.assertIn("Image observation slot already consumed.", bridge)
+        self.assertLess(bridge.index("$Observation[$key]=$description[$key]"),
+                        bridge.index('throw "Retained process image refused:'))
+        self.assertIn("remainingBeforeMs", bridge)
+        self.assertIn("remainingAfterMs", bridge)
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            text = (PACKAGE / name).read_text(encoding="utf-8")
+            self.assertIn("[RetainedProcessImageTests]::Run()", text)
+            self.assertIn("Retained image inventory changed.", text)
+            shapes = [line for line in text.splitlines()
+                      if "Add-Type -Path" in line and ".compile-only.dll" in line]
+            self.assertEqual(2, len(shapes))
+            self.assertTrue(all("Readiness.cs" in line for line in shapes))
+        aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        self.assertIn("retainedImageReportingCases = $imageReportingCases", aggregate)
+        self.assertIn("Invoke-RetainedImageReportingTests", aggregate)
+        policy = (PACKAGE / "restage/RestagePolicy.ps1").read_text(encoding="utf-8")
+        self.assertIn("Assert-RImageObservation $value", policy)
+        self.assertIn("$bytes.Length -le 4096", policy)
+        self.assertIn("$Value.observedPathPreview.Length -le 256", policy)
+        for field in ("selfImageObservation", "imageObservation", "cleanupImageObservation"):
+            self.assertIn(field, policy)
+
     def test_complete_public_inventory(self):
         expected = {
             "Desktop.cs", "Policy.cs", "Policy.Tests.cs", "Readiness.cs",

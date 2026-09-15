@@ -16,6 +16,7 @@ function ProofEnvelope {
         $proofConfiguration=Read-ProofConfiguration $Configuration $ConfigurationSha256 -Purpose Gui
         $Code=$PSScriptRoot
         $null=Assert-ProofSource $proofConfiguration $Code
+        . (Join-Path $Code 'ProcessImage.ps1')
         Assert-Proof ($SourceManifestSha256 -ceq $proofConfiguration.sourceManifest.sha256) 'Source configuration binding.'
         Assert-Proof ($AuthorizationReference -ceq $proofConfiguration.approval.authorizationReference) 'Caller GUI approval binding.'
         $ErrorActionPreference = 'Stop'
@@ -28,6 +29,7 @@ function ProofEnvelope {
         $source=$proofConfiguration.applicationSource
         $clock = [Diagnostics.Stopwatch]::StartNew()
         $process = $null
+        $currentHost = $null
         $startTicks = 0L
         $ownedOutput = $false
         $report = [ordered]@{
@@ -145,10 +147,6 @@ function ProofEnvelope {
             if ($manifest.powershellHost.path -cne $pwsh -or
                 $manifest.powershellHost.sha256 -cnotmatch '^[0-9a-f]{64}$' -or
                 (Hash $pwsh) -cne $manifest.powershellHost.sha256) { throw 'PowerShell host pin mismatch.' }
-            $currentHost = [Diagnostics.Process]::GetCurrentProcess()
-            try {
-                if ($currentHost.MainModule.FileName -cne $pwsh) { throw 'Actual PowerShell host image mismatch.' }
-            } finally { $currentHost.Dispose() }
             $inputRoot = Join-Path $root ('inputs-' + $manifest.runId)
             $runRoot = Join-Path $root ('run-' + $manifest.runId)
             if ($InputManifest -cne (Join-Path $inputRoot 'input-manifest.json')) { throw 'Input manifest path mismatch.' }
@@ -201,6 +199,12 @@ function ProofEnvelope {
             # One compilation unit: no on-disk helper DLL and no dynamic-assembly reference guessing.
             Add-Type -Path @((Join-Path $Code 'Readiness.cs'), (Join-Path $Code 'Policy.cs'),
                 (Join-Path $Code 'Desktop.cs')) -ReferencedAssemblies $references.ToArray()
+            $currentHost=[Diagnostics.Process]::GetCurrentProcess()
+            $hostHandle=$currentHost.SafeHandle
+            $report.hostImageObservation=@{}
+            $image=Get-ProcessImageObservation {$currentHost.HasExited} { [BoundedProcessImage]::Read($hostHandle) } `
+                {150000-$clock.ElapsedMilliseconds} $pwsh ([StringComparison]::Ordinal) run-self $report.hostImageObservation
+            if($image.state -cne 'image-observed') { throw 'Actual PowerShell host image unobserved.' }
             $seen = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
             if ($manifest.appFiles.Count -lt 1 -or $manifest.appFiles.Count -gt 10000) { throw 'Application closure bound.' }
             [long]$total = 0
@@ -278,22 +282,24 @@ function ProofEnvelope {
             foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
             $report.launch_requested_utc = [DateTime]::UtcNow.ToString('o')
             $process = [Diagnostics.Process]::Start($start)
+            $appHandle = $process.SafeHandle
             $startTicks = $process.StartTime.ToUniversalTime().Ticks
-            $self = [Diagnostics.Process]::GetCurrentProcess()
-            try {
-                $runnerId = $self.Id
-                $runnerTicks = $self.StartTime.ToUniversalTime().Ticks
-                $identity = @{
-                    run_id = $manifest.runId; input_sha256 = $InputManifestSha256
-                    source_sha256 = $SourceManifestSha256
-                    runner_pid = $runnerId; runner_start_ticks = $runnerTicks
-                    pid = $process.Id; start_ticks = $startTicks; exe = $exe
-                } | ConvertTo-Json -Compress
-            } finally { $self.Dispose() }
-            NewText (Join-Path $runRoot 'app-identity.pending') $identity
-            [IO.File]::Move((Join-Path $runRoot 'app-identity.pending'), (Join-Path $runRoot 'app-identity.json'), $false)
             $stdoutDrain = $process.StandardOutput.BaseStream.CopyToAsync([IO.Stream]::Null)
             $stderrDrain = $process.StandardError.BaseStream.CopyToAsync([IO.Stream]::Null)
+            $runnerId = $currentHost.Id
+            $runnerTicks = $currentHost.StartTime.ToUniversalTime().Ticks
+            $identity = @{
+                run_id = $manifest.runId; input_sha256 = $InputManifestSha256
+                source_sha256 = $SourceManifestSha256
+                runner_pid = $runnerId; runner_start_ticks = $runnerTicks
+                pid = $process.Id; start_ticks = $startTicks; exe = $exe
+            } | ConvertTo-Json -Compress
+            NewText (Join-Path $runRoot 'app-identity.pending') $identity
+            [IO.File]::Move((Join-Path $runRoot 'app-identity.pending'), (Join-Path $runRoot 'app-identity.json'), $false)
+            $report.appImageObservation=@{}
+            $image=Get-ProcessImageObservation {$process.HasExited} { [BoundedProcessImage]::Read($appHandle) } `
+                {420000-$clock.ElapsedMilliseconds} $exe ([StringComparison]::Ordinal) run-app-initial $report.appImageObservation
+            if($image.state -cne 'image-observed' -or $process.HasExited) { throw 'Initial app image unobserved.' }
             $requestStop = [System.Action[DesktopResult]] {
                 param($gui)
                 $stop = @{
@@ -325,6 +331,7 @@ function ProofEnvelope {
             $report.failure_type = $_.Exception.GetType().Name
             $report.failure_utc = [DateTime]::UtcNow.ToString('o')
         } finally {
+            if($currentHost) { $currentHost.Dispose() }
             if ($process) {
                 try {
                     $report.app_exit_observed_by_runner = $process.HasExited

@@ -15,19 +15,30 @@ function ProofEnvelope {
                 if(![IO.File]::Exists($path)){throw "Missing existing PowerShell runtime reference: $name"}
                 $path
             })
-            Add-Type -Path (Join-Path $PSScriptRoot 'Policy.cs') -ReferencedAssemblies $references -OutputAssembly (Join-Path $root 'Policy.compile-only.dll') -OutputType Library
+            Add-Type -Path @((Join-Path $PSScriptRoot 'Readiness.cs'),(Join-Path $PSScriptRoot 'Policy.cs')) -ReferencedAssemblies $references -OutputAssembly (Join-Path $root 'Policy.compile-only.dll') -OutputType Library
             Add-Type -Path @((Join-Path $PSScriptRoot 'Readiness.cs'),(Join-Path $PSScriptRoot 'Policy.cs'),(Join-Path $PSScriptRoot 'Desktop.cs')) -ReferencedAssemblies ($references+$runtime) -OutputAssembly (Join-Path $root 'Desktop.compile-only.dll') -OutputType Library
             $compiled=2
         }
-        # Output-only compilation above does not load or invoke desktop/native methods.
-        Add-Type -Path @(
-            (Join-Path $PSScriptRoot 'Readiness.cs'),
-            (Join-Path $PSScriptRoot 'Policy.cs'),
-            (Join-Path $PSScriptRoot 'Policy.Tests.cs')
-        )
+        . (Join-Path $PSScriptRoot 'Configuration.ps1')
+        . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
+        # Match the supervisor's standalone reader assembly; do not redefine its types
+        # inside the test assembly before the live integration loads the same reader.
+        if($IsWindows){
+            $readerAssembly=Join-Path $root 'Readiness.tests.dll'
+            $imageReferences=@(Get-ProofTestCompileReferences | ForEach-Object {$_.path})
+            Add-Type -Path (Join-Path $PSScriptRoot 'Readiness.cs') -ReferencedAssemblies $imageReferences -OutputAssembly $readerAssembly
+            $readerStream=[IO.MemoryStream]::new([IO.File]::ReadAllBytes($readerAssembly),$false)
+            try{[void][Runtime.Loader.AssemblyLoadContext]::Default.LoadFromStream($readerStream)}
+            finally{$readerStream.Dispose()}
+            Add-Type -Path @((Join-Path $PSScriptRoot 'Policy.cs'),(Join-Path $PSScriptRoot 'Policy.Tests.cs')) -ReferencedAssemblies @($references + $readerAssembly)
+        }else{
+            Add-Type -Path @((Join-Path $PSScriptRoot 'Readiness.cs'),(Join-Path $PSScriptRoot 'Policy.cs'),(Join-Path $PSScriptRoot 'Policy.Tests.cs'))
+        }
         . (Join-Path $PSScriptRoot 'RuntimeBinding.ps1')
         . (Join-Path $PSScriptRoot 'RuntimeBinding.Tests.ps1')
         $imageCases=& (Join-Path $PSScriptRoot 'ProcessImage.Tests.ps1')
+        $retainedImageCases=[RetainedProcessImageTests]::Run()
+        if($retainedImageCases -ne 32) { throw 'Retained image inventory changed.' }
         $bindingCases=Invoke-PinnedRuntimeBindingTests
         $lexicalCases=Invoke-WindowsLexicalBindingTests
         $policyCases=[DesktopPolicyTests]::Run()
@@ -38,33 +49,41 @@ function ProofEnvelope {
         $ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
         if($ownedTreeCases -ne 108) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
-        . (Join-Path $PSScriptRoot 'Configuration.ps1')
-        . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
+        . (Join-Path $PSScriptRoot 'restage\RestagePolicy.ps1')
+        $imageReportingCases=Invoke-RetainedImageReportingTests
+        if($imageReportingCases -ne 16) { throw 'Retained image reporting inventory changed.' }
         $writerCases=Invoke-ReportingWriterTests $root
         $laterProductionCases=Invoke-LaterProductionTests $root
         $configurationCases=Invoke-ConfigurationIntegrationTests $root
+        $referenceCases=Invoke-CompilerReferenceFixtureTests $root
+        if($referenceCases -ne $(if($IsWindows){8}else{0})){throw 'Compiler reference fixture inventory changed.'}
         $restage=& (Join-Path $PSScriptRoot 'restage\test-pure.ps1') | ConvertFrom-Json
         if(!$restage.passed -or $restage.executed -ne 322 -or $restage.failed -ne 0 -or $restage.skipped -ne 0){throw 'Restage inventory incomplete.'}
         $loaderCases=Invoke-PinnedLoaderTests $root
-        [pscustomobject]@{
+        $result=[pscustomobject]@{
             cases = $policyCases
             installedSnapshotCases = $snapshotCases
             startupObservationCases = $startupCases
             ownedTreeCases = $ownedTreeCases
             processImageCases = $imageCases
+            retainedImageCases = $retainedImageCases
+            retainedImageReportingCases = $imageReportingCases
             runtimeBindingCases = $bindingCases
             windowsLexicalCases = $lexicalCases
             reportingWriterCases = $writerCases
             laterProductionCases = $laterProductionCases
             configurationIntegrationCases = $configurationCases
+            compilerReferenceFixtureCases = $referenceCases
             restageCases = $restage.executed
             loaderCases = $loaderCases
+            liveProcessImageIntegrationCases = [int]$IsWindows
             outputOnlyCompilations = $compiled
             passed = $true
-            native_calls = $false
+            native_calls = [bool]$IsWindows
             gui_authorization = $false
-        } | ConvertTo-Json -Compress
+        }
         [IO.Directory]::Delete($root,$true)
+        $result | ConvertTo-Json -Compress
     }
 }
 

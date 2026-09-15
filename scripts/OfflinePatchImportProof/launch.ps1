@@ -16,6 +16,7 @@ function ProofEnvelope {
         $proofConfiguration=Read-ProofConfiguration $Configuration $ConfigurationSha256 -Purpose Gui
         $Code=$PSScriptRoot
         $null=Assert-ProofSource $proofConfiguration $Code
+        . (Join-Path $Code 'ProcessImage.ps1')
         Assert-Proof ($SourceManifestSha256 -ceq $proofConfiguration.sourceManifest.sha256) 'Source configuration binding.'
         Assert-Proof ($AuthorizationReference -ceq $proofConfiguration.approval.authorizationReference) 'Caller GUI approval binding.'
         $ErrorActionPreference = 'Stop'
@@ -66,7 +67,7 @@ function ProofEnvelope {
             $policyReferences.Add($row.path)
         }
         # The launcher uses the same pure cleanup decision exercised by Policy.Tests.cs.
-        Add-Type -Path (Join-Path $Code 'Policy.cs') -ReferencedAssemblies $policyReferences.ToArray()
+        Add-Type -Path @((Join-Path $Code 'Readiness.cs'),(Join-Path $Code 'Policy.cs')) -ReferencedAssemblies $policyReferences.ToArray()
         $launchRoot = Join-Path $root ('launch-' + $manifest.runId)
         $runRoot = Join-Path $root ('run-' + $manifest.runId)
         if (Test-Path -LiteralPath $launchRoot) { throw 'Consumed launch ID; never retry.' }
@@ -101,7 +102,8 @@ function ProofEnvelope {
         }
         foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
         $runner = $null
-        $custody = @{app=$null;appReceipt=$null}
+        $runnerHandle = $null
+        $custody = @{app=$null;appHandle=$null;appReceipt=$null}
         $receipt = [ordered]@{ passed = $false; timed_out = $false; limit_ms = 480000
             started_utc = [DateTime]::UtcNow.ToString('o'); source_manifest_sha256 = $SourceManifestSha256
             input_manifest_sha256 = $InputManifestSha256; worker_stop_requested = $false
@@ -131,11 +133,19 @@ function ProofEnvelope {
             try { $candidate = [Diagnostics.Process]::GetProcessById([int]$r.pid) }
             catch [ArgumentException] { return }
             try {
+                $candidateHandle=$candidate.SafeHandle
                 if ($candidate.HasExited) { return }
-                if ($candidate.StartTime.ToUniversalTime().Ticks -ne $r.start_ticks -or
-                    $candidate.MainModule.FileName -cne $expectedApp) { throw 'App identity changed.' }
-                $null = $candidate.Handle
+                if ($candidate.Id -ne $r.pid -or $candidate.StartTime.ToUniversalTime().Ticks -ne $r.start_ticks) {
+                    throw 'App identity changed.'
+                }
+                $retainClock=[Diagnostics.Stopwatch]::StartNew()
+                $receipt.appImageObservation=@{}
+                $image=Get-ProcessImageObservation {$candidate.HasExited} { [BoundedProcessImage]::Read($candidateHandle) } `
+                    {5000-$retainClock.ElapsedMilliseconds} $expectedApp ([StringComparison]::Ordinal) `
+                    launch-app-retain $receipt.appImageObservation
+                if($image.state -cne 'image-observed' -or $candidate.HasExited) { throw 'App identity unobserved.' }
                 $custody.app = $candidate
+                $custody.appHandle = $candidateHandle
                 $receipt.app_cleanup.identity_retained = $true
                 $receipt.app_cleanup.pid = $r.pid
                 $receipt.app_cleanup.start_ticks = $r.start_ticks
@@ -167,12 +177,18 @@ function ProofEnvelope {
         }
         try {
             $runner = [Diagnostics.Process]::Start($start)
+            $runnerHandle = $runner.SafeHandle
             $runnerTicks = $runner.StartTime.ToUniversalTime().Ticks
             $receipt.runner_pid = $runner.Id
             $receipt.runner_start_ticks = $runnerTicks
             $outDrain = $runner.StandardOutput.BaseStream.CopyToAsync([IO.Stream]::Null)
             $errDrain = $runner.StandardError.BaseStream.CopyToAsync([IO.Stream]::Null)
             $clock = [Diagnostics.Stopwatch]::StartNew()
+            $receipt.runnerImageObservation=@{}
+            $image=Get-ProcessImageObservation {$runner.HasExited} { [BoundedProcessImage]::Read($runnerHandle) } `
+                {480000-$clock.ElapsedMilliseconds} $pwsh ([StringComparison]::Ordinal) `
+                launch-runner-initial $receipt.runnerImageObservation
+            if($image.state -cne 'image-observed' -or $runner.HasExited) { throw 'Runner image unobserved.' }
             while (!$runner.WaitForExit(100)) {
                 RetainApp
                 CheckWorkerStop
@@ -201,12 +217,19 @@ function ProofEnvelope {
                     $boundaryExited = $runner.HasExited
                     if (!$boundaryExited) {
                         $receipt.passed = $false
-                        if ($runner.StartTime.ToUniversalTime().Ticks -ne $runnerTicks -or
-                            $runner.MainModule.FileName -cne $pwsh) { throw 'Runner identity refused.' }
+                        if ($runner.Id -ne $receipt.runner_pid -or $runner.StartTime.ToUniversalTime().Ticks -ne $runnerTicks) {
+                            throw 'Runner identity refused.'
+                        }
+                        $cleanupClock=[Diagnostics.Stopwatch]::StartNew()
+                        $receipt.runner_cleanup.imageObservation=@{}
+                        $image=Get-ProcessImageObservation {$runner.HasExited} { [BoundedProcessImage]::Read($runnerHandle) } `
+                            {5000-$cleanupClock.ElapsedMilliseconds} $pwsh ([StringComparison]::Ordinal) `
+                            launch-runner-cleanup $receipt.runner_cleanup.imageObservation
+                        if($image.state -cne 'image-observed') { throw 'Runner cleanup image unobserved.' }
                         $receipt.runner_cleanup.kill_attempted = $true
                         $receipt.runner_cleanup.requested_utc = [DateTime]::UtcNow.ToString('o')
                         $runner.Kill()
-                        $boundaryExited = $runner.WaitForExit(5000)
+                        $boundaryExited = $runner.WaitForExit([int][Math]::Max(0,5000-$cleanupClock.ElapsedMilliseconds))
                     }
                     $receipt.runner_cleanup.exit_confirmed = $boundaryExited
                     if ($boundaryExited) { $receipt.runner_cleanup.exit_confirmed_utc = [DateTime]::UtcNow.ToString('o') }
@@ -225,12 +248,20 @@ function ProofEnvelope {
                             $receipt.app_cleanup.skipped = 'runner-exit-unconfirmed-or-cleanup-already-attempted'
                             throw 'App cleanup refused without an exited execution boundary.'
                         }
-                        if ($custody.app.StartTime.ToUniversalTime().Ticks -ne $custody.appReceipt.start_ticks -or
-                            $custody.app.MainModule.FileName -cne $expectedApp) { throw 'App cleanup identity refused.' }
+                        if ($custody.app.Id -ne $custody.appReceipt.pid -or
+                            $custody.app.StartTime.ToUniversalTime().Ticks -ne $custody.appReceipt.start_ticks) {
+                            throw 'App cleanup identity refused.'
+                        }
+                        $cleanupClock=[Diagnostics.Stopwatch]::StartNew()
+                        $receipt.app_cleanup.imageObservation=@{}
+                        $image=Get-ProcessImageObservation {$custody.app.HasExited} { [BoundedProcessImage]::Read($custody.appHandle) } `
+                            {5000-$cleanupClock.ElapsedMilliseconds} $expectedApp ([StringComparison]::Ordinal) `
+                            launch-app-cleanup $receipt.app_cleanup.imageObservation
+                        if($image.state -cne 'image-observed') { throw 'App cleanup image unobserved.' }
                         $receipt.app_cleanup.kill_attempted = $true
                         $receipt.app_cleanup.requested_utc = [DateTime]::UtcNow.ToString('o')
                         $custody.app.Kill()
-                        $receipt.app_cleanup.exit_confirmed = $custody.app.WaitForExit(5000)
+                        $receipt.app_cleanup.exit_confirmed = $custody.app.WaitForExit([int][Math]::Max(0,5000-$cleanupClock.ElapsedMilliseconds))
                     }
                     if ($receipt.app_cleanup.exit_confirmed) {
                         $receipt.app_cleanup.exit_confirmed_utc = [DateTime]::UtcNow.ToString('o')

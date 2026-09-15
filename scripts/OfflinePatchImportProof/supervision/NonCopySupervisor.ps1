@@ -126,6 +126,7 @@ function ProofEnvelope {
         $configurationData=Read-ProofConfiguration $Configuration $ConfigurationSha256 -Purpose Restage
         $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
         $null=Assert-ProofSource $configurationData $root
+        . (Join-Path $root 'ProcessImage.ps1')
         $hostPin=$configurationData.host
         Assert-Proof ([Environment]::ProcessPath -ceq $hostPin.path -and $PSVersionTable.PSVersion.Major -eq 7) 'Pinned PowerShell 7 host required.'
         $null=Read-ProofPinnedBytes $hostPin 16777216
@@ -143,8 +144,29 @@ function ProofEnvelope {
         $observed=@{exitConfirmed=$null;outputConfirmed=$null;timedOut=$null;environmentCleared=$null;
             stdinClosed=$null;drainingBeforeImageObservation=$null;custodyConfirmed=$null;pid=$null;
             startTicks=$null;image=$null;exitCode=$null;killAttempts=0;failure=$null;stdoutEof=$null;stderrEof=$null}
-        $child=$null;$confirmation=$null;$started=$false
+        $child=$null;$retainedHandle=$null;$confirmation=$null;$started=$false
         try {
+            $metadata=Read-ProofPinnedJson $configurationData.restage.metadata
+            Assert-Proof ($metadata.compileReferences -is [array] -and $metadata.compileReferences.Count -eq 26) 'Pinned compiler reference closure.'
+            $references=[Collections.Generic.List[string]]::new()
+            $referenceSeen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+            foreach($row in $metadata.compileReferences) {
+                Assert-ProofPin $row
+                Assert-Proof ([IO.Path]::GetDirectoryName($row.path) -ceq (Join-Path $PSHOME 'ref') -and
+                    [IO.Path]::GetExtension($row.path) -ceq '.dll' -and $referenceSeen.Add($row.path)) 'Pinned compiler reference path.'
+                $null=Read-ProofPinnedBytes $row 268435456
+                $references.Add($row.path)
+            }
+            Add-Type -Path (Join-Path $root 'Readiness.cs') -ReferencedAssemblies $references.ToArray()
+            $self=[Diagnostics.Process]::GetCurrentProcess()
+            try {
+                $selfHandle=$self.SafeHandle
+                $observed.selfImageObservation=@{}
+                $selfImage=Get-ProcessImageObservation {$self.HasExited} { [BoundedProcessImage]::Read($selfHandle) } `
+                    {($external-$totalClock.Elapsed.TotalSeconds)*1000} $hostPin.path ([StringComparison]::Ordinal) `
+                    supervision-self $observed.selfImageObservation
+                Assert-Proof ($selfImage.state -ceq 'image-observed') 'Current host image unobserved.'
+            } finally { $self.Dispose() }
             if($Mode -ceq 'Restage'){New-ProofRestageClaim $configurationData $ConfigurationSha256 $NewGuiId}
             $start=[Diagnostics.ProcessStartInfo]::new($hostPin.path)
             $start.UseShellExecute=$false;$start.CreateNoWindow=$true;$start.WorkingDirectory=$outer
@@ -179,10 +201,14 @@ function ProofEnvelope {
             foreach($stream in $streams) { $stream.task=$stream.pipe.ReadAsync($stream.buffer,0,65536) }
             $observed.drainingBeforeImageObservation=$true
             $observed.pid=$child.Id;$observed.startTicks=$child.StartTime.ToUniversalTime().Ticks
-            $observed.image=$child.MainModule.FileName
-            Assert-Proof ($observed.image -ceq $hostPin.path -and !$retainedHandle.IsInvalid -and !$retainedHandle.IsClosed) 'Retained child custody.'
+            $observed.imageObservation=@{}
+            $image=Get-ProcessImageObservation {$child.HasExited} { [BoundedProcessImage]::Read($retainedHandle) } `
+                {($external-$executionClock.Elapsed.TotalSeconds)*1000} $hostPin.path ([StringComparison]::Ordinal) `
+                supervision-child-initial $observed.imageObservation
+            Assert-Proof ($image.state -ceq 'image-observed' -and !$child.HasExited) 'Retained child custody.'
+            $observed.image=$image.path
             $observed.custodyConfirmed=$true
-        } catch { $observed.failure=[string]$_.Exception.Message }
+        } catch { $observed.failure='Supervision refused: '+$_.Exception.GetType().Name }
         if($child -and $started) {
             while($true) {
                 foreach($stream in $streams) {
@@ -210,7 +236,18 @@ function ProofEnvelope {
                 }
                 if($observed.failure -and $null -eq $confirmation) {
                     $confirmation=$executionClock.Elapsed.TotalSeconds
-                    if(!$observed.exitConfirmed) { $observed.killAttempts++;try{$child.Kill()}catch{$observed.failure+='; retained-child cleanup unconfirmed.'} }
+                    if(!$observed.exitConfirmed) {
+                        try {
+                            Assert-Proof ($observed.pid -gt 0 -and $observed.startTicks -gt 0 -and
+                                $child.Id -eq $observed.pid -and $child.StartTime.ToUniversalTime().Ticks -eq $observed.startTicks) 'Retained cleanup identity.'
+                            $observed.cleanupImageObservation=@{}
+                            $image=Get-ProcessImageObservation {$child.HasExited} { [BoundedProcessImage]::Read($retainedHandle) } `
+                                {($confirmation+5-$executionClock.Elapsed.TotalSeconds)*1000} $hostPin.path ([StringComparison]::Ordinal) `
+                                supervision-child-cleanup $observed.cleanupImageObservation
+                            Assert-Proof ($image.state -ceq 'image-observed') 'Retained cleanup image unobserved.'
+                            $observed.killAttempts++;$child.Kill()
+                        } catch { $observed.failure+='; retained-child cleanup refused or unconfirmed.' }
+                    }
                 }
                 if($null -ne $confirmation -and $executionClock.Elapsed.TotalSeconds-$confirmation -ge 5){break}
                 [Threading.Thread]::Sleep(5)

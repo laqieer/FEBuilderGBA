@@ -305,13 +305,16 @@ function Invoke-PinnedClosureTests([string]$Root){
         # CreateProcess's current-directory limit is narrower than managed source reads.
         $supervisedRoot=Join-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))) 'TestResults\s'
         if([IO.Path]::Exists($supervisedRoot)){throw 'Consumed owned supervised fixture; retain evidence.'}
-        $physical=New-ProofRestageFixture $supervisedRoot
+        $physical=New-ProofRestageFixture $supervisedRoot -CompileReferences (Get-ProofTestCompileReferences)
         $physical.config.host=Get-PinnedTestPin ([Environment]::ProcessPath)
         $physical.config.machine.systemRoot=$env:SystemRoot
         $pin=Write-PinnedTestJson (Join-Path $fixture.root 'supervised-configuration.json') $physical.config
         $result=Invoke-PinnedTestMode -Fixture $fixture -Mode SupervisedPure -Values @{
             configuration=$pin.path;configurationSha256=$pin.sha256}|ConvertFrom-Json -AsHashtable
-        if(!$result.passed){throw 'Actual supervised Pure child did not pass.'};$cases++
+        if(!$result.passed -or $result.selfImageObservation.code -cne 'image-observed' -or
+            $result.imageObservation.code -cne 'image-observed'){
+            throw 'Actual supervised Pure child image observations did not pass.'
+        };$cases++
         [IO.Directory]::Delete($supervisedRoot,$true)
     }
     return $cases

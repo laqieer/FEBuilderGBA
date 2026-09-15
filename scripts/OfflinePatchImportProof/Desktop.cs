@@ -9,6 +9,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Windows.Automation;
+using Microsoft.Win32.SafeHandles;
 
 public sealed class DesktopEvent
 {
@@ -42,6 +43,8 @@ public sealed class DesktopResult
     public string[] AfterInvalid { get; set; }
     public DesktopEvent[] Events { get; set; }
     public DesktopQueryFailure QueryFailure { get; set; }
+    public Dictionary<string, object> InitialImageObservation { get; set; }
+    public Dictionary<string, object> ImageFailure { get; set; }
 }
 
 // One ordinary app, one worker, one attempt. A stalled UIA/PrintWindow call cannot
@@ -57,6 +60,7 @@ public sealed class BoundedDesktopSmoke
     const string ExpectedRow = "Offline ZIP Proof";
     const string Success = "Imported patch database for FE8U; list refreshed. No patches were applied. Restart recommended for cached data.";
     readonly Process app;
+    readonly SafeProcessHandle appHandle;
     readonly string exe, root, rom, valid, invalid, database, descriptorHash, payloadHash;
     readonly int pid;
     readonly long startTicks;
@@ -76,6 +80,7 @@ public sealed class BoundedDesktopSmoke
     BoundedDesktopSmoke(Process process, string executable, string outputRoot, string descriptor, string payload)
     {
         app = process;
+        appHandle = app.SafeHandle;
         exe = executable;
         root = outputRoot;
         rom = Path.Combine(root, "fixtures", "zipdb-proof.gba");
@@ -193,9 +198,53 @@ public sealed class BoundedDesktopSmoke
     void Identity()
     {
         Guard();
-        Require(!app.HasExited, "owned-app-exited");
-        Require(DesktopPolicy.Process(pid, startTicks, exe, app.Id,
-            app.StartTime.ToUniversalTime().Ticks, app.MainModule.FileName, app.HasExited), "process-identity");
+        double before = ImageRemaining();
+        var observation = BoundedProcessImage.NewObservation("desktop-app", exe);
+        observation["remainingBeforeMs"] = before;
+        try
+        {
+            Require(!app.HasExited && app.Id == pid && app.StartTime.ToUniversalTime().Ticks == startTicks,
+                "process-identity");
+        }
+        catch
+        {
+            observation["code"] = "identity-refused";
+            CaptureImage(observation);
+            throw new Refusal("process-identity");
+        }
+        var read = BoundedProcessImage.Read(appHandle);
+        observation = BoundedProcessImage.Describe(read, exe, StringComparison.Ordinal, "desktop-app");
+        observation["remainingBeforeMs"] = before;
+        if ((string)observation["code"] == "image-observed")
+        {
+            bool bound;
+            try { bound = DesktopPolicy.Process(pid, startTicks, exe, app.Id,
+                app.StartTime.ToUniversalTime().Ticks, read.Path, app.HasExited); }
+            catch { bound = false; }
+            if (!bound) observation["code"] = "identity-refused";
+        }
+        observation["remainingAfterMs"] = ImageRemaining();
+        if ((double)observation["remainingAfterMs"] <= 0 && (string)observation["code"] == "image-observed")
+            observation["code"] = "image-deadline";
+        CaptureImage(observation);
+        Guard();
+        Require((string)observation["code"] == "image-observed", "process-identity");
+    }
+
+    double ImageRemaining()
+    {
+        lock (sync) return Math.Min(240000 - clock.ElapsedMilliseconds,
+            stageLimit - (clock.ElapsedMilliseconds - stageAt));
+    }
+
+    void CaptureImage(Dictionary<string, object> observation)
+    {
+        lock (sync)
+        {
+            if (result.InitialImageObservation == null) result.InitialImageObservation = observation;
+            if ((string)observation["code"] != "image-observed" && result.ImageFailure == null)
+                result.ImageFailure = observation;
+        }
     }
 
     void Action(string code, AutomationElement window)

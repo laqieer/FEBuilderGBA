@@ -65,6 +65,10 @@ function ProofEnvelope {
                 $report.bindingCases=Invoke-PinnedRuntimeBindingTests
                 if ($report.bindingCases -ne 22) { throw 'Incomplete pure binding cases.' }
                 Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs","$Code\Policy.Tests.cs") -ReferencedAssemblies $references
+                $report.processImageCases=& "$Code\ProcessImage.Tests.ps1"
+                if($report.processImageCases -ne 10) { throw 'Ten pure process-image cases required.' }
+                $report.retainedImageCases=[RetainedProcessImageTests]::Run()
+                if($report.retainedImageCases -ne 32) { throw 'Retained image inventory changed.' }
                 $report.cases=[DesktopPolicyTests]::Run()
                 if ($report.cases -le 0) { throw 'No pure cases executed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
@@ -106,7 +110,7 @@ function ProofEnvelope {
                     if ([IO.Path]::Exists("$owned\$name")) { throw 'Compile attempt already consumed.' }
                 }
                 # Output-only compilations cover the launch and runner shapes without invoking their methods.
-                Add-Type -Path "$Code\Policy.cs" -ReferencedAssemblies $references -OutputAssembly "$owned\Policy.compile-only.dll" -OutputType Library
+                Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs") -ReferencedAssemblies $references -OutputAssembly "$owned\Policy.compile-only.dll" -OutputType Library
                 Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs","$Code\Desktop.cs") -ReferencedAssemblies ($references+$runtimeReferences) -OutputAssembly "$owned\Desktop.compile-only.dll" -OutputType Library
                 foreach($name in @('Policy.compile-only.dll','Desktop.compile-only.dll')) {
                     if (![IO.File]::Exists("$owned\$name")) { throw "Compile produced no assembly: $name" }
