@@ -87,8 +87,33 @@ jobs:
       timeout-minutes: 15
       run: dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false
 
+    - name: Prepare macOS Core diagnostic context
+      id: core_diagnostics_prepare
+      if: ${{ matrix.runner == 'macos-15' }}
+      timeout-minutes: 2
+      run: python scripts/ci_core_diagnostics.py prepare
+
+    - name: Upload macOS Core context checkpoint
+      if: ${{ always() && matrix.runner == 'macos-15' && steps.core_diagnostics_prepare.outcome == 'success' }}
+      timeout-minutes: 2
+      uses: actions/upload-artifact@v4
+      with:
+        name: core-context-${{ matrix.check_name }}-${{ github.run_attempt }}
+        path: TestResults/core-ci-diagnostics/context.json
+        if-no-files-found: error
+        include-hidden-files: false
+        retention-days: 7
+        compression-level: 0
+
     - name: Run Core tests
+      if: ${{ matrix.runner != 'macos-15' }}
       run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx"
+
+    # Runner loss can still prevent collection; neither timeout guarantees artifacts.
+    - name: Run Core tests (macOS no-dump diagnostics)
+      if: ${{ matrix.runner == 'macos-15' }}
+      timeout-minutes: 15
+      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx" --logger "console;verbosity=minimal" --results-directory TestResults/core-ci-diagnostics/raw --blame-hang --blame-hang-timeout 5m --blame-hang-dump-type none
 
     - name: Run Avalonia tests (data-verify headless validation)
       run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
@@ -99,6 +124,24 @@ jobs:
     - name: CLI help test
       run: dotnet FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI.dll --help
 
+    - name: Collect macOS Core diagnostic summary
+      id: core_diagnostics_finish
+      if: ${{ always() && matrix.runner == 'macos-15' }}
+      timeout-minutes: 2
+      run: python scripts/ci_core_diagnostics.py finish
+
+    - name: Upload macOS Core diagnostic summary
+      if: ${{ always() && matrix.runner == 'macos-15' && steps.core_diagnostics_finish.outcome == 'success' }}
+      timeout-minutes: 2
+      uses: actions/upload-artifact@v4
+      with:
+        name: core-sequence-${{ matrix.check_name }}-${{ github.run_attempt }}
+        path: TestResults/core-ci-diagnostics/sequence-summary.json
+        if-no-files-found: error
+        include-hidden-files: false
+        retention-days: 7
+        compression-level: 0
+
     - name: Upload test results
       if: always()
       uses: actions/upload-artifact@v4
@@ -107,7 +150,9 @@ jobs:
         path: |
           **/core-tests.trx
           **/avalonia-tests.trx
-        if-no-files-found: ignore
+        if-no-files-found: error
+        include-hidden-files: false
+        retention-days: 7
 
   mcp-adapter-tests:
     name: MCP adapter tests (${{ matrix.os }})

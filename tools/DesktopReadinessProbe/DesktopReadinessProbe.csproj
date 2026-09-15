@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <Platform Condition=" '$(Platform)' == '' ">x86</Platform>
+    <PlatformTarget>x86</PlatformTarget>
+    <UseAppHost>false</UseAppHost>
+    <E2EAssemblyPath>$(MSBuildThisFileDirectory)..\..\FEBuilderGBA.E2ETests\bin\x86\Release\net10.0-windows\FEBuilderGBA.E2ETests.dll</E2EAssemblyPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App.WindowsForms" />
+    <Reference Include="FEBuilderGBA.E2ETests">
+      <HintPath>$(E2EAssemblyPath)</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+
+  <Target Name="RequireBuiltE2EAssembly" BeforeTargets="ResolveAssemblyReferences">
+    <Error Condition="!Exists('$(E2EAssemblyPath)')"
+           Text="The reviewed E2E assembly is required. Build FEBuilderGBA.E2ETests in Release/x86 first; this tool does not build it automatically." />
+  </Target>
+</Project>

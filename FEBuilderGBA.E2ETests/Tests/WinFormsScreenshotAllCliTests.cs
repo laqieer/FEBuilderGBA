@@ -30,7 +30,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             if (Directory.Exists(screenshotDir))
                 Directory.Delete(screenshotDir, true);
 
-            var (exitCode, stdout, stderr) = AppRunner.Run(
+            var (exitCode, stdout, stderr) = AppRunner.RunGui(
                 exePath,
                 $"--rom \"{romPath}\" --screenshot-all --screenshot-dir=\"{screenshotDir}\"",
                 timeoutMs: 300_000);
@@ -58,7 +58,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             string screenshotDir = Path.Combine(
                 ScreenshotHelper.OutputDirectory, $"winforms_cli_results_{romName}");
 
-            var (exitCode, stdout, stderr) = AppRunner.Run(
+            var (exitCode, stdout, stderr) = AppRunner.RunGui(
                 exePath,
                 $"--rom \"{romPath}\" --screenshot-all --screenshot-dir=\"{screenshotDir}\"",
                 timeoutMs: 300_000);
