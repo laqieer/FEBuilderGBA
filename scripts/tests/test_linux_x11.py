@@ -704,8 +704,10 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         if events:
             self.pipes.events.update(events)
         self.receipt_file = RetainedSmokeReceipt()
+        self.file_opens = []
 
         def fake_open(path, mode, **kwargs):
+            self.file_opens.append((path.name, mode))
             if path.name == "authority" and mode == "xb":
                 return io.BytesIO()
             if path.name == "receipt.json" and mode == "x":
@@ -728,16 +730,16 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         self.stack.enter_context(patch.object(smoke.shutil, "which", return_value="/fake/Xvfb"))
         self.stack.enter_context(patch.object(
             Path, "cwd", return_value=Path(smoke.__file__).resolve().parents[2]))
-        self.stack.enter_context(patch.object(Path, "mkdir"))
+        self.mkdir_mock = self.stack.enter_context(patch.object(Path, "mkdir"))
         self.stack.enter_context(patch.object(Path, "open", fake_open))
         self.unlink = self.stack.enter_context(patch.object(Path, "unlink"))
-        self.stack.enter_context(patch.object(smoke.os, "chmod"))
-        self.stack.enter_context(patch.object(smoke.os, "pipe", return_value=(10, 11)))
-        self.stack.enter_context(patch.object(smoke.secrets, "token_bytes", return_value=b"x" * 16))
-        self.stack.enter_context(patch.object(smoke, "source_hashes", return_value=hashes))
-        self.stack.enter_context(patch.object(
+        self.chmod_mock = self.stack.enter_context(patch.object(smoke.os, "chmod"))
+        self.pipe_mock = self.stack.enter_context(patch.object(smoke.os, "pipe", return_value=(10, 11)))
+        self.cookie_mock = self.stack.enter_context(patch.object(smoke.secrets, "token_bytes", return_value=b"x" * 16))
+        self.hashes_mock = self.stack.enter_context(patch.object(smoke, "source_hashes", return_value=hashes))
+        self.identity_mock = self.stack.enter_context(patch.object(
             smoke, "process_identity", side_effect=lambda pid: {"pid": pid, "start_ticks": pid + 100}))
-        self.stack.enter_context(patch.object(smoke.subprocess, "Popen", side_effect=spawn))
+        self.spawn_mock = self.stack.enter_context(patch.object(smoke.subprocess, "Popen", side_effect=spawn))
         self.stack.enter_context(patch("builtins.print"))
 
     def supervise(self):
@@ -746,6 +748,70 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(code == 0, receipt["status"] == "passed")
         self.unlink.assert_called_once_with(missing_ok=True)
         return code, receipt
+
+    def assert_no_setup_resources(self):
+        for action in (self.cookie_mock, self.chmod_mock, self.pipe_mock, self.spawn_mock):
+            action.assert_not_called()
+        self.assertEqual(self.spawned, [])
+        self.assertEqual(self.pipes.nonblocking, [])
+        self.assertEqual(self.pipes.closed, [])
+
+    def assert_setup_failure_receipt(self, message):
+        code, receipt = self.supervise()
+        self.assertEqual(code, 1)
+        self.assertEqual(receipt["status"], "failed")
+        self.assertEqual(receipt["phase"], "setup")
+        self.assertEqual(receipt["io"], {})
+        self.assertIn(message, receipt["failure"])
+        self.assertLessEqual(len(receipt["failure"]), 1000)
+        self.mkdir_mock.assert_called_once_with(mode=0o700)
+        self.assertEqual(self.file_opens, [("receipt.json", "x")])
+        self.assert_no_setup_resources()
+        return receipt
+
+    def test_setup_identity_failure_retains_failed_receipt_without_resources(self):
+        self.prepare_supervisor()
+        self.identity_mock.side_effect = OSError("injected identity failure " + "x" * 2000)
+        receipt = self.assert_setup_failure_receipt("injected identity failure")
+        self.identity_mock.assert_called_once()
+        self.hashes_mock.assert_not_called()
+        self.assertIn("started_utc", receipt)
+        self.assertNotIn("supervisor", receipt)
+        self.assertNotIn("sources", receipt)
+
+    def test_setup_hash_failure_preserves_identity_without_fabricating_sources(self):
+        self.prepare_supervisor()
+        self.hashes_mock.side_effect = OSError("injected source hash failure")
+        receipt = self.assert_setup_failure_receipt("injected source hash failure")
+        self.identity_mock.assert_called_once()
+        self.hashes_mock.assert_called_once()
+        self.assertIn("started_utc", receipt)
+        self.assertEqual(
+            receipt["supervisor"]["start_ticks"], receipt["supervisor"]["pid"] + 100,
+        )
+        self.assertNotIn("sources", receipt)
+
+    def test_setup_utc_failure_retains_failed_receipt_without_resources(self):
+        self.prepare_supervisor()
+        with patch.object(self.smoke, "datetime") as fake_datetime:
+            fake_datetime.now.side_effect = OSError("injected UTC failure")
+            receipt = self.assert_setup_failure_receipt("injected UTC failure")
+        self.identity_mock.assert_not_called()
+        self.hashes_mock.assert_not_called()
+        for name in ("started_utc", "supervisor", "sources"):
+            self.assertNotIn(name, receipt)
+
+    def test_receipt_directory_collision_never_touches_unowned_destination(self):
+        self.prepare_supervisor()
+        self.mkdir_mock.side_effect = FileExistsError("injected existing destination")
+        with self.assertRaises(FileExistsError):
+            self.smoke.supervise(20, "linux-x11-smoke-pure-test")
+        self.assertEqual(self.file_opens, [])
+        self.assertFalse(hasattr(self.receipt_file, "saved"))
+        self.unlink.assert_not_called()
+        self.identity_mock.assert_not_called()
+        self.hashes_mock.assert_not_called()
+        self.assert_no_setup_resources()
 
     def test_stderr_exact_cap_without_newline_is_retained(self):
         pump = self.pump([b"x" * 4096, b""])

@@ -293,21 +293,22 @@ def supervise(timeout, directory):
     if Path.cwd().resolve() != root:
         raise ValueError("Run from the reviewed repository root")
     destination = root / directory
-    destination.mkdir(mode=0o700)
     authority = destination / "authority"
     started = time.monotonic()
     deadline = started + timeout - 2
     receipt = {
         "status": "failed", "timeout_seconds": timeout,
-        "started_utc": datetime.now(timezone.utc).isoformat(),
-        "supervisor": process_identity(os.getpid()),
-        "sources": source_hashes(), "phase": "setup",
+        "phase": "setup",
     }
     server = worker = None
     read_fd = write_fd = None
     pump = BytePump()
     exit_code = 1
+    destination.mkdir(mode=0o700)
     try:
+        receipt["started_utc"] = datetime.now(timezone.utc).isoformat()
+        receipt["supervisor"] = process_identity(os.getpid())
+        receipt["sources"] = source_hashes()
         with authority.open("xb") as stream:
             os.chmod(authority, 0o600)
             stream.write(authority_bytes(secrets.token_bytes(16)))
