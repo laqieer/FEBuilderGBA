@@ -384,11 +384,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string InstallPatchCore(bool forceIgnoreDependencies)
         {
             if (_selectedPatch == null)
-                return "No patch selected.";
+                return R._("No patch selected.");
 
             ROM rom = CoreState.ROM;
             if (rom == null)
-                return "No ROM loaded.";
+                return R._("No ROM loaded.");
 
             // Check dependencies unless forced
             if (!forceIgnoreDependencies)
@@ -437,11 +437,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string UninstallPatchCore()
         {
             if (_selectedPatch == null)
-                return "No patch selected.";
+                return R._("No patch selected.");
 
             ROM rom = CoreState.ROM;
             if (rom == null)
-                return "No ROM loaded.";
+                return R._("No ROM loaded.");
 
             Undo? undo = CoreState.Undo;
             Undo.UndoData? undoData = null;
@@ -502,11 +502,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         string UninstallPatchWithCleanRomCore(string cleanRomPath)
         {
             if (_selectedPatch == null)
-                return "No patch selected.";
+                return R._("No patch selected.");
 
             ROM rom = CoreState.ROM;
             if (rom == null)
-                return "No ROM loaded.";
+                return R._("No ROM loaded.");
 
             if (string.IsNullOrEmpty(cleanRomPath) || !File.Exists(cleanRomPath))
                 return StatusMessage = "Uninstall failed: clean ROM file not found.";
@@ -552,9 +552,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             => RunPatchActionAsync(async () =>
             {
                 var patch = _selectedPatch;
-                if (patch == null) return "No patch selected.";
+                if (patch == null) return R._("No patch selected.");
                 ROM rom = CoreState.ROM;
-                if (rom == null) return "No ROM loaded.";
+                if (rom == null) return R._("No ROM loaded.");
                 if (!SelectedPatchNeedsCleanRom) return UninstallPatchCore();
                 var intent = CaptureActionIntent();
                 string? cleanRom = await selectCleanRom();
@@ -572,7 +572,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 var intent = CaptureActionIntent();
-                if (intent == null) return _selectedPatch == null ? "No patch selected." : "No ROM loaded.";
+                if (intent == null) return _selectedPatch == null ? R._("No patch selected.") : R._("No ROM loaded.");
                 var refusal = VerifyAction(intent, ownership, default);
                 if (refusal != null) return StatusMessage = refusal.Localize();
                 if (!ActionIsCurrent(intent)) return StatusMessage = PatchDatabaseChangedMessage;
@@ -589,7 +589,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             try
             {
                 var intent = CaptureActionIntent();
-                if (intent == null) return _selectedPatch == null ? "No patch selected." : "No ROM loaded.";
+                if (intent == null) return _selectedPatch == null ? R._("No patch selected.") : R._("No ROM loaded.");
                 PatchManagerRefreshService.RefreshFailure? refusal;
                 try { refusal = await Task.Run(() => VerifyAction(intent, ownership, token), token); }
                 catch (OperationCanceledException) { return R._("Cancelled."); }

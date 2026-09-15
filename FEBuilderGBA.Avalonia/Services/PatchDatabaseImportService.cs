@@ -222,8 +222,8 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 if (failure != null) refreshed = false;
                 if (message.Length == 0 && receipt?.RecoveryRequired == true)
-                    message = "The database is installed; recovery is required. Retained workspace: " +
-                        receipt.RetainedPath + "\n" + receipt.Detail + "\n" + receipt.CleanupDetail;
+                    message = R._("The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}",
+                        receipt.RetainedPath, receipt.Detail, receipt.CleanupDetail);
                 if (failure != null) message = Append(message, failure.Message);
                 return new Outcome { Imported = true, Refreshed = refreshed, Receipt = receipt,
                     RecoveryRequired = receipt?.RecoveryRequired == true ||
@@ -233,7 +233,7 @@ namespace FEBuilderGBA.Avalonia.Services
                 return new Outcome { RecoveryRequired = true, Message = FormatRecoveryException(recoveryException), Receipt = receipt };
             if (receipt != null)
                 return new Outcome { Receipt = receipt, RecoveryRequired = receipt.RecoveryRequired,
-                    Message = message.Length != 0 ? message : "Import stopped without committing. " + receipt.Detail };
+                    Message = message.Length != 0 ? message : R._("Import stopped without committing: {0}", receipt.Detail) };
             if (failure is OperationCanceledException) return Cancelled();
             if (failure != null) return new Outcome { Message = R._("Patch database import failed: {0}", failure.Message) };
             return early ?? new Outcome();

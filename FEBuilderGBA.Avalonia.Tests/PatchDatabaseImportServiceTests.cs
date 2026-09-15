@@ -15,6 +15,77 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchDatabaseImportServiceTests
 {
+    [Theory]
+    [InlineData("en", false)]
+    [InlineData("ja", false)]
+    [InlineData("zh", false)]
+    [InlineData("en", true)]
+    [InlineData("ja", true)]
+    [InlineData("zh", true)]
+    public async Task MappingFailureFallbackUsesShippedCatalogAndPreservesReceipt(string language, bool committed)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        if (language != "en")
+            MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+        const string detail = "owned commit detail {0}";
+        const string cleanup = "owned cleanup detail {1}";
+        const string mapping = "owned mapping failure {2}";
+        const string installedTemplate = "The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}";
+        const string stoppedTemplate = "Import stopped without committing: {0}";
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        bool mappingReached = false;
+        using var selected = new PickedFile(Zip("FE8U"));
+        var result = await fixture.Import(selected, PatchDatabaseImportService.CaptureLoadedRom()!,
+            _ => Task.FromResult(true), checkpoint: point =>
+            {
+                if (point == (committed ? PatchDatabaseImportCore.Checkpoint.Committed
+                    : PatchDatabaseImportCore.Checkpoint.BeforeCommitRecord))
+                    throw new IOException(detail);
+                if (committed && point == PatchDatabaseImportCore.Checkpoint.BeforeCleanup)
+                    throw new IOException(cleanup);
+            }, phase: phase =>
+            {
+                if (phase != PatchDatabaseImportService.ImportPhase.Mapping) return;
+                mappingReached = true;
+                throw new FormatException(mapping);
+            });
+
+        Assert.True(mappingReached);
+        Assert.Equal(committed, result.Imported);
+        Assert.Equal(committed, result.RecoveryRequired);
+        Assert.False(result.Cancelled);
+        Assert.False(result.Refreshed);
+        var receipt = Assert.IsType<PatchDatabaseImportCore.Result>(result.Receipt);
+        Assert.Equal(committed ? PatchDatabaseImportCore.ResultKind.CommittedAfterInterruption
+            : PatchDatabaseImportCore.ResultKind.StoppedBeforeCommit, receipt.Kind);
+        Assert.Equal(detail, receipt.Detail);
+        string template = committed ? installedTemplate : stoppedTemplate;
+        string expected = committed
+            ? R._(template, receipt.RetainedPath, detail, cleanup) + "\n" + mapping
+            : R._(template, detail);
+        if (language != "en") Assert.NotEqual(template, R._(template));
+        Assert.Equal(expected.Replace("\r\n", "\n"), result.Message.Replace("\r\n", "\n"));
+        Assert.Contains(detail, result.Message);
+        if (committed)
+        {
+            Assert.Equal(cleanup, receipt.CleanupDetail);
+            Assert.True(Directory.Exists(receipt.RetainedPath));
+            Assert.Contains(receipt.RetainedPath, result.Message);
+            Assert.Contains(cleanup, result.Message);
+            Assert.Contains(mapping, result.Message);
+            Assert.False(File.Exists(fixture.OldFile));
+        }
+        else
+        {
+            Assert.Empty(receipt.RetainedPath);
+            Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        }
+        Assert.Equal(before, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [AvaloniaTheory]
     [InlineData("ja", "false")]
     [InlineData("zh", "false")]
@@ -612,7 +683,7 @@ public class PatchDatabaseImportServiceTests
             throw new IOException("Owned cleanup failure");
     }
 
-    static string FindRepoRoot()
+    internal static string FindRepoRoot()
     {
         for (var dir = new DirectoryInfo(AppContext.BaseDirectory); dir != null; dir = dir.Parent)
             if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln"))) return dir.FullName;

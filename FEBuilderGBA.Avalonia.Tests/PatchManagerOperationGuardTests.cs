@@ -10,6 +10,53 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchManagerOperationGuardTests
 {
+    [Theory]
+    [InlineData("en", false)]
+    [InlineData("ja", false)]
+    [InlineData("zh", false)]
+    [InlineData("en", true)]
+    [InlineData("ja", true)]
+    [InlineData("zh", true)]
+    public async Task MissingSelectionOrRomUsesShippedCatalogWithoutStartingActions(string language, bool noRom)
+    {
+        using var fixture = new Fixture();
+        var resource = typeof(MyTranslateResource).GetField("Resource", BindingFlags.Static | BindingFlags.NonPublic)!;
+        object? previous = resource.GetValue(null);
+        resource.SetValue(null, new MyTranslateResourceLow());
+        try
+        {
+            var vm = fixture.CreateViewModel("clean");
+            if (language != "en")
+                MyTranslateResource.LoadResource(Path.Combine(PatchDatabaseImportServiceTests.FindRepoRoot(),
+                    "config", "translate", language + ".txt"));
+            CoreState.Language = language;
+            if (noRom) CoreState.ROM = null!;
+            else vm.SelectedPatch = null;
+            string template = noRom ? "No ROM loaded." : "No patch selected.";
+            string expected = R._(template);
+            if (language != "en") Assert.NotEqual(template, expected);
+            byte[] before = (byte[])fixture.Rom.Data.Clone();
+            var files = fixture.Snapshot();
+            bool pickerCalled = false;
+
+            Assert.Equal(expected, vm.InstallPatch(false));
+            Assert.Equal(expected, vm.UninstallPatch());
+            Assert.Equal(expected, vm.UninstallPatchWithCleanRom(fixture.CleanRom));
+            Assert.Equal(expected, await vm.UninstallPatchAsync(() =>
+            {
+                pickerCalled = true;
+                return Task.FromResult<string?>(fixture.CleanRom);
+            }));
+
+            Assert.False(pickerCalled);
+            Assert.Equal(before, fixture.Rom.Data);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+            fixture.AssertSnapshot(files);
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+        finally { resource.SetValue(null, previous); }
+    }
+
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]

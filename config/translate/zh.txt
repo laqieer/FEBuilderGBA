@@ -28707,6 +28707,9 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 :Retained workspace: {0}
 保留的工作目录：{0}
 
+:The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}
+数据库已安装，但需要恢复处理。保留的工作目录：{0}\r\n{1}\r\n{2}
+
 :Import cleanup requires recovery. Retained workspace: {0}\r\n{1}
 导入清理需要恢复处理。保留的工作目录：{0}\r\n{1}
 
@@ -28727,6 +28730,9 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 
 :A patch database operation is already running. Try again when it finishes.
 补丁数据库操作正在进行中。请等待操作完成后重试。
+
+:No patch selected.
+未选择补丁。
 
 :The patch database changed. Refresh the list and select the patch again.
 补丁数据库已更改。请刷新列表并重新选择补丁。

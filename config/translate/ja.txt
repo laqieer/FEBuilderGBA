@@ -14877,6 +14877,9 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 :Retained workspace: {0}
 保持された作業領域: {0}
 
+:The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}
+データベースはインストール済みですが、復旧が必要です。保持された作業領域: {0}\r\n{1}\r\n{2}
+
 :Import cleanup requires recovery. Retained workspace: {0}\r\n{1}
 インポート後のクリーンアップを完了するには復旧が必要です。保持された作業領域: {0}\r\n{1}
 
@@ -14897,6 +14900,9 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 
 :A patch database operation is already running. Try again when it finishes.
 パッチデータベースの操作が実行中です。完了してから再試行してください。
+
+:No patch selected.
+パッチが選択されていません。
 
 :The patch database changed. Refresh the list and select the patch again.
 パッチデータベースが変更されました。一覧を更新し、パッチを選択し直してください。
