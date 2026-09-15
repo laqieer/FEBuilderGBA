@@ -121,6 +121,34 @@ fast-tool route can report `exited-unobserved`, without claiming an image match.
 Cleanup makes at most one separate guarded observation and cannot erase an initial
 failure or authorize app cleanup before confirmed runner exit.
 
+Preparation also permits one narrowly bounded post-query exit observation. Only
+`prepare-initial` with a typed `native-error` result, error 31, one query, a valid
+retained handle and truly null path/character fields can reach it. The diagnostic
+must agree and contain no observed image. Error 31 alone is **not exit evidence**.
+There is one additional `HasExited` observation on the same original process,
+never another image query or PID acquisition. With remaining budgets sampled
+before the query, after the query/before this exit check, and after the exit check,
+acceptance requires a strict Boolean true and finite
+`0 < final <= post-query <= initial` budgets. Exceptions, non-Booleans, a live
+process or exhausted/increasing/nonfinite budgets refuse.
+
+This returns `exited-unobserved`, null path and one attempted query, with the
+distinct diagnostic code `exited-after-query-error`. Error 31, the query count
+and null-image facts remain present. Existing budget fields retain the initial
+and final observations; no diagnostic/schema fields are added. The serialization
+guard accepts this code only with its exact preparation/error/handle/query,
+null-image and bounded-budget shape. It is not an image identity or success token.
+Other errors, source exceptions, wrong images followed by exit, other roles and
+all cleanup/GUI/supervisor image requirements remain unchanged.
+
+The preparation caller still independently waits for the original process,
+requires exit code zero, drains both streams within their bounds/deadlines and
+checks the source state before passing. No wait, cleanup or overall budget grows.
+Attempt `219` remains failed/consumed: its first Git query reported native error
+31 and no path, with cleanup marked not needed but no recorded exit code.
+That is consistent with termination, not proof of its precise cause or timing.
+Neither that attempt nor an earlier GUI identity is revived by this policy.
+
 Initial/failure and separate cleanup facts are retained in existing owned receipts.
 The closed diagnostic is at most 4 KiB: fixed role/method/refusal, native error,
 handle validity, query/length/budget facts, path digests, and at most 256 UTF-16
@@ -136,6 +164,14 @@ Both pure runners separately execute 32 fake-native cases through the actual
 reader, without OS queries. Aggregate also runs 16 diagnostic publication/schema
 cases through the real reporting functions. The original 522/26/75/108 and
 restage/runtime-binding inventories remain separate.
+Both pure runners additionally assert the exact ordered names of 88 modeled
+preparation-exit cases and 72 diagnostic/terminal-publication cases, separately
+from those original inventories. They use the actual bridge and writers without
+native queries; the constructor fixtures use a true null string, not PowerShell's
+empty-string conversion. Counts/name digests are checked locals, not new runtime
+JSON fields. New helper imports use the authenticated declaration library and
+cached reporting policy (with its existing strict-mode directive); imports do not
+compile, run tests, query processes or launch an application.
 
 Attempt `d297` remains failed/consumed: the initial mismatching module path was
 not recorded, though later guarded cleanup matched and confirmed retained-child

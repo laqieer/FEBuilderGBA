@@ -21,6 +21,7 @@ function ProofEnvelope {
         }
         . (Join-Path $PSScriptRoot 'Configuration.ps1')
         . (Join-Path $PSScriptRoot 'Configuration.Tests.ps1')
+        . (Join-Path $PSScriptRoot 'ProcessImage.ps1')
         # Match the supervisor's standalone reader assembly; do not redefine its types
         # inside the test assembly before the live integration loads the same reader.
         if($IsWindows){
@@ -52,6 +53,10 @@ function ProofEnvelope {
         . (Join-Path $PSScriptRoot 'restage\RestagePolicy.ps1')
         $imageReportingCases=Invoke-RetainedImageReportingTests
         if($imageReportingCases -ne 16) { throw 'Retained image reporting inventory changed.' }
+        $preparationExitCases=@(Invoke-PreparationExitObservationTests)
+        Assert-PreparationExitCaseNames $preparationExitCases 88 'd31e67d296b9e17b9dc7df0c1ea73957252eec3cd28f4b555a44e6ed8019a4af'
+        $preparationExitReportingCases=@(Invoke-PreparationExitReportingTests)
+        Assert-PreparationExitCaseNames $preparationExitReportingCases 72 'f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42'
         $writerCases=Invoke-ReportingWriterTests $root
         $laterProductionCases=Invoke-LaterProductionTests $root
         $configurationCases=Invoke-ConfigurationIntegrationTests $root

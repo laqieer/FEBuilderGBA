@@ -70,6 +70,274 @@ function Invoke-RetainedImageReportingTests {
     Assert-Proof ($executed -eq 16) 'Image reporting inventory.'
     return $executed
 }
+function Invoke-PreparationExitTestObservation($Case) {
+    # PowerShell binds $null to an empty string here; the native reader returns a true null.
+    $source=if($Case.Contains('source')){$Case.source}else{
+        [ProcessImageRead]::new([NullString]::Value,'native-error',31,1,$true,$null)
+    }
+    $exitValues=@($false,$true);$budgetValues=@(30,20,10)
+    if($Case.Contains('exitValues')){$exitValues=$Case.exitValues}
+    if($Case.Contains('budgetValues')){$budgetValues=$Case.budgetValues}
+    $role=if($Case.Contains('role')){$Case.role}else{'prepare-initial'}
+    $state=@{exits=0;reads=0;budgets=0;trace=[Collections.Generic.List[string]]::new()}
+    $observation=if($Case.Contains('slot')){@{}+$Case.slot}else{@{}}
+    $snapshot=$observation|ConvertTo-Json -Compress
+    $result=$null;$failure=$null
+    $hasExited={
+        $state.trace.Add('exit');$index=$state.exits;$state.exits++
+        if($index -ge $exitValues.Count){throw 'Unexpected exit callback.'}
+        $value=$exitValues[$index]
+        if($value -is [Exception]){throw $value}
+        return ,$value
+    }.GetNewClosure()
+    $readImage={
+        $state.trace.Add('image');$state.reads++
+        if($source -is [Exception]){throw $source}
+        return ,$source
+    }.GetNewClosure()
+    $clock={
+        $state.trace.Add('budget');$index=$state.budgets;$state.budgets++
+        if($index -ge $budgetValues.Count){throw 'Unexpected budget callback.'}
+        $value=$budgetValues[$index]
+        if($value -is [Exception]){throw $value}
+        return ,$value
+    }.GetNewClosure()
+    try {
+        $result=Get-ProcessImageObservation $hasExited $readImage $clock `
+            'C:\expected\tool.exe' ([StringComparison]::OrdinalIgnoreCase) $role $observation
+    } catch { $failure=$_.Exception.Message }
+    return @{result=$result;failure=$failure;observation=$observation;source=$source;calls=$state;slotBefore=$snapshot}
+}
+function Invoke-PreparationExitObservationTests {
+    $cases=[Collections.Generic.List[object]]::new()
+    foreach($case in @(
+        @{name='exit-after-native-error';code='exited-after-query-error';success=$true;exits=2;budgets=3},
+        @{name='equal-positive-budgets';code='exited-after-query-error';success=$true;exits=2;budgets=3;budgetValues=@(30,30,30)},
+        @{name='fractional-positive-budgets';code='exited-after-query-error';success=$true;exits=2;budgets=3;budgetValues=@(0.3,0.2,0.1)},
+        @{name='already-exited-unchanged';code='exited-unobserved';success=$true;exitValues=@($true);reads=0;budgets=1},
+        @{name='matching-image-unchanged';code='image-observed';success=$true;source=[ProcessImageRead]::new('C:\expected\tool.exe','image-observed',$null,1,$true,20)},
+        @{name='mismatch-then-exit';code='image-mismatch';source=[ProcessImageRead]::new('C:\other\tool.exe','image-observed',$null,1,$true,17)},
+        @{name='still-live';exitValues=@($false,$false);exits=2;budgets=3},
+        @{name='invalid-retained-handle';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,1,$false,$null)},
+        @{name='zero-queries';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,0,$true,$null)},
+        @{name='multiple-queries';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,2,$true,$null)},
+        @{name='negative-queries';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,-1,$true,$null)},
+        @{name='error-with-path';source=[ProcessImageRead]::new('C:\other\tool.exe','native-error',31,1,$true,$null)},
+        @{name='error-with-empty-path';source=[ProcessImageRead]::new('','native-error',31,1,$true,$null)},
+        @{name='error-with-character-count';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,1,$true,1)},
+        @{name='error-with-zero-character-count';source=[ProcessImageRead]::new([NullString]::Value,'native-error',31,1,$true,0)},
+        @{name='source-exception';code='image-source-failed';source=[InvalidOperationException]::new('private source detail')},
+        @{name='null-source';code='image-source-failed';source=$null},
+        @{name='untyped-source';code='image-source-failed';source=[pscustomobject]@{Code='native-error';NativeError=31;Queries=1;HandleValid=$true;Path=$null;Characters=$null}},
+        @{name='unknown-role';code=$null;role='foreign-process';reads=0;exits=0;budgets=0},
+        @{name='role-case-mismatch';code=$null;role='Prepare-initial';reads=0;exits=0;budgets=0},
+        @{name='consumed-slot';code='image-mismatch';slot=@{code='image-mismatch'};reads=0;exits=0;budgets=0},
+        @{name='post-query-budget-increased';budgetValues=@(30,31,10)},
+        @{name='post-exit-budget-increased';budgetValues=@(30,20,21);exits=2;budgets=3}
+    )){$cases.Add($case)}
+    foreach($role in @('prepare-cleanup','launch-runner-initial','launch-runner-cleanup','launch-app-retain',
+        'launch-app-cleanup','run-self','run-app-initial','desktop-app','supervision-self',
+        'supervision-child-initial','supervision-child-cleanup')){
+        $cases.Add(@{name='role-'+$role;role=$role})
+    }
+    foreach($code in @('not-queried','invalid-handle','query-exception','invalid-image','image-mismatch',
+        'image-deadline','exit-check-failed','exited-unobserved','image-source-failed','identity-refused',
+        'exited-after-query-error','unknown-refusal')){
+        $cases.Add(@{name='code-'+$code;code=$code;source=[ProcessImageRead]::new([NullString]::Value,$code,31,1,$true,$null)})
+    }
+    foreach($errorCase in @(@{name='null';value=$null},@{name='zero';value=0},@{name='access-denied';value=5},
+        @{name='invalid-handle';value=6},@{name='other';value=87},@{name='negative';value=-1})){
+        $cases.Add(@{name='native-error-'+$errorCase.name;source=[ProcessImageRead]::new([NullString]::Value,'native-error',$errorCase.value,1,$true,$null)})
+    }
+    foreach($valueCase in @(@{name='null';value=$null},@{name='string';value='true'},@{name='number';value=1},
+        @{name='array';value=[object[]]@($true)},@{name='object';value=[pscustomobject]@{exited=$true}},
+        @{name='exception';value=[InvalidOperationException]::new('private exit detail')})){
+        $initial=[object[]]::new(1);$initial[0]=$valueCase.value
+        $after=[object[]]::new(2);$after[0]=$false;$after[1]=$valueCase.value
+        $cases.Add(@{name='initial-exit-'+$valueCase.name;code='exit-check-failed';exitValues=$initial;reads=0;budgets=1})
+        $cases.Add(@{name='post-exit-'+$valueCase.name;code='exit-check-failed';exitValues=$after;exits=2;budgets=3})
+    }
+    foreach($budgetCase in @(@{name='zero';value=0},@{name='negative';value=-1},@{name='nan';value=[double]::NaN},
+        @{name='positive-infinity';value=[double]::PositiveInfinity},@{name='negative-infinity';value=[double]::NegativeInfinity},
+        @{name='null';value=$null},@{name='text';value='not-a-budget'},
+        @{name='exception';value=[InvalidOperationException]::new('private budget detail')})){
+        $cases.Add(@{name='initial-budget-'+$budgetCase.name;code='image-deadline';budgetValues=@($budgetCase.value);reads=0;exits=0;budgets=1})
+        $cases.Add(@{name='post-query-budget-'+$budgetCase.name;budgetValues=@(30,$budgetCase.value)})
+        $cases.Add(@{name='post-exit-budget-'+$budgetCase.name;budgetValues=@(30,20,$budgetCase.value);exits=2;budgets=3})
+    }
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $names=[Collections.Generic.List[string]]::new()
+    foreach($case in $cases){
+        Assert-Proof ($seen.Add($case.name)) 'Unique preparation exit case.'
+        $actual=Invoke-PreparationExitTestObservation $case
+        $code=if($actual.observation.Contains('code')){$actual.observation.code}else{$null}
+        $expectedCode=if($case.Contains('code')){$case.code}else{'native-error'}
+        $reads=if($case.Contains('reads')){$case.reads}else{1}
+        $exits=if($case.Contains('exits')){$case.exits}else{1}
+        $budgets=if($case.Contains('budgets')){$case.budgets}else{2}
+        Assert-Proof ($code -ceq $expectedCode) "$($case.name): diagnostic code."
+        Assert-Proof ($actual.calls.reads -eq $reads -and $actual.calls.exits -eq $exits -and
+            $actual.calls.budgets -eq $budgets) "$($case.name): callback counts."
+        $expectedTrace=if($budgets -eq 3){'budget,exit,image,budget,exit,budget'}
+            elseif($reads -eq 1){'budget,exit,image,budget'}
+            elseif($exits -eq 1){'budget,exit'}elseif($budgets -eq 1){'budget'}else{''}
+        Assert-Proof (($actual.calls.trace -join ',') -ceq $expectedTrace) "$($case.name): callback order."
+        if($case.Contains('success') -and $case.success){
+            Assert-Proof (!$actual.failure -and $null -ne $actual.result) "$($case.name): unexpected refusal: $($actual.failure)"
+            $state=if($code -ceq 'image-observed'){'image-observed'}else{'exited-unobserved'}
+            Assert-Proof ($actual.result.state -ceq $state -and $actual.result.attempts -eq $reads) "$($case.name): result."
+            if($state -ceq 'exited-unobserved'){
+                Assert-Proof ($null -eq $actual.result.path) "$($case.name): fabricated result image."
+            }
+        }else{
+            Assert-Proof ($actual.failure -and $null -eq $actual.result) "$($case.name): failed open."
+            Assert-Proof (!$actual.failure.Contains('private ')) "$($case.name): private exception detail."
+        }
+        if($code -ceq 'exited-after-query-error' -and $null -ne $actual.result){
+            $before=if($case.Contains('budgetValues')){$case.budgetValues[0]}else{30}
+            $after=if($case.Contains('budgetValues')){$case.budgetValues[2]}else{10}
+            Assert-Proof ($actual.observation.nativeError -eq 31 -and $actual.observation.queries -eq 1 -and
+                $actual.observation.handleValid -is [bool] -and $actual.observation.handleValid -and
+                $actual.observation.remainingBeforeMs -eq $before -and
+                $actual.observation.remainingAfterMs -eq $after -and
+                $null -eq $actual.observation.returnedChars) 'Post-query exit evidence.'
+        }
+        if($reads -eq 1 -and $actual.source -is [ProcessImageRead] -and $code -cne 'image-source-failed'){
+            Assert-Proof ($actual.observation.nativeError -ceq $actual.source.NativeError -and
+                $actual.observation.queries -eq $actual.source.Queries) "$($case.name): native facts changed."
+        }
+        if($actual.observation.Count -eq 17 -and $code -cnotin @('image-observed','image-mismatch')){
+            foreach($field in @('observedPathSha256','observedPathLength','observedPathPreview','previewTruncated')){
+                Assert-Proof ($null -eq $actual.observation[$field]) "$($case.name): fabricated observed image."
+            }
+        }
+        if($case.Contains('slot')){
+            Assert-Proof (($actual.observation|ConvertTo-Json -Compress) -ceq $actual.slotBefore) 'Consumed slot changed.'
+        }
+        $names.Add($case.name)
+    }
+    return $names.ToArray()
+}
+function Invoke-PreparationExitReportingTests {
+    function Image {
+        $actual=Invoke-PreparationExitTestObservation @{}
+        Assert-Proof (!$actual.failure -and $actual.result.state -ceq 'exited-unobserved') 'Modeled exit diagnostic required.'
+        return ,$actual.observation
+    }
+    function Record($image) {
+        New-RTerminalRecord @{exe='C:\expected\tool.exe';hostSha256=('1'*64)} @{imageObservation=$image}
+    }
+    $cases=[Collections.Generic.List[object]]::new()
+    foreach($case in @(
+        @{name='real-diagnostic-roundtrip';run={
+            $d=Image;$record=Record $d;$bytes=ConvertTo-RPublicationBytes $record
+            $roundtrip=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($bytes))
+            Assert-RImageObservation $roundtrip.imageObservation
+            Assert-Proof (!$roundtrip.passed -and $null -eq $roundtrip.image -and
+                $roundtrip.imageObservation.code -ceq 'exited-after-query-error' -and
+                $roundtrip.imageObservation.nativeError -eq 31 -and $roundtrip.imageObservation.queries -eq 1 -and
+                $null -eq $roundtrip.imageObservation.observedPathPreview) 'Exit diagnostic serialization.'
+        }},
+        @{name='equal-budget-roundtrip';run={
+            $d=Image;$d.remainingAfterMs=$d.remainingBeforeMs
+            $null=Record $d
+        }},
+        @{name='terminal-snapshot-preserves-native-error';run={
+            $d=Image;$memory=@{terminal=$null;receipt=$null}
+            Assert-ProofTestThrows {
+                $null=Invoke-RTerminalPublication -Bindings @{exe='host';hostSha256=('1'*64)} `
+                    -Observations @{failure='original';imageObservation=$d} `
+                    -WriteTerminal {param($Bytes) $memory.terminal=$Bytes.Clone();$d.nativeError=5;$true} `
+                    -WriteReceipt {param($Bytes) $memory.receipt=$Bytes.Clone();$true}
+            }
+            foreach($bytes in @($memory.terminal,$memory.receipt)){
+                $r=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($bytes))
+                Assert-Proof (!$r.passed -and $r.failure -ceq 'original' -and
+                    $r.imageObservation.code -ceq 'exited-after-query-error' -and
+                    $r.imageObservation.nativeError -eq 31) 'Frozen query error lost.'
+            }
+            Assert-Proof ($d.nativeError -eq 5) 'Writer mutation fixture did not run.'
+        }},
+        @{name='diagnostic-alone-cannot-promote';run={
+            $memory=@{verifies=0;receipt=$null}
+            Assert-ProofTestThrows {
+                $null=Invoke-RTerminalPublication -Bindings @{exe='host';hostSha256=('1'*64)} `
+                    -Observations @{imageObservation=(Image)} -WriteTerminal {param($Bytes) $true} `
+                    -VerifyOutput {$memory.verifies++;throw 'Output verification must not run.'} `
+                    -WriteReceipt {param($Bytes) $memory.receipt=$Bytes.Clone();$true}
+            }
+            $r=ConvertFrom-RJson ([Text.Encoding]::UTF8.GetString($memory.receipt))
+            Assert-Proof (!$r.passed -and $memory.verifies -eq 0 -and $null -eq $r.image -and
+                $null -eq $r.exitCode -and $null -eq $r.exitConfirmed) 'Diagnostic fabricated process success.'
+        }}
+    )){$cases.Add($case)}
+    foreach($role in @('prepare-cleanup','launch-runner-initial','launch-runner-cleanup','launch-app-retain',
+        'launch-app-cleanup','run-self','run-app-initial','desktop-app','supervision-self',
+        'supervision-child-initial','supervision-child-cleanup','foreign-process','Prepare-initial')){
+        $cases.Add(@{name='forged-role-'+$role;field='role';value=$role})
+    }
+    foreach($case in @(
+        @{name='null-native-error';field='nativeError';value=$null},
+        @{name='other-native-error';field='nativeError';value=87},
+        @{name='access-denied';field='nativeError';value=5},
+        @{name='invalid-handle-error';field='nativeError';value=6},
+        @{name='string-native-error';field='nativeError';value='31'},
+        @{name='floating-native-error';field='nativeError';value=31.0},
+        @{name='zero-queries';field='queries';value=0},
+        @{name='multiple-queries';field='queries';value=2},
+        @{name='string-queries';field='queries';value='1'},
+        @{name='invalid-handle';field='handleValid';value=$false},
+        @{name='unknown-handle';field='handleValid';value=$null},
+        @{name='string-handle';field='handleValid';value='true'},
+        @{name='returned-characters';field='returnedChars';value=1},
+        @{name='observed-digest';field='observedPathSha256';value=('1'*64)},
+        @{name='observed-length';field='observedPathLength';value=1},
+        @{name='observed-preview';field='observedPathPreview';value='x'},
+        @{name='empty-observed-preview';field='observedPathPreview';value=''},
+        @{name='truncation-false';field='previewTruncated';value=$false},
+        @{name='truncation-true';field='previewTruncated';value=$true},
+        @{name='increasing-budget';field='remainingAfterMs';value=31},
+        @{name='code-case-mismatch';field='code';value='Exited-after-query-error'}
+    )){$cases.Add($case)}
+    foreach($field in @('remainingBeforeMs','remainingAfterMs')){
+        foreach($bad in @(@{name='zero';value=0},@{name='negative';value=-1},@{name='null';value=$null},
+            @{name='nan';value=[double]::NaN},@{name='infinity';value=[double]::PositiveInfinity},
+            @{name='negative-infinity';value=[double]::NegativeInfinity},@{name='string';value='1'},
+            @{name='boolean';value=$true})){
+            $cases.Add(@{name=$field+'-'+$bad.name;field=$field;value=$bad.value})
+        }
+    }
+    foreach($field in @('schema','role','method','flags','code','queries','handleValid','nativeError',
+        'capacity','returnedChars','expectedPathSha256','observedPathSha256','observedPathLength',
+        'observedPathPreview','previewTruncated','remainingBeforeMs','remainingAfterMs')){
+        $cases.Add(@{name='missing-'+$field;remove=$field})
+    }
+    $cases.Add(@{name='extra-exit-field';field='exitConfirmed';value=$true})
+    $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $names=[Collections.Generic.List[string]]::new()
+    foreach($case in $cases){
+        Assert-Proof ($seen.Add($case.name)) 'Unique preparation exit reporting case.'
+        if($case.Contains('run')){& $case.run}
+        else{
+            $d=Image
+            if($case.Contains('remove')){$null=$d.Remove($case.remove)}else{$d[$case.field]=$case.value}
+            $failed=$false
+            try{$null=Record $d}catch{
+                if($_.Exception -is [Management.Automation.CommandNotFoundException]){throw}
+                $failed=$true
+            }
+            Assert-Proof $failed "$($case.name): forged exit diagnostic accepted."
+        }
+        $names.Add($case.name)
+    }
+    return $names.ToArray()
+}
+function Assert-PreparationExitCaseNames([string[]]$Names,[int]$Count,[string]$Sha256) {
+    Assert-Proof ($Names.Count -eq $Count) 'Preparation exit case count.'
+    $bytes=[Text.UTF8Encoding]::new($false).GetBytes(($Names -join "`n"))
+    $actual=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
+    Assert-Proof ($actual -ceq $Sha256) 'Preparation exit case names/order.'
+}
 function Invoke-ProofPureCase($Case) {
     if($Case.name -cin @('inventory-json-depth-bound','receipt-completion-depth-bound')){
         $null=& $Case.run 3>&1

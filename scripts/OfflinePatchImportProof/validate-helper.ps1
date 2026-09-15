@@ -62,6 +62,9 @@ function ProofEnvelope {
             }
             if($Mode -ceq 'Pure') {
                 . "$Code\RuntimeBinding.Tests.ps1"
+                . "$Code\Configuration.Tests.ps1"
+                . "$Code\ProcessImage.ps1"
+                . (Get-PinnedProofLibrary -Library RestagePolicy)
                 $report.bindingCases=Invoke-PinnedRuntimeBindingTests
                 if ($report.bindingCases -ne 22) { throw 'Incomplete pure binding cases.' }
                 Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs","$Code\Policy.Tests.cs") -ReferencedAssemblies $references
@@ -69,6 +72,10 @@ function ProofEnvelope {
                 if($report.processImageCases -ne 10) { throw 'Ten pure process-image cases required.' }
                 $report.retainedImageCases=[RetainedProcessImageTests]::Run()
                 if($report.retainedImageCases -ne 32) { throw 'Retained image inventory changed.' }
+                $preparationExitCases=@(Invoke-PreparationExitObservationTests)
+                Assert-PreparationExitCaseNames $preparationExitCases 88 'd31e67d296b9e17b9dc7df0c1ea73957252eec3cd28f4b555a44e6ed8019a4af'
+                $preparationExitReportingCases=@(Invoke-PreparationExitReportingTests)
+                Assert-PreparationExitCaseNames $preparationExitReportingCases 72 'f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42'
                 $report.cases=[DesktopPolicyTests]::Run()
                 if ($report.cases -le 0) { throw 'No pure cases executed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)

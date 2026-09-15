@@ -123,6 +123,120 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         for field in ("selfImageObservation", "imageObservation", "cleanupImageObservation"):
             self.assertIn(field, policy)
 
+    def test_preparation_exit_fallback_requires_one_bounded_positive_observation(self):
+        bridge = (PACKAGE / "ProcessImage.ps1").read_text(encoding="utf-8")
+        self.assertEqual(2, bridge.count("& $HasExited"))
+        self.assertEqual(1, bridge.count("& $ReadImage"))
+        self.assertEqual(3, bridge.count("& $RemainingMilliseconds"))
+        fallback = bridge[bridge.index("$mayObserveExit="):]
+        for guard in (
+            "$Role -ceq 'prepare-initial'", "$Observation.code -ceq 'native-error'",
+            "$image -is [ProcessImageRead]", "$image.Code -ceq 'native-error'",
+            "$image.NativeError -eq 31", "$image.HandleValid", "$image.Queries -eq 1",
+            "$null -eq $image.Path", "$null -eq $image.Characters",
+            "$Observation.role -ceq 'prepare-initial'", "$Observation.nativeError -eq 31",
+            "$Observation.handleValid -is [bool]", "$Observation.queries -eq 1",
+            "$after -gt 0 -and $after -le $before", "$postExit -isnot [bool]",
+            "$postExit -is [bool] -and $postExit",
+            "$exitAfter -gt 0 -and $exitAfter -le $after",
+            "[double]::IsFinite($after)", "[double]::IsFinite($exitAfter)",
+        ):
+            self.assertIn(guard, fallback)
+        for field in ("returnedChars", "observedPathSha256", "observedPathLength",
+                      "observedPathPreview", "previewTruncated"):
+            self.assertIn(f"$null -eq $Observation.{field}", fallback)
+        self.assertLess(fallback.index("$postExit=& $HasExited"),
+                        fallback.index("$exitAfter=[double](& $RemainingMilliseconds)"))
+        self.assertIn("catch { $Observation.code='exit-check-failed' }", fallback)
+        self.assertIn("catch { $exitAfter=[double]::NaN }", fallback)
+        self.assertIn("state='exited-unobserved';path=$null;attempts=1", fallback)
+        self.assertNotRegex(fallback, r"nativeError\s*=|queries\s*=")
+        self.assertNotRegex(bridge, r"Sleep|Start-Sleep|while\s*\(|GetProcessById|MainModule")
+
+    def test_preparation_exit_inventories_are_separate_and_pinned_in_both_runners(self):
+        suites = (
+            ("preparationExitCases", "Invoke-PreparationExitObservationTests", 88,
+             "d31e67d296b9e17b9dc7df0c1ea73957252eec3cd28f4b555a44e6ed8019a4af"),
+            ("preparationExitReportingCases", "Invoke-PreparationExitReportingTests", 72,
+             "f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42"),
+        )
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            text = (PACKAGE / name).read_text(encoding="utf-8")
+            for variable, function, count, digest in suites:
+                self.assertIn(f"${variable}=@({function})", text)
+                self.assertIn(f"Assert-PreparationExitCaseNames ${variable} {count} '{digest}'", text)
+                self.assertNotIn(f"$report.{variable}", text)
+                self.assertNotRegex(text, rf"(?m)^\s*{variable}\s*=")
+        helper = (PACKAGE / "validate-helper.ps1").read_text(encoding="utf-8")
+        self.assertLess(helper.index("$null=Assert-ProofSource"),
+                        helper.index('. "$Code\\Configuration.Tests.ps1"'))
+        self.assertLess(helper.index("foreach($r in @($tools.tools)"),
+                        helper.index('. "$Code\\Configuration.Tests.ps1"'))
+        self.assertIn(". (Get-PinnedProofLibrary -Library RestagePolicy)", helper)
+        self.assertIn('. "$Code\\ProcessImage.ps1"', helper)
+        tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
+        fixture = tests[tests.index("function Invoke-PreparationExitTestObservation"):
+                        tests.index("function Invoke-PreparationExitObservationTests")]
+        self.assertIn("[ProcessImageRead]::new([NullString]::Value,'native-error',31,1,$true,$null)", fixture)
+        self.assertIn("$actual -ceq $Sha256", tests)
+        aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        self.assertIn(". (Join-Path $PSScriptRoot 'ProcessImage.ps1')", aggregate)
+        result = aggregate.split("$result=[pscustomobject]@{", 1)[1].split("\n        }", 1)[0]
+        self.assertEqual({
+            "cases", "installedSnapshotCases", "startupObservationCases", "ownedTreeCases",
+            "processImageCases", "retainedImageCases", "retainedImageReportingCases",
+            "runtimeBindingCases", "windowsLexicalCases", "reportingWriterCases",
+            "laterProductionCases", "configurationIntegrationCases", "compilerReferenceFixtureCases",
+            "restageCases", "loaderCases", "liveProcessImageIntegrationCases",
+            "outputOnlyCompilations", "passed", "native_calls", "gui_authorization",
+        }, set(re.findall(r"(?m)^\s*(\w+)\s*=", result)))
+
+    def test_post_query_exit_diagnostic_has_semantic_guard_without_new_fields(self):
+        policy = (PACKAGE / "restage/RestagePolicy.ps1").read_text(encoding="utf-8")
+        validator = policy[policy.index("function Assert-RImageObservation"):
+                           policy.index("function New-RTerminalRecord")]
+        fields = validator.split("Assert-RKeys $Value @(", 1)[1].split(")", 1)[0]
+        self.assertEqual({
+            "schema", "role", "method", "flags", "code", "queries", "handleValid", "nativeError",
+            "capacity", "returnedChars", "expectedPathSha256", "observedPathSha256",
+            "observedPathLength", "observedPathPreview", "previewTruncated",
+            "remainingBeforeMs", "remainingAfterMs",
+        }, set(re.findall(r"'([^']+)'", fields)))
+        guard = validator[validator.index("if($Value.code -ceq 'exited-after-query-error')"):]
+        for token in ("$Value.role -ceq 'prepare-initial'", "$Value.nativeError -eq 31",
+                      "$Value.handleValid -is [bool]", "$Value.queries -eq 1",
+                      "$null -eq $Value[$key]", "$null -ne $Value.remainingBeforeMs",
+                      "$null -ne $Value.remainingAfterMs", "$Value.remainingBeforeMs -gt 0",
+                      "$Value.remainingAfterMs -gt 0",
+                      "$Value.remainingAfterMs -le $Value.remainingBeforeMs"):
+            self.assertIn(token, guard)
+        for field in ("returnedChars", "observedPathSha256", "observedPathLength",
+                      "observedPathPreview", "previewTruncated"):
+            self.assertIn(f"'{field}'", guard)
+        tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
+        self.assertIn("terminal-snapshot-preserves-native-error", tests)
+        self.assertIn("diagnostic-alone-cannot-promote", tests)
+        self.assertIn("Invoke-RTerminalPublication", tests)
+
+    def test_preparation_still_requires_retained_exit_zero_eof_and_source_gates(self):
+        prepare = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        run = prepare[prepare.index("function Run("):prepare.index("function Git(")]
+        ordered = (
+            "$null=Get-ProcessImageObservation", "$exited=$p.WaitForExit(",
+            "$record.exitCode=$p.ExitCode", "foreach ($task in @($copyOut,$copyErr))",
+            "if (!$drained)", "if ($record.exitCode -ne 0)",
+            "$record.stdoutSha256=Hash $record.stdout", "Budget; $record.passed=$true",
+        )
+        positions = [run.index(token) for token in ordered]
+        self.assertEqual(sorted(positions), positions)
+        self.assertGreaterEqual(run.count("Assert-ProofProcessDeadline"), 5)
+        self.assertEqual(1, run.count("$record.passed=$true"))
+        self.assertLess(prepare.index("$report.before=SourceState"),
+                        prepare.index("$report.after=SourceState"))
+        self.assertLess(prepare.index("$report.after=SourceState"),
+                        prepare.index("Budget; $report.passed=$true"))
+        self.assertNotIn("exited-after-query-error", prepare)
+
     def test_complete_public_inventory(self):
         expected = {
             "Desktop.cs", "Policy.cs", "Policy.Tests.cs", "Readiness.cs",

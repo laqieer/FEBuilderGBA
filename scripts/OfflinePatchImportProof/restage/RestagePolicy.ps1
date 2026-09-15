@@ -283,7 +283,7 @@ function Assert-RImageObservation($Value) {
         'supervision-child-cleanup')) 'Image diagnostic role.'
     Assert-R ($Value.code -is [string] -and $Value.code -cin @('not-queried','invalid-handle','native-error',
         'query-exception','invalid-image','image-observed','image-mismatch','image-deadline',
-        'exit-check-failed','exited-unobserved','image-source-failed','identity-refused')) 'Image diagnostic code.'
+        'exit-check-failed','exited-unobserved','exited-after-query-error','image-source-failed','identity-refused')) 'Image diagnostic code.'
     foreach($key in @('flags','queries','capacity')) {
         Assert-R ($Value[$key] -is [int] -or $Value[$key] -is [long]) 'Image diagnostic integer.'
     }
@@ -307,6 +307,16 @@ function Assert-RImageObservation($Value) {
         Assert-R ($null -eq $Value[$key] -or (($Value[$key] -is [int] -or $Value[$key] -is [long] -or
             $Value[$key] -is [double] -or $Value[$key] -is [decimal]) -and
             [double]::IsFinite([double]$Value[$key]))) 'Image diagnostic budget.'
+    }
+    if($Value.code -ceq 'exited-after-query-error'){
+        Assert-R ($Value.role -ceq 'prepare-initial' -and $Value.nativeError -eq 31 -and
+            $Value.handleValid -is [bool] -and $Value.handleValid -and $Value.queries -eq 1) 'Post-query exit diagnostic origin.'
+        foreach($key in @('returnedChars','observedPathSha256','observedPathLength','observedPathPreview','previewTruncated')){
+            Assert-R ($null -eq $Value[$key]) 'Post-query exit has no observed image.'
+        }
+        Assert-R ($null -ne $Value.remainingBeforeMs -and $null -ne $Value.remainingAfterMs -and
+            $Value.remainingBeforeMs -gt 0 -and $Value.remainingAfterMs -gt 0 -and
+            $Value.remainingAfterMs -le $Value.remainingBeforeMs) 'Post-query exit diagnostic budget.'
     }
     $bytes=[Text.UTF8Encoding]::new($false,$true).GetBytes(($Value|ConvertTo-Json -Depth 4 -Compress))
     Assert-R ($bytes.Length -le 4096) 'Image diagnostic byte bound.'
