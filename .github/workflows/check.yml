@@ -182,6 +182,16 @@ jobs:
           exit 1
         }
 
+    - name: Build WinForms unit tests (Release/x86)
+      shell: pwsh
+      timeout-minutes: 15
+      run: dotnet build FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj -c Release -p:Platform=x86 --no-restore -warnaserror
+
+    - name: Run WinForms unit tests (Release/x86)
+      shell: pwsh
+      timeout-minutes: 30
+      run: dotnet test FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj -c Release -p:Platform=x86 --no-build --verbosity normal --logger "trx;LogFileName=unit-release-x86.trx" --blame-hang --blame-hang-timeout 20m
+
     - name: Publish Test Results
       if: always() && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository)
       uses: dorny/test-reporter@v1

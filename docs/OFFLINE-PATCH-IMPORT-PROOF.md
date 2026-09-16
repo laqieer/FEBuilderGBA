@@ -263,6 +263,52 @@ suppressed. A failure may refresh its known owned handle once, using at most fou
 remaining budgeted native calls. If cancellation/deadline intervenes, after-state
 can be unavailable; diagnostics do not mask the original refusal.
 
+Four nullable observations describe an unverified Resolve candidate without
+identifying it or granting ownership:
+
+| Field | Available value |
+| --- | --- |
+| `SeedOrdinal` | Current bounded collection position, 1..8; null for direct `Seed(node)` or before collection completes. |
+| `SeedResolveKeyEqual` | Whether the already-returned outer seed key equals the first Resolve key after low-32 normalization; null before that return and for raw ancestors. |
+| `ResolveAlive` | Boolean returned by the existing budgeted liveness read, not evidence of ownership. |
+| `ResolvePidRelation` | `zero`, `owned`, or `foreign`, derived from the single existing native PID return; never the PID itself. |
+
+Refresh clears these fields before collection. A seed gets its ordinal before
+its PID/handle checks; Resolve clears probe values on entry and at each raw-parent
+frame, retaining only the supplied ordinal. A successful Resolve clears all four
+before registration or later scanning. “Returned” includes the adapter's
+post-read budget check: a cancellation there leaves that observation null while
+preserving earlier completed observations. Failure-time refresh still targets
+only a previously positively owned handle and cannot update the new fields.
+Legacy ownership context, refusals, call order and budgets do not change.
+
+Both runners separately check 39 named production-model diagnostic cases and 48
+named compact/pretty/nested wire cases using 16 actual model `QueryFailure`
+objects. Each wire shape has exactly 20 properties, nullable/domain checks,
+a 4096-byte UTF-8 cap, and unverified handle/PID/private-text sentinel exclusions.
+These are checked locals, not new runtime report counters; the existing
+146/522/57/75 case inventories and 12 `StartupFailure` serialization cases remain
+separate and unchanged. The model seed adapter makes one fewer call than the
+production adapter; exact model traces are not production call-count claims.
+
+The public Windows aggregate includes existing authenticated fixture-worker
+launches and retained-process-image native queries. It is not native-free.
+Exact-source local execution approval must explicitly cover these bounded test
+effects. The second runner remains reachable only through the authenticated
+Validate parent and its `ValidatePureChild` dispatch, with the required current
+source, configuration and preparation bindings; running the ordinary aggregate
+does not execute or prove that second route. The Validate parent requires a
+clean committed worktree matching its prepared head/tree, so it cannot validate
+an uncommitted test-first candidate by bypassing those source checks.
+Direct `validate-helper.ps1`
+invocation remains unsupported. No test result authorizes application launch,
+desktop readiness, GUI/native probes, recovery, or another proof attempt.
+
+The consumed `c927` attempt passed readiness but refused `query-native-gone`.
+The cause of its historical `IsWindow` false result is not established by these
+new observations. This contract closes an observation gap only; it neither
+repairs a proven GUI cause nor revives `c927` or the consumed `3af`/`877f` attempts.
+
 Stale/unavailable roots and ownership failures are not retried or converted to
 missing controls. These samples are not atomic and do not prove absence of
 same-PID HWND reuse. Attempt `329` remains failed/consumed: its exact offending

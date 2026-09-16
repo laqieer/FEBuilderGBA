@@ -1,9 +1,11 @@
 using System;
+using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using Microsoft.Win32.SafeHandles;
 
 namespace FEBuilderGBA.E2ETests.Helpers
 {
@@ -12,19 +14,6 @@ namespace FEBuilderGBA.E2ETests.Helpers
     /// </summary>
     public static class ScreenshotHelper
     {
-        [DllImport("user32.dll")] private static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-        [DllImport("user32.dll")] private static extern bool SetForegroundWindow(IntPtr hWnd);
-        [DllImport("user32.dll")] private static extern bool PrintWindow(IntPtr hWnd, IntPtr hdcBlt, uint nFlags);
-        [DllImport("user32.dll")] private static extern IntPtr GetDC(IntPtr hWnd);
-        [DllImport("user32.dll")] private static extern int ReleaseDC(IntPtr hWnd, IntPtr hDC);
-        [DllImport("gdi32.dll")] private static extern bool BitBlt(IntPtr hdcDest, int xDest, int yDest, int w, int h, IntPtr hdcSrc, int xSrc, int ySrc, uint rop);
-        [StructLayout(LayoutKind.Sequential)]
-        private struct RECT { public int Left, Top, Right, Bottom; }
-
-        // PW_RENDERFULLCONTENT = 2: captures even DWM-composed content
-        private const uint PW_RENDERFULLCONTENT = 2;
-        private const uint SRCCOPY = 0x00CC0020;
-
         /// <summary>
         /// Directory where screenshots are saved.
         /// Defaults to a "screenshots" folder beside the test assembly.
@@ -51,119 +40,151 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
-        /// Capture a screenshot with a deterministic filename (no timestamp suffix).
-        /// Useful for predictable filenames in automated screenshot tests.
-        /// Returns the saved file path, or null if the capture fails.
+        /// Capture an owned live process window with a deterministic filename.
+        /// Rejected readiness, ownership or capture failure throws; no screen fallback is used.
         /// </summary>
-        public static string? CaptureWindowDeterministic(IntPtr hWnd, string name, string? outputDir = null)
-        {
-            try
-            {
-                string dir = outputDir ?? OutputDirectory;
-                Directory.CreateDirectory(dir);
-
-                SetForegroundWindow(hWnd);
-                System.Threading.Thread.Sleep(200);
-
-                if (!GetWindowRect(hWnd, out RECT r)) return null;
-                int w = r.Right  - r.Left;
-                int h = r.Bottom - r.Top;
-                if (w <= 0 || h <= 0) return null;
-
-                Bitmap? bmp = TryPrintWindow(hWnd, w, h, PW_RENDERFULLCONTENT)
-                           ?? TryPrintWindow(hWnd, w, h, 0)
-                           ?? TryBitBlt(r, w, h);
-
-                if (bmp == null) return null;
-
-                string safeName = SanitizeFileName(name);
-                string path = Path.Combine(dir, $"{safeName}.png");
-
-                bmp.Save(path, ImageFormat.Png);
-                bmp.Dispose();
-                return path;
-            }
-            catch
-            {
-                return null;
-            }
-        }
+        public static string CaptureWindowDeterministic(
+            Process process, IntPtr hWnd, string name, string? outputDir = null) =>
+            CaptureWindow(process, hWnd, name, outputDir ?? OutputDirectory, false,
+                DesktopReadiness.Probe, new WindowsCaptureNative());
 
         /// <summary>
-        /// Capture a screenshot of <paramref name="hWnd"/> and save it as PNG.
-        /// Tries multiple capture strategies: PrintWindow with PW_RENDERFULLCONTENT,
-        /// PrintWindow with flag=0, and BitBlt from screen DC as fallback.
-        /// Returns the saved file path, or null if the capture fails.
+        /// Capture an owned live process window and save a timestamped PNG.
+        /// The caller must retain the Process returned by AppRunner.Launch until capture ends.
         /// </summary>
-        public static string? CaptureWindow(IntPtr hWnd, string name)
+        public static string CaptureWindow(Process process, IntPtr hWnd, string name) =>
+            CaptureWindow(process, hWnd, name, OutputDirectory, true,
+                DesktopReadiness.Probe, new WindowsCaptureNative());
+
+        internal static string CaptureWindow(Process process, IntPtr hWnd, string name,
+            string outputDir, bool timestamp, Func<DesktopReadinessResult> probe,
+            IWindowCaptureNative native)
         {
+            DesktopReadiness.RequireReady(probe);
+            RequireOwnedWindow(process, hWnd, native);
+
             try
             {
-                Directory.CreateDirectory(OutputDirectory);
+                var (width, height) = native.GetWindowSize(hWnd);
+                if (width <= 0 || height <= 0)
+                    throw new WindowCaptureException("Window has invalid capture dimensions.");
 
-                SetForegroundWindow(hWnd);
-                System.Threading.Thread.Sleep(200); // let paint settle
-
-                if (!GetWindowRect(hWnd, out RECT r)) return null;
-                int w = r.Right  - r.Left;
-                int h = r.Bottom - r.Top;
-                if (w <= 0 || h <= 0) return null;
-
-                Bitmap? bmp = TryPrintWindow(hWnd, w, h, PW_RENDERFULLCONTENT)
-                           ?? TryPrintWindow(hWnd, w, h, 0)
-                           ?? TryBitBlt(r, w, h);
-
-                if (bmp == null) return null;
-
-                string safeName = string.Join("_",
-                    name.Split(Path.GetInvalidFileNameChars()));
-                string path = Path.Combine(OutputDirectory,
-                    $"{safeName}_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}.png");
-
-                bmp.Save(path, ImageFormat.Png);
-                bmp.Dispose();
-                return path;
-            }
-            catch
-            {
-                return null;
-            }
-        }
-
-        private static Bitmap? TryPrintWindow(IntPtr hWnd, int w, int h, uint flags)
-        {
-            var bmp = new Bitmap(w, h);
-            using (var g = Graphics.FromImage(bmp))
-            {
-                IntPtr hdc = g.GetHdc();
-                PrintWindow(hWnd, hdc, flags);
-                g.ReleaseHdc(hdc);
-            }
-            if (HasContent(bmp)) return bmp;
-            bmp.Dispose();
-            return null;
-        }
-
-        private static Bitmap? TryBitBlt(RECT r, int w, int h)
-        {
-            IntPtr screenDc = GetDC(IntPtr.Zero);
-            if (screenDc == IntPtr.Zero) return null;
-            try
-            {
-                var bmp = new Bitmap(w, h);
-                using (var g = Graphics.FromImage(bmp))
+                string suffix = timestamp ? $"_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}" : "";
+                string path = Path.Combine(outputDir, $"{SanitizeFileName(name)}{suffix}.png");
+                foreach (uint flags in new uint[] { 2 /* PW_RENDERFULLCONTENT */, 0 })
                 {
-                    IntPtr hdc = g.GetHdc();
-                    BitBlt(hdc, 0, 0, w, h, screenDc, r.Left, r.Top, SRCCOPY);
-                    g.ReleaseHdc(hdc);
+                    using IWindowCaptureSurface surface = native.CreateSurface(width, height);
+                    IntPtr hdc = surface.GetHdc();
+                    if (hdc == IntPtr.Zero)
+                        throw new WindowCaptureException("Capture surface did not supply an HDC.");
+                    bool printed;
+                    try
+                    {
+                        printed = native.PrintWindow(hWnd, hdc, flags);
+                    }
+                    finally
+                    {
+                        surface.ReleaseHdc(hdc);
+                    }
+                    if (!printed || !surface.HasContent())
+                        continue;
+                    surface.Save(path);
+                    return path;
                 }
-                if (HasContent(bmp)) return bmp;
-                bmp.Dispose();
-                return null;
+                throw new WindowCaptureException("PrintWindow failed or returned an empty image; no screenshot saved.");
             }
-            finally
+            catch (Exception ex) when (ex is not WindowCaptureException)
             {
-                ReleaseDC(IntPtr.Zero, screenDc);
+                throw new WindowCaptureException("Owned-window capture failed; screenshot is not valid evidence.", ex);
+            }
+        }
+
+        private static void RequireOwnedWindow(Process process, IntPtr hWnd, IWindowCaptureNative native)
+        {
+            if (process == null || hWnd == IntPtr.Zero)
+                throw new WindowCaptureException("Capture requires a retained Process and a nonzero HWND.");
+            CaptureProcessIdentity identity;
+            uint owner;
+            try
+            {
+                identity = native.GetProcessIdentity(process);
+                if (!identity.IsAlive || identity.ProcessId <= 0 ||
+                    identity.HandleProcessId != (uint)identity.ProcessId)
+                    throw new WindowCaptureException("Retained process is exited or its identity cannot be verified.");
+                owner = native.GetWindowOwner(hWnd);
+            }
+            catch (Exception ex) when (ex is not WindowCaptureException)
+            {
+                throw new WindowCaptureException("Cannot verify retained process/window ownership.", ex);
+            }
+            if (owner == 0 || owner != identity.HandleProcessId)
+                throw new WindowCaptureException("HWND is stale or belongs to a different process.");
+        }
+
+        private sealed class WindowsCaptureNative : IWindowCaptureNative
+        {
+            [DllImport("user32.dll", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool GetWindowRect(IntPtr hWnd, out RECT rect);
+            [DllImport("user32.dll", EntryPoint = "PrintWindow", SetLastError = true)]
+            [return: MarshalAs(UnmanagedType.Bool)]
+            private static extern bool NativePrintWindow(IntPtr hWnd, IntPtr hdc, uint flags);
+            [DllImport("user32.dll", SetLastError = true)]
+            private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+            [DllImport("kernel32.dll", SetLastError = true)]
+            private static extern uint GetProcessId(SafeProcessHandle process);
+            [StructLayout(LayoutKind.Sequential)]
+            private struct RECT { public int Left, Top, Right, Bottom; }
+
+            public CaptureProcessIdentity GetProcessIdentity(Process process)
+            {
+                process.Refresh();
+                if (process.HasExited)
+                    return new(process.Id, false, 0);
+                return new(process.Id, true, GetProcessId(process.SafeHandle));
+            }
+            public uint GetWindowOwner(IntPtr window) =>
+                GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+            public (int Width, int Height) GetWindowSize(IntPtr window)
+            {
+                if (!GetWindowRect(window, out RECT rect))
+                    throw new WindowCaptureException("GetWindowRect failed.");
+                return (checked(rect.Right - rect.Left), checked(rect.Bottom - rect.Top));
+            }
+            public IWindowCaptureSurface CreateSurface(int width, int height) => new BitmapSurface(width, height);
+            public bool PrintWindow(IntPtr window, IntPtr hdc, uint flags) => NativePrintWindow(window, hdc, flags);
+        }
+
+        private sealed class BitmapSurface : IWindowCaptureSurface
+        {
+            private readonly Bitmap bitmap;
+            private readonly Graphics graphics;
+
+            public BitmapSurface(int width, int height)
+            {
+                bitmap = new Bitmap(width, height);
+                try
+                {
+                    graphics = Graphics.FromImage(bitmap);
+                }
+                catch
+                {
+                    bitmap.Dispose();
+                    throw;
+                }
+            }
+            public IntPtr GetHdc() => graphics.GetHdc();
+            public void ReleaseHdc(IntPtr hdc) => graphics.ReleaseHdc(hdc);
+            public bool HasContent() => ScreenshotHelper.HasContent(bitmap);
+            public void Save(string path)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+                bitmap.Save(path, ImageFormat.Png);
+            }
+            public void Dispose()
+            {
+                try { graphics.Dispose(); }
+                finally { bitmap.Dispose(); }
             }
         }
 
@@ -189,5 +210,30 @@ namespace FEBuilderGBA.E2ETests.Helpers
             }
             return false;
         }
+
+    }
+
+    public sealed class WindowCaptureException : InvalidOperationException
+    {
+        public WindowCaptureException(string message, Exception? inner = null) : base(message, inner) { }
+    }
+
+    internal readonly record struct CaptureProcessIdentity(int ProcessId, bool IsAlive, uint HandleProcessId);
+
+    internal interface IWindowCaptureNative
+    {
+        CaptureProcessIdentity GetProcessIdentity(Process process);
+        uint GetWindowOwner(IntPtr window);
+        (int Width, int Height) GetWindowSize(IntPtr window);
+        IWindowCaptureSurface CreateSurface(int width, int height);
+        bool PrintWindow(IntPtr window, IntPtr hdc, uint flags);
+    }
+
+    internal interface IWindowCaptureSurface : IDisposable
+    {
+        IntPtr GetHdc();
+        void ReleaseHdc(IntPtr hdc);
+        bool HasContent();
+        void Save(string path);
     }
 }

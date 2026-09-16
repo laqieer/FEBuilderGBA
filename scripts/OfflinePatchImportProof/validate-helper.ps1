@@ -116,6 +116,63 @@ function ProofEnvelope {
                     }
                 }
                 if($startupDiagnosticSerializationCases -ne 12){throw 'Startup diagnostic serialization inventory changed.'}
+                $queryDiagnosticCases=[DesktopPolicyTests]::RunQueryDiagnosticTests()
+                if($queryDiagnosticCases -ne 39){throw 'Query diagnostic case inventory changed.'}
+                [DesktopPolicyTests]::AssertQueryDiagnosticSampleInventory()
+                $queryDiagnosticSerializationNames=[Collections.Generic.List[string]]::new()
+                $queryDiagnosticSamples=[DesktopPolicyTests]::QueryDiagnosticSamples
+                $queryDiagnosticSampleNames=[DesktopPolicyTests]::QueryDiagnosticSampleNames
+                for($sampleIndex=0;$sampleIndex -lt $queryDiagnosticSamples.Length;$sampleIndex++){
+                    $sample=$queryDiagnosticSamples[$sampleIndex]
+                    foreach($shape in @('compact','pretty','nested')){
+                        $json=if($shape -ceq 'compact'){$sample|ConvertTo-Json -Depth 8 -Compress}
+                            elseif($shape -ceq 'pretty'){$sample|ConvertTo-Json -Depth 8}
+                            else{@{gui=@{QueryFailure=$sample}}|ConvertTo-Json -Depth 10}
+                        Assert-Proof ([Text.Encoding]::UTF8.GetByteCount($json) -le 4096) 'Query diagnostic byte bound.'
+                        $decoded=ConvertFrom-Json $json -AsHashtable
+                        if($shape -ceq 'nested'){$decoded=$decoded.gui.QueryFailure}
+                        Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
+                            'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
+                            'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
+                            'ResolvePidRelation','Nodes','Calls','Windows')
+                        Assert-Proof ($decoded.Count -eq 20 -and $decoded.Stage -ceq 'loading-handoff' -and
+                            $decoded.Selector -ceq 'Discovery' -and $decoded.Predicate -is [string] -and
+                            $decoded.Predicate -ceq $sample.Predicate -and $decoded.Predicate.Length -le 64) 'Query diagnostic envelope.'
+                        foreach($key in @('ExpectedOwnedRoot','PreviouslyOwnedHandle','OwnedRootBefore','OwnedRootAfter')){
+                            Assert-Proof (($decoded[$key] -is [int] -or $decoded[$key] -is [long]) -and
+                                $decoded[$key] -ge 0 -and $decoded[$key] -le [uint]::MaxValue -and
+                                $decoded[$key] -eq $sample.$key) 'Query diagnostic owned handle.'
+                        }
+                        foreach($key in @('AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter','RootMatchesBefore',
+                            'RootMatchesAfter','SeedResolveKeyEqual','ResolveAlive')){
+                            Assert-Proof (($null -eq $decoded[$key] -or $decoded[$key] -is [bool]) -and
+                                $decoded[$key] -ceq $sample.$key) 'Query diagnostic nullable Boolean.'
+                        }
+                        Assert-Proof (($null -eq $decoded.SeedOrdinal -or
+                            (($decoded.SeedOrdinal -is [int] -or $decoded.SeedOrdinal -is [long]) -and
+                                $decoded.SeedOrdinal -ge 1 -and $decoded.SeedOrdinal -le 8)) -and
+                            $decoded.SeedOrdinal -ceq $sample.SeedOrdinal) 'Query diagnostic bounded ordinal.'
+                        Assert-Proof (($null -eq $decoded.ResolvePidRelation -or
+                            ($decoded.ResolvePidRelation -is [string] -and
+                                $decoded.ResolvePidRelation -cin @('zero','owned','foreign'))) -and
+                            $decoded.ResolvePidRelation -ceq $sample.ResolvePidRelation) 'Query diagnostic fixed PID relation.'
+                        foreach($key in @('Nodes','Calls','Windows')){
+                            $maximum=@{Nodes=4096;Calls=65536;Windows=8}[$key]
+                            Assert-Proof (($decoded[$key] -is [int] -or $decoded[$key] -is [long]) -and
+                                $decoded[$key] -ge 0 -and $decoded[$key] -le $maximum -and
+                                $decoded[$key] -eq $sample.$key) 'Query diagnostic legacy counter.'
+                        }
+                        foreach($sentinel in [DesktopPolicyTests]::QueryDiagnosticPrivateSentinels){
+                            Assert-Proof ($json.IndexOf($sentinel,[StringComparison]::OrdinalIgnoreCase) -lt 0) 'Query diagnostic private value leaked.'
+                        }
+                        $queryDiagnosticSerializationNames.Add($queryDiagnosticSampleNames[$sampleIndex]+':'+$shape)
+                    }
+                }
+                $queryDiagnosticSerializationDigest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+                    [Text.Encoding]::UTF8.GetBytes(($queryDiagnosticSerializationNames -join "`n")))).ToLowerInvariant()
+                Assert-Proof ($queryDiagnosticSerializationNames.Count -eq 48 -and $queryDiagnosticSerializationDigest -ceq
+                    'daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7') 'Query diagnostic serialization inventory changed.'
+                [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }

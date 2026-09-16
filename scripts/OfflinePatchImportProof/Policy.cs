@@ -260,6 +260,10 @@ public sealed class DesktopQueryFailure
     public bool? OwnPidAfter { get; set; }
     public bool? RootMatchesBefore { get; set; }
     public bool? RootMatchesAfter { get; set; }
+    public int? SeedOrdinal { get; set; }
+    public bool? SeedResolveKeyEqual { get; set; }
+    public bool? ResolveAlive { get; set; }
+    public string ResolvePidRelation { get; set; }
     public int Nodes { get; set; }
     public int Calls { get; set; }
     public int Windows { get; set; }
@@ -440,19 +444,33 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         return string.Join(",", id);
     }
 
-    uint Resolve(TNode node, uint expected)
+    void ClearResolveObservations(int? seedOrdinal = null)
     {
+        context.SeedOrdinal = seedOrdinal;
+        context.SeedResolveKeyEqual = null;
+        context.ResolveAlive = null;
+        context.ResolvePidRelation = null;
+    }
+
+    uint Resolve(TNode node, uint expected, uint? seedKey = null, int? seedOrdinal = null)
+    {
+        ClearResolveObservations(seedOrdinal);
         var ancestors = new HashSet<string>(StringComparer.Ordinal);
         for (int depth = 0; node != null; depth++)
         {
+            if (depth != 0) ClearResolveObservations(seedOrdinal);
             Budget.Visit(depth);
             Require(adapter.ProcessId(node) == pid, "query-uia-pid");
             Require(ancestors.Add(NodeIdentity(node)), "query-parent-cycle");
             uint handle = adapter.Handle(node);
+            if (depth == 0 && seedKey.HasValue) context.SeedResolveKeyEqual = seedKey.Value == handle;
             if (handle != 0)
             {
                 bool alive = adapter.Alive(handle);
-                bool own = adapter.NativePid(handle) == pid;
+                context.ResolveAlive = alive;
+                int nativePid = adapter.NativePid(handle);
+                context.ResolvePidRelation = nativePid == 0 ? "zero" : nativePid == pid ? "owned" : "foreign";
+                bool own = nativePid == pid;
                 Require(alive && own, alive ? "query-native-pid" : "query-native-gone");
                 context.PreviouslyOwnedHandle = handle;
                 context.AliveBefore = alive;
@@ -462,6 +480,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
                 context.OwnedRootBefore = root;
                 context.RootMatchesBefore = root == expected;
                 Require(adapter.Alive(root), "query-native-root-gone");
+                ClearResolveObservations();
                 return root;
             }
             node = adapter.Parent(node);
@@ -613,14 +632,17 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
 
     void Refresh()
     {
+        ClearResolveObservations();
         edges.Clear();
         var seeds = adapter.Seeds();
         Require(seeds != null && seeds.Count <= 8, "query-seed-bound");
+        int ordinal = 0;
         foreach (var seed in seeds)
         {
+            context.SeedOrdinal = ++ordinal;
             Require(seed != null && adapter.ProcessId(seed) == pid, "query-seed-pid");
             uint handle = adapter.Handle(seed);
-            Require(handle != 0 && Resolve(seed, 0) == handle, "query-seed-root");
+            Require(handle != 0 && Resolve(seed, 0, handle, ordinal) == handle, "query-seed-root");
             Register(handle);
         }
         foreach (var root in windows) pending.Enqueue(root);
@@ -643,7 +665,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
     {
         Require(node != null && adapter.ProcessId(node) == pid, "query-seed-pid");
         uint handle = adapter.Handle(node);
-        Require(handle != 0 && Resolve(node, 0) == handle, "query-seed-root");
+        Require(handle != 0 && Resolve(node, 0, handle) == handle, "query-seed-root");
         Register(handle);
         Refresh();
         return true;

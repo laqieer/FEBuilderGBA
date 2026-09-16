@@ -39,7 +39,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         {
             // WinForms with no args will try to open the GUI — will be killed after timeout.
             // We still capture whatever output is produced.
-            var (code, stdout, stderr) = AppRunner.Run(ExePath, "", timeoutMs: 10_000);
+            var (code, stdout, stderr) = AppRunner.RunGui(ExePath, "", timeoutMs: 10_000);
             SaveLog("WinForms_noargs.log", code, stdout, stderr);
             // No assertion on output — GUI startup may produce nothing on stdout/stderr
         }
@@ -48,7 +48,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         public void Log_BogusCommand()
         {
             // Unknown command will likely trigger GUI startup — killed after timeout.
-            var (code, stdout, stderr) = AppRunner.Run(ExePath, "--bogus-command", timeoutMs: 10_000);
+            var (code, stdout, stderr) = AppRunner.RunGui(ExePath, "--bogus-command", timeoutMs: 10_000);
             SaveLog("WinForms_bogus-command.log", code, stdout, stderr);
             // No assertion on output — GUI startup may produce nothing on stdout/stderr
         }

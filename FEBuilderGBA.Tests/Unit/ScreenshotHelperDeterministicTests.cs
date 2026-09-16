@@ -37,22 +37,30 @@ namespace FEBuilderGBA.Tests.Unit
         [Fact]
         public void ScreenshotHelper_DeterministicHasNoTimestamp()
         {
-            // The deterministic method should not use DateTime in the filename
-            // (the original CaptureWindow uses DateTime.UtcNow for unique filenames)
             string source = ScreenshotHelperSource;
 
-            // Find the CaptureWindowDeterministic method body
-            int methodStart = source.IndexOf("CaptureWindowDeterministic");
-            Assert.True(methodStart > 0, "CaptureWindowDeterministic method not found");
+            int methodStart = source.IndexOf("public static string CaptureWindowDeterministic(",
+                StringComparison.Ordinal);
+            Assert.True(methodStart >= 0, "CaptureWindowDeterministic method not found");
+            int methodEnd = source.IndexOf(";", methodStart, StringComparison.Ordinal);
+            Assert.True(methodEnd > methodStart, "CaptureWindowDeterministic expression terminator not found");
+            string deterministicBody = source.Substring(methodStart, methodEnd - methodStart + 1);
 
-            // Get ~40 lines after method start to check it doesn't use DateTime for filename
-            int nextMethod = source.IndexOf("public static string? CaptureWindow(", methodStart);
-            string deterministicBody = source.Substring(methodStart,
-                nextMethod > methodStart ? nextMethod - methodStart : 500);
-
-            // The deterministic method should use {safeName}.png without timestamp
-            Assert.Contains("{safeName}.png", deterministicBody);
+            Assert.Contains("CaptureWindow(process, hWnd, name, outputDir ?? OutputDirectory, false,",
+                deterministicBody);
             Assert.DoesNotContain("DateTime.UtcNow", deterministicBody);
+
+            int captureStart = source.IndexOf("internal static string CaptureWindow(", StringComparison.Ordinal);
+            Assert.True(captureStart >= 0, "Shared CaptureWindow implementation not found");
+            int captureEnd = source.IndexOf("private static void RequireOwnedWindow(",
+                captureStart, StringComparison.Ordinal);
+            Assert.True(captureEnd > captureStart, "Shared CaptureWindow implementation boundary not found");
+            string captureBody = source.Substring(captureStart, captureEnd - captureStart);
+
+            Assert.Contains("string suffix = timestamp ? $\"_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}\" : \"\";",
+                captureBody);
+            Assert.Contains("string path = Path.Combine(outputDir, $\"{SanitizeFileName(name)}{suffix}.png\");",
+                captureBody);
         }
 
         [Fact]

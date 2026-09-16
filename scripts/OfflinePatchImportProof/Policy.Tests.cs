@@ -180,6 +180,7 @@ public static class DesktopPolicyTests
         internal readonly Dictionary<uint, OwnedNode> Roots = new Dictionary<uint, OwnedNode>();
         internal readonly List<OwnedNode> SeedNodes = new List<OwnedNode>();
         internal readonly List<string> Reads = new List<string>();
+        internal readonly List<string> NativeReads = new List<string>();
         internal readonly DesktopRootBindings Bindings = new DesktopRootBindings();
         internal Action<string, OwnedNode> Before = null;
         internal Action GuardAction = () => { };
@@ -292,9 +293,21 @@ public static class DesktopPolicyTests
                 index => Observe("candidate-item", candidates[index], () => candidates[index]));
         }
         public OwnedNode FromHandle(uint handle) => Read("from-handle", null, () => Roots.TryGetValue(handle, out var node) ? node : null);
-        public bool Alive(uint handle) => Read("alive", null, () => Native.TryGetValue(handle, out var native) && native.Alive);
-        public int NativePid(uint handle) => Read("native-pid", null, () => Native.TryGetValue(handle, out var native) ? native.Pid : 0);
-        public uint NativeRoot(uint handle) => Read("native-root", null, () => Native.TryGetValue(handle, out var native) ? native.Root : 0);
+        public bool Alive(uint handle) => Read("alive", null, () =>
+        {
+            NativeReads.Add("alive:" + handle);
+            return Native.TryGetValue(handle, out var native) && native.Alive;
+        });
+        public int NativePid(uint handle) => Read("native-pid", null, () =>
+        {
+            NativeReads.Add("native-pid:" + handle);
+            return Native.TryGetValue(handle, out var native) ? native.Pid : 0;
+        });
+        public uint NativeRoot(uint handle) => Read("native-root", null, () =>
+        {
+            NativeReads.Add("native-root:" + handle);
+            return Native.TryGetValue(handle, out var native) ? native.Root : 0;
+        });
         public uint Owner(uint handle) => Read("owner", null, () => Native[handle].Owner);
         public string Class(uint handle) => Read("class", null, () => Native[handle].Class);
         public bool Visible(uint handle) => Read("visible", null, () => Native[handle].Visible);
@@ -320,6 +333,461 @@ public static class DesktopPolicyTests
     public static string[] WindowIdentityCaseNames => windowIdentityCaseNames.ToArray();
     public static string[] WindowIdentityCaseFailures => windowIdentityCaseFailures.ToArray();
     public static DesktopStartupFailure[] StartupDiagnosticSamples => startupDiagnosticSamples.ToArray();
+    const uint QueryCandidateKey = 0xe13579bd, QueryOtherKey = 0xe2468ace;
+    const long QueryWideHandle = 0x12345678e13579bd;
+    const int QueryForeignPid = 1987654321, QueryRuntimeId = 1976543210;
+    const string QueryPrivateText = "QUERY-PRIVATE-OBSERVATION-f915c642";
+    static readonly List<string> queryDiagnosticCaseNames = new List<string>();
+    static readonly List<string> queryDiagnosticCaseFailures = new List<string>();
+    static readonly List<string> queryDiagnosticSampleNames = new List<string>();
+    static readonly List<DesktopQueryFailure> queryDiagnosticSamples = new List<DesktopQueryFailure>();
+    static readonly string[] queryDiagnosticSampleInventory =
+    {
+        "collection-nine-seeds", "seed-dead-zero", "seed-dead-owned", "seed-dead-foreign",
+        "seed-alive-zero", "seed-alive-foreign", "seed-different-key", "seed-highbits-sign-extended",
+        "seed-highbits-zero-extended", "seed-second-zero", "raw-parent-dead-foreign",
+        "direct-seed-dead", "resolve-success-before-registration-failure",
+        "seed-private-provider-failure", "cancel-after-handle", "cancel-after-native-pid"
+    };
+    public static string[] QueryDiagnosticCaseNames => queryDiagnosticCaseNames.ToArray();
+    public static string[] QueryDiagnosticCaseFailures => queryDiagnosticCaseFailures.ToArray();
+    public static string[] QueryDiagnosticSampleNames => queryDiagnosticSampleNames.ToArray();
+    public static DesktopQueryFailure[] QueryDiagnosticSamples => queryDiagnosticSamples.ToArray();
+    public static string[] QueryDiagnosticPrivateSentinels => new[]
+    {
+        QueryCandidateKey.ToString(), QueryOtherKey.ToString(), QueryWideHandle.ToString(),
+        unchecked((int)QueryCandidateKey).ToString(), QueryForeignPid.ToString(), QueryRuntimeId.ToString(),
+        "e13579bd", "e2468ace", QueryPrivateText
+    };
+
+    public static void AssertQueryDiagnosticSampleInventory()
+    {
+        if (queryDiagnosticSamples.Count != 16 ||
+            string.Join("\n", queryDiagnosticSampleNames) != string.Join("\n", queryDiagnosticSampleInventory))
+            throw new InvalidOperationException("Query diagnostic sample inventory changed.");
+    }
+
+    public static void AssertQueryDiagnosticCaseInventory()
+    {
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", queryDiagnosticCaseNames)))).ToLowerInvariant();
+        if (queryDiagnosticCaseNames.Count != 39 || digest != "24484e7e79d5ca27aed177861afcdc98ac9d7248678ae5d5576bccfc0ff6efaa")
+            throw new InvalidOperationException("Query diagnostic case names/order changed.");
+        if (queryDiagnosticCaseFailures.Count != 0)
+            throw new InvalidOperationException("Query diagnostic cases failed: " + string.Join("; ", queryDiagnosticCaseFailures));
+    }
+
+    public static int RunQueryDiagnosticTests()
+    {
+        queryDiagnosticCaseNames.Clear(); queryDiagnosticCaseFailures.Clear();
+        queryDiagnosticSampleNames.Clear(); queryDiagnosticSamples.Clear();
+        string currentCase = null;
+        const string collection = "seeds:0|seed-count:0|seed-item:1";
+        const string outer = collection + "|pid:1|handle:1";
+        const string resolve = outer + "|pid:1|identity:1|handle:1";
+        const string probe = resolve + "|alive:0|native-pid:0";
+        const string resolved = probe + "|native-root:0|native-pid:0|alive:0";
+        const string refresh = "alive:0|native-pid:0|native-root:0|native-pid:0";
+        string Registration(int id) => "alive:0|native-pid:0|native-root:0|class:0|owner:0|from-handle:0|" +
+            "pid:" + id + "|handle:" + id + "|identity:" + id + "|visible:0|offscreen:" + id +
+            "|alive:0|native-pid:0|native-root:0|class:0|owner:0";
+        string NativeProbe(uint handle) => "alive:" + handle + "|native-pid:" + handle;
+        string NativeResolved(uint handle) => NativeProbe(handle) + "|native-root:" + handle +
+            "|native-pid:" + handle + "|alive:" + handle;
+        string NativeRegistration(uint handle) => NativeProbe(handle) + "|native-root:" + handle +
+            "|" + NativeProbe(handle) + "|native-root:" + handle;
+        string NativeRefresh(uint handle) => NativeProbe(handle) + "|native-root:" + handle + "|native-pid:" + handle;
+        void Verify(bool condition, string contract)
+        {
+            if (!condition) throw new InvalidOperationException(contract);
+        }
+        void Case(string name, Action action)
+        {
+            if (queryDiagnosticCaseNames.Contains(name)) throw new InvalidOperationException("Duplicate query diagnostic case.");
+            currentCase = name; queryDiagnosticCaseNames.Add(name);
+            try { action(); }
+            catch (Exception ex) { queryDiagnosticCaseFailures.Add(name + ": " + ex.Message); }
+        }
+        OwnedModel Model(long handle = QueryCandidateKey)
+        {
+            var model = new OwnedModel();
+            model.Main.Children.Clear(); model.Main.Handle = handle;
+            model.Main.Name = QueryPrivateText;
+            model.Main.AutomationId = QueryPrivateText + @"\private-path";
+            model.Main.RuntimeId = new[] { QueryRuntimeId };
+            model.Native.Clear(); model.Roots.Clear();
+            uint key = DesktopHwnd.Key(handle);
+            model.Native.Add(key, new OwnedNative { Root = key });
+            model.Roots.Add(key, model.Main);
+            return model;
+        }
+        DesktopQueryFailure Capture(Action action, string predicate)
+        {
+            try { action(); }
+            catch (DesktopTreeException ex) when (ex.Message == predicate) { return ex.Failure; }
+            throw new InvalidOperationException("Expected original refusal: " + predicate);
+        }
+        DesktopQueryFailure Refused(OwnedModel model, DesktopOwnedTree<OwnedNode> tree, Action action,
+            string predicate, string trace, string nativeTrace, int nodes = 1, int windows = 0, int seedQueries = 1,
+            int candidateQueries = 0)
+        {
+            var failure = Capture(action, predicate);
+            if (Array.IndexOf(queryDiagnosticSampleInventory, currentCase) >= 0)
+            {
+                Verify(queryDiagnosticSamples.Count < 16, "Query diagnostic sample bound.");
+                queryDiagnosticSampleNames.Add(currentCase); queryDiagnosticSamples.Add(failure);
+            }
+            Verify(failure.Stage == "loading-handoff" && failure.Selector == "Discovery", "Legacy query context.");
+            Verify(string.Join("|", model.Reads) == trace, "Exact adapter call order.");
+            Verify(string.Join("|", model.NativeReads) == nativeTrace, "Exact native targets; no unverified refresh.");
+            int calls = trace.Length == 0 ? 0 : trace.Split('|').Length;
+            Verify(failure.Calls == calls && tree.Budget.Calls == calls && failure.Nodes == nodes &&
+                tree.Budget.Nodes == nodes && failure.Windows == windows && tree.Windows.Count == windows,
+                "Exact legacy counters (model seed collection is one call shorter than production).");
+            Verify(model.SeedQueries == seedQueries && model.CandidateQueries == candidateQueries &&
+                model.ProviderNodes == 0 && model.ProviderProperties == 0, "No provider expansion.");
+            Verify(tree.Budget.Closed, "Failure must close the budget.");
+            Verify(ReferenceEquals(Capture(tree.Discover, predicate), failure) &&
+                ReferenceEquals(Capture(() => tree.Seed(model.Main), predicate), failure), "Original failure must latch.");
+            bool closed = false;
+            try { tree.Budget.Call<int>(() => throw new InvalidOperationException("Closed adapter was called.")); }
+            catch (DesktopTreeGuardException ex) when (ex.Message == "query-budget-closed") { closed = true; }
+            Verify(closed && tree.Budget.Calls == calls && model.Reads.Count == calls &&
+                string.Join("|", model.NativeReads) == nativeTrace, "No calls after closure.");
+            return failure;
+        }
+        void Observed(DesktopQueryFailure failure, int? ordinal, bool? equal, bool? alive, string relation)
+        {
+            Verify(failure.SeedOrdinal == ordinal, "SeedOrdinal missing or stale.");
+            Verify(failure.SeedResolveKeyEqual == equal, "SeedResolveKeyEqual missing or stale.");
+            Verify(failure.ResolveAlive == alive, "ResolveAlive missing or stale.");
+            Verify(failure.ResolvePidRelation == relation, "ResolvePidRelation missing or stale.");
+        }
+        void Unowned(DesktopQueryFailure failure)
+        {
+            Verify(failure.ExpectedOwnedRoot == 0 && failure.PreviouslyOwnedHandle == 0 &&
+                failure.OwnedRootBefore == 0 && failure.OwnedRootAfter == 0 &&
+                failure.AliveBefore == null && failure.AliveAfter == null &&
+                failure.OwnPidBefore == null && failure.OwnPidAfter == null &&
+                failure.RootMatchesBefore == null && failure.RootMatchesAfter == null, "Unverified candidate became legacy owned context.");
+        }
+        Case("nullable-dto-shape", () =>
+        {
+            var properties = typeof(DesktopQueryFailure).GetProperties();
+            Verify(properties.Length == 20 &&
+                typeof(DesktopQueryFailure).GetProperty("SeedOrdinal").PropertyType == typeof(int?) &&
+                typeof(DesktopQueryFailure).GetProperty("SeedResolveKeyEqual").PropertyType == typeof(bool?) &&
+                typeof(DesktopQueryFailure).GetProperty("ResolveAlive").PropertyType == typeof(bool?) &&
+                typeof(DesktopQueryFailure).GetProperty("ResolvePidRelation").PropertyType == typeof(string), "Nullable DTO seam.");
+            Observed(new DesktopQueryFailure(), null, null, null, null);
+        });
+        Case("collection-nine-seeds", () =>
+        {
+            var model = Model(); model.SeedResults = found => new OwnedNode[9]; var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-seed-bound", "seeds:0|seed-count:0", "", 0);
+            Unowned(failure); Observed(failure, null, null, null, null);
+        });
+        Case("collection-post-read-cancellation", () =>
+        {
+            var model = Model(); bool cancel = false;
+            model.Before = (read, node) => { if (read == "seed-item") cancel = true; };
+            model.GuardAction = () => { if (cancel) throw new DesktopTreeGuardException("query-test-cancelled"); };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-test-cancelled", collection, "", 0);
+            Unowned(failure); Observed(failure, null, null, null, null);
+        });
+        Case("seed-null-before-pid", () =>
+        {
+            var model = Model(); model.SeedResults = found => new OwnedNode[] { null }; var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-seed-pid", "seeds:0|seed-count:0|seed-item:0", "", 0);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("seed-pid-before-handle", () =>
+        {
+            var model = Model(); model.Before = (read, node) => { if (read == "pid") node.Pid = QueryForeignPid; };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-seed-pid", collection + "|pid:1", "", 0);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("seed-zero-outer-key", () =>
+        {
+            var model = Model(); model.Main.Handle = 0; var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-seed-root", outer, "", 0);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("seed-outer-handle-post-read-cancellation", () =>
+        {
+            var model = Model(); bool cancel = false;
+            model.Before = (read, node) => { if (read == "handle") cancel = true; };
+            model.GuardAction = () => { if (cancel) throw new DesktopTreeGuardException("query-test-cancelled"); };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-test-cancelled", outer, "", 0);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        foreach (int nativePid in new[] { 0, 7, QueryForeignPid })
+        {
+            string relation = nativePid == 0 ? "zero" : nativePid == 7 ? "owned" : "foreign";
+            Case("seed-dead-" + relation, () =>
+            {
+                var model = Model();
+                model.Before = (read, node) =>
+                {
+                    if (read == "alive") { model.Native[QueryCandidateKey].Alive = false; model.Native[QueryCandidateKey].Pid = nativePid; }
+                };
+                var tree = model.Tree();
+                var failure = Refused(model, tree, tree.Discover, "query-native-gone", probe, NativeProbe(QueryCandidateKey));
+                Unowned(failure); Observed(failure, 1, true, false, relation);
+            });
+        }
+        foreach (int nativePid in new[] { 0, QueryForeignPid })
+        {
+            string relation = nativePid == 0 ? "zero" : "foreign";
+            Case("seed-alive-" + relation, () =>
+            {
+                var model = Model(); model.Before = (read, node) =>
+                { if (read == "native-pid") model.Native[QueryCandidateKey].Pid = nativePid; };
+                var tree = model.Tree();
+                var failure = Refused(model, tree, tree.Discover, "query-native-pid", probe, NativeProbe(QueryCandidateKey));
+                Unowned(failure); Observed(failure, 1, true, true, relation);
+            });
+        }
+        Case("seed-different-key", () =>
+        {
+            var model = Model(); int handles = 0;
+            model.Native.Add(QueryOtherKey, new OwnedNative { Root = QueryOtherKey, Alive = false, Pid = QueryForeignPid });
+            model.Before = (read, node) => { if (read == "handle" && ++handles == 2) node.Handle = QueryOtherKey; };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-native-gone", probe, NativeProbe(QueryOtherKey));
+            Unowned(failure); Observed(failure, 1, false, false, "foreign");
+        });
+        foreach (bool signed in new[] { true, false })
+            Case("seed-highbits-" + (signed ? "sign-extended" : "zero-extended"), () =>
+            {
+                var model = Model(QueryWideHandle); int handles = 0;
+                model.Native[QueryCandidateKey].Alive = false;
+                model.Before = (read, node) =>
+                { if (read == "handle" && ++handles == 2) node.Handle = signed ? unchecked((int)QueryCandidateKey) : (long)QueryCandidateKey; };
+                var tree = model.Tree();
+                var failure = Refused(model, tree, tree.Discover, "query-native-gone", probe, NativeProbe(QueryCandidateKey));
+                Unowned(failure); Observed(failure, 1, true, false, "owned");
+            });
+        Case("seed-second-zero", () =>
+        {
+            var model = Model(); int handles = 0;
+            model.Before = (read, node) => { if (read == "handle" && ++handles == 2) node.Handle = 0; };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-raw-parent-missing", resolve + "|parent:1", "");
+            Unowned(failure); Observed(failure, 1, false, null, null);
+        });
+        foreach (string fault in new[] { "dead-foreign", "foreign-uia", "identity", "zero-wrapper" })
+            Case("raw-parent-" + fault, () =>
+            {
+                var model = Model(); int handles = 0;
+                var parent = model.Add(null, 9, QueryOtherKey); model.Main.Parent = parent;
+                model.Native.Add(QueryOtherKey, new OwnedNative { Root = QueryOtherKey, Alive = false, Pid = QueryForeignPid });
+                if (fault == "foreign-uia") parent.Pid = QueryForeignPid;
+                if (fault == "identity") parent.NullIdentity = true;
+                if (fault == "zero-wrapper") { parent.Handle = 0; parent.Parent = model.Add(null, 10, QueryOtherKey); }
+                model.Before = (read, node) => { if (read == "handle" && node == model.Main && ++handles == 2) node.Handle = 0; };
+                string suffix = "|parent:1|pid:9";
+                if (fault != "foreign-uia") suffix += "|identity:9";
+                if (fault == "dead-foreign" || fault == "zero-wrapper") suffix += "|handle:9";
+                if (fault == "zero-wrapper") suffix += "|parent:9|pid:10|identity:10|handle:10";
+                bool probed = fault == "dead-foreign" || fault == "zero-wrapper";
+                if (probed) suffix += "|alive:0|native-pid:0";
+                string predicate = probed ? "query-native-gone" : fault == "foreign-uia" ? "query-uia-pid" : "query-runtime-id";
+                var tree = model.Tree();
+                var failure = Refused(model, tree, tree.Discover, predicate, resolve + suffix,
+                    probed ? NativeProbe(QueryOtherKey) : "", fault == "zero-wrapper" ? 3 : 2);
+                Unowned(failure); Observed(failure, 1, null, probed ? (bool?)false : null, probed ? "foreign" : null);
+            });
+        Case("raw-parent-cycle", () =>
+        {
+            var model = Model(); int handles = 0; model.Main.Parent = model.Main;
+            model.Before = (read, node) => { if (read == "handle" && ++handles == 2) node.Handle = 0; };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-parent-cycle",
+                resolve + "|parent:1|pid:1|identity:1", "", 2);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("raw-parent-post-handle-cancellation", () =>
+        {
+            var model = Model(); int handles = 0; bool cancel = false;
+            var parent = model.Add(null, 9, QueryOtherKey); model.Main.Parent = parent;
+            model.Before = (read, node) =>
+            {
+                if (read != "handle") return;
+                if (node == model.Main && ++handles == 2) node.Handle = 0;
+                if (node == parent) cancel = true;
+            };
+            model.GuardAction = () => { if (cancel) throw new DesktopTreeGuardException("query-test-cancelled"); };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-test-cancelled",
+                resolve + "|parent:1|pid:9|identity:9|handle:9", "", 2);
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("direct-seed-dead", () =>
+        {
+            var model = Model(); model.Native[QueryCandidateKey].Alive = false; var tree = model.Tree();
+            var failure = Refused(model, tree, () => tree.Seed(model.Main), "query-native-gone",
+                "pid:1|handle:1|pid:1|identity:1|handle:1|alive:0|native-pid:0", NativeProbe(QueryCandidateKey), seedQueries: 0);
+            Unowned(failure); Observed(failure, null, true, false, "owned");
+        });
+        Case("second-seed-preserves-first-owned-context", () =>
+        {
+            var model = Model(100); var next = model.Add(null, 9, QueryCandidateKey); model.SeedNodes.Add(next);
+            model.Native.Add(QueryCandidateKey, new OwnedNative { Root = QueryCandidateKey, Alive = false, Pid = QueryForeignPid });
+            var tree = model.Tree();
+            string trace = resolved.Replace("seed-item:1", "seed-item:1|seed-item:9") + "|" + Registration(1) +
+                "|pid:9|handle:9|pid:9|identity:9|handle:9|alive:0|native-pid:0|" + refresh;
+            string native = NativeResolved(100) + "|" + NativeRegistration(100) + "|" +
+                NativeProbe(QueryCandidateKey) + "|" + NativeRefresh(100);
+            var failure = Refused(model, tree, tree.Discover, "query-native-gone", trace, native, 2, 1);
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 100 && failure.OwnedRootAfter == 100 &&
+                failure.ExpectedOwnedRoot == 0 && failure.AliveBefore == true && failure.AliveAfter == true &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                failure.RootMatchesBefore == false && failure.RootMatchesAfter == false, "Legacy owned refresh changed.");
+            Observed(failure, 2, true, false, "foreign");
+        });
+        Case("second-seed-zero-before-resolve", () =>
+        {
+            var model = Model(100); var next = model.Add(null, 9); model.SeedNodes.Add(next);
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-seed-root",
+                resolved.Replace("seed-item:1", "seed-item:1|seed-item:9") + "|" + Registration(1) +
+                "|pid:9|handle:9|" + refresh,
+                NativeResolved(100) + "|" + NativeRegistration(100) + "|" + NativeRefresh(100), 1, 1);
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 100 &&
+                failure.OwnedRootAfter == 100 && failure.AliveBefore == true && failure.AliveAfter == true &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                failure.RootMatchesBefore == false && failure.RootMatchesAfter == false, "Outer seed refusal legacy refresh.");
+            Observed(failure, 2, null, null, null);
+        });
+        Case("eighth-seed-bounded-ordinal", () =>
+        {
+            var model = Model(100); model.SeedNodes.Clear();
+            var trace = new List<string> { "seeds:0", "seed-count:0" };
+            var native = new List<string>();
+            for (int i = 0; i < 8; i++)
+            {
+                uint key = i == 7 ? QueryCandidateKey : (uint)(100 + i);
+                var node = model.Add(null, 10 + i, key); model.SeedNodes.Add(node);
+                model.Roots[key] = node;
+                model.Native[key] = new OwnedNative { Root = key, Alive = i != 7 };
+                trace.Add("seed-item:" + node.Id);
+            }
+            for (int i = 0; i < 8; i++)
+            {
+                int id = 10 + i; uint key = i == 7 ? QueryCandidateKey : (uint)(100 + i);
+                trace.Add("pid:" + id + "|handle:" + id + "|pid:" + id + "|identity:" + id + "|handle:" + id + "|alive:0|native-pid:0");
+                native.Add(NativeProbe(key));
+                if (i == 7) break;
+                trace.Add("native-root:0|native-pid:0|alive:0|" + Registration(id));
+                native.Add("native-root:" + key + "|native-pid:" + key + "|alive:" + key + "|" + NativeRegistration(key));
+            }
+            trace.Add(refresh); native.Add(NativeRefresh(106));
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-native-gone",
+                string.Join("|", trace), string.Join("|", native), 8, 7);
+            Verify(failure.PreviouslyOwnedHandle == 106 && failure.OwnedRootAfter == 106, "Eighth seed cannot replace legacy owned context.");
+            Observed(failure, 8, true, false, "owned");
+        });
+        Case("resolve-success-before-registration-failure", () =>
+        {
+            var model = Model(100); model.Native[100].Class = QueryPrivateText; var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-root-class",
+                resolved + "|alive:0|native-pid:0|native-root:0|class:0|" + refresh,
+                NativeResolved(100) + "|" + NativeProbe(100) + "|native-root:100|" + NativeRefresh(100));
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 100 &&
+                failure.OwnedRootAfter == 100 && failure.AliveBefore == true && failure.AliveAfter == true &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                failure.RootMatchesBefore == false && failure.RootMatchesAfter == false, "Registration legacy refresh changed.");
+            Observed(failure, null, null, null, null);
+        });
+        Case("owned-probe-root-pid-refusal", () =>
+        {
+            var model = Model(100); model.Native[100].Root = 0; var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-native-root-pid",
+                probe + "|native-root:0|alive:0|native-pid:0|native-root:0",
+                NativeProbe(100) + "|native-root:100|" + NativeProbe(100) + "|native-root:100");
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 0 && failure.OwnedRootAfter == 0 &&
+                failure.AliveBefore == true && failure.AliveAfter == true &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                failure.RootMatchesBefore == null && failure.RootMatchesAfter == false, "Owned probe refusal legacy context.");
+            Observed(failure, 1, true, true, "owned");
+        });
+        Case("owned-probe-root-gone-refusal", () =>
+        {
+            var model = Model(100); int aliveCalls = 0;
+            model.Before = (read, node) => { if (read == "alive" && ++aliveCalls == 2) model.Native[100].Alive = false; };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-native-root-gone",
+                resolved + "|alive:0|native-pid:0", NativeResolved(100) + "|" + NativeProbe(100));
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 100 && failure.OwnedRootAfter == 0 &&
+                failure.AliveBefore == true && failure.AliveAfter == false &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                failure.RootMatchesBefore == false && failure.RootMatchesAfter == null, "Failure refresh must not overwrite completed probe facts.");
+            Observed(failure, 1, true, true, "owned");
+        });
+        Case("direct-seed-refresh-clears-ordinal", () =>
+        {
+            var model = Model(100); model.SeedResults = found => new OwnedNode[9]; var tree = model.Tree();
+            string trace = resolved.Substring(collection.Length + 1) + "|" + Registration(1) + "|seeds:0|seed-count:0";
+            var failure = Refused(model, tree, () => tree.Seed(model.Main), "query-seed-bound", trace,
+                NativeResolved(100) + "|" + NativeRegistration(100), 1, 1);
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.AliveAfter == null, "Closed collection must not refresh.");
+            Observed(failure, null, null, null, null);
+        });
+        Case("resolve-success-before-scan-failure", () =>
+        {
+            var model = Model(100); model.CandidateResults = (node, selector, found) => new OwnedNode[257];
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-candidate-bound",
+                resolved + "|" + Registration(1) + "|" + Registration(1) +
+                "|pid:1|identity:1|candidates-Discovery:1|candidate-count:1",
+                NativeResolved(100) + "|" + NativeRegistration(100) + "|" + NativeRegistration(100), 1, 1, candidateQueries: 1);
+            Verify(failure.PreviouslyOwnedHandle == 100 && failure.AliveAfter == null, "Closed scan must not refresh.");
+            Observed(failure, null, null, null, null);
+        });
+        Case("seed-private-provider-failure", () =>
+        {
+            var model = Model(); model.Before = (read, node) =>
+            { if (read == "identity") throw new InvalidOperationException(QueryPrivateText); };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-provider-failure", outer + "|pid:1|identity:1", "");
+            Unowned(failure); Observed(failure, 1, null, null, null);
+        });
+        Case("cancel-before-collection", () =>
+        {
+            var model = Model(); model.GuardAction = () => { throw new DesktopTreeGuardException("query-test-cancelled"); };
+            var tree = model.Tree();
+            var failure = Refused(model, tree, tree.Discover, "query-test-cancelled", "", "", 0, seedQueries: 0);
+            Unowned(failure); Observed(failure, null, null, null, null);
+        });
+        foreach (string read in new[] { "handle", "alive", "native-pid" })
+            foreach (bool after in new[] { false, true })
+                Case("cancel-" + (after ? "after-" : "before-") + read, () =>
+                {
+                    var model = Model(); bool cancel = false; int checks = 0;
+                    int call = read == "handle" ? 8 : read == "alive" ? 9 : 10;
+                    model.Before = (name, node) => { if (after && model.Reads.Count == call) cancel = true; };
+                    model.GuardAction = () =>
+                    {
+                        if (cancel || (!after && model.Reads.Count == call - 1 && ++checks == 2))
+                            throw new DesktopTreeGuardException("query-test-cancelled");
+                    };
+                    string[] all = probe.Split('|');
+                    string trace = string.Join("|", all, 0, after ? call : call - 1);
+                    string native = call == 10 ? "alive:" + QueryCandidateKey : "";
+                    if (after && call >= 9) native += (native.Length == 0 ? "" : "|") + read + ":" + QueryCandidateKey;
+                    var tree = model.Tree();
+                    var failure = Refused(model, tree, tree.Discover, "query-test-cancelled", trace, native);
+                    Unowned(failure); Observed(failure, 1, call > 8 ? (bool?)true : null,
+                        call > 9 ? (bool?)true : null, null);
+                });
+        return queryDiagnosticCaseNames.Count;
+    }
+
     sealed class ThrowingStartupRoots : IReadOnlyList<DesktopStartupRoot>
     {
         public int Count => throw new InvalidOperationException("PRIVATE diagnostic source");

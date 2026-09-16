@@ -10,7 +10,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     /// </summary>
     public class CliHelpTests
     {
-        private static readonly string ExePath = AppRunner.FindExePath();
+        private static string ExePath => AppRunner.FindExePath();
 
         [Fact]
         public void Version_ContainsLicense()
@@ -40,22 +40,20 @@ namespace FEBuilderGBA.E2ETests.Tests
 
         [Fact]
         public void NoArgs_DoesNotCrash()
+            => AssertNoArgsDoesNotCrash(() => AppRunner.RunGui(ExePath, "", timeoutMs: 5_000));
+
+        internal static void AssertNoArgsDoesNotCrash(Func<(int ExitCode, string Stdout, string Stderr)> run)
         {
-            // Launching with no args should not crash immediately.
-            // It may try to launch GUI (which will timeout in headless CI), but we check
-            // it doesn't crash with a fatal error code in the first few seconds.
-            // In CI, the WinForms GUI may fail to start, so we just verify it doesn't exit with code != 0.
-            // This is effectively a "smoke test".
             try
             {
-                var (code, _, _) = AppRunner.Run(ExePath, "", timeoutMs: 5_000);
-                // If it exits, code 0 is fine; code 1 for "no args" is also acceptable
+                var (code, _, _) = run();
                 Assert.True(code == 0 || code == 1,
                     $"Expected exit code 0 or 1, got {code}");
             }
-            catch
+            catch (Exception ex) when (ex is not DesktopUnavailableException)
             {
-                // In headless CI, the process may time out — that's fine
+                // Preserve this legacy best-effort smoke check, but never hide failed admission.
+                // Required startup/capture proof belongs to GuiStartupTests.
             }
         }
     }
