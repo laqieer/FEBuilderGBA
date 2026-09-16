@@ -419,6 +419,92 @@ independently granted preparation and separate GUI authorization remain required
 published in this same PR. It accepts no script text, command path, environment,
 or arbitrary arguments. Fixed modes map to fixed source entrypoints.
 
+## PowerShell host and preparation telemetry boundaries
+
+A newly started PowerShell host reads its telemetry opt-out during startup,
+before the target script can set it. Its launching process must supply literal
+`POWERSHELL_TELEMETRY_OPTOUT=1` before starting the approved external executable.
+An update-check setting or a DOTNET opt-out is not equivalent. The already-running
+CLI/tool bootstrap remains a bounded trusted, unattested boundary: setting the
+flag later cannot retroactively suppress that bootstrap or prove historical
+telemetry absence.
+
+Preparation `Run` clears inheritance, populates its fixed child dictionary, then
+starts the child. Both `AVALONIA_TELEMETRY_OPTOUT='1'` and
+`POWERSHELL_TELEMETRY_OPTOUT='1'` belong in that dictionary, including for the
+actual Validate PowerShell children. Separately, `launch.ps1` clears the RunChild
+PowerShell runner's environment and must put literal
+`POWERSHELL_TELEMETRY_OPTOUT='1'` in its existing dictionary before population and
+Start. Its proxies and DOTNET opt-out do not replace that key.
+
+These keys cover those immediate child boundaries, not arbitrary descendants
+that may clear their own environments. The app-only environment in `run.ps1` is
+unchanged; the existing late supervisor already supplies its PowerShell opt-out.
+The full reachable spawn/environment graph must be screened for each route.
+Another relevant clearing boundary that loses the flag requires stopping for an
+amendment, not silently extending scope.
+
+The Avalonia environment variable is defense in depth, not the primary claim
+that task-local discovery or side effects cannot happen.
+In the inspected task, ticket discovery precedes the opt-out check and
+Community/Trial paths can bypass its early return; the environment variable
+alone is therefore insufficient.
+
+The fixed Build common argument array preserves its original **11 entries in
+order**, including `-m:1` and `-nr:false`, and appends the single literal
+`-p:UsedAvaloniaProducts=` as entry 12. The empty command-line global property is
+intentional. Four static Build sites produce six effective MSBuild vectors:
+Debug/Release rebuild and four-selected-case test pairs, then application and
+generator publish. Existing arguments, selectors, destinations, budgets and
+process/source custody remain unchanged. This is not an extra argument for the
+separate Inputs-stage `dotnet exec` generator invocation.
+
+The inspected OSS closure's AvaloniaStats target requires nonempty
+`UsedAvaloniaProducts`. Keeping it empty suppresses the **entire current task**,
+including task-local license-ticket discovery/classification/messages and
+possible failures, telemetry writes and collector launch. It is not a dedicated
+official suppression API or a blanket claim that licensing behavior is
+unchanged. No paid entitlement bypass or private licensing-data access is
+authorized. New entitlement coupling or other applicable property use requires
+stopping for review, not extending this suppression automatically.
+
+The Python tests inspect the real source structure with comments/string contents
+excluded from structural positions. The authenticated loader tests inspect the
+actual Run and launch runner hashtables, Build array and call-site ASTs. Actual-source assertions
+are separate from controlled in-memory source mutations used to isolate negative
+checks; the mutations do not replace the real Run/environment implementation.
+No new probe evaluates a Run/Build/Launch body, installed MSBuild/task/DLL,
+collector, or license store. The pre-existing early-prefix Run scope probe is
+not telemetry-policy evidence; the existing launcher worker-stop probe likewise
+does not establish the new opt-out policy.
+
+Ten added Python test methods cover the actual source, negative source/XML
+variants, current project-reference declarations and public nonexecuting AST
+wiring. The loader adds **40 named structural/AST cases** (four real-source
+assertions, four control assertions and 32 negative/propagation fixtures), extending
+the Windows aggregate's existing `loaderCases` count from 600 to 640 after a
+passing run (other platforms retain their existing base plus 40). The 322 restage
+cases, 22-member closure, existing report keys and four fixture selections per
+configuration do not change. Structural fixtures reject inherited-only/wrong or
+comment-only opt-out and late Clear for both preparation keys and the launch
+runner key, missing/nonempty/duplicate/conflicting global flags,
+missing common-vector use, and relevant local-property/removal/override forms.
+They are not execution of the installed target or a general MSBuild interpreter.
+
+**Source tests alone do not unblock an operational Build.** A fresh complete
+execution-surface screen must still examine actual SDK/import/response/default
+item/workload chains, analyzers, generators, tasks, project references, package
+files and property propagation, including applicable `TreatAsLocalProperty`,
+`GlobalPropertiesToRemove`, `RemoveProperties` and later overrides. Dependency,
+SDK/import or paid-product changes require renewed review. No claim is made
+about whether any historical build transmitted telemetry.
+
+Changed source bytes require fresh source/closure and operational data bindings
+before any future Build/Inputs admission. Keep accepted historical Validate
+records, ungranted templates and consumed attempts immutable; do not silently
+repin or reuse their grants. This policy adds no persistent machine/user setting,
+new loader mode, network sandbox, descendant containment or GUI authority.
+
 ## Helper validation (no private machine configuration)
 
 Use an existing PowerShell 7.5+ installation (major version 7). The three-OS CI job requires the
@@ -426,9 +512,35 @@ preinstalled supported host and fails if it is absent; it never installs a host
 or silently skips these tests.
 
 ```powershell
-pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1
 python -m unittest scripts.tests.test_offline_patch_import_proof scripts.tests.test_crossplatform_workflow -v
 ```
+
+The Windows PowerShell command is a separate, prospectively screened invocation
+of the freshly pinned absolute host, not a persisted wrapper or private executor.
+The following process-only binding saves/restores the launching process value;
+it does not write machine/user settings. Use it only after exact-source safety
+acceptance and explicit local-test admission, including verification of the host
+pin. Other external hosts need their own approved pre-host binding; no workflow
+or global setting change is made here.
+
+```powershell
+$priorPowerShellTelemetry = [Environment]::GetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'Process')
+$proofExitCode = 1
+try {
+    [Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', '1', 'Process')
+    & 'C:\Program Files\PowerShell\7\pwsh.exe' -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1
+    $proofExitCode = $LASTEXITCODE
+}
+finally {
+    [Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', $priorPowerShellTelemetry, 'Process')
+}
+exit $proofExitCode
+```
+
+The initial tool host is already initialized and is not retroactively attested
+by this literal. Negative-admission PowerShell workers inherit the external
+host's flag; clearing workers must independently preserve it. An earlier screen
+of an older source tree or launch binding does not admit amended source.
 
 This ordinary command **trusts the reviewed checkout**, not independently approved
 source pins. Its outer driver copies the fixed public closure into a fresh owned

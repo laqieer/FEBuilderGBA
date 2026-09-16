@@ -99,6 +99,7 @@ function ProofEnvelope {
             LOCALAPPDATA = (Join-Path $launchRoot 'profile\AppData\Local')
             HTTP_PROXY = 'http://127.0.0.1:9'; HTTPS_PROXY = 'http://127.0.0.1:9'; ALL_PROXY = 'http://127.0.0.1:9'
             DOTNET_CLI_TELEMETRY_OPTOUT = '1'; DOTNET_EnableDiagnostics = '0'
+            POWERSHELL_TELEMETRY_OPTOUT = '1'
         }
         foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
         $runner = $null

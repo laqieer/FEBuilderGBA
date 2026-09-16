@@ -143,6 +143,276 @@ function Invoke-PinnedLoaderTests([string]$Root) {
     return $cases
 }
 
+function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.ScriptBlockAst]$Prepare,
+    [Management.Automation.Language.ScriptBlockAst]$Launch){
+    $names=[Collections.Generic.List[string]]::new()
+    $failures=[Collections.Generic.List[string]]::new()
+    function Require([bool]$Value,[string]$Code){if(!$Value){throw $Code}}
+    function Case([string]$Name,[scriptblock]$Assertion){
+        Require (!$names.Contains($Name)) 'BuildTelemetry.DuplicateCase'
+        $names.Add($Name)
+        try{& $Assertion}catch{$failures.Add($Name+': '+$_.Exception.Message)}
+    }
+    function Reject([string]$Code,[scriptblock]$Assertion){
+        $failure=$null
+        try{& $Assertion}catch{$failure=$_.Exception.Message}
+        Require ($failure -ceq $Code) ('BuildTelemetry.UnexpectedRefusal: '+$failure)
+    }
+    function Assignment($Scope,[string]$Name){
+        $found=@($Scope.FindAll({param($node)
+            $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+            $node.Left -is [Management.Automation.Language.VariableExpressionAst] -and
+            $node.Left.VariablePath.UserPath -ceq $Name
+        },$true))
+        Require ($found.Count -eq 1) 'BuildTelemetry.Structure'
+        return $found[0]
+    }
+    function EnvironmentShape($Ast,[bool]$IsLaunch=$false){
+        $functionName=if($IsLaunch){'Invoke-LaunchEntry'}else{'Run'}
+        $runs=@($Ast.FindAll({param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq $functionName
+        },$true))
+        Require ($runs.Count -eq 1) 'BuildTelemetry.Structure'
+        $assignment=Assignment $runs[0].Body environment
+        Require ($assignment.Right -is [Management.Automation.Language.CommandExpressionAst] -and
+            $assignment.Right.Expression -is [Management.Automation.Language.HashtableAst]) 'BuildTelemetry.Structure'
+        return @{run=$runs[0];assignment=$assignment;table=$assignment.Right.Expression}
+    }
+    function LiteralArray($Ast){
+        $allowed=@('CommandExpressionAst','ArrayExpressionAst','StatementBlockAst','PipelineAst',
+            'ArrayLiteralAst','StringConstantExpressionAst')
+        $nodes=@($Ast.FindAll({param($node)$true},$true))
+        Require (@($nodes|Where-Object {$_.GetType().Name -cnotin $allowed}).Count -eq 0 -and
+            @($nodes|Where-Object {$_ -is [Management.Automation.Language.ArrayExpressionAst]}).Count -eq 1) 'BuildTelemetry.Structure'
+        $strings=@($nodes|Where-Object {$_ -is [Management.Automation.Language.StringConstantExpressionAst]})
+        Require (@($strings|Where-Object {$_.StringConstantType.ToString() -cne 'SingleQuoted'}).Count -eq 0) 'BuildTelemetry.Structure'
+        return ,@($strings|ForEach-Object Value)
+    }
+    function BuildBlock($Ast){
+        $blocks=@(foreach($node in $Ast.FindAll({param($item)
+            $item -is [Management.Automation.Language.IfStatementAst]
+        },$true)){
+            foreach($clause in $node.Clauses){
+                if($clause.Item1.Extent.Text -ceq '$Stage -ceq ''Build'''){$clause.Item2}
+            }
+        })
+        Require ($blocks.Count -eq 1) 'BuildTelemetry.Structure'
+        return $blocks[0]
+    }
+    function AssertEnvironment($Ast,[string]$Key,[bool]$IsLaunch=$false){
+        $shape=EnvironmentShape $Ast $IsLaunch
+        $pairs=@($shape.table.KeyValuePairs|Where-Object {
+            $_.Item1 -is [Management.Automation.Language.StringConstantExpressionAst] -and
+            $_.Item1.Value -ieq $Key
+        })
+        Require ($pairs.Count -eq 1) 'BuildTelemetry.EnvironmentPolicy'
+        $valueNodes=@($pairs[0].Item2.FindAll({param($node)$true},$true))
+        $allowed=@('StatementBlockAst','PipelineAst','CommandExpressionAst','StringConstantExpressionAst')
+        $literal=@($valueNodes|Where-Object {$_ -is [Management.Automation.Language.StringConstantExpressionAst]})
+        Require ($pairs[0].Item1.Value -ceq $Key -and
+            @($valueNodes|Where-Object {$_.GetType().Name -cnotin $allowed}).Count -eq 0 -and
+            $literal.Count -eq 1 -and $literal[0].Value -ceq '1' -and
+            $literal[0].StringConstantType.ToString() -ceq 'SingleQuoted') 'BuildTelemetry.EnvironmentPolicy'
+        $clearText=if($IsLaunch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
+        $startText=if($IsLaunch){'[Diagnostics.Process]::Start($start)'}else{'$p.Start()'}
+        $populateText=if($IsLaunch){
+            'foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }'
+        }else{'foreach ($k in $environment.Keys) { $info.Environment[$k]=[string]$environment[$k] }'}
+        $environmentTarget=if($IsLaunch){'$start.Environment'}else{'$info.Environment'}
+        $clear=@($shape.run.Body.FindAll({param($node)
+            $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and
+            $node.Extent.Text -ceq $clearText
+        },$true))
+        $start=@($shape.run.Body.FindAll({param($node)
+            $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and
+            $node.Extent.Text -ceq $startText
+        },$true))
+        $populate=@($shape.run.Body.FindAll({param($node)
+            $node -is [Management.Automation.Language.ForEachStatementAst] -and
+            ($node.Extent.Text -replace '\s+',' ').Trim() -ceq $populateText
+        },$true))
+        $writes=@($shape.run.Body.FindAll({param($node)
+            $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+            $node.Left -is [Management.Automation.Language.IndexExpressionAst] -and
+            $node.Left.Target.Extent.Text -ceq $environmentTarget
+        },$true))
+        Require ($clear.Count -eq 1 -and $start.Count -eq 1 -and $populate.Count -eq 1 -and $writes.Count -eq 1 -and
+            $clear[0].Extent.StartOffset -lt $shape.assignment.Extent.StartOffset -and
+            $shape.assignment.Extent.EndOffset -lt $populate[0].Extent.StartOffset -and
+            $populate[0].Extent.EndOffset -lt $start[0].Extent.StartOffset -and
+            $writes[0].Extent.StartOffset -gt $populate[0].Extent.StartOffset -and
+            $writes[0].Extent.EndOffset -lt $populate[0].Extent.EndOffset) 'BuildTelemetry.EnvironmentOrder'
+    }
+    $commonPrefix=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false',
+        '-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false',
+        '-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false')
+    $expectedCalls=@(
+        'Run $plan.dotnet (@(''build'',$project,''-c'',$configuration,''-t:Rebuild'')+$common) 360 $control $true'
+        'Run $plan.dotnet (@(''test'',$project,''-c'',$configuration,''--no-build'',''--filter'',''FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests'',''--logger'',"trx;LogFileName=$trx",''--results-directory'',"${CONTROL}")+$common) 180 $control $true'.Replace('${CONTROL}','$control\tests')
+        'Run $plan.dotnet (@(''publish'',"${APP}",''-c'',''Release'',''-t:Rebuild,Publish'',''-o'',"${PUBLISH}")+$common) 360 $control $true'.Replace('${APP}','$W\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj').Replace('${PUBLISH}','$B\publish')
+        'Run $plan.dotnet (@(''publish'',"${GENERATOR}",''-c'',''Debug'',''-t:Rebuild,Publish'',''-o'',"${OUTPUT}")+$common) 180 $control $true'.Replace('${GENERATOR}','$W\scripts\SyntheticProofFixtures\SyntheticProofFixtures.csproj').Replace('${OUTPUT}','$B\generator')
+    )
+    function AssertBuildVectors($Ast){
+        $build=BuildBlock $Ast
+        $assignment=Assignment $build common
+        $values=LiteralArray $assignment.Right
+        $expected=@($commonPrefix)+@('-p:UsedAvaloniaProducts=')
+        Require ($values.Count -eq 12 -and ($values -join "`n") -ceq ($expected -join "`n")) 'BuildTelemetry.CommonPolicy'
+        $calls=@($build.FindAll({param($node)
+            $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Run' -and
+            $node.CommandElements.Count -gt 1 -and $node.CommandElements[1].Extent.Text -ceq '$plan.dotnet'
+        },$true))
+        Require ($calls.Count -eq 4) 'BuildTelemetry.BuildVectors'
+        for($i=0;$i -lt 4;$i++){
+            Require ($calls[$i].CommandElements.Count -eq 6 -and
+                ($calls[$i].Extent.Text -replace '\s+',' ').Trim() -ceq $expectedCalls[$i]) 'BuildTelemetry.BuildVectors'
+        }
+        $loops=@($build.FindAll({param($node)
+            $node -is [Management.Automation.Language.ForEachStatementAst] -and
+            $node.Variable.VariablePath.UserPath -ceq 'configuration'
+        },$true))
+        Require ($loops.Count -eq 1) 'BuildTelemetry.BuildVectors'
+        $configurations=LiteralArray $loops[0].Condition
+        Require (($configurations -join '|') -ceq 'Debug|Release' -and
+            $assignment.Extent.EndOffset -lt $loops[0].Extent.StartOffset) 'BuildTelemetry.BuildVectors'
+        for($i=0;$i -lt 2;$i++){
+            Require ($calls[$i].Extent.StartOffset -gt $loops[0].Body.Extent.StartOffset -and
+                $calls[$i].Extent.EndOffset -lt $loops[0].Body.Extent.EndOffset) 'BuildTelemetry.BuildVectors'
+            Require ($calls[$i+2].Extent.StartOffset -gt $loops[0].Extent.EndOffset) 'BuildTelemetry.BuildVectors'
+        }
+        Require (2*$configurations.Count+2 -eq 6) 'BuildTelemetry.BuildVectors'
+        $guards=@($loops[0].Body.FindAll({param($node)
+            $node -is [Management.Automation.Language.IfStatementAst] -and
+            $node.Clauses[0].Item1.Extent.Text -like '*$c.total*'
+        },$true))
+        Require ($guards.Count -eq 1) 'BuildTelemetry.FixtureSelection'
+        foreach($term in @('$c.total -ne ''4''','$c.executed -ne ''4''','$c.passed -ne ''4''',
+            '$c.failed -ne ''0''','$results.Count -ne 4','$_.outcome -cne ''Passed''')){
+            Require ($guards[0].Clauses[0].Item1.Extent.Text.Contains($term)) 'BuildTelemetry.FixtureSelection'
+        }
+    }
+    function AssertPropertyPropagation([string]$Text){
+        $settings=[Xml.XmlReaderSettings]::new();$settings.DtdProcessing=[Xml.DtdProcessing]::Prohibit;$settings.XmlResolver=$null
+        $inputText=[IO.StringReader]::new($Text);$reader=[Xml.XmlReader]::Create($inputText,$settings)
+        $xml=[Xml.XmlDocument]::new();$xml.XmlResolver=$null
+        try{$xml.Load($reader)}finally{$reader.Dispose();$inputText.Dispose()}
+        foreach($node in $xml.SelectNodes('//*')){
+            $entries=@(@{name=$node.LocalName;value=$node.InnerText})
+            foreach($attribute in $node.Attributes){$entries+=@{name=$attribute.LocalName;value=$attribute.Value}}
+            foreach($entry in $entries){
+                if($entry.name.ToLowerInvariant() -cnotin @('treataslocalproperty','globalpropertiestoremove',
+                    'removeproperties','properties','additionalproperties')){continue}
+                $value=[string]$entry.value
+                $properties=@($value -split ';'|ForEach-Object {($_ -split '=',2)[0].Trim().ToLowerInvariant()})
+                Require ($properties -cnotcontains 'usedavaloniaproducts' -and !$value.Contains('$(') -and
+                    !$value.Contains('@(') -and !$value.Contains('*')) 'BuildTelemetry.PropertyPropagation'
+            }
+        }
+    }
+    function ParseVariant([string]$Text,$Original=$Prepare){
+        return ConvertTo-PinnedProofAst ([Text.UTF8Encoding]::new($false).GetBytes($Text)) $Original.Extent.File
+    }
+    function EnvironmentVariants([string]$Source,$Ast,[string]$Key,[bool]$IsLaunch=$false){
+        $shape=EnvironmentShape $Ast $IsLaunch
+        $pairs=@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ceq $Key})
+        Require ($pairs.Count -eq 1) 'BuildTelemetry.Structure'
+        $begin=$pairs[0].Item1.Extent.StartOffset
+        $end=$pairs[0].Item2.Extent.EndOffset
+        if($end -lt $Source.Length -and $Source[$end] -eq ';'){$end++}
+        $entry=$Source.Substring($begin,$end-$begin)
+        $removed=$Source.Remove($begin,$end-$begin)
+        $wrong=$removed.Insert($begin,$entry.Replace("'1'","'0'"))
+        $clear=if($IsLaunch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
+        $population=if($IsLaunch){
+            'foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }'
+        }else{'foreach ($k in $environment.Keys) { $info.Environment[$k]=[string]$environment[$k] }'}
+        return @(
+            @{name='removed';text=$removed;code='BuildTelemetry.EnvironmentPolicy'}
+            @{name='wrong';text=$wrong;code='BuildTelemetry.EnvironmentPolicy'}
+            @{name='inherited-only';text=('$env:'+$Key+"='1'`n"+$removed);code='BuildTelemetry.EnvironmentPolicy'}
+            @{name='comment-only';text=("<#`n"+$entry+"`n#>`n"+$removed);code='BuildTelemetry.EnvironmentPolicy'}
+            @{name='late-clear';text=$Source.Replace($clear,'').Replace($population,$population+"`n"+$clear);code='BuildTelemetry.EnvironmentOrder'}
+        )
+    }
+    # Only actual-source cases establish production policy. Controlled copies
+    # isolate negative mutations without replacing or evaluating either body.
+    $control=$Prepare.Extent.Text
+    $common=Assignment (BuildBlock $Prepare) common
+    $flag=",'-p:UsedAvaloniaProducts='"
+    if((LiteralArray $common.Right) -cnotcontains '-p:UsedAvaloniaProducts='){
+        $control=$control.Insert($common.Right.Extent.EndOffset-1,$flag)
+    }
+    $shape=EnvironmentShape $Prepare
+    $preparationKeys=@('AVALONIA_TELEMETRY_OPTOUT','POWERSHELL_TELEMETRY_OPTOUT')
+    foreach($key in $preparationKeys){
+        if(@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ieq $key}).Count -eq 0){
+            $control=$control.Insert($shape.table.Extent.StartOffset+2,"`n                "+$key+"='1';")
+        }
+    }
+    $positive=ParseVariant $control
+    $launchControl=$Launch.Extent.Text
+    $launchShape=EnvironmentShape $Launch $true
+    if(@($launchShape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ieq 'POWERSHELL_TELEMETRY_OPTOUT'}).Count -eq 0){
+        $launchControl=$launchControl.Insert($launchShape.table.Extent.StartOffset+2,"`n            POWERSHELL_TELEMETRY_OPTOUT='1';")
+    }
+    $launchPositive=ParseVariant $launchControl $Launch
+    Case 'actual-run-avalonia-environment' {AssertEnvironment $Prepare 'AVALONIA_TELEMETRY_OPTOUT'}
+    Case 'actual-run-powershell-environment' {AssertEnvironment $Prepare 'POWERSHELL_TELEMETRY_OPTOUT'}
+    Case 'actual-launch-powershell-environment' {AssertEnvironment $Launch 'POWERSHELL_TELEMETRY_OPTOUT' $true}
+    Case 'actual-build-vectors' {AssertBuildVectors $Prepare}
+    Case 'controlled-run-avalonia-environment' {AssertEnvironment $positive 'AVALONIA_TELEMETRY_OPTOUT'}
+    Case 'controlled-run-powershell-environment' {AssertEnvironment $positive 'POWERSHELL_TELEMETRY_OPTOUT'}
+    Case 'controlled-launch-powershell-environment' {AssertEnvironment $launchPositive 'POWERSHELL_TELEMETRY_OPTOUT' $true}
+    Case 'controlled-source-build-vectors' {AssertBuildVectors $positive}
+    foreach($key in $preparationKeys){
+        foreach($variant in (EnvironmentVariants $control $positive $key)){
+            Case ('prepare-'+$key+'-'+$variant.name) {Reject $variant.code {AssertEnvironment (ParseVariant $variant.text) $key}}
+        }
+    }
+    foreach($variant in (EnvironmentVariants $launchControl $launchPositive 'POWERSHELL_TELEMETRY_OPTOUT' $true)){
+        Case ('launch-powershell-'+$variant.name) {
+            Reject $variant.code {AssertEnvironment (ParseVariant $variant.text $Launch) 'POWERSHELL_TELEMETRY_OPTOUT' $true}
+        }
+    }
+    $commonVariants=@(
+        @{name='removed';text=$control.Replace($flag,'');code='BuildTelemetry.CommonPolicy'}
+        @{name='nonempty';text=$control.Replace("-p:UsedAvaloniaProducts='","-p:UsedAvaloniaProducts=Other'");code='BuildTelemetry.CommonPolicy'}
+        @{name='duplicate';text=$control.Replace($flag,$flag+$flag);code='BuildTelemetry.CommonPolicy'}
+        @{name='conflicting';text=$control.Replace($flag,$flag+",'-p:UsedAvaloniaProducts=Other'");code='BuildTelemetry.CommonPolicy'}
+        @{name='comment-only';text=("# '-p:UsedAvaloniaProducts='`n"+$control.Replace($flag,''));code='BuildTelemetry.CommonPolicy'}
+    )
+    foreach($variant in $commonVariants){
+        Case ('common-'+$variant.name) {Reject $variant.code {AssertBuildVectors (ParseVariant $variant.text)}}
+    }
+    Case 'build-site-missing-common' {
+        Reject 'BuildTelemetry.BuildVectors' {AssertBuildVectors (ParseVariant $control.Replace($expectedCalls[0],$expectedCalls[0].Replace('+$common','')))}
+    }
+    Case 'build-site-later-conflict' {
+        Reject 'BuildTelemetry.BuildVectors' {AssertBuildVectors (ParseVariant $control.Replace($expectedCalls[0],$expectedCalls[0].Replace('+$common','+$common+@(''-p:UsedAvaloniaProducts=Other'')')))}
+    }
+    $xmlFixtures=@(
+        @{name='ordinary-property';reject=$false;xml='<Project><PropertyGroup><UsedAvaloniaProducts>AvaloniaUI</UsedAvaloniaProducts></PropertyGroup></Project>'}
+        @{name='unrelated-removal';reject=$false;xml='<Project><MSBuild RemoveProperties="Other" Properties="Unrelated=1"/></Project>'}
+        @{name='treat-as-local';reject=$true;xml='<Project TreatAsLocalProperty="Configuration;UsedAvaloniaProducts"/>'}
+        @{name='global-removal-element';reject=$true;xml='<Project><ProjectReference><GlobalPropertiesToRemove>UsedAvaloniaProducts</GlobalPropertiesToRemove></ProjectReference></Project>'}
+        @{name='global-removal-attribute';reject=$true;xml='<Project><ProjectReference GlobalPropertiesToRemove="UsedAvaloniaProducts"/></Project>'}
+        @{name='msbuild-removal';reject=$true;xml='<Project><MSBuild RemoveProperties="usedavaloniaproducts"/></Project>'}
+        @{name='msbuild-override';reject=$true;xml='<Project><MSBuild Properties="Other=1;UsedAvaloniaProducts=Other"/></Project>'}
+        @{name='reference-override-element';reject=$true;xml='<Project><ProjectReference><AdditionalProperties>UsedAvaloniaProducts=Other</AdditionalProperties></ProjectReference></Project>'}
+        @{name='reference-override-attribute';reject=$true;xml='<Project><ProjectReference AdditionalProperties="UsedAvaloniaProducts=Other"/></Project>'}
+        @{name='dynamic-removal';reject=$true;xml='<Project><MSBuild RemoveProperties="$(RemovedGlobals)"/></Project>'}
+    )
+    foreach($fixture in $xmlFixtures){
+        Case ('xml-'+$fixture.name) {
+            if($fixture.reject){Reject 'BuildTelemetry.PropertyPropagation' {AssertPropertyPropagation $fixture.xml}}
+            else{AssertPropertyPropagation $fixture.xml}
+        }
+    }
+    if($names.Count -ne 40){throw 'Build telemetry AST case inventory changed.'}
+    if($failures.Count){throw ('Build telemetry AST cases failed: '+($failures -join '; '))}
+    return $names.Count
+}
+
 function Invoke-PinnedScopeTests([string]$Root){
     $fixture=New-PinnedProofFixture (Join-Path $Root 'scope-fixture')
     . $fixture.loader
@@ -181,7 +451,8 @@ function Invoke-PinnedScopeTests([string]$Root){
         if($failure -cne 'Worker deadline; terminate the runner boundary before app cleanup.' -or
             !$receipt.worker_stop_requested -or !$receipt.timed_out -or $receipt.worker_stop_reason -cne 'timeout:owned'){throw "Launcher invocation-local custody failed: $failure"}
     }
-    return 3
+    $telemetryCases=Invoke-PinnedBuildTelemetryTests $prepare $launch
+    return (3+$telemetryCases)
 }
 
 function Invoke-PinnedClosureTests([string]$Root){

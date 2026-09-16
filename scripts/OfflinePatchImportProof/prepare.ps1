@@ -143,6 +143,8 @@ function ProofEnvelope {
                 TEMP="$control\temp"; TMP="$control\temp"; DOTNET_CLI_HOME="$control\home"
                 DOTNET_ROOT=$tools.dotnetRoot; DOTNET_ROOT_X64=$tools.dotnetRoot; DOTNET_MULTILEVEL_LOOKUP='0'
                 DOTNET_CLI_TELEMETRY_OPTOUT='1'; DOTNET_SKIP_FIRST_TIME_EXPERIENCE='1'; DOTNET_NOLOGO='1'
+                AVALONIA_TELEMETRY_OPTOUT='1'
+                POWERSHELL_TELEMETRY_OPTOUT='1'
                 DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE='1'; DOTNET_ROLL_FORWARD='LatestPatch'
                 NUGET_PACKAGES=$plan.package_folders[0]; NUGET_FALLBACK_PACKAGES=$plan.package_folders[1]
                 NUGET_HTTP_CACHE_PATH="$control\home\nuget-http"; MSBuildEnableWorkloadResolver='false'
@@ -312,7 +314,7 @@ function ProofEnvelope {
                 JsonNew "$control\resource-sources.json" $resources
                 Fresh "$B\publish"; Fresh "$B\generator"
                 $testEvidence=[Collections.Generic.List[object]]::new()
-                $common=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false','-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false','-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false')
+                $common=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false','-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false','-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false','-p:UsedAvaloniaProducts=')
                 # Rebuild separately; dotnet test --no-build must not silently validate an old assembly.
                 foreach ($configuration in @('Debug','Release')) {
                     $project="$W\FEBuilderGBA.Avalonia.Tests\FEBuilderGBA.Avalonia.Tests.csproj"
