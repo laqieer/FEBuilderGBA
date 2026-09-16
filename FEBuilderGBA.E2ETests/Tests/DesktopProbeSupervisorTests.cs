@@ -68,6 +68,276 @@ public class DesktopProbeSupervisorTests
     private static ProbeGrant Grant(ProbePacket packet) =>
         ProbeSupervisor.ParseGrant(Json(GrantData()), packet, Hash, Now);
 
+    private const string RuntimeConfigLongKey =
+        "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization";
+
+    private static JsonObject RuntimeConfigData() => new()
+    {
+        ["runtimeOptions"] = new JsonObject
+        {
+            ["tfm"] = "net10.0",
+            ["rollForward"] = "Disable",
+            ["frameworks"] = new JsonArray
+            {
+                new JsonObject { ["name"] = "Microsoft.NETCore.App", ["version"] = "10.0.12" },
+                new JsonObject { ["name"] = "Microsoft.WindowsDesktop.App", ["version"] = "10.0.12" }
+            },
+            ["configProperties"] = new JsonObject
+            {
+                ["System.Reflection.Metadata.MetadataUpdater.IsSupported"] = false,
+                [RuntimeConfigLongKey] = false,
+                ["CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS"] = false
+            }
+        }
+    };
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public void RuntimeConfig_CompleteProductionSchemaIsAccepted(bool reverseProperties, bool reverseFrameworks)
+    {
+        var data = RuntimeConfigData();
+        var options = data["runtimeOptions"]!.AsObject();
+        if (reverseProperties)
+            options["configProperties"] = new JsonObject(options["configProperties"]!.AsObject()
+                .Reverse().Select(pair => new KeyValuePair<string, JsonNode?>(pair.Key, pair.Value?.DeepClone())));
+        if (reverseFrameworks)
+            options["frameworks"] = new JsonArray(options["frameworks"]!.AsArray()
+                .Reverse().Select(node => node!.DeepClone()).ToArray());
+        Assert.Equal(69, RuntimeConfigLongKey.Length);
+        ProbeSupervisor.ValidateRuntimeConfig(Json(data), "10.0.12");
+    }
+
+    [Fact]
+    public void RuntimeConfig_ExactByteLimitIsAcceptedAndOneMoreByteIsRejected()
+    {
+        byte[] content = Json(RuntimeConfigData());
+        byte[] exact = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(content).PadRight(16384));
+        ProbeSupervisor.ValidateRuntimeConfig(exact, "10.0.12");
+        Assert.Throws<InvalidDataException>(() =>
+            ProbeSupervisor.ValidateRuntimeConfig([.. exact, (byte)' '], "10.0.12"));
+    }
+
+    public static IEnumerable<object[]> RuntimeConfigUnknownKeys()
+    {
+        foreach (string location in new[] { "root", "options", "properties", "framework" })
+            foreach (int length in new[] { 1, 64, 65, 69, 70 })
+                yield return [location, new string('x', length)];
+    }
+
+    [Theory]
+    [MemberData(nameof(RuntimeConfigUnknownKeys))]
+    public void RuntimeConfig_UnknownKeysRemainRejected(string location, string name)
+    {
+        var data = RuntimeConfigData();
+        var options = data["runtimeOptions"]!;
+        JsonObject target = location switch
+        {
+            "root" => data,
+            "options" => options.AsObject(),
+            "properties" => options["configProperties"]!.AsObject(),
+            "framework" => options["frameworks"]![0]!.AsObject(),
+            _ => throw new ArgumentException("Invalid test location")
+        };
+        target[name] = false;
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ValidateRuntimeConfig(Json(data), "10.0.12"));
+    }
+
+    [Theory]
+    [InlineData("missing-long-key")]
+    [InlineData("misplaced-long-key")]
+    [InlineData("wrong-tfm")]
+    [InlineData("roll-forward")]
+    [InlineData("missing-framework")]
+    [InlineData("duplicate-framework")]
+    [InlineData("framework-version")]
+    [InlineData("framework-extra-field")]
+    [InlineData("framework-array-type")]
+    [InlineData("config-properties-type")]
+    [InlineData("unsafe-formatter")]
+    [InlineData("metadata-updater")]
+    [InlineData("xaml-projections")]
+    [InlineData("string-boolean")]
+    [InlineData("null-boolean")]
+    public void RuntimeConfig_ClosedSchemaAndSecurityValuesRemainRequired(string fault)
+    {
+        var data = RuntimeConfigData();
+        var options = data["runtimeOptions"]!;
+        var properties = options["configProperties"]!.AsObject();
+        var frameworks = options["frameworks"]!.AsArray();
+        switch (fault)
+        {
+            case "missing-long-key": properties.Remove(RuntimeConfigLongKey); break;
+            case "misplaced-long-key":
+                properties.Remove(RuntimeConfigLongKey);
+                data[RuntimeConfigLongKey] = false;
+                break;
+            case "wrong-tfm": options["tfm"] = "net9.0"; break;
+            case "roll-forward": options["rollForward"] = "LatestMajor"; break;
+            case "missing-framework": frameworks.RemoveAt(1); break;
+            case "duplicate-framework": frameworks[1] = frameworks[0]!.DeepClone(); break;
+            case "framework-version": frameworks[0]!["version"] = "10.0.11"; break;
+            case "framework-extra-field": frameworks[0]!["extra"] = false; break;
+            case "framework-array-type": options["frameworks"] = new JsonObject(); break;
+            case "config-properties-type": options["configProperties"] = new JsonArray(); break;
+            case "unsafe-formatter": properties[RuntimeConfigLongKey] = true; break;
+            case "metadata-updater": properties["System.Reflection.Metadata.MetadataUpdater.IsSupported"] = true; break;
+            case "xaml-projections": properties["CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS"] = true; break;
+            case "string-boolean": properties[RuntimeConfigLongKey] = "false"; break;
+            case "null-boolean": properties[RuntimeConfigLongKey] = null; break;
+            default: throw new ArgumentException("Invalid test fault");
+        }
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ValidateRuntimeConfig(Json(data), "10.0.12"));
+    }
+
+    [Fact]
+    public void RuntimeConfig_ExpectedFrameworkVersionIsNotIgnored()
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProbeSupervisor.ValidateRuntimeConfig(Json(RuntimeConfigData()), "10.0.11"));
+    }
+
+    [Theory]
+    [InlineData(64, true)]
+    [InlineData(65, false)]
+    [InlineData(69, false)]
+    [InlineData(70, false)]
+    public void StrictJson_DefaultPacketGrantNameLimitStays64(int length, bool accepted)
+    {
+        byte[] data = Json(new Dictionary<string, object?> { [new string('x', length)] = false });
+        if (accepted)
+        {
+            using var implicitContext = ProbeSupervisor.StrictJson(data, 16384);
+            using var explicitContext = ProbeSupervisor.StrictJson(data, 16384,
+                ProbeSupervisor.JsonContext.PacketOrGrant);
+            Assert.Single(implicitContext.RootElement.EnumerateObject());
+            Assert.Single(explicitContext.RootElement.EnumerateObject());
+        }
+        else
+        {
+            Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson(data, 16384));
+            Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson(data, 16384,
+                ProbeSupervisor.JsonContext.PacketOrGrant));
+        }
+    }
+
+    [Fact]
+    public void StrictJson_ExactLongKeyIsAllowedOnlyForRuntimeConfig()
+    {
+        byte[] data = Json(new Dictionary<string, object?> { [RuntimeConfigLongKey] = false });
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson(data, 16384));
+        using var document = ProbeSupervisor.StrictJson(data, 16384, ProbeSupervisor.JsonContext.RuntimeConfig);
+        Assert.Equal(JsonValueKind.False, document.RootElement.GetProperty(RuntimeConfigLongKey).ValueKind);
+    }
+
+    [Theory]
+    [InlineData(65)]
+    [InlineData(68)]
+    [InlineData(69)]
+    [InlineData(70)]
+    public void StrictJson_RuntimeContextDoesNotWidenOtherLongNames(int length)
+    {
+        byte[] data = Json(new Dictionary<string, object?> { [new string('x', length)] = false });
+        Assert.Throws<InvalidDataException>(() =>
+            ProbeSupervisor.StrictJson(data, 16384, ProbeSupervisor.JsonContext.RuntimeConfig));
+    }
+
+    [Fact]
+    public void StrictJson_RuntimeLongKeyAllowanceIsOrdinalExact()
+    {
+        foreach (string key in new[] { RuntimeConfigLongKey.ToLowerInvariant(),
+            RuntimeConfigLongKey[..^1], RuntimeConfigLongKey + "X" })
+        {
+            byte[] data = Json(new Dictionary<string, object?> { [key] = false });
+            Assert.Throws<InvalidDataException>(() =>
+                ProbeSupervisor.StrictJson(data, 16384, ProbeSupervisor.JsonContext.RuntimeConfig));
+        }
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(2)]
+    [InlineData(int.MaxValue)]
+    public void StrictJson_UnknownContextIsRejected(int context)
+    {
+        Assert.Throws<InvalidDataException>(() =>
+            ProbeSupervisor.StrictJson([123, 125], 16384, (ProbeSupervisor.JsonContext)context));
+    }
+
+    [Theory]
+    [InlineData("Packet", 64)]
+    [InlineData("Packet", 65)]
+    [InlineData("Packet", 69)]
+    [InlineData("Grant", 64)]
+    [InlineData("Grant", 65)]
+    [InlineData("Grant", 69)]
+    public void StrictJson_PacketAndGrantClosedSchemasStillRejectUnexpectedNames(string schema, int length)
+    {
+        var data = schema == "Packet" ? PacketData() : GrantData();
+        data[new string('x', length)] = false;
+        if (schema == "Packet")
+            Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ParsePacket(Json(data)));
+        else
+            Assert.Throws<InvalidDataException>(() => ProbeSupervisor.ParseGrant(Json(data), Packet(), Hash, Now));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void StrictJson_BomEncodingCommentsAndDuplicateRulesStayStrict(int contextValue)
+    {
+        var context = (ProbeSupervisor.JsonContext)contextValue;
+        byte[] valid = Encoding.UTF8.GetBytes("{\"key\":false}");
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson([0xef, 0xbb, 0xbf, .. valid], 16384, context));
+        Assert.Throws<DecoderFallbackException>(() => ProbeSupervisor.StrictJson([0xff, 0xfe], 16384, context));
+        foreach (string invalid in new[] { "{\"key\":false,}", "{/*comment*/\"key\":false}", "{", "{\"key\":" })
+            Assert.ThrowsAny<JsonException>(() => ProbeSupervisor.StrictJson(Encoding.UTF8.GetBytes(invalid), 16384, context));
+        foreach (string duplicate in new[] { "{\"key\":false,\"key\":false}", "{\"key\":false,\"KEY\":false}" })
+            Assert.Throws<InvalidDataException>(() =>
+                ProbeSupervisor.StrictJson(Encoding.UTF8.GetBytes(duplicate), 16384, context));
+    }
+
+    [Theory]
+    [InlineData(16384)]
+    [InlineData(2097152)]
+    public void StrictJson_ByteLimitsRemainExact(int maximum)
+    {
+        byte[] exact = Encoding.UTF8.GetBytes("{}".PadRight(maximum));
+        using var document = ProbeSupervisor.StrictJson(exact, maximum);
+        Assert.Equal(JsonValueKind.Object, document.RootElement.ValueKind);
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson([.. exact, (byte)' '], maximum));
+        Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson([], maximum));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void StrictJson_DepthLimitRemainsEight(int contextValue)
+    {
+        var context = (ProbeSupervisor.JsonContext)contextValue;
+        byte[] exact = Encoding.UTF8.GetBytes(new string('[', 8) + "0" + new string(']', 8));
+        using var document = ProbeSupervisor.StrictJson(exact, 16384, context);
+        Assert.ThrowsAny<JsonException>(() => ProbeSupervisor.StrictJson(
+            Encoding.UTF8.GetBytes(new string('[', 9) + "0" + new string(']', 9)), 16384, context));
+    }
+
+    [Theory]
+    [InlineData(65535, true)]
+    [InlineData(65536, false)]
+    public void StrictJson_NodeLimitRemains65536(int values, bool accepted)
+    {
+        byte[] data = Encoding.UTF8.GetBytes("[" + string.Join(",", Enumerable.Repeat("0", values)) + "]");
+        if (accepted)
+        {
+            using var document = ProbeSupervisor.StrictJson(data, 2097152);
+            Assert.Equal(values, document.RootElement.GetArrayLength());
+        }
+        else
+            Assert.Throws<InvalidDataException>(() => ProbeSupervisor.StrictJson(data, 2097152));
+    }
+
     [Fact]
     public void ExactDataSchemas_AreAccepted()
     {

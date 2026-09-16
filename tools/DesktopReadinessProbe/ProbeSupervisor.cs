@@ -77,6 +77,14 @@ internal static class ProbeSupervisor
     private static readonly string[] ToolFiles = ["DesktopReadinessProbe.dll",
         "DesktopReadinessProbe.deps.json", "DesktopReadinessProbe.runtimeconfig.json",
         "FEBuilderGBA.E2ETests.dll"];
+    private const string RuntimeConfigLongKey =
+        "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization";
+
+    internal enum JsonContext
+    {
+        PacketOrGrant,
+        RuntimeConfig
+    }
 
     private static void Require(bool value)
     {
@@ -132,8 +140,10 @@ internal static class ProbeSupervisor
         return value;
     }
 
-    private static JsonDocument StrictJson(byte[] bytes, int maximum)
+    internal static JsonDocument StrictJson(byte[] bytes, int maximum,
+        JsonContext context = JsonContext.PacketOrGrant)
     {
+        Require(context is JsonContext.PacketOrGrant or JsonContext.RuntimeConfig);
         Require(bytes.Length is > 0 && bytes.Length <= maximum);
         string text = new UTF8Encoding(false, true).GetString(bytes);
         Require(text.Length > 0 && text[0] != '\ufeff');
@@ -151,7 +161,9 @@ internal static class ProbeSupervisor
                     var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
                     foreach (var property in item.EnumerateObject())
                     {
-                        Require(property.Name.Length <= 64 && names.Add(property.Name));
+                        Require((property.Name.Length <= 64 ||
+                            (context == JsonContext.RuntimeConfig && property.Name == RuntimeConfigLongKey)) &&
+                            names.Add(property.Name));
                         pending.Push(property.Value);
                     }
                 }
@@ -161,6 +173,30 @@ internal static class ProbeSupervisor
             return document;
         }
         catch { document.Dispose(); throw; }
+    }
+
+    internal static void ValidateRuntimeConfig(byte[] bytes, string runtimeVersion)
+    {
+        using var document = StrictJson(bytes, GrantLimit, JsonContext.RuntimeConfig);
+        Keys(document.RootElement, "runtimeOptions");
+        var options = document.RootElement.GetProperty("runtimeOptions");
+        Keys(options, "tfm", "rollForward", "frameworks", "configProperties");
+        Require(Text(options, "tfm") == "net10.0" && Text(options, "rollForward") == "Disable");
+        var frameworks = options.GetProperty("frameworks");
+        Require(frameworks.ValueKind == JsonValueKind.Array && frameworks.GetArrayLength() == 2);
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var framework in frameworks.EnumerateArray())
+        {
+            Keys(framework, "name", "version");
+            string name = Text(framework, "name");
+            Require(name is "Microsoft.NETCore.App" or "Microsoft.WindowsDesktop.App" &&
+                names.Add(name) && Text(framework, "version") == runtimeVersion);
+        }
+        var properties = options.GetProperty("configProperties");
+        Keys(properties, "System.Reflection.Metadata.MetadataUpdater.IsSupported",
+            RuntimeConfigLongKey, "CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS");
+        foreach (var property in properties.EnumerateObject())
+            Require(property.Value.ValueKind == JsonValueKind.False);
     }
 
     private static void Keys(JsonElement value, params string[] expected)
@@ -657,28 +693,8 @@ internal static class ProbeSupervisor
         {
             var pin = packet.Files.Single(row => row.Root == "tool" &&
                 row.Path == "DesktopReadinessProbe.runtimeconfig.json");
-            using var document = StrictJson(ReadPinnedData(Path.Combine(packet.ToolDirectory, pin.Path),
-                pin.Sha256, GrantLimit), GrantLimit);
-            Keys(document.RootElement, "runtimeOptions");
-            var options = document.RootElement.GetProperty("runtimeOptions");
-            Keys(options, "tfm", "rollForward", "frameworks", "configProperties");
-            Require(Text(options, "tfm") == "net10.0" && Text(options, "rollForward") == "Disable");
-            var frameworks = options.GetProperty("frameworks");
-            Require(frameworks.ValueKind == JsonValueKind.Array && frameworks.GetArrayLength() == 2);
-            var names = new HashSet<string>(StringComparer.Ordinal);
-            foreach (var framework in frameworks.EnumerateArray())
-            {
-                Keys(framework, "name", "version");
-                string name = Text(framework, "name");
-                Require(name is "Microsoft.NETCore.App" or "Microsoft.WindowsDesktop.App" &&
-                    names.Add(name) && Text(framework, "version") == packet.RuntimeVersion);
-            }
-            var properties = options.GetProperty("configProperties");
-            Keys(properties, "System.Reflection.Metadata.MetadataUpdater.IsSupported",
-                "System.Runtime.Serialization.EnableUnsafeBinaryFormatterSerialization",
-                "CSWINRT_USE_WINDOWS_UI_XAML_PROJECTIONS");
-            foreach (var property in properties.EnumerateObject())
-                Require(property.Value.ValueKind == JsonValueKind.False);
+            ValidateRuntimeConfig(ReadPinnedData(Path.Combine(packet.ToolDirectory, pin.Path),
+                pin.Sha256, GrantLimit), packet.RuntimeVersion);
         }
 
         public void Consume(ProbePacket value, string hash, string grantHash)
