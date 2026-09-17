@@ -4,7 +4,7 @@ function ProofEnvelope {
         Set-StrictMode -Version Latest
         if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7 -or $PSVersionTable.PSVersion -lt [version]'7.5') { throw 'Supported PowerShell 7.5+ required.' }
         $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-        $root=Join-Path ([IO.Path]::GetTempPath()) ('offline-patch-proof-'+[guid]::NewGuid().ToString('N'))
+        $root=Join-Path $repository ('TestResults\offline-patch-proof-'+[guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($root)
         . (Join-Path $PSScriptRoot '..\WindowsDesktopProof\PinnedLoader.Tests.ps1')
         $compiled=0

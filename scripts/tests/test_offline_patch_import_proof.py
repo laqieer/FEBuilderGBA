@@ -319,6 +319,20 @@ def _assert_initial_discover_boundary(source):
 
 
 class OfflinePatchImportProofContractTests(unittest.TestCase):
+    def test_aggregate_fixture_root_is_checkout_owned(self):
+        text = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
+        expected = (
+            r"$root=Join-Path $repository "
+            r"('TestResults\offline-patch-proof-'+[guid]::NewGuid().ToString('N'))"
+        )
+        roots = [
+            line.strip()
+            for line in _ps_source_mask(text, keep_strings=True).splitlines()
+            if re.match(r"^\s*\$root\s*=", line)
+        ]
+        self.assertEqual([expected], roots)
+        self.assertLess(text.index(expected), text.index("CreateDirectory($root)"))
+
     def test_startup_acquisition_initial_discover_has_a_closed_typed_boundary(self):
         _assert_initial_discover_boundary((PACKAGE / "Policy.cs").read_text(encoding="utf-8"))
 

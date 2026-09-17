@@ -22,33 +22,19 @@ public static class SyntheticFe8URom
             || rom.RomInfo.VersionToFilename != "FE8U")
             throw new InvalidOperationException("Synthetic FE8U identity was not recognized.");
 
-        // Test-only generation is serialized by SharedState in tests and runs
-        // in its own process for proof. Preserve the caller's ROM identity.
-        var previous = CoreState.ROM;
-        try
-        {
-            CoreState.ROM = rom;
-            var undo = new Undo().NewUndoData("Generate synthetic patch-import fixture");
-            using (ROM.BeginUndoScope(undo))
-            {
-                rom.write_u32(TreeBase, 0x80000000);
-                rom.write_u32(TreeBase + 4, 0x80000041);
-                rom.write_u16(RootNode, 0);
-                rom.write_u16(RootNode + 2, 1);
-                rom.write_p32(rom.RomInfo.mask_pointer, TreeBase);
-                rom.write_p32(rom.RomInfo.mask_point_base_pointer, RootReference);
-                rom.write_p32(RootReference, RootNode);
-                rom.write_p32(rom.RomInfo.text_pointer, TextTable);
-                rom.write_p32(TextTable, EmptyText);
-                rom.write_p32(TextTable + 4, SingleAText);
-                rom.write_u8(SingleAText, 1); // LSB-first A followed by terminator.
-            }
-        }
-        finally
-        {
-            CoreState.ROM = previous;
-        }
-        return rom.Data;
+        // Construct detached fixture bytes without entering the caller's undo transaction.
+        U.write_u32(data, TreeBase, 0x80000000);
+        U.write_u32(data, TreeBase + 4, 0x80000041);
+        U.write_u16(data, RootNode, 0);
+        U.write_u16(data, RootNode + 2, 1);
+        U.write_p32(data, rom.RomInfo.mask_pointer, TreeBase);
+        U.write_p32(data, rom.RomInfo.mask_point_base_pointer, RootReference);
+        U.write_p32(data, RootReference, RootNode);
+        U.write_p32(data, rom.RomInfo.text_pointer, TextTable);
+        U.write_p32(data, TextTable, EmptyText);
+        U.write_p32(data, TextTable + 4, SingleAText);
+        U.write_u8(data, SingleAText, 1); // LSB-first A followed by terminator.
+        return data;
     }
 
     public sealed record Receipt(string Format, int Length, string Sha256);

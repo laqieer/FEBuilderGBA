@@ -11,6 +11,7 @@ public sealed class SyntheticPatchImportFixtureTests
     [Fact]
     public void GeneratedTree_HasPointerAwareIndirectionAndFiniteTerminatingLeaves()
     {
+        Assert.Null(ROM.GetAmbientUndoData());
         var previousRom = CoreState.ROM;
         var previousUndo = CoreState.Undo;
         byte[] data = SyntheticFe8URom.Create();
@@ -55,6 +56,40 @@ public sealed class SyntheticPatchImportFixtureTests
         Assert.Equal(3, visited.Count);
         Assert.Equal(new uint[] { 0, 'A' }, leaves.Order().ToArray());
         Assert.Equal(data, SyntheticFe8URom.Create());
+        Assert.Equal("e9b6e2b8f9796d5932448295be87dc8fdef8b93f07e82a30917188ed6799c5c3",
+            Convert.ToHexString(SHA256.HashData(data)).ToLowerInvariant());
+
+        var callerRom = new ROM();
+        Assert.True(callerRom.LoadFromBytes("caller.gba", (byte[])data.Clone(), out _));
+        try
+        {
+            CoreState.ROM = callerRom;
+            var callerUndo = new Undo().NewUndoData("Caller fixture-generation scope");
+            using (ROM.BeginUndoScope(callerUndo))
+            {
+                callerRom.write_u8(0x300, 0x5A);
+                var callerBytes = (byte[])callerRom.Data.Clone();
+                var callerPositions = callerUndo.list.ToArray();
+
+                byte[] nestedData = SyntheticFe8URom.Create();
+
+                Assert.Same(callerUndo, ROM.GetAmbientUndoData());
+                Assert.Same(callerRom, CoreState.ROM);
+                Assert.Same(previousUndo, CoreState.Undo);
+                Assert.Equal(callerBytes, callerRom.Data);
+                Assert.Equal(callerPositions, callerUndo.list);
+                Assert.Equal(data, nestedData);
+
+                callerRom.write_u8(0x301, 0xA5);
+                Assert.Equal(new uint[] { 0x300, 0x301 },
+                    callerUndo.list.Select(position => position.addr));
+            }
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+        }
+        Assert.Null(ROM.GetAmbientUndoData());
     }
 
     [Theory]
