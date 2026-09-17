@@ -258,7 +258,212 @@ _PROPERTY_FIXTURES = (
 )
 
 
+_CS_TRIVIA = re.compile(
+    r"""//[^\r\n]*|/\*.*?\*/|@"(?:""|[^"])*"|"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'""",
+    re.DOTALL,
+)
+
+
+def _cs_mask(text, *, keep_strings=False):
+    def replace(match):
+        value = match.group()
+        if keep_strings and not value.startswith(("//", "/*")):
+            return value
+        return re.sub(r"[^\r\n]", " ", value)
+    return _CS_TRIVIA.sub(replace, text)
+
+
+def _cs_body(text, declaration):
+    """Balanced source-only C# check; never compile/evaluate a candidate."""
+    mask = _cs_mask(text)
+    matches = [m for m in re.finditer(declaration, _cs_mask(text, keep_strings=True))
+               if mask[m.end() - 1] == "{"]
+    _require_source(len(matches) == 1, "StartupAcquisition.Structure")
+    opening = matches[0].end() - 1
+    depth = 1
+    for index in range(opening + 1, len(mask)):
+        depth += (mask[index] == "{") - (mask[index] == "}")
+        if depth == 0:
+            return text[opening + 1:index]
+    raise AssertionError("StartupAcquisition.Structure")
+
+
+def _assert_initial_discover_boundary(source):
+    acquisition = _cs_body(source, r"\binternal sealed class DesktopStartupAcquisition\s*\{")
+    body = _cs_body(acquisition, r"\binternal bool TryDiscover<TNode>\([^{}]*\)"
+                    r"\s*where TNode : class\s*\{")
+    code = _cs_mask(body)
+    guarded = _cs_body(body, r"\btry\s*\{")
+    _require_source(re.sub(r"\s+", "", _cs_mask(guarded)) == "tree.Discover();",
+                    "StartupAcquisition.InitialDiscoverOnly")
+    catches = re.findall(r"\bcatch\s*(?:\([^)]*\))?", code)
+    _require_source(catches == ["catch (DesktopTreeException ex)"],
+                    "StartupAcquisition.TypedCatchOnly")
+    catch = _cs_body(body, r"\bcatch \(DesktopTreeException ex\)\s*\{")
+    catch_code = _cs_mask(catch, keep_strings=True)
+    _require_source("IsUnavailable(ex, tree.Windows.Count)" in catch_code
+                    and "throw;" in catch_code and "tree = null;" in catch_code,
+                    "StartupAcquisition.ClosedTreeDiscard")
+    _require_source(re.findall(r'\brecord\(([^;]*)\);', catch_code)
+                    == ['"startup-snapshot-unavailable"']
+                    and catch_code.index("guard();") < catch_code.index("record("),
+                    "StartupAcquisition.BoundedSafeObservation")
+    required = ("guard();", "if (Recovering)", "Used >= 3", "Used++",
+                "new DesktopOwnedTree<TNode>", "try")
+    _require_source(all(token in code for token in required), "StartupAcquisition.ChargeBeforeAcquisition")
+    positions = [code.index(token) for token in required]
+    _require_source(positions == sorted(positions), "StartupAcquisition.ChargeBeforeAcquisition")
+    _require_source(not re.search(r"\b(?:Seed|RefreshCatalog|Capture|Observe|Revalidate|TreeCall)\s*\(", code)
+                    and not re.search(r"\b(?:Message|QueryFailure|Deserialize)\b", code),
+                    "StartupAcquisition.NoOtherCallsite")
+
+
 class OfflinePatchImportProofContractTests(unittest.TestCase):
+    def test_startup_acquisition_initial_discover_has_a_closed_typed_boundary(self):
+        _assert_initial_discover_boundary((PACKAGE / "Policy.cs").read_text(encoding="utf-8"))
+
+    def test_startup_acquisition_structural_checker_rejects_broadened_source(self):
+        # Parser-sensitivity witness only, not production behavior or GUI evidence.
+        witness = """
+internal sealed class DesktopStartupAcquisition {
+    internal bool TryDiscover<TNode>(Adapter adapter) where TNode : class {
+        guard();
+        if (Recovering) { if (Used >= 3) throw refusal; Used++; }
+        tree = new DesktopOwnedTree<TNode>(adapter);
+        try { tree.Discover(); }
+        catch (DesktopTreeException ex) {
+            guard();
+            if (!IsUnavailable(ex, tree.Windows.Count)) throw;
+            record("startup-snapshot-unavailable");
+            tree = null;
+            return false;
+        }
+        return true;
+    }
+}"""
+        _assert_initial_discover_boundary(witness)
+        variants = (
+            witness.replace("catch (DesktopTreeException ex)", "catch (Exception ex)"),
+            witness.replace("tree.Discover();", "tree.Discover(); Capture(tree);"),
+            witness.replace("tree.Discover();", "tree.RefreshCatalog();"),
+            witness.replace("tree.Discover();", '/* tree.Discover(); */ "tree.Discover();";'),
+            witness.replace("Used++;", "").replace("try {", "Used++; try {"),
+            witness.replace('record("startup-snapshot-unavailable");', "record(ex.Message);"),
+            witness.replace("tree = null;", ""),
+            witness.replace("tree.Windows.Count", "Bindings.Count"),
+        )
+        for variant in variants:
+            with self.subTest(source=variants.index(variant)):
+                with self.assertRaisesRegex(AssertionError, "StartupAcquisition."):
+                    _assert_initial_discover_boundary(variant)
+
+    def test_startup_acquisition_classifier_requires_every_typed_conjunct(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        body = _cs_body(policy, r"\binternal static bool IsUnavailable\("
+                        r"DesktopTreeException exception, int currentWindows\)\s*\{")
+        visible = _cs_mask(body, keep_strings=True)
+        expected = {
+            "Stage": '"loading-handoff"', "Selector": '"Discovery"', "Predicate": '"query-native-gone"',
+            "SeedOrdinal": "1", "SeedResolveKeyEqual": "true", "ResolveAlive": "false",
+            "ResolvePidRelation": '"zero"', "ExpectedOwnedRoot": "0", "PreviouslyOwnedHandle": "0",
+            "OwnedRootBefore": "0", "OwnedRootAfter": "0", "AliveBefore": "null", "AliveAfter": "null",
+            "OwnPidBefore": "null", "OwnPidAfter": "null", "RootMatchesBefore": "null", "RootMatchesAfter": "null",
+        }
+        for field, value in expected.items():
+            self.assertRegex(visible, r"\b\w+\." + field + r"\s*==\s*" + re.escape(value))
+        self.assertIn("currentWindows == 0", visible)
+        self.assertGreaterEqual(visible.count("&&"), len(expected))
+        self.assertNotRegex(_cs_mask(body), r"\b(?:Message|Deserialize|QueryFailure)\b")
+
+    def test_startup_acquisition_driver_wires_both_passes_before_common_guarded_tail(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        handoff = _cs_body(desktop, r"\bvoid Handoff\(\)\s*\{")
+        visible = _cs_mask(handoff, keep_strings=True)
+        self.assertEqual(visible.count('Stage("loading-handoff", 45000)'), 1)
+        self.assertEqual(visible.count("new DesktopStartupObservation(rootBindings)"), 1)
+        self.assertEqual(visible.count("new DesktopStartupAcquisition(rootBindings, observation)"), 1)
+        self.assertLess(visible.index("new DesktopStartupAcquisition"), visible.index("while (true)"))
+        self.assertEqual(visible.count("TryReadStartupSample(acquisition,"), 2)
+        for sample, acceptance in (("sample", "false"), ("acceptance", "true")):
+            observed = f"ObserveStartup(observation, {sample}, {acceptance})"
+            complete = f"acquisition.Complete(decision, {acceptance})"
+            self.assertIn(observed, visible)
+            self.assertIn(complete, visible)
+            self.assertLess(visible.index(observed), visible.index(complete))
+        self.assertLess(visible.index("acquisition.Complete(decision, false)"),
+                        visible.index("ObserveStartup(observation, acceptance, true)"))
+        self.assertRegex(visible, r"GuardStartupAcquisition\(\);\s*Thread.Sleep\(25\);")
+        self.assertEqual(visible.count("Thread.Sleep(25)"), 1)
+        self.assertNotRegex(_cs_mask(handoff), r"\b(?:continue|Dispatch|Invoke|OpenEditor|QueryFailure)\b")
+        self.assertEqual(desktop.count("new DesktopStartupAcquisition("), 1)
+        self.assertNotIn("DesktopStartupAcquisition", desktop[desktop.index("    void OpenEditor()"):])
+
+    def test_startup_acquisition_capture_and_observation_stay_outside_optional_catch(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        sample = _cs_body(desktop, r"\bbool TryReadStartupSample\(DesktopStartupAcquisition acquisition,"
+                          r"\s*out DesktopStartupSample<AutomationElement> sample\)\s*\{")
+        visible = _cs_mask(sample, keep_strings=True)
+        self.assertIn("startupSample = null;", visible)
+        self.assertIn("acquisition.TryDiscover(", visible)
+        self.assertIn("DesktopStartupSample<AutomationElement>.Capture(", visible)
+        self.assertLess(visible.index("startupSample = null;"), visible.index("acquisition.TryDiscover("))
+        self.assertLess(visible.index("acquisition.TryDiscover("),
+                        visible.index("DesktopStartupSample<AutomationElement>.Capture("))
+        self.assertNotRegex(_cs_mask(sample), r"\bcatch\b|\bIsUnavailable\s*\(")
+        self.assertEqual(desktop.count(".TryDiscover("), 1)
+        self.assertNotRegex(_cs_mask(desktop), r"QueryFailure\s*=\s*null")
+        tree_call = _cs_body(desktop, r"\bTValue TreeCall<TValue>\(Func<TValue> operation\)\s*\{")
+        self.assertIn("if (result.QueryFailure == null) result.QueryFailure = ex.Failure", tree_call)
+        self.assertNotIn("IsUnavailable", tree_call)
+
+    def test_startup_acquisition_uses_real_attempt_guards_before_both_reads(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        sample = _cs_body(desktop, r"\bbool TryReadStartupSample\(DesktopStartupAcquisition acquisition,"
+                          r"\s*out DesktopStartupSample<AutomationElement> sample\)\s*\{")
+        self.assertRegex(_cs_mask(sample), r"\bacquisition.TryDiscover\(\s*new OwnedTreeAdapter\(this\),"
+                         r"\s*pid,\s*stage,\s*GuardStartupAcquisition,")
+        self.assertRegex(_cs_mask(sample), r"out tree,\s*GuardStartupQuery\)\)\)")
+        guard = _cs_body(desktop, r"\bvoid GuardStartupAcquisition\(\)\s*\{")
+        self.assertIn("Identity();", _cs_mask(guard))
+        self.assertIn("Guard();", _cs_mask(guard))
+        self.assertRegex(_cs_mask(guard, keep_strings=True),
+                         r'lock \(sync\)[\s{]*Require\(events.Count < 240, "event-bound"\)')
+        self.assertNotRegex(_cs_mask(guard), r"\bStage\s*\(|\bstageAt\s*=")
+        self.assertIn('BoundedWindowsReadiness.Capture().Ready, "readiness-lost"', guard)
+        query = _cs_body(desktop, r"\bvoid GuardStartupQuery\(\)\s*\{")
+        self.assertIn("Guard();", _cs_mask(query))
+        self.assertIn('Require(events.Count < 240, "event-bound")', query)
+        self.assertIn("catch (Refusal ex)", query)
+        self.assertIn("throw new DesktopTreeGuardException(ex.Message)", query)
+        self.assertNotIn("Identity();", query)
+
+    def test_startup_acquisition_invalidation_preserves_all_sticky_history(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        body = _cs_body(policy, r"\binternal void InvalidateCandidate\(\)\s*\{")
+        self.assertEqual(re.sub(r"\s+", "", _cs_mask(body)), "candidate=null;")
+        acquisition = _cs_body(policy, r"\binternal sealed class DesktopStartupAcquisition\s*\{")
+        self.assertNotRegex(_cs_mask(acquisition), r"\bUsed\s*(?:--|-=|=\s*0)|\b(?:Clear|Reset|Stage)\s*\(")
+        self.assertNotIn("new DesktopRootBindings", acquisition)
+        self.assertNotIn("new DesktopStartupObservation", acquisition)
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        self.assertIn("events.Count < 240", desktop)
+        self.assertIn("clock.ElapsedMilliseconds, 240000", desktop)
+        self.assertIn("Thread.Sleep(25)", desktop)
+
+    def test_startup_acquisition_inventory_is_additive_in_both_public_routes(self):
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        self.assertIn("startupAcquisitionCaseNames.Count != 103", tests)
+        self.assertIn("231875f268ba40c2423ba30541c789056c03c844cd890b553cb3ec6c00b89909", tests)
+        self.assertIn("ProjectStartup(Model, tree)", tests)
+        self.assertIn("Startup acquisition assertions failed:", tests)
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            runner = (PACKAGE / name).read_text(encoding="utf-8")
+            self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
+            self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
+            self.assertRegex(runner, r"startupAcquisitionCases -ne 103")
+            for count in (146, 75, 39, 522):
+                self.assertIn(f"-ne {count}", runner)
+
     def test_preparation_run_has_exact_sdk_side_effect_controls(self):
         source = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
         for key, value in _SDK_ENVIRONMENT.items():
@@ -635,6 +840,7 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
         result = aggregate.split("$result=[pscustomobject]@{", 1)[1].split("\n        }", 1)[0]
         self.assertEqual({
             "cases", "installedSnapshotCases", "startupObservationCases", "ownedTreeCases",
+            "startupAcquisitionCases",
             "processImageCases", "retainedImageCases", "retainedImageReportingCases",
             "runtimeBindingCases", "windowsLexicalCases", "reportingWriterCases",
             "laterProductionCases", "configurationIntegrationCases", "compilerReferenceFixtureCases",
@@ -867,7 +1073,7 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
         tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
         aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
         validation = (PACKAGE / "validate-helper.ps1").read_text(encoding="utf-8")
-        for token in ("new DesktopStartupObservation(rootBindings)", "ReadStartupSample()",
+        for token in ("new DesktopStartupObservation(rootBindings)", "TryReadStartupSample(",
                       "sample.Observe(observation, clock.ElapsedMilliseconds, loadingExists, revalidate)",
                       "result.StartupRoute = decision.Route",
                       "result.LoadingObserved = observation.LoadingObserved",
@@ -881,7 +1087,8 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
                       "main-visible-loading-not-observed", "real-main-visible-and-loading-destroyed"):
             self.assertIn(token, policy)
         handoff = desktop[desktop.index("    void Handoff()"):desktop.index("    void OpenEditor()")]
-        self.assertLess(handoff.index("ReadStartupSample()"), handoff.index("ObserveStartup("))
+        self.assertLess(handoff.index("TryReadStartupSample(acquisition, out var sample)"),
+                        handoff.index("ObserveStartup("))
         self.assertIn("ObserveStartup(observation, acceptance, true)", handoff)
         self.assertIn("ValidateWindow(window)", handoff)
         self.assertNotIn("ValidateWindow(window, decision.WindowClass)", handoff)
@@ -1149,9 +1356,9 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
         self.assertIn('if (ex is Refusal && stage == "loading-handoff")', desktop)
         self.assertIn("startupFailure.Record(ex.Message, startupSample?.Roots, rootBindings)", desktop)
         self.assertIn("result.StartupFailure = startupFailure.Value", desktop)
-        sample = desktop[desktop.index("    DesktopStartupSample<AutomationElement> ReadStartupSample"):
+        sample = desktop[desktop.index("    bool TryReadStartupSample"):
                          desktop.index("    DesktopStartupDecision ObserveStartup")]
-        self.assertLess(sample.index("startupSample = null"), sample.index("NewTree()"))
+        self.assertLess(sample.index("startupSample = null"), sample.index("acquisition.TryDiscover("))
         self.assertLess(sample.index("DesktopStartupSample<AutomationElement>.Capture"), sample.index("startupSample = sample"))
         self.assertNotIn("StartupFailure", (PACKAGE / "run.ps1").read_text(encoding="utf-8"))
         self.assertNotIn("StartupFailure", (PACKAGE / "launch.ps1").read_text(encoding="utf-8"))

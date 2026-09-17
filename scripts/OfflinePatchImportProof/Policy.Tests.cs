@@ -788,6 +788,608 @@ public static class DesktopPolicyTests
         return queryDiagnosticCaseNames.Count;
     }
 
+    static readonly List<string> startupAcquisitionCaseNames = new List<string>();
+    static readonly List<string> startupAcquisitionCaseFailures = new List<string>();
+    public static string[] StartupAcquisitionCaseNames => startupAcquisitionCaseNames.ToArray();
+    public static string[] StartupAcquisitionCaseFailures => startupAcquisitionCaseFailures.ToArray();
+
+    static void AcquisitionAssert(bool condition, string contract)
+    {
+        if (!condition) throw new InvalidOperationException("StartupAcquisition." + contract);
+    }
+
+    static DesktopTreeException AcquisitionRefusal(Action operation)
+    {
+        try { operation(); }
+        catch (DesktopTreeException ex) { return ex; }
+        throw new InvalidOperationException("StartupAcquisition.ExpectedTypedRefusal");
+    }
+
+    static void AcquisitionError(Action operation, string code)
+    {
+        try { operation(); }
+        catch (InvalidOperationException ex) when (ex.Message == code) { return; }
+        throw new InvalidOperationException("StartupAcquisition.ExpectedRefusal:" + code);
+    }
+
+    static DesktopTreeException InitialUnavailable()
+    {
+        var model = new OwnedModel();
+        model.Native[100].Alive = false; model.Native[100].Pid = 0;
+        return AcquisitionRefusal(model.Tree().Discover);
+    }
+
+    static DesktopTreeException ChangedUnavailable(string field, object value)
+    {
+        var original = InitialUnavailable().Failure;
+        var changed = new DesktopQueryFailure();
+        foreach (var property in typeof(DesktopQueryFailure).GetProperties())
+            property.SetValue(changed, property.GetValue(original));
+        typeof(DesktopQueryFailure).GetProperty(field).SetValue(changed, value);
+        return new DesktopTreeException(changed);
+    }
+
+    // This fixture drives the production seam and real owned-tree projections.
+    // Its guarded tail/terminal latch model the caller, not a historical GUI run.
+    sealed class StartupAcquisitionFixture
+    {
+        internal readonly OwnedModel Model = new OwnedModel();
+        internal readonly DesktopStartupObservation Observation;
+        internal readonly DesktopStartupAcquisition Acquisition;
+        internal readonly List<string> Events = new List<string>();
+        internal DesktopTreeException Terminal;
+        internal string TerminalCode;
+        internal DesktopStartupSample<OwnedNode> LastSample;
+        internal DesktopStartupDecision LastDecision;
+        internal int EventCount, Dispatches, Tails, Guards;
+        internal long At = 10;
+        internal bool Cancelled, ProcessAlive = true, Ready = true;
+
+        internal StartupAcquisitionFixture()
+        {
+            Observation = new DesktopStartupObservation(Model.Bindings);
+            Acquisition = new DesktopStartupAcquisition(Model.Bindings, Observation);
+            Model.GuardAction = Guard;
+        }
+
+        internal void Guard()
+        {
+            Guards++;
+            string code = Cancelled ? "cancelled" : EventCount >= 240 ? "event-bound" :
+                DesktopPolicy.Expired(At, 45000) ? "deadline" :
+                !ProcessAlive ? "process-identity" : !Ready ? "readiness-lost" : null;
+            if (code != null) throw new DesktopTreeGuardException(code);
+        }
+
+        void Record(string code)
+        {
+            Guard();
+            AcquisitionAssert(code == "startup-snapshot-unavailable", "FixedSafeObservation");
+            Events.Add(code); EventCount++;
+        }
+
+        internal string Step(char outcome, bool acceptance = false, Action afterDiscover = null)
+        {
+            if (TerminalCode != null) return "terminal";
+            Model.Native[100].Alive = outcome != 'U';
+            Model.Native[100].Pid = outcome == 'U' ? 0 : 7;
+            Model.MainButton.Offscreen = outcome == 'N';
+            LastSample = null;
+            try
+            {
+                if (!Acquisition.TryDiscover(Model, 7, "loading-handoff", Guard, Record, out var tree))
+                {
+                    AcquisitionAssert(tree == null && Acquisition.RetainedUnavailable != null,
+                        "WholeFailedTreeDiscarded");
+                    Guard(); Tails++; At += 25;
+                    return "unavailable";
+                }
+                afterDiscover?.Invoke();
+                LastSample = ProjectStartup(Model, tree);
+                Guard();
+                bool loadingExists = Observation.LoadingObserved &&
+                    Model.Native.TryGetValue((uint)Observation.LoadingHandle, out var loading) && loading.Alive;
+                LastDecision = LastSample.Observe(Observation, At, loadingExists, acceptance);
+                bool accepted = Acquisition.Complete(LastDecision, acceptance);
+                if (accepted && acceptance)
+                {
+                    LastSample.RefreshAndCheckRevision();
+                    Guard();
+                    Dispatches++;
+                    return "accepted";
+                }
+                Guard(); Tails++; At += 25;
+                return accepted ? "candidate" : LastDecision.Ready ? "discarded" : "not-ready";
+            }
+            catch (DesktopTreeException ex)
+            {
+                Terminal = ex; TerminalCode = ex.Failure.Predicate;
+                return "terminal";
+            }
+            catch (DesktopTreeGuardException ex)
+            {
+                TerminalCode = ex.Message;
+                return "terminal";
+            }
+        }
+
+        internal void Expect(char outcome, string expected, int used, bool recovering,
+            bool acceptance = false, Action afterDiscover = null)
+        {
+            string actual = Step(outcome, acceptance, afterDiscover);
+            AcquisitionAssert(actual == expected, outcome + ":Expected-" + expected + "-Actual-" + actual);
+            AcquisitionAssert(Acquisition.Used == used && Acquisition.Recovering == recovering, "ChargeState");
+            AcquisitionAssert(ReferenceEquals(Acquisition.Bindings, Model.Bindings) &&
+                ReferenceEquals(Acquisition.Observation, Observation), "AttemptHistoryIdentity");
+            AcquisitionAssert(Dispatches == (expected == "accepted" ? 1 : 0), "ZeroEarlyDispatch");
+        }
+    }
+
+    public static int RunStartupAcquisitionTests()
+    {
+        startupAcquisitionCaseNames.Clear(); startupAcquisitionCaseFailures.Clear();
+        void Case(string name, Action operation)
+        {
+            if (startupAcquisitionCaseNames.Contains(name))
+                throw new InvalidOperationException("Duplicate startup acquisition case.");
+            startupAcquisitionCaseNames.Add(name);
+            try { operation(); }
+            catch (InvalidOperationException ex) { startupAcquisitionCaseFailures.Add(name + ": " + ex.Message); }
+        }
+        void Reject(string field, object value) =>
+            AcquisitionAssert(!DesktopStartupAcquisition.IsUnavailable(ChangedUnavailable(field, value), 0),
+                "ClosedConjunction:" + field);
+
+        Case("default-state-is-not-recovering", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            AcquisitionAssert(f.Acquisition.Used == 0 && !f.Acquisition.Recovering &&
+                f.Acquisition.RetainedUnavailable == null && f.Dispatches == 0, "DefaultRefusalState");
+        });
+        Case("null-exception-refuses", () =>
+            AcquisitionAssert(!DesktopStartupAcquisition.IsUnavailable(null, 0), "NullRefuses"));
+        Case("actual-first-equal-nonzero-unowned-seed-qualifies", () =>
+        {
+            var ex = InitialUnavailable();
+            AcquisitionAssert(ex.Failure.SeedOrdinal == 1 && ex.Failure.SeedResolveKeyEqual == true &&
+                ex.Failure.ResolveAlive == false && ex.Failure.ResolvePidRelation == "zero", "ActualTypedOperands");
+            AcquisitionAssert(DesktopStartupAcquisition.IsUnavailable(ex, 0), "ExpectedEligibleInitialDiscover");
+        });
+        foreach (string field in new[] { "Stage", "Selector", "Predicate", "ResolvePidRelation" })
+        {
+            Case("missing-" + field, () => Reject(field, null));
+            Case("wrong-" + field, () => Reject(field, "wrong"));
+            Case("case-sensitive-" + field, () =>
+                Reject(field, ((string)typeof(DesktopQueryFailure).GetProperty(field)
+                    .GetValue(InitialUnavailable().Failure)).ToUpperInvariant()));
+        }
+        foreach (int? ordinal in new int?[] { null, 0, 2, 8, 9 })
+            Case("ordinal-" + (ordinal?.ToString() ?? "null"), () => Reject("SeedOrdinal", ordinal));
+        foreach (bool? equal in new bool?[] { null, false })
+            Case("seed-key-equal-" + (equal?.ToString() ?? "null"), () => Reject("SeedResolveKeyEqual", equal));
+        foreach (bool? alive in new bool?[] { null, true })
+            Case("resolve-alive-" + (alive?.ToString() ?? "null"), () => Reject("ResolveAlive", alive));
+        foreach (string relation in new[] { "owned", "foreign", "" })
+            Case("resolve-pid-" + relation, () => Reject("ResolvePidRelation", relation));
+        foreach (string field in new[] { "ExpectedOwnedRoot", "PreviouslyOwnedHandle", "OwnedRootBefore", "OwnedRootAfter" })
+            Case("owned-handle-" + field, () => Reject(field, 100L));
+        foreach (string field in new[] { "AliveBefore", "AliveAfter", "OwnPidBefore", "OwnPidAfter",
+            "RootMatchesBefore", "RootMatchesAfter" })
+        {
+            Case("legacy-true-" + field, () => Reject(field, true));
+            Case("legacy-false-" + field, () => Reject(field, false));
+        }
+        foreach (int windows in new[] { -1, 1, 8, 9 })
+            Case("current-windows-" + windows, () =>
+                AcquisitionAssert(!DesktopStartupAcquisition.IsUnavailable(InitialUnavailable(), windows),
+                    "CurrentTreeNotLedger"));
+        Case("inconsistent-diagnostic-windows-refuses", () => Reject("Windows", 1));
+        Case("empty-default-diagnostic-refuses", () =>
+            AcquisitionAssert(!DesktopStartupAcquisition.IsUnavailable(
+                new DesktopTreeException(new DesktopQueryFailure()), 0), "DefaultDiagnosticRefuses"));
+        Case("zero-seed-is-not-unavailability", () =>
+        {
+            var model = new OwnedModel(); model.Main.Handle = 0;
+            var ex = AcquisitionRefusal(model.Tree().Discover);
+            AcquisitionAssert(ex.Failure.Predicate == "query-seed-root" &&
+                !DesktopStartupAcquisition.IsUnavailable(ex, 0), "ZeroSeedRefuses");
+        });
+        Case("changed-resolve-key-refuses", () =>
+        {
+            var model = new OwnedModel(); int reads = 0;
+            model.Native[101] = new OwnedNative { Root = 101, Alive = false, Pid = 0 };
+            model.Before = (name, node) => { if (name == "handle" && ++reads == 2) node.Handle = 101; };
+            var ex = AcquisitionRefusal(model.Tree().Discover);
+            AcquisitionAssert(ex.Failure.SeedResolveKeyEqual == false &&
+                !DesktopStartupAcquisition.IsUnavailable(ex, 0), "ChangedKeyRefuses");
+        });
+        Case("later-seed-and-partial-roots-refuse", () =>
+        {
+            var model = new OwnedModel(); model.SeedNodes.Add(model.Wizard);
+            model.Native[200].Alive = false; model.Native[200].Pid = 0;
+            var tree = model.Tree(); var ex = AcquisitionRefusal(tree.Discover);
+            AcquisitionAssert(tree.Windows.Count == 1 && ex.Failure.SeedOrdinal == 2 &&
+                !DesktopStartupAcquisition.IsUnavailable(ex, tree.Windows.Count), "PartialTreeRefuses");
+        });
+        Case("low-level-discover-and-fail-remain-sticky", () =>
+        {
+            var model = new OwnedModel(); model.Native[100].Alive = false; model.Native[100].Pid = 0;
+            var tree = model.Tree(); var first = AcquisitionRefusal(tree.Discover);
+            int reads = model.Reads.Count;
+            model.Native[100].Alive = true; model.Native[100].Pid = 7;
+            var later = AcquisitionRefusal(tree.Discover);
+            AcquisitionAssert(ReferenceEquals(first.Failure, later.Failure) && tree.Budget.Closed &&
+                tree.Windows.Count == 0 && model.Reads.Count == reads, "StickyLowLevelRefusal");
+        });
+        Case("direct-seed-never-enters-recovery", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+            var ex = AcquisitionRefusal(() => f.Model.Tree().Seed(f.Model.Main));
+            AcquisitionAssert(ex.Failure.SeedOrdinal == null && !f.Acquisition.Recovering &&
+                f.Events.Count == 0, "SeedProvenance");
+        });
+        Case("empty-refresh-identical-dto-is-not-callsite-authority", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+            var ex = AcquisitionRefusal(f.Model.Tree().RefreshCatalog);
+            AcquisitionAssert(ex.Failure.SeedOrdinal == 1 && ex.Failure.Windows == 0 &&
+                f.Acquisition.RetainedUnavailable == null && f.Events.Count == 0, "RefreshNotDiscover");
+        });
+        Case("ordinary-candidate-and-acceptance-are-uncharged", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('C', "candidate", 0, false);
+            var candidate = f.LastSample;
+            f.Expect('A', "accepted", 0, false, true);
+            AcquisitionAssert(!ReferenceEquals(candidate.Tree, f.LastSample.Tree) && f.Events.Count == 0,
+                "TwoFreshOrdinaryTrees");
+        });
+        Case("U-C1-A2", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            var unavailable = f.Acquisition.RetainedUnavailable;
+            f.Expect('C', "candidate", 1, true);
+            f.Expect('A', "accepted", 2, false, true);
+            AcquisitionAssert(f.Events.Count == 1 && unavailable.Failure.Predicate == "query-native-gone",
+                "SeparateActualUnavailable");
+        });
+        Case("U-N1-normal-polls-U-C2-A3", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('N', "not-ready", 1, false);
+            for (int i = 0; i < 6; i++) f.Expect('N', "not-ready", 1, false);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('C', "candidate", 2, true);
+            f.Expect('A', "accepted", 3, false, true);
+            AcquisitionAssert(f.Events.Count == 2, "OneEventPerScheduledRecovery");
+        });
+        Case("U-C1-U2-C3-discard-normal-C-normal-A", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('C', "candidate", 1, true);
+            f.Expect('U', "unavailable", 2, true, true);
+            f.Expect('C', "discarded", 3, false);
+            var discarded = f.LastSample;
+            AcquisitionAssert(f.Terminal == null && f.Dispatches == 0, "NoStaleGoneAfterReady3");
+            f.Expect('C', "candidate", 3, false);
+            var candidate = f.LastSample;
+            f.Expect('A', "accepted", 3, false, true);
+            AcquisitionAssert(!ReferenceEquals(discarded.Tree, candidate.Tree) &&
+                !ReferenceEquals(discarded.Tree, f.LastSample.Tree) &&
+                !ReferenceEquals(candidate.Tree, f.LastSample.Tree), "NeverReuseReady3");
+        });
+        Case("U-U1-U2-U3-terminal-no-fifth", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            var prior = f.Acquisition.RetainedUnavailable;
+            AcquisitionAssert(f.Step('U') == "terminal" && f.Acquisition.Used == 3 &&
+                f.TerminalCode == "query-native-gone" && !ReferenceEquals(prior.Failure, f.Terminal.Failure),
+                "FourthActualUnavailableIsTerminal");
+            int reads = f.Model.Reads.Count;
+            AcquisitionAssert(f.Step('C') == "terminal" && f.Model.Reads.Count == reads &&
+                f.Model.SeedQueries == 4 && f.Events.Count == 3 && f.Dispatches == 0, "NoFifthProviderAcquisition");
+        });
+        Case("complete-N3-ends-recovery-without-refund", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            f.Expect('N', "not-ready", 3, false);
+            f.Expect('N', "not-ready", 3, false);
+            f.Expect('C', "candidate", 3, false);
+            f.Expect('A', "accepted", 3, false, true);
+        });
+        Case("new-unavailable-after-N3-is-current-terminal-cause", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            f.Expect('N', "not-ready", 3, false);
+            var prior = f.Acquisition.RetainedUnavailable;
+            AcquisitionAssert(f.Step('U') == "terminal" && f.Acquisition.Used == 3 &&
+                !ReferenceEquals(prior.Failure, f.Terminal.Failure), "NoAllowanceRefund");
+        });
+        Case("acceptance3-unavailable-is-terminal-actual-cause", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('N', "not-ready", 1, false);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('C', "candidate", 2, true);
+            var prior = f.Acquisition.RetainedUnavailable;
+            AcquisitionAssert(f.Step('U', true) == "terminal" && f.Acquisition.Used == 3 &&
+                f.TerminalCode == "query-native-gone" && !ReferenceEquals(prior.Failure, f.Terminal.Failure) &&
+                f.Dispatches == 0, "Acceptance3Failure");
+        });
+        Case("not-ready-acceptance-ends-recovery-without-refund", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('C', "candidate", 1, true);
+            f.Expect('N', "not-ready", 2, false, true);
+            f.Expect('N', "not-ready", 2, false);
+            f.Expect('C', "candidate", 2, false);
+            f.Expect('A', "accepted", 2, false, true);
+        });
+        foreach (string phase in new[] { "initial", "recovery", "acceptance" })
+            Case("cancel-before-" + phase, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                if (phase != "initial") f.Expect('U', "unavailable", 0, true);
+                if (phase == "acceptance") f.Expect('C', "candidate", 1, true);
+                int reads = f.Model.Reads.Count, used = f.Acquisition.Used;
+                f.Cancelled = true;
+                AcquisitionAssert(f.Step('C', phase == "acceptance") == "terminal" &&
+                    f.TerminalCode == "cancelled" && f.Model.Reads.Count == reads &&
+                    f.Acquisition.Used == used && f.Dispatches == 0, "CancellationBeforeChargeOrRead");
+            });
+        foreach (string guard in new[] { "deadline", "process-identity", "readiness-lost", "event-bound" })
+            Case("later-guard-priority-" + guard, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                f.Expect('U', "unavailable", 0, true);
+                int reads = f.Model.Reads.Count;
+                if (guard == "deadline") f.At = 45000;
+                if (guard == "process-identity") f.ProcessAlive = false;
+                if (guard == "readiness-lost") f.Ready = false;
+                if (guard == "event-bound") f.EventCount = 240;
+                AcquisitionAssert(f.Step('C') == "terminal" && f.TerminalCode == guard &&
+                    f.Model.Reads.Count == reads && f.Acquisition.Used == 0 && f.Dispatches == 0, "GuardWins");
+            });
+        Case("event239-final-slot-prevents-next-provider-read", () =>
+        {
+            var f = new StartupAcquisitionFixture { EventCount = 239 };
+            AcquisitionAssert(f.Step('U') == "terminal" && f.TerminalCode == "event-bound" &&
+                f.EventCount == 240 && f.Events.Count == 1 && f.Model.SeedQueries == 1 &&
+                f.Dispatches == 0, "EventCapAtCommonTail");
+        });
+        foreach (string phase in new[] { "capture", "observation", "revalidation", "action" })
+            Case("wrong-callsite-" + phase, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                var sample = ProjectStartup(f.Model);
+                if (phase == "revalidation") sample.Observe(f.Observation, 1, false, false);
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+                Action operation = phase == "capture" ? (Action)(() => ProjectStartup(f.Model, sample.Tree)) :
+                    phase == "action" ? () => sample.Tree.ValidateWindow(f.Model.Main, DesktopRootKind.Avalonia) :
+                    () => sample.Observe(f.Observation, 2, false, phase == "revalidation");
+                var ex = AcquisitionRefusal(operation);
+                AcquisitionAssert(ex.Failure.Predicate != null && f.Acquisition.RetainedUnavailable == null &&
+                    f.Events.Count == 0 && f.Dispatches == 0, "NoRecoveryOutsideInitialDiscover");
+            });
+        Case("successful-discover-but-incomplete-capture-cannot-reset", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            AcquisitionAssert(f.Step('C', afterDiscover: () =>
+            {
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+            }) == "terminal" && f.TerminalCode == "query-native-gone" &&
+                f.Acquisition.Used == 1 && f.Acquisition.Recovering && f.LastSample == null &&
+                f.Events.Count == 1, "CaptureFailureNotCompleteN");
+        });
+        foreach (string cause in new[] { "query-native-pid", "query-provider-failure", "query-node-bound",
+            "query-call-bound", "query-depth", "query-seed-bound" })
+            Case("later-terminal-cause-" + cause, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                f.Expect('U', "unavailable", 0, true);
+                f.Model.Before = (name, node) =>
+                {
+                    if (name != "seeds") return;
+                    if (cause == "query-provider-failure") throw new InvalidOperationException("PRIVATE provider detail");
+                    throw new DesktopTreeGuardException(cause);
+                };
+                AcquisitionAssert(f.Step('C') == "terminal" && f.TerminalCode == cause &&
+                    !ReferenceEquals(f.Terminal.Failure, f.Acquisition.RetainedUnavailable.Failure) &&
+                    f.Events.Count == 1 && f.Dispatches == 0, "LaterTerminalNotRetainedGone");
+            });
+        foreach (string mutation in new[] { "class", "identity", "owner" })
+            Case("retained-history-" + mutation, () =>
+            {
+                var f = new StartupAcquisitionFixture(); f.Model.Tree().Discover();
+                f.Expect('U', "unavailable", 0, true);
+                string expected;
+                if (mutation == "class")
+                {
+                    f.Model.Native[100].Class = "Avalonia-33333333-3333-3333-3333-333333333333";
+                    expected = "query-root-class-changed";
+                }
+                else if (mutation == "identity")
+                {
+                    f.Model.Main.RuntimeId = new[] { 999 };
+                    expected = "query-root-alias";
+                }
+                else { f.Model.Native[200].Owner = 999; expected = "query-owner-pid"; }
+                AcquisitionAssert(f.Step('C') == "terminal" && f.TerminalCode == expected &&
+                    f.Model.Bindings.Count == 2 && f.Dispatches == 0, "HistoryNeverRebound");
+            });
+        Case("retained-loading-chronology-survives-unavailability", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            var loading = f.Model.Add(null, 10, 300);
+            f.Model.Add(loading, 11, 0, DesktopSelector.Loading);
+            f.Model.Native[300] = new OwnedNative { Root = 300,
+                Class = "Avalonia-33333333-3333-3333-3333-333333333333" };
+            f.Model.Roots[300] = loading;
+            f.Model.SeedNodes.Clear(); f.Model.SeedNodes.Add(loading);
+            AcquisitionAssert(!ProjectStartup(f.Model).Observe(f.Observation, 1, true, false).Ready, "LoadingOnly");
+            f.Model.Native[300].Alive = false;
+            f.Model.SeedNodes.Clear(); f.Model.SeedNodes.Add(f.Model.Main);
+            f.Expect('U', "unavailable", 0, true);
+            AcquisitionAssert(f.Observation.LoadingObserved && f.Observation.LoadingAt == 1 &&
+                f.Observation.LoadingHandle == 300 && f.Model.Bindings.Count == 1, "StickyLoadingHistory");
+            f.Expect('C', "candidate", 1, true);
+            f.Expect('A', "accepted", 2, false, true);
+            AcquisitionAssert(f.LastDecision.Route == DesktopStartupObservation.ObservedRoute &&
+                f.Model.Bindings.Count == 3, "OriginalObservedRoute");
+        });
+        Case("invalidation-only-removes-provisional-candidate", () =>
+        {
+            var f = new StartupAcquisitionFixture(); var sample = ProjectStartup(f.Model);
+            AcquisitionAssert(sample.Observe(f.Observation, 1, false, false).Ready, "CandidateReady");
+            f.Observation.InvalidateCandidate();
+            AcquisitionError(() => sample.Observe(f.Observation, 2, false, true), "startup-acceptance-candidate");
+            AcquisitionAssert(f.Model.Bindings.Count == 2, "BindingsRetained");
+        });
+        Case("invalidation-retains-observation-order", () =>
+        {
+            var f = new StartupAcquisitionFixture(); var sample = ProjectStartup(f.Model);
+            sample.Observe(f.Observation, 10, false, false); f.Observation.InvalidateCandidate();
+            AcquisitionError(() => sample.Observe(f.Observation, 10, false, false), "startup-observation-order");
+        });
+        Case("invalidation-retains-sticky-observation-refusal", () =>
+        {
+            var observation = new DesktopStartupObservation();
+            AcquisitionError(() => observation.Observe(1, null, false), "startup-root-bound");
+            observation.InvalidateCandidate();
+            AcquisitionError(() => observation.Observe(2, new DesktopStartupRoot[0], false), "startup-root-bound");
+        });
+        Case("invalidation-retains-startup-class-history-bound", () =>
+        {
+            var observation = new DesktopStartupObservation();
+            const string windowClass = "Avalonia-11111111-1111-1111-1111-111111111111";
+            for (int i = 1; i <= 32; i++)
+                observation.Observe(i, new[] { new DesktopStartupRoot(i, 0, windowClass, true, false, false, false) }, false);
+            observation.InvalidateCandidate();
+            AcquisitionError(() => observation.Observe(33,
+                new[] { new DesktopStartupRoot(33, 0, windowClass, true, false, false, false) }, false),
+                "startup-class-history-bound");
+        });
+        Case("replacement-retains-native-history-bound", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            for (uint handle = 1000; handle < 1032; handle++)
+                f.Model.Bindings.BindCanonical(handle, f.Model.Native[100].Class, handle.ToString(), 0);
+            f.Expect('U', "unavailable", 0, true);
+            AcquisitionAssert(f.Step('C') == "terminal" && f.TerminalCode == "query-root-history-bound" &&
+                f.Model.Bindings.Count == 32, "NativeHistoryBoundRetained");
+        });
+        Case("null-decision-cannot-complete", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            bool refused = false;
+            try { f.Acquisition.Complete(null, false); }
+            catch (ArgumentNullException) { refused = true; }
+            AcquisitionAssert(refused && f.Dispatches == 0, "MissingCompleteObservation");
+        });
+        foreach (string stage in new[] { "open-editor", "import", "normal-close" })
+            Case("actual-wrong-stage-" + stage, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+                var ex = AcquisitionRefusal(() => f.Acquisition.TryDiscover(f.Model, 7, stage,
+                    f.Guard, code => throw new InvalidOperationException("Wrong-stage recovery event."),
+                    out var tree));
+                AcquisitionAssert(ex.Failure.Stage == stage && f.Acquisition.Used == 0 &&
+                    !f.Acquisition.Recovering, "OnlyHandoffStage");
+            });
+        foreach (int nativePid in new[] { 7, QueryForeignPid })
+            Case("actual-dead-nonzero-native-pid-" + nativePid, () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = nativePid;
+                var ex = AcquisitionRefusal(() => f.Acquisition.TryDiscover(f.Model, 7, "loading-handoff",
+                    f.Guard, code => throw new InvalidOperationException("Nonzero-PID recovery event."),
+                    out var tree));
+                AcquisitionAssert(ex.Failure.Predicate == "query-native-gone" &&
+                    !f.Acquisition.Recovering && f.Acquisition.Used == 0, "NativePidMustBeZero");
+            });
+        Case("event240-refuses-before-initial-provider-read", () =>
+        {
+            var f = new StartupAcquisitionFixture { EventCount = 240 };
+            AcquisitionAssert(f.Step('U') == "terminal" && f.TerminalCode == "event-bound" &&
+                f.Model.Reads.Count == 0 && f.Acquisition.Used == 0 && f.Events.Count == 0, "EventCapBeforeRead");
+        });
+        Case("charge3-incomplete-capture-does-not-discard-as-success", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            AcquisitionAssert(f.Step('C', afterDiscover: () =>
+            {
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+            }) == "terminal" && f.Acquisition.Used == 3 && f.Acquisition.Recovering &&
+                f.TerminalCode == "query-native-gone" && f.LastSample == null, "DiscoverAloneIsNotReady3");
+        });
+        Case("discarded-Ready3-cannot-be-revalidated", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            f.Expect('C', "discarded", 3, false);
+            AcquisitionError(() => f.LastSample.Observe(f.Observation, f.At, false, true),
+                "startup-acceptance-candidate");
+        });
+        Case("acceptance3-provider-failure-keeps-current-cause", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('N', "not-ready", 1, false);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('C', "candidate", 2, true);
+            f.Model.Before = (name, node) =>
+            { if (name == "seeds") throw new InvalidOperationException("PRIVATE provider detail"); };
+            AcquisitionAssert(f.Step('A', true) == "terminal" && f.Acquisition.Used == 3 &&
+                f.TerminalCode == "query-provider-failure" && f.Dispatches == 0, "Acceptance3ProviderFailure");
+        });
+        Case("retained-unavailable-does-not-latch-ordinary-polling", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            var actual = f.Acquisition.RetainedUnavailable;
+            f.Expect('N', "not-ready", 1, false);
+            f.Expect('C', "candidate", 1, false);
+            AcquisitionAssert(f.Terminal == null && actual.Failure.Predicate == "query-native-gone" &&
+                f.Acquisition.Used == 1, "RecoveryEvidenceIsNotTerminalLatch");
+        });
+        return startupAcquisitionCaseNames.Count;
+    }
+
+    public static void AssertStartupAcquisitionCaseInventory()
+    {
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", startupAcquisitionCaseNames)))).ToLowerInvariant();
+        if (startupAcquisitionCaseNames.Count != 103 ||
+            digest != "231875f268ba40c2423ba30541c789056c03c844cd890b553cb3ec6c00b89909")
+            throw new InvalidOperationException("Startup acquisition case inventory changed.");
+        if (startupAcquisitionCaseFailures.Count != 0)
+            throw new InvalidOperationException("Startup acquisition assertions failed: " +
+                string.Join("; ", startupAcquisitionCaseFailures));
+    }
+
     sealed class ThrowingStartupRoots : IReadOnlyList<DesktopStartupRoot>
     {
         public int Count => throw new InvalidOperationException("PRIVATE diagnostic source");
@@ -1937,6 +2539,11 @@ public static class DesktopPolicyTests
     {
         var tree = model.Tree();
         tree.Discover();
+        return ProjectStartup(model, tree);
+    }
+
+    static DesktopStartupSample<OwnedNode> ProjectStartup(OwnedModel model, DesktopOwnedTree<OwnedNode> tree)
+    {
         return DesktopStartupSample<OwnedNode>.Capture(tree, root =>
         {
             bool Control(DesktopSelector selector, DesktopQueryControl type)

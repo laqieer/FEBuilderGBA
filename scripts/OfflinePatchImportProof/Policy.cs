@@ -742,6 +742,85 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
     });
 }
 
+internal sealed class DesktopStartupAcquisition
+{
+    internal DesktopRootBindings Bindings { get; }
+    internal DesktopStartupObservation Observation { get; }
+    internal int Used { get; private set; }
+    internal bool Recovering { get; private set; }
+    internal DesktopTreeException RetainedUnavailable { get; private set; }
+
+    internal DesktopStartupAcquisition(DesktopRootBindings bindings, DesktopStartupObservation observation)
+    {
+        Bindings = bindings ?? throw new ArgumentNullException(nameof(bindings));
+        Observation = observation ?? throw new ArgumentNullException(nameof(observation));
+    }
+
+    internal static bool IsUnavailable(DesktopTreeException exception, int currentWindows)
+    {
+        var failure = exception?.Failure;
+        return failure != null && currentWindows == 0 && failure.Windows == 0 &&
+            failure.Stage == "loading-handoff" && failure.Selector == "Discovery" &&
+            failure.Predicate == "query-native-gone" && failure.SeedOrdinal == 1 &&
+            failure.SeedResolveKeyEqual == true && failure.ResolveAlive == false &&
+            failure.ResolvePidRelation == "zero" && failure.ExpectedOwnedRoot == 0 &&
+            failure.PreviouslyOwnedHandle == 0 && failure.OwnedRootBefore == 0 &&
+            failure.OwnedRootAfter == 0 && failure.AliveBefore == null &&
+            failure.AliveAfter == null && failure.OwnPidBefore == null &&
+            failure.OwnPidAfter == null && failure.RootMatchesBefore == null &&
+            failure.RootMatchesAfter == null;
+    }
+
+    internal bool TryDiscover<TNode>(IDesktopOwnedTreeAdapter<TNode> adapter, int pid, string stage,
+        Action guard, Action<string> record, out DesktopOwnedTree<TNode> tree,
+        Action queryGuard = null) where TNode : class
+    {
+        if (adapter == null) throw new ArgumentNullException(nameof(adapter));
+        if (guard == null) throw new ArgumentNullException(nameof(guard));
+        if (record == null) throw new ArgumentNullException(nameof(record));
+        guard();
+        if (Recovering)
+        {
+            if (Used >= 3) throw RetainedUnavailable;
+            Used++;
+        }
+        tree = new DesktopOwnedTree<TNode>(adapter, pid, Bindings, stage, queryGuard ?? guard);
+        try { tree.Discover(); }
+        catch (DesktopTreeException ex)
+        {
+            guard();
+            if (!IsUnavailable(ex, tree.Windows.Count)) throw;
+            RetainedUnavailable = ex;
+            if (Used >= 3) throw;
+            Observation.InvalidateCandidate();
+            Recovering = true;
+            record("startup-snapshot-unavailable");
+            tree = null;
+            return false;
+        }
+        return true;
+    }
+
+    internal bool Complete(DesktopStartupDecision decision, bool acceptance)
+    {
+        if (decision == null) throw new ArgumentNullException(nameof(decision));
+        if (!decision.Ready || acceptance)
+        {
+            Recovering = false;
+            return decision.Ready;
+        }
+        if (Recovering && Used >= 3)
+        {
+            // A complete Ready candidate is not current unavailability.
+            // Charge three cannot fund acceptance: require a new ordinary pair.
+            Observation.InvalidateCandidate();
+            Recovering = false;
+            return false;
+        }
+        return decision.Ready;
+    }
+}
+
 internal sealed class DesktopStartupSample<TNode> where TNode : class
 {
     readonly List<TNode> windows = new List<TNode>();
@@ -853,6 +932,8 @@ public sealed class DesktopStartupObservation
 
     public DesktopStartupObservation() { }
     internal DesktopStartupObservation(DesktopRootBindings bindings) { this.bindings = bindings; }
+
+    internal void InvalidateCandidate() { candidate = null; }
 
     void Require(bool condition, string reason)
     {

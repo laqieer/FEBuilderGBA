@@ -6,6 +6,60 @@ not depend on another GUI-readiness PR. Pure tests are **not GUI acceptance**.
 
 ## Startup observation
 
+### Bounded startup-snapshot acquisition (V3)
+
+The [accepted V3 plan](https://github.com/laqieer/FEBuilderGBA/issues/2158#issuecomment-5716690278)
+uses `DesktopStartupAcquisition` only in pre-input loading handoff. Its optional
+recovery boundary surrounds only a new tree's initial `Discover`, before the
+terminal `QueryFailure` latch. It never wraps Seed, catalog refresh, capture,
+projection, observation, revalidation or action failures. Low-level
+`DesktopOwnedTree.Discover` and its closed-budget sticky refusal are unchanged.
+
+Eligibility requires the actual typed exception with `loading-handoff`,
+`Discovery`, `query-native-gone`, first seed ordinal, equal nonzero seed/resolve
+keys, false native liveness and zero native PID. The initial Discover source
+path establishes the nonzero keys. Both the current tree and its diagnostic
+must have zero admitted windows, every legacy owned handle must be zero, and
+every legacy Boolean observation must be null. Missing/inconsistent values
+refuse; an empty current tree does not require an empty historical ledger.
+
+An eligible failure discards the whole failed tree and provisional candidate,
+retains the actual exception separately, and records the fixed
+`startup-snapshot-unavailable` observation without a window/name/runtime-ID
+payload. Replacement trees share the same attempt-owned bindings and startup
+observation, including class/canonical identity, loading chronology, previous
+observation time and both 32-entry history bounds.
+
+There is one nonrefundable three-acquisition allowance across both passes.
+Each candidate or acceptance acquisition while recovering is charged before
+tree creation. A complete not-Ready observation ends recovery; ordinary polls
+are then uncharged within the original time/query bounds. A Ready recovery
+candidate keeps recovery active for its fresh acceptance. A complete Ready
+candidate on charge three is discarded, recovery ends without refund, and two
+new ordinary samples are required. It does not publish an old native-gone.
+A complete charged acceptance three may succeed after all acceptance guards;
+an actual failure at exhausted allowance publishes its current cause.
+
+Process identity, readiness, cancellation, deadlines and the 240-event cap are
+checked before acquisition/observation and on the common guarded 25ms tail.
+Tree reads retain budgeted cancellation/deadline/event checks without repeating
+process-image/readiness acquisition for every property. Later terminal failures
+take precedence over the separately retained unavailable exception. No failure
+latch is cleared, no node is skipped, and the 45-second stage is never restarted.
+
+Both public pure routes assert the 103 ordered startup-acquisition model cases
+separately from the original 146 owned-tree, 75 startup-observation, 39 query
+diagnostic and 522 policy cases. The structural suite binds both Handoff passes,
+the narrow typed catch, guards and unchanged sticky history to actual source.
+
+These in-memory adapter/observation fixtures are not evidence about the identity
+or cause of any historical window. Actual de426 remains failed and consumed.
+New source still requires its source/execution gates and actual GREEN before
+publication. Neither these tests nor this policy authorize a GUI retry.
+The aggregate's initial scratch root follows the host temporary directory so a
+reviewed caller can place compiler/model outputs in a fresh owned root.
+This does not change the later aggregate integration fixtures' output paths.
+
 Ordinary startup can complete before the transient recovery window is visible to
 the bounded observer. `DesktopStartupObservation` is shared by the actual driver
 and separately counted pure regressions; it does not change application startup.

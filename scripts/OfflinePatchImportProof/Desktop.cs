@@ -530,11 +530,36 @@ public sealed class BoundedDesktopSmoke
         Dispatch(() => invoke.Invoke());
     }
 
-    DesktopStartupSample<AutomationElement> ReadStartupSample()
+    void GuardStartupAcquisition()
+    {
+        Guard();
+        lock (sync) Require(events.Count < 240, "event-bound");
+        Identity();
+        Require(BoundedWindowsReadiness.Capture().Ready, "readiness-lost");
+        Guard();
+    }
+
+    void GuardStartupQuery()
+    {
+        try
+        {
+            Guard();
+            lock (sync) Require(events.Count < 240, "event-bound");
+        }
+        catch (Refusal ex) { throw new DesktopTreeGuardException(ex.Message); }
+    }
+
+    bool TryReadStartupSample(DesktopStartupAcquisition acquisition,
+        out DesktopStartupSample<AutomationElement> sample)
     {
         startupSample = null;
-        var tree = NewTree();
-        var sample = TreeCall(() => DesktopStartupSample<AutomationElement>.Capture(tree, owned =>
+        sample = null;
+        DesktopOwnedTree<AutomationElement> tree = null;
+        // Identity/readiness run per acquisition; the query budget keeps per-read guards.
+        if (!TreeCall(() => acquisition.TryDiscover(new OwnedTreeAdapter(this), pid, stage,
+            GuardStartupAcquisition, code => Record("observation", code), out tree, GuardStartupQuery)))
+            return false;
+        sample = TreeCall(() => DesktopStartupSample<AutomationElement>.Capture(tree, owned =>
         {
             var window = owned.Element;
             string windowClass = owned.Class;
@@ -557,12 +582,13 @@ public sealed class BoundedDesktopSmoke
                     () => wizardControl.Current.IsOffscreen));
         }));
         startupSample = sample;
-        return sample;
+        return true;
     }
 
     DesktopStartupDecision ObserveStartup(DesktopStartupObservation observation,
         DesktopStartupSample<AutomationElement> sample, bool revalidate)
     {
+        GuardStartupAcquisition();
         bool loadingExists = observation.LoadingObserved &&
             Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle));
         DesktopStartupDecision decision;
@@ -592,59 +618,63 @@ public sealed class BoundedDesktopSmoke
     {
         Stage("loading-handoff", 45000);
         var observation = new DesktopStartupObservation(rootBindings);
+        var acquisition = new DesktopStartupAcquisition(rootBindings, observation);
         while (true)
         {
-            var sample = ReadStartupSample();
-            var decision = ObserveStartup(observation, sample, false);
-            if (decision.Ready)
+            if (TryReadStartupSample(acquisition, out var sample))
             {
-                var acceptance = ReadStartupSample();
-                decision = ObserveStartup(observation, acceptance, true);
-                if (decision.Ready)
+                var decision = ObserveStartup(observation, sample, false);
+                if (acquisition.Complete(decision, false) &&
+                    TryReadStartupSample(acquisition, out var acceptance))
                 {
-                    AutomationElement acceptedMain = null;
-                    foreach (var window in acceptance.Windows)
+                    decision = ObserveStartup(observation, acceptance, true);
+                    if (acquisition.Complete(decision, true))
                     {
-                        ValidateWindow(window);
-                        IntPtr h = Handle(window);
-                        if (Key(h) == decision.MainHandle)
+                        AutomationElement acceptedMain = null;
+                        foreach (var window in acceptance.Windows)
                         {
-                            var control = Control(window, MainButton, ControlType.Button, false, acceptance.Tree);
-                            Require(control != null && !QueryRead(acceptance.Tree, window, control,
-                                DesktopSelector.Main, () => control.Current.IsOffscreen),
-                                "startup-main-acceptance-control");
-                            acceptedMain = window;
+                            ValidateWindow(window);
+                            IntPtr h = Handle(window);
+                            if (Key(h) == decision.MainHandle)
+                            {
+                                var control = Control(window, MainButton, ControlType.Button, false, acceptance.Tree);
+                                Require(control != null && !QueryRead(acceptance.Tree, window, control,
+                                    DesktopSelector.Main, () => control.Current.IsOffscreen),
+                                    "startup-main-acceptance-control");
+                                acceptedMain = window;
+                            }
+                            else
+                            {
+                                Require(Key(h) == decision.WizardHandle, "startup-wizard-handle");
+                                Require(Key(Native.GetWindow(h, 4)) == decision.MainHandle, "startup-wizard-owner");
+                                var control = Control(window, SetupWizardButton, ControlType.Button, false, acceptance.Tree);
+                                Require(control != null && !QueryRead(acceptance.Tree, window, control,
+                                    DesktopSelector.Wizard, () => control.Current.IsOffscreen),
+                                    "startup-wizard-acceptance-control");
+                            }
                         }
-                        else
-                        {
-                            Require(Key(h) == decision.WizardHandle, "startup-wizard-handle");
-                            Require(Key(Native.GetWindow(h, 4)) == decision.MainHandle, "startup-wizard-owner");
-                            var control = Control(window, SetupWizardButton, ControlType.Button, false, acceptance.Tree);
-                            Require(control != null && !QueryRead(acceptance.Tree, window, control,
-                                DesktopSelector.Wizard, () => control.Current.IsOffscreen),
-                                "startup-wizard-acceptance-control");
-                        }
+                        Require(acceptedMain != null, "startup-main-acceptance-root");
+                        Require(!observation.LoadingObserved ||
+                            !Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle)),
+                            "startup-loading-still-present");
+                        ValidateWindow(acceptedMain);
+                        Require(rootBindings.Expected((uint)decision.MainHandle, DesktopRootKind.Avalonia) ==
+                            decision.WindowClass, "startup-class-changed");
+                        var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree);
+                        Require(mainControl != null && !QueryRead(acceptance.Tree, acceptedMain, mainControl,
+                            DesktopSelector.Main, () => mainControl.Current.IsOffscreen),
+                            "startup-main-acceptance-control");
+                        TreeCall(() => { acceptance.RefreshAndCheckRevision(); return true; });
+                        GuardStartupAcquisition();
+                        main = acceptedMain;
+                        mainHandle = DesktopHwnd.Pointer((uint)decision.MainHandle);
+                        lock (sync) result.StartupRoute = decision.Route;
+                        Record("observation", decision.Route, mainHandle);
+                        return;
                     }
-                    Require(acceptedMain != null, "startup-main-acceptance-root");
-                    Require(!observation.LoadingObserved ||
-                        !Native.IsWindow(DesktopHwnd.Pointer((uint)observation.LoadingHandle)),
-                        "startup-loading-still-present");
-                    ValidateWindow(acceptedMain);
-                    Require(rootBindings.Expected((uint)decision.MainHandle, DesktopRootKind.Avalonia) ==
-                        decision.WindowClass, "startup-class-changed");
-                    var mainControl = Control(acceptedMain, MainButton, ControlType.Button, false, acceptance.Tree);
-                    Require(mainControl != null && !QueryRead(acceptance.Tree, acceptedMain, mainControl,
-                        DesktopSelector.Main, () => mainControl.Current.IsOffscreen),
-                        "startup-main-acceptance-control");
-                    TreeCall(() => { acceptance.RefreshAndCheckRevision(); return true; });
-                    main = acceptedMain;
-                    mainHandle = DesktopHwnd.Pointer((uint)decision.MainHandle);
-                    lock (sync) result.StartupRoute = decision.Route;
-                    Record("observation", decision.Route, mainHandle);
-                    return;
                 }
             }
-            Identity();
+            GuardStartupAcquisition();
             Thread.Sleep(25);
         }
     }

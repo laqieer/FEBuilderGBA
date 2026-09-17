@@ -4,7 +4,7 @@ function ProofEnvelope {
         Set-StrictMode -Version Latest
         if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7 -or $PSVersionTable.PSVersion -lt [version]'7.5') { throw 'Supported PowerShell 7.5+ required.' }
         $repository=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))
-        $root=Join-Path $repository ('TestResults\offline-patch-proof-'+[guid]::NewGuid().ToString('N'))
+        $root=Join-Path ([IO.Path]::GetTempPath()) ('offline-patch-proof-'+[guid]::NewGuid().ToString('N'))
         [void][IO.Directory]::CreateDirectory($root)
         . (Join-Path $PSScriptRoot '..\WindowsDesktopProof\PinnedLoader.Tests.ps1')
         $compiled=0
@@ -139,6 +139,9 @@ function ProofEnvelope {
             'daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7') 'Query diagnostic serialization inventory changed.'
         [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
+        $startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
+        if($startupAcquisitionCases -ne 103){throw 'Startup acquisition case inventory changed.'}
+        [DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()
         . (Join-Path $PSScriptRoot 'restage\RestagePolicy.ps1')
         $imageReportingCases=Invoke-RetainedImageReportingTests
         if($imageReportingCases -ne 16) { throw 'Retained image reporting inventory changed.' }
@@ -158,6 +161,7 @@ function ProofEnvelope {
             cases = $policyCases
             installedSnapshotCases = $snapshotCases
             startupObservationCases = $startupCases
+            startupAcquisitionCases = $startupAcquisitionCases
             ownedTreeCases = $ownedTreeCases
             processImageCases = $imageCases
             retainedImageCases = $retainedImageCases

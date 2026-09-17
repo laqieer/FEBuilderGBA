@@ -77,7 +77,7 @@ function ProofEnvelope {
                 $preparationExitReportingCases=@(Invoke-PreparationExitReportingTests)
                 Assert-PreparationExitCaseNames $preparationExitReportingCases 72 'f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42'
                 $report.cases=[DesktopPolicyTests]::Run()
-                if ($report.cases -le 0) { throw 'No pure cases executed.' }
+                if ($report.cases -ne 522) { throw 'Original pure case inventory changed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
@@ -173,6 +173,9 @@ function ProofEnvelope {
                 Assert-Proof ($queryDiagnosticSerializationNames.Count -eq 48 -and $queryDiagnosticSerializationDigest -ceq
                     'daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7') 'Query diagnostic serialization inventory changed.'
                 [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
+                $report.startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
+                if($report.startupAcquisitionCases -ne 103){throw 'Startup acquisition case inventory changed.'}
+                [DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()
             } else {
                 $support="$owned\support"
                 if ([IO.Path]::Exists($support)) { throw 'Binding attempt already consumed.' }
