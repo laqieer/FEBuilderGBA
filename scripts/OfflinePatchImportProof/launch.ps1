@@ -93,6 +93,7 @@ function ProofEnvelope {
         $environment = @{
             SystemRoot = $proofConfiguration.machine.systemRoot; windir = $proofConfiguration.machine.systemRoot; SystemDrive = ([IO.Path]::GetPathRoot($proofConfiguration.machine.systemRoot).TrimEnd('\'))
             PATH = (Join-Path $proofConfiguration.machine.systemRoot 'System32'); PSModulePath = (Join-Path $PSHOME 'Modules')
+            PSModuleAnalysisCachePath = (Join-Path $launchRoot 'scratch\ModuleAnalysisCache')
             TEMP = (Join-Path $launchRoot 'scratch'); TMP = (Join-Path $launchRoot 'scratch')
             USERPROFILE = (Join-Path $launchRoot 'profile'); HOME = (Join-Path $launchRoot 'profile')
             APPDATA = (Join-Path $launchRoot 'profile\AppData\Roaming')

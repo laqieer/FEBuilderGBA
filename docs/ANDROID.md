@@ -516,6 +516,17 @@ refresh. Its tablet-viewport screenshots and hash report require independent
 inspection; fake-adb tests and the separate boot/parity jobs are not import
 proof. Broader ROM-editing and phone-layout coverage remain preview work.
 
+UI hierarchy diagnostics use a unique
+`/data/local/tmp/.zipdb-import-diagnostics-<UUID>` directory, separate from the
+shared-storage fixture tree browsed by DocumentsUI. An exclusive `mkdir`
+acquires ownership only on success; no `.nomedia` file or shared-storage
+diagnostic write is needed. Each dump still requires successful `uiautomator
+dump`, `test -s`, and `adb exec-out cat` transport. Cleanup removes only the
+owned `hierarchy.xml`, then uses nonrecursive `rmdir`: collisions are untouched
+and unknown children are preserved with a cleanup failure. This avoids the
+observed shared-storage diagnostic-write failure; it does not establish its
+exact filesystem cause or substitute fake-adb results for device proof.
+
 ---
 
 ## 6. `Process.Start` / external tools

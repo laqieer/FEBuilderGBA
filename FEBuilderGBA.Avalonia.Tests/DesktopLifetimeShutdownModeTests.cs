@@ -1,9 +1,8 @@
 using System;
 using System.Runtime.ExceptionServices;
-using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -18,18 +17,6 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("WindowManagerSerial")]
 public sealed class DesktopLifetimeShutdownModeTests
 {
-    sealed class ClassicDesktopLifetimeApp : Application
-    {
-        public override void Initialize() { }
-    }
-
-    sealed class ClassicDesktopLifetimeEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<ClassicDesktopLifetimeApp>()
-                .UseHeadless(new AvaloniaHeadlessPlatformOptions());
-    }
-
     sealed class LifecycleEditorWindow : Window, IEditorView
     {
         public string ViewTitle => "Lifecycle";
@@ -56,6 +43,20 @@ public sealed class DesktopLifetimeShutdownModeTests
     }
 
     [Theory]
+    [InlineData(nameof(LoadingHandoffKeepsMainWindowShutdownPolicyAndClosesEditorsExactlyOnce), typeof(AvaloniaTheoryAttribute))]
+    [InlineData(nameof(LoadingHandoffConstructionFailureKeepsTheLiveLoadingWindow), typeof(AvaloniaFactAttribute))]
+    [InlineData(nameof(LifetimeTestHelperPropagatesBodyFailures), typeof(AvaloniaFactAttribute))]
+    [InlineData(nameof(Closing_main_window_shuts_down_desktop_lifetime_and_closes_managed_editor), typeof(AvaloniaFactAttribute))]
+    public void LifetimeHelperConsumersUseFrameworkOwnedDispatcher(string methodName, Type expectedAttribute)
+    {
+        var method = typeof(DesktopLifetimeShutdownModeTests).GetMethod(methodName);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsDefined(expectedAttribute, inherit: false),
+            $"{methodName} must use {expectedAttribute.Name} for framework-owned dispatcher execution.");
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public void LoadingHandoffKeepsMainWindowShutdownPolicyAndClosesEditorsExactlyOnce(bool alreadyVisible)
@@ -84,7 +85,7 @@ public sealed class DesktopLifetimeShutdownModeTests
         });
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LoadingHandoffConstructionFailureKeepsTheLiveLoadingWindow()
     {
         WithClassicDesktopLifetime((lifetime, _) =>
@@ -103,7 +104,7 @@ public sealed class DesktopLifetimeShutdownModeTests
         });
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void LifetimeTestHelperPropagatesBodyFailures()
     {
         var expected = new InvalidOperationException("Owned lifetime test failure");
@@ -114,64 +115,59 @@ public sealed class DesktopLifetimeShutdownModeTests
 
     static void WithClassicDesktopLifetime(Action<ClassicDesktopStyleApplicationLifetime, DesktopNavigationService> body)
     {
-        using var session = HeadlessUnitTestSession.StartNew(
-            typeof(ClassicDesktopLifetimeEntryPoint),
-            AvaloniaTestIsolationLevel.PerTest);
+        Assert.True(Dispatcher.UIThread.CheckAccess());
 
-        session.Dispatch(() =>
+        using var lifetime = new ClassicDesktopStyleApplicationLifetime();
+        Program.ConfigureDesktopLifetime(lifetime);
+        var originalService = WindowManager.Instance.Service;
+        var originalMainWindow = WindowManager.Instance.MainWindow;
+        int originalExitCode = Environment.ExitCode;
+        var service = new DesktopNavigationService();
+        WindowManager.Instance.SetService(service);
+        bool exited = false;
+        lifetime.Exit += (_, _) => exited = true;
+        ExceptionDispatchInfo? failure = null;
+        Dispatcher.UIThread.Post(() =>
         {
-            using var lifetime = new ClassicDesktopStyleApplicationLifetime();
-            Program.ConfigureDesktopLifetime(lifetime);
-            var originalService = WindowManager.Instance.Service;
-            var originalMainWindow = WindowManager.Instance.MainWindow;
-            int originalExitCode = Environment.ExitCode;
-            var service = new DesktopNavigationService();
-            WindowManager.Instance.SetService(service);
-            bool exited = false;
-            lifetime.Exit += (_, _) => exited = true;
-            ExceptionDispatchInfo? failure = null;
-            Dispatcher.UIThread.Post(() =>
+            try { body(lifetime, service); }
+            catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
+            finally
             {
-                try { body(lifetime, service); }
-                catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
-                finally
-                {
-                    if (!exited) lifetime.Shutdown();
-                }
-            });
+                if (!exited) lifetime.Shutdown();
+            }
+        });
 
+        try
+        {
+            lifetime.Start(Array.Empty<string>());
+            failure?.Throw();
+        }
+        finally
+        {
             try
             {
-                lifetime.Start(Array.Empty<string>());
-                failure?.Throw();
+                WindowManager.Instance.CloseAll();
+                Dispatcher.UIThread.RunJobs();
             }
-            finally
+            catch { }
+
+            if (WindowManager.Instance.MainWindow is { } mainWindow)
             {
                 try
                 {
-                    WindowManager.Instance.CloseAll();
+                    mainWindow.Close();
                     Dispatcher.UIThread.RunJobs();
                 }
                 catch { }
-
-                if (WindowManager.Instance.MainWindow is { } mainWindow)
-                {
-                    try
-                    {
-                        mainWindow.Close();
-                        Dispatcher.UIThread.RunJobs();
-                    }
-                    catch { }
-                }
-
-                WindowManager.Instance.SetService(originalService);
-                WindowManager.Instance.MainWindow = originalMainWindow;
-                Environment.ExitCode = originalExitCode;
             }
-        }, default).GetAwaiter().GetResult();
+
+            WindowManager.Instance.SetService(originalService);
+            WindowManager.Instance.MainWindow = originalMainWindow;
+            Environment.ExitCode = originalExitCode;
+        }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Closing_main_window_shuts_down_desktop_lifetime_and_closes_managed_editor()
     {
         WithClassicDesktopLifetime((lifetime, service) =>

@@ -437,6 +437,33 @@ PowerShell runner's environment and must put literal
 `POWERSHELL_TELEMETRY_OPTOUT='1'` in its existing dictionary before population and
 Start. Its proxies and DOTNET opt-out do not replace that key.
 
+Before child Start, preparation also supplies the exact SDK/VSTest controls
+`DOTNET_GENERATE_ASPNET_CERTIFICATE=false`,
+`DOTNET_ADD_GLOBAL_TOOLS_TO_PATH=false`,
+`DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK=true`, and
+`VSTEST_DISABLE_ARTIFACTS_POSTPROCESSING=1`. These suppress the corresponding
+certificate, global-tools PATH, workload-integrity and artifact-postprocessing
+paths in the inspected runtime; they do not disable every startup side effect.
+
+The loader disables module autoload and explicitly imports Utility, Management
+and Security from absolute paths under the pinned host's `Modules` directory
+before module commands. The caller must still bind the host-only `PSModulePath`,
+telemetry opt-out and an owned `PSModuleAnalysisCachePath` before host startup,
+restoring caller process values afterward. Preparation uses a process-prefix
+cache; launch and `Get-RChildEnvironment` use their owned scratch caches. The
+existing supervisor clears and copies every entry of that returned map.
+Aggregate's 21 direct negative hosts share the owned outer cache, rather than
+having per-process cache isolation.
+
+Host-only module imports and owned analysis caches do not redirect every
+KnownFolder-based input or write. PowerShell may use
+`StartupProfileData-NonInteractive`; SDK startup may use the NuGet
+`Migrations\1` marker/directory and `NuGet-Migrations` mutex. Any applicable
+startup configuration and these normal effects require exact input/effect
+admission; a redirected HOME or dead proxy is not evidence of their absence
+or network containment. No private configuration content belongs in proof
+documentation.
+
 These keys cover those immediate child boundaries, not arbitrary descendants
 that may clear their own environments. The app-only environment in `run.ps1` is
 unchanged; the existing late supervisor already supplies its PowerShell opt-out.
@@ -450,14 +477,31 @@ In the inspected task, ticket discovery precedes the opt-out check and
 Community/Trial paths can bypass its early return; the environment variable
 alone is therefore insufficient.
 
-The fixed Build common argument array preserves its original **11 entries in
-order**, including `-m:1` and `-nr:false`, and appends the single literal
-`-p:UsedAvaloniaProducts=` as entry 12. The empty command-line global property is
-intentional. Four static Build sites produce six effective MSBuild vectors:
+The fixed Build common argument array preserves its **12 entries in order**,
+including `-m:1`, `-nr:false` and the intentional empty command-line global
+property `-p:UsedAvaloniaProducts=`. It appends six false globals, giving
+**18 entries**: `ImportUserLocationsByWildcardBeforeMicrosoftCommonProps`,
+`ImportUserLocationsByWildcardAfterMicrosoftCommonProps`,
+`ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets`,
+`ImportUserLocationsByWildcardAfterMicrosoftCommonTargets`,
+`ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets`, and
+`ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets`, each spelled
+`-p:<name>=false`. These are the six relevant user-wildcard hooks in the
+inspected net10 graph, not a general suppression of all MSBuild imports.
+Four static Build sites produce six effective MSBuild vectors:
 Debug/Release rebuild and four-selected-case test pairs, then application and
 generator publish. Existing arguments, selectors, destinations, budgets and
 process/source custody remain unchanged. This is not an extra argument for the
 separate Inputs-stage `dotnet exec` generator invocation.
+
+Only the Debug/Release `dotnet test` vectors append
+`-- xUnit.PreEnumerateTheories=false`, after the common arguments. This defers
+theory data enumeration until execution so filtering does not enumerate
+unselected MemberData. It does not change the requirement for exactly four
+passing selected fixture results in each configuration. The real-framework
+discovery regression separately checks deferred nonenumeration, executes the
+four selected results, and discovers but never executes its eager positive
+control.
 
 The inspected OSS closure's AvaloniaStats target requires nonempty
 `UsedAvaloniaProducts`. Keeping it empty suppresses the **entire current task**,
@@ -478,17 +522,17 @@ collector, or license store. The pre-existing early-prefix Run scope probe is
 not telemetry-policy evidence; the existing launcher worker-stop probe likewise
 does not establish the new opt-out policy.
 
-Ten added Python test methods cover the actual source, negative source/XML
-variants, current project-reference declarations and public nonexecuting AST
-wiring. The loader adds **40 named structural/AST cases** (four real-source
-assertions, four control assertions and 32 negative/propagation fixtures), extending
-the Windows aggregate's existing `loaderCases` count from 600 to 640 after a
-passing run (other platforms retain their existing base plus 40). The 322 restage
-cases, 22-member closure, existing report keys and four fixture selections per
-configuration do not change. Structural fixtures reject inherited-only/wrong or
-comment-only opt-out and late Clear for both preparation keys and the launch
-runner key, missing/nonempty/duplicate/conflicting global flags,
-missing common-vector use, and relevant local-property/removal/override forms.
+Python tests cover the actual source, negative source/XML variants, current
+project-reference declarations and public nonexecuting AST wiring. The loader's
+build-policy inventory requires **128 named structural/AST cases**, covering
+actual-source assertions, controls and negative/propagation fixtures. This is
+a required inventory, not a claim that a run reached or passed it. The 322
+restage cases, 22-member closure, existing report keys and four fixture
+selections per configuration do not change. Structural fixtures reject
+inherited-only/wrong or comment-only controls, late Clear, missing/unowned
+caches, module-bootstrap changes, missing/nonempty/duplicate/conflicting
+global flags, misplaced or missing test-only discovery suffixes, missing
+common-vector use, and relevant local-property/removal/override forms.
 They are not execution of the installed target or a general MSBuild interpreter.
 
 **Source tests alone do not unblock an operational Build.** A fresh complete
@@ -517,22 +561,36 @@ python -m unittest scripts.tests.test_offline_patch_import_proof scripts.tests.t
 
 The Windows PowerShell command is a separate, prospectively screened invocation
 of the freshly pinned absolute host, not a persisted wrapper or private executor.
-The following process-only binding saves/restores the launching process value;
-it does not write machine/user settings. Use it only after exact-source safety
+The following process-only binding saves/restores the launching process values
+and removes variables that were originally absent;
+it does not write machine/user settings. `$proofScratch` must already name a
+fresh owned directory covered by the local-test admission. Use it only after exact-source safety
 acceptance and explicit local-test admission, including verification of the host
 pin. Other external hosts need their own approved pre-host binding; no workflow
 or global setting change is made here.
 
 ```powershell
-$priorPowerShellTelemetry = [Environment]::GetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', 'Process')
+$priorHostEnvironment = @{}
+foreach ($name in @('POWERSHELL_TELEMETRY_OPTOUT', 'PSModulePath', 'PSModuleAnalysisCachePath')) {
+    $priorHostEnvironment[$name] = [Environment]::GetEnvironmentVariable($name, 'Process')
+}
 $proofExitCode = 1
 try {
     [Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', '1', 'Process')
+    [Environment]::SetEnvironmentVariable('PSModulePath', 'C:\Program Files\PowerShell\7\Modules', 'Process')
+    [Environment]::SetEnvironmentVariable('PSModuleAnalysisCachePath', [IO.Path]::Combine($proofScratch, 'ModuleAnalysisCache'), 'Process')
     & 'C:\Program Files\PowerShell\7\pwsh.exe' -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1
     $proofExitCode = $LASTEXITCODE
 }
 finally {
-    [Environment]::SetEnvironmentVariable('POWERSHELL_TELEMETRY_OPTOUT', $priorPowerShellTelemetry, 'Process')
+    foreach ($name in $priorHostEnvironment.Keys) {
+        if ($null -eq $priorHostEnvironment[$name]) {
+            Remove-Item -LiteralPath "Env:$name" -ErrorAction SilentlyContinue
+        }
+        else {
+            [Environment]::SetEnvironmentVariable($name, $priorHostEnvironment[$name], 'Process')
+        }
+    }
 }
 exit $proofExitCode
 ```

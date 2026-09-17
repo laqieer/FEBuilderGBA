@@ -177,6 +177,7 @@ function Get-RChildEnvironment([string]$Outer,[string]$SystemRoot,[string]$HostR
         SystemRoot=$SystemRoot;WINDIR=$SystemRoot;ComSpec="$SystemRoot\System32\cmd.exe"
         PATH="$HostRoot;$SystemRoot\System32";PATHEXT='.EXE;.CPL'
         POWERSHELL_TELEMETRY_OPTOUT='1';POWERSHELL_UPDATECHECK='Off';PSModulePath="$HostRoot\Modules"
+        PSModuleAnalysisCachePath="$Outer\scratch\ModuleAnalysisCache"
     }
 }
 function Assert-REnvironment($Environment,[string]$Outer) {

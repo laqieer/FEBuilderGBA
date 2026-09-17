@@ -4,6 +4,10 @@ param([string]$Mode,[long]$CommandBytes,[string]$CommandSha256,
     [string]$ClosurePath,[long]$ClosureBytes,[string]$ClosureSha256)
 $ErrorActionPreference='Stop'
 Set-StrictMode -Version Latest
+$PSModuleAutoLoadingPreference='None'
+foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')){
+    Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,$name+'.psd1')) -ErrorAction Stop
+}
 
 function Get-PinnedProofFiles {
     foreach($name in @('Desktop.cs','Policy.cs','Policy.Tests.cs','Readiness.cs','RuntimeBinding.ps1','RuntimeBinding.Tests.ps1',

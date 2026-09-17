@@ -20,9 +20,21 @@ _COMMON_BUILD_PREFIX = (
 )
 _TELEMETRY_FLAG = "-p:UsedAvaloniaProducts="
 _PREPARATION_OPT_OUT_KEYS = ("AVALONIA_TELEMETRY_OPTOUT", "POWERSHELL_TELEMETRY_OPTOUT")
+_SDK_ENVIRONMENT = {
+    "DOTNET_GENERATE_ASPNET_CERTIFICATE": "false",
+    "DOTNET_ADD_GLOBAL_TOOLS_TO_PATH": "false",
+    "DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK": "true",
+    "VSTEST_DISABLE_ARTIFACTS_POSTPROCESSING": "1",
+}
+_USER_IMPORT_FLAGS = tuple(
+    "-p:ImportUserLocationsByWildcard" + phase + target + "=false"
+    for target in ("MicrosoftCommonProps", "MicrosoftCommonTargets", "MicrosoftCSharpTargets")
+    for phase in ("Before", "After")
+)
+_DISCOVERY_SUFFIX = "+@('--','xUnit.PreEnumerateTheories=false')"
 _BUILD_CALLS = (
     r"""Run $plan.dotnet (@('build',$project,'-c',$configuration,'-t:Rebuild')+$common) 360 $control $true""",
-    r"""Run $plan.dotnet (@('test',$project,'-c',$configuration,'--no-build','--filter','FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests','--logger',"trx;LogFileName=$trx",'--results-directory',"$control\tests")+$common) 180 $control $true""",
+    r"""Run $plan.dotnet (@('test',$project,'-c',$configuration,'--no-build','--filter','FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests','--logger',"trx;LogFileName=$trx",'--results-directory',"$control\tests")+$common+@('--','xUnit.PreEnumerateTheories=false')) 180 $control $true""",
     r"""Run $plan.dotnet (@('publish',"$W\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj",'-c','Release','-t:Rebuild,Publish','-o',"$B\publish")+$common) 360 $control $true""",
     r"""Run $plan.dotnet (@('publish',"$W\scripts\SyntheticProofFixtures\SyntheticProofFixtures.csproj",'-c','Debug','-t:Rebuild,Publish','-o',"$B\generator")+$common) 180 $control $true""",
 )
@@ -98,10 +110,11 @@ def _environment_entries(text, key, *, launch=False):
     return entries
 
 
-def _assert_fixed_child_environment(text, key, *, launch=False):
+def _assert_fixed_child_environment(text, key, *, launch=False, value="1", expression=None):
     child, opening, closing = _cleared_environment_source(text, launch=launch)
     entries = _environment_entries(text, key, launch=launch)
-    _require_source([(name, value) for name, value, _, _ in entries] == [(key, "'1'")],
+    expected = expression if expression is not None else "'" + value + "'"
+    _require_source([(name, literal) for name, literal, _, _ in entries] == [(key, expected)],
                     "BuildTelemetry.EnvironmentPolicy")
     code = _ps_source_mask(child)
     receiver = "start" if launch else "info"
@@ -137,7 +150,7 @@ def _assert_common_build_vectors(text):
     literals = re.findall(r"'((?:[^']|'')*)'", data)
     remainder = re.sub(r"'(?:[^']|'')*'", "", data)
     _require_source(not re.sub(r"[\s,]", "", remainder)
-                    and literals == [*_COMMON_BUILD_PREFIX, _TELEMETRY_FLAG],
+                    and literals == [*_COMMON_BUILD_PREFIX, _TELEMETRY_FLAG, *_USER_IMPORT_FLAGS],
                     "BuildTelemetry.CommonPolicy")
     calls = list(re.finditer(r"^\s*\$null=(Run \$plan\.dotnet [^\r\n]+)$",
                              source, re.MULTILINE))
@@ -157,7 +170,7 @@ def _assert_common_build_vectors(text):
         _require_source(guard in source, "BuildTelemetry.FixtureSelection")
 
 
-def _child_control_source(text, keys, *, launch=False):
+def _child_control_source(text, keys, *, launch=False, value="1"):
     # In-memory edits of real source isolate negative checks; actual-source tests
     # below never use this control and must independently establish the policy.
     for key in keys:
@@ -165,7 +178,7 @@ def _child_control_source(text, keys, *, launch=False):
             _, opening, _ = _cleared_environment_source(text, launch=launch)
             function_start, _ = _source_block(text, _child_header(launch))
             insertion = function_start + opening + 2
-            text = text[:insertion] + "\n                " + key + "='1';" + text[insertion:]
+            text = text[:insertion] + "\n                " + key + "='" + value + "';" + text[insertion:]
     return text
 
 
@@ -179,15 +192,23 @@ def _telemetry_control_source(text):
     if _TELEMETRY_FLAG not in re.findall(r"'([^']*)'", common.group(1)):
         insertion = build_start + common.end()
         text = text[:insertion] + ",'-p:UsedAvaloniaProducts='" + text[insertion:]
+    for flag in _USER_IMPORT_FLAGS:
+        if flag not in re.findall(r"'([^']*)'", common.group(1)):
+            opening, closing = _source_block(text, r"^\s*if\s*\(\$Stage -ceq 'Build'\)\s*\{")
+            current = re.search(r"^\s*\$common\s*=\s*@\(([^)]*)\)",
+                                _ps_source_mask(text[opening + 1:closing], keep_strings=True), re.MULTILINE)
+            insertion = opening + current.end()
+            text = text[:insertion] + ",'" + flag + "'" + text[insertion:]
+    text = text.replace(_BUILD_CALLS[1].replace(_DISCOVERY_SUFFIX, ""), _BUILD_CALLS[1])
     return text
 
 
-def _environment_negative_variants(text, key, *, launch=False):
+def _environment_negative_variants(text, key, *, launch=False, value="1"):
     entries = _environment_entries(text, key, launch=launch)
     _require_source(len(entries) == 1, "BuildTelemetry.Structure")
     _, _, start, end = entries[0]
     removed = text[:start] + text[end:]
-    wrong = text[:start] + text[start:end].replace("'1'", "'0'") + text[end:]
+    wrong = text[:start] + text[start:end].replace("'" + value + "'", "'wrong'") + text[end:]
     receiver = "start" if launch else "info"
     population = (
         "foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }"
@@ -197,8 +218,8 @@ def _environment_negative_variants(text, key, *, launch=False):
     return (
         ("removed", removed, "EnvironmentPolicy"),
         ("wrong", wrong, "EnvironmentPolicy"),
-        ("inherited-only", "$env:" + key + "='1'\n" + removed, "EnvironmentPolicy"),
-        ("comment-only", "<#\n" + key + "='1';\n#>\n" + removed, "EnvironmentPolicy"),
+        ("inherited-only", "$env:" + key + "='" + value + "'\n" + removed, "EnvironmentPolicy"),
+        ("comment-only", "<#\n" + key + "='" + value + "';\n#>\n" + removed, "EnvironmentPolicy"),
         ("late-clear", text.replace(clear, "").replace(population, population + "\n" + clear),
          "EnvironmentOrder"),
     )
@@ -216,7 +237,9 @@ def _assert_property_propagation(xml):
             if key not in sensitive:
                 continue
             names = [part.split("=", 1)[0].strip().lower() for part in value.split(";")]
-            _require_source("usedavaloniaproducts" not in names
+            protected = ["usedavaloniaproducts", *(flag[3:].split("=", 1)[0].lower()
+                                                  for flag in _USER_IMPORT_FLAGS)]
+            _require_source(not set(protected).intersection(names)
                             and "$(" not in value and "@(" not in value and "*" not in value,
                             "BuildTelemetry.PropertyPropagation")
 
@@ -236,6 +259,116 @@ _PROPERTY_FIXTURES = (
 
 
 class OfflinePatchImportProofContractTests(unittest.TestCase):
+    def test_preparation_run_has_exact_sdk_side_effect_controls(self):
+        source = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        for key, value in _SDK_ENVIRONMENT.items():
+            with self.subTest(key=key):
+                _assert_fixed_child_environment(source, key, value=value)
+
+    def test_sdk_environment_negative_source_variants(self):
+        actual = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        for key, value in _SDK_ENVIRONMENT.items():
+            source = _child_control_source(actual, (key,), value=value)
+            _assert_fixed_child_environment(source, key, value=value)
+            for name, variant, reason in _environment_negative_variants(source, key, value=value):
+                with self.subTest(key=key, name=name), self.assertRaisesRegex(AssertionError, "BuildTelemetry." + reason):
+                    _assert_fixed_child_environment(variant, key, value=value)
+            entry, = _environment_entries(source, key)
+            for wrong in ("$false", "$true", "'false'", "'true'", "'1'", "'0'"):
+                if wrong == "'" + value + "'":
+                    continue
+                variant = source[:entry[2]] + key + "=" + wrong + ";" + source[entry[3]:]
+                with self.subTest(key=key, value=wrong), self.assertRaisesRegex(AssertionError, "EnvironmentPolicy"):
+                    _assert_fixed_child_environment(variant, key, value=value)
+
+    def test_user_import_flags_are_ordered_global_and_cannot_be_overridden(self):
+        source = _telemetry_control_source((PACKAGE / "prepare.ps1").read_text(encoding="utf-8"))
+        _assert_common_build_vectors(source)
+        for flag in _USER_IMPORT_FLAGS:
+            literal = ",'" + flag + "'"
+            variants = (
+                source.replace(literal, ""),
+                source.replace(literal, literal.replace("=false", "=true")),
+                source.replace(literal, literal + literal),
+                source.replace(literal, "").replace(",'-p:UsedAvaloniaProducts='",
+                                                    literal + ",'-p:UsedAvaloniaProducts='"),
+            )
+            for index, variant in enumerate(variants):
+                with self.subTest(flag=flag, variant=index), self.assertRaisesRegex(AssertionError, "CommonPolicy"):
+                    _assert_common_build_vectors(variant)
+            property_name = flag[3:].split("=", 1)[0]
+            for _, rejected, xml in _PROPERTY_FIXTURES:
+                if rejected:
+                    with self.subTest(property=property_name, xml=xml), self.assertRaisesRegex(
+                            AssertionError, "PropertyPropagation"):
+                        _assert_property_propagation(re.sub("UsedAvaloniaProducts", property_name, xml, flags=re.I))
+
+    def test_only_test_vectors_end_with_deferred_theory_runsettings(self):
+        actual = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        opening, closing = _source_block(actual, r"^\s*if\s*\(\$Stage -ceq 'Build'\)\s*\{")
+        source = _ps_source_mask(actual[opening + 1:closing], keep_strings=True)
+        calls = re.findall(r"^\s*\$null=(Run \$plan\.dotnet [^\r\n]+)$", source, re.MULTILINE)
+        self.assertEqual(_BUILD_CALLS, tuple(call.strip() for call in calls))
+
+    def test_deferred_runsettings_negative_source_variants(self):
+        source = _telemetry_control_source((PACKAGE / "prepare.ps1").read_text(encoding="utf-8"))
+        _assert_common_build_vectors(source)
+        variants = (
+            source.replace(_DISCOVERY_SUFFIX, ""),
+            source.replace(_DISCOVERY_SUFFIX, _DISCOVERY_SUFFIX.replace("=false", "=true")),
+            source.replace("+$common" + _DISCOVERY_SUFFIX, _DISCOVERY_SUFFIX + "+$common"),
+            source.replace(_DISCOVERY_SUFFIX, "+@('xUnit.PreEnumerateTheories=false')"),
+            source.replace(_BUILD_CALLS[2], _BUILD_CALLS[2].replace("+$common", "+$common" + _DISCOVERY_SUFFIX)),
+        )
+        for index, variant in enumerate(variants):
+            with self.subTest(variant=index), self.assertRaisesRegex(AssertionError, "BuildVectors"):
+                _assert_common_build_vectors(variant)
+
+    def test_child_module_cache_paths_are_owned_and_survive_clear(self):
+        key = "PSModuleAnalysisCachePath"
+        for name, launch, expression in (
+            ("prepare.ps1", False, '"$prefix.module-analysis-cache"'),
+            ("launch.ps1", True, "(Join-Path $launchRoot 'scratch\\ModuleAnalysisCache')"),
+        ):
+            with self.subTest(name=name):
+                _assert_fixed_child_environment((PACKAGE / name).read_text(encoding="utf-8"), key,
+                                                launch=launch, expression=expression)
+        policy = (PACKAGE / "restage" / "RestagePolicy.ps1").read_text(encoding="utf-8")
+        opening, closing = _source_block(policy, r"^\s*function Get-RChildEnvironment\([^\n]*\)\s*\{")
+        self.assertIn('PSModuleAnalysisCachePath="$Outer\\scratch\\ModuleAnalysisCache"',
+                      _ps_source_mask(policy[opening + 1:closing], keep_strings=True))
+        golden = (PACKAGE / "restage" / "test-pure.ps1").read_text(encoding="utf-8")
+        self.assertIn("PSModuleAnalysisCachePath='C:\\owned\\scratch\\ModuleAnalysisCache'", golden)
+        self.assertIn("Missing/unowned module cache accepted.", golden)
+
+    def test_loader_disables_autoload_and_imports_only_absolute_host_modules_first(self):
+        text = (ROOT / "scripts" / "WindowsDesktopProof" / "PinnedLoader.ps1").read_text(encoding="utf-8")
+        visible = _ps_source_mask(text, keep_strings=True)
+        preamble = visible[:visible.index("function Get-PinnedProofFiles")]
+        expected = """$ErrorActionPreference='Stop'
+Set-StrictMode -Version Latest
+$PSModuleAutoLoadingPreference='None'
+foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')){
+    Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,$name+'.psd1')) -ErrorAction Stop
+}"""
+        self.assertEqual(re.sub(r"\s+", "", expected),
+                         re.sub(r"\s+", "", preamble[preamble.index("$ErrorActionPreference"):]))
+
+    def test_real_discovery_probe_is_distinct_from_production_argv_contract(self):
+        source = (ROOT / "FEBuilderGBA.Avalonia.Tests" / "SyntheticPatchImportDiscoveryTests.cs").read_text(encoding="utf-8")
+        for token in ('"xunit.discovery.PreEnumerateTheories", false',
+                      '"xunit.discovery.PreEnumerateTheories", true', "new TheoryDiscoverer(sink)",
+                      "new FactDiscoverer(sink)", ".RunAsync(sink, bus,", "OfType<ITestPassed>()",
+                      "Assert.Equal(4, total)", "Assert.Equal(0, Probes.UnselectedProviderCalls)",
+                      "Assert.Equal(1, Probes.UnselectedProviderCalls)", "IReflectionMethodInfo",
+                      "new ReflectionMethodInfo", "inner.GetCustomAttributes"):
+            self.assertIn(token, source)
+        probes = source[source.index("public sealed class Probes"):]
+        self.assertNotRegex(probes, r"\[(?:Fact|Theory|AvaloniaFact|AvaloniaTheory)\b")
+        self.assertIn("#pragma warning disable xUnit1008", probes)
+        self.assertIn("#pragma warning restore xUnit1008", probes)
+        self.assertNotRegex(source, r":\s*ReflectionMethodInfo|override.*GetCustomAttributes")
+
     def test_preparation_run_has_fixed_avalonia_opt_out(self):
         _assert_fixed_child_environment((PACKAGE / "prepare.ps1").read_text(encoding="utf-8"),
                                         "AVALONIA_TELEMETRY_OPTOUT")
@@ -307,7 +440,9 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
                 _assert_property_propagation(text)
                 for element in ElementTree.fromstring(text).iter():
                     values = [element.tag, element.text or "", *element.attrib.keys(), *element.attrib.values()]
-                    self.assertFalse(any("usedavaloniaproducts" in value.lower() for value in values),
+                    protected = ["usedavaloniaproducts", *(flag[3:].split("=", 1)[0].lower()
+                                                          for flag in _USER_IMPORT_FLAGS)]
+                    self.assertFalse(any(name in value.lower() for name in protected for value in values),
                                      "New project property use needs renewed scope review.")
 
     def test_telemetry_ast_probe_is_authenticated_and_nonexecuting(self):
@@ -320,11 +455,13 @@ class OfflinePatchImportProofContractTests(unittest.TestCase):
         scope = tests[tests.index("function Invoke-PinnedScopeTests"):
                       tests.index("function Invoke-PinnedClosureTests")]
         self.assertLess(scope.index("Read-PinnedProofClosure"),
-                        scope.index("Invoke-PinnedBuildTelemetryTests $prepare $launch"))
+                        scope.index("Invoke-PinnedBuildTelemetryTests $prepare $launch $loader"))
         self.assertIn("$fixture.buffers['OfflinePatchImportProof\\prepare.ps1']", scope)
         self.assertIn("$fixture.buffers['OfflinePatchImportProof\\launch.ps1']", scope)
+        self.assertIn("$fixture.buffers['WindowsDesktopProof\\PinnedLoader.ps1']", scope)
         self.assertIn("return (3+$telemetryCases)", scope)
-        self.assertIn("$names.Count -ne 40", probe)
+        self.assertIn("$names.Count -ne 128", probe)
+        self.assertIn("Case 'actual-test-discovery-suffix'", probe)
 
     def test_supervised_fixture_constructs_real_reference_provenance(self):
         fixture = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")

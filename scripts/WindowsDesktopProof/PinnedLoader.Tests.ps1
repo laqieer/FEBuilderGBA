@@ -144,7 +144,8 @@ function Invoke-PinnedLoaderTests([string]$Root) {
 }
 
 function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.ScriptBlockAst]$Prepare,
-    [Management.Automation.Language.ScriptBlockAst]$Launch){
+    [Management.Automation.Language.ScriptBlockAst]$Launch,
+    [Management.Automation.Language.ScriptBlockAst]$Loader){
     $names=[Collections.Generic.List[string]]::new()
     $failures=[Collections.Generic.List[string]]::new()
     function Require([bool]$Value,[string]$Code){if(!$Value){throw $Code}}
@@ -199,7 +200,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
         Require ($blocks.Count -eq 1) 'BuildTelemetry.Structure'
         return $blocks[0]
     }
-    function AssertEnvironment($Ast,[string]$Key,[bool]$IsLaunch=$false){
+    function AssertEnvironment($Ast,[string]$Key,[bool]$IsLaunch=$false,[string]$Value='1'){
         $shape=EnvironmentShape $Ast $IsLaunch
         $pairs=@($shape.table.KeyValuePairs|Where-Object {
             $_.Item1 -is [Management.Automation.Language.StringConstantExpressionAst] -and
@@ -211,8 +212,11 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
         $literal=@($valueNodes|Where-Object {$_ -is [Management.Automation.Language.StringConstantExpressionAst]})
         Require ($pairs[0].Item1.Value -ceq $Key -and
             @($valueNodes|Where-Object {$_.GetType().Name -cnotin $allowed}).Count -eq 0 -and
-            $literal.Count -eq 1 -and $literal[0].Value -ceq '1' -and
+            $literal.Count -eq 1 -and $literal[0].Value -ceq $Value -and
             $literal[0].StringConstantType.ToString() -ceq 'SingleQuoted') 'BuildTelemetry.EnvironmentPolicy'
+        AssertEnvironmentOrder $shape $IsLaunch
+    }
+    function AssertEnvironmentOrder($shape,[bool]$IsLaunch=$false){
         $clearText=if($IsLaunch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
         $startText=if($IsLaunch){'[Diagnostics.Process]::Start($start)'}else{'$p.Start()'}
         $populateText=if($IsLaunch){
@@ -246,18 +250,22 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     $commonPrefix=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false',
         '-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false',
         '-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false')
+    $userImportFlags=@(
+        '-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonProps=false'
+        '-p:ImportUserLocationsByWildcardAfterMicrosoftCommonProps=false'
+        '-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets=false'
+        '-p:ImportUserLocationsByWildcardAfterMicrosoftCommonTargets=false'
+        '-p:ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets=false'
+        '-p:ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets=false'
+    )
+    $discoverySuffix='+@(''--'',''xUnit.PreEnumerateTheories=false'')'
     $expectedCalls=@(
         'Run $plan.dotnet (@(''build'',$project,''-c'',$configuration,''-t:Rebuild'')+$common) 360 $control $true'
-        'Run $plan.dotnet (@(''test'',$project,''-c'',$configuration,''--no-build'',''--filter'',''FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests'',''--logger'',"trx;LogFileName=$trx",''--results-directory'',"${CONTROL}")+$common) 180 $control $true'.Replace('${CONTROL}','$control\tests')
+        'Run $plan.dotnet (@(''test'',$project,''-c'',$configuration,''--no-build'',''--filter'',''FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests'',''--logger'',"trx;LogFileName=$trx",''--results-directory'',"${CONTROL}")+$common+@(''--'',''xUnit.PreEnumerateTheories=false'')) 180 $control $true'.Replace('${CONTROL}','$control\tests')
         'Run $plan.dotnet (@(''publish'',"${APP}",''-c'',''Release'',''-t:Rebuild,Publish'',''-o'',"${PUBLISH}")+$common) 360 $control $true'.Replace('${APP}','$W\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj').Replace('${PUBLISH}','$B\publish')
         'Run $plan.dotnet (@(''publish'',"${GENERATOR}",''-c'',''Debug'',''-t:Rebuild,Publish'',''-o'',"${OUTPUT}")+$common) 180 $control $true'.Replace('${GENERATOR}','$W\scripts\SyntheticProofFixtures\SyntheticProofFixtures.csproj').Replace('${OUTPUT}','$B\generator')
     )
-    function AssertBuildVectors($Ast){
-        $build=BuildBlock $Ast
-        $assignment=Assignment $build common
-        $values=LiteralArray $assignment.Right
-        $expected=@($commonPrefix)+@('-p:UsedAvaloniaProducts=')
-        Require ($values.Count -eq 12 -and ($values -join "`n") -ceq ($expected -join "`n")) 'BuildTelemetry.CommonPolicy'
+    function BuildCalls($build){
         $calls=@($build.FindAll({param($node)
             $node -is [Management.Automation.Language.CommandAst] -and $node.GetCommandName() -ceq 'Run' -and
             $node.CommandElements.Count -gt 1 -and $node.CommandElements[1].Extent.Text -ceq '$plan.dotnet'
@@ -267,6 +275,15 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
             Require ($calls[$i].CommandElements.Count -eq 6 -and
                 ($calls[$i].Extent.Text -replace '\s+',' ').Trim() -ceq $expectedCalls[$i]) 'BuildTelemetry.BuildVectors'
         }
+        return ,$calls
+    }
+    function AssertBuildVectors($Ast){
+        $build=BuildBlock $Ast
+        $assignment=Assignment $build common
+        $values=LiteralArray $assignment.Right
+        $expected=@($commonPrefix)+@('-p:UsedAvaloniaProducts=')+$userImportFlags
+        Require ($values.Count -eq 18 -and ($values -join "`n") -ceq ($expected -join "`n")) 'BuildTelemetry.CommonPolicy'
+        $calls=BuildCalls $build
         $loops=@($build.FindAll({param($node)
             $node -is [Management.Automation.Language.ForEachStatementAst] -and
             $node.Variable.VariablePath.UserPath -ceq 'configuration'
@@ -304,7 +321,8 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
                     'removeproperties','properties','additionalproperties')){continue}
                 $value=[string]$entry.value
                 $properties=@($value -split ';'|ForEach-Object {($_ -split '=',2)[0].Trim().ToLowerInvariant()})
-                Require ($properties -cnotcontains 'usedavaloniaproducts' -and !$value.Contains('$(') -and
+                $protected=@('usedavaloniaproducts')+@($userImportFlags|ForEach-Object {($_.Substring(3) -split '=',2)[0].ToLowerInvariant()})
+                Require (@($properties|Where-Object {$_ -cin $protected}).Count -eq 0 -and !$value.Contains('$(') -and
                     !$value.Contains('@(') -and !$value.Contains('*')) 'BuildTelemetry.PropertyPropagation'
             }
         }
@@ -312,7 +330,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     function ParseVariant([string]$Text,$Original=$Prepare){
         return ConvertTo-PinnedProofAst ([Text.UTF8Encoding]::new($false).GetBytes($Text)) $Original.Extent.File
     }
-    function EnvironmentVariants([string]$Source,$Ast,[string]$Key,[bool]$IsLaunch=$false){
+    function EnvironmentVariants([string]$Source,$Ast,[string]$Key,[bool]$IsLaunch=$false,[string]$Value='1'){
         $shape=EnvironmentShape $Ast $IsLaunch
         $pairs=@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ceq $Key})
         Require ($pairs.Count -eq 1) 'BuildTelemetry.Structure'
@@ -321,7 +339,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
         if($end -lt $Source.Length -and $Source[$end] -eq ';'){$end++}
         $entry=$Source.Substring($begin,$end-$begin)
         $removed=$Source.Remove($begin,$end-$begin)
-        $wrong=$removed.Insert($begin,$entry.Replace("'1'","'0'"))
+        $wrong=$removed.Insert($begin,$entry.Replace("'"+$Value+"'","'wrong'"))
         $clear=if($IsLaunch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
         $population=if($IsLaunch){
             'foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }'
@@ -329,10 +347,39 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
         return @(
             @{name='removed';text=$removed;code='BuildTelemetry.EnvironmentPolicy'}
             @{name='wrong';text=$wrong;code='BuildTelemetry.EnvironmentPolicy'}
-            @{name='inherited-only';text=('$env:'+$Key+"='1'`n"+$removed);code='BuildTelemetry.EnvironmentPolicy'}
+            @{name='inherited-only';text=('$env:'+$Key+"='"+$Value+"'`n"+$removed);code='BuildTelemetry.EnvironmentPolicy'}
             @{name='comment-only';text=("<#`n"+$entry+"`n#>`n"+$removed);code='BuildTelemetry.EnvironmentPolicy'}
             @{name='late-clear';text=$Source.Replace($clear,'').Replace($population,$population+"`n"+$clear);code='BuildTelemetry.EnvironmentOrder'}
         )
+    }
+    function AssertBootstrap($Ast){
+        try{
+            $statements=@($Ast.EndBlock.Statements)
+            Require ($statements.Count -ge 4 -and
+                $statements[0].Extent.Text -ceq '$ErrorActionPreference=''Stop''' -and
+                $statements[1].Extent.Text -ceq 'Set-StrictMode -Version Latest' -and
+                $statements[2] -is [Management.Automation.Language.AssignmentStatementAst] -and
+                $statements[2].Left.Extent.Text -ceq '$PSModuleAutoLoadingPreference' -and
+                $statements[2].Right.Extent.Text -ceq '''None''' -and
+                $statements[3] -is [Management.Automation.Language.ForEachStatementAst] -and
+                $statements[3].Variable.VariablePath.UserPath -ceq 'name') 'Bootstrap prefix'
+            $modules=LiteralArray $statements[3].Condition
+            Require (($modules -join '|') -ceq 'Microsoft.PowerShell.Utility|Microsoft.PowerShell.Management|Microsoft.PowerShell.Security') 'Bootstrap modules'
+            $commands=@($statements[3].Body.FindAll({param($node)
+                $node -is [Management.Automation.Language.CommandAst]
+            },$true))
+            Require ($statements[3].Body.Statements.Count -eq 1 -and $commands.Count -eq 1 -and
+                ($commands[0].Extent.Text -replace '\s+','') -ceq
+                'Import-Module([IO.Path]::Combine($PSHOME,''Modules'',$name,$name+''.psd1''))-ErrorActionStop') 'Bootstrap absolute import'
+        }catch{throw 'BuildTelemetry.ModuleBootstrap'}
+    }
+    function AssertCache($Ast,[bool]$IsLaunch=$false){
+        $shape=EnvironmentShape $Ast $IsLaunch
+        $pairs=@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ieq 'PSModuleAnalysisCachePath'})
+        $expected=if($IsLaunch){'(Join-Path $launchRoot ''scratch\ModuleAnalysisCache'')'}else{'"$prefix.module-analysis-cache"'}
+        Require ($pairs.Count -eq 1 -and $pairs[0].Item1.Value -ceq 'PSModuleAnalysisCachePath' -and
+            $pairs[0].Item2.Extent.Text -ceq $expected) 'BuildTelemetry.ModuleCachePolicy'
+        AssertEnvironmentOrder $shape $IsLaunch
     }
     # Only actual-source cases establish production policy. Controlled copies
     # isolate negative mutations without replacing or evaluating either body.
@@ -342,11 +389,23 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     if((LiteralArray $common.Right) -cnotcontains '-p:UsedAvaloniaProducts='){
         $control=$control.Insert($common.Right.Extent.EndOffset-1,$flag)
     }
-    $shape=EnvironmentShape $Prepare
+    foreach($userFlag in $userImportFlags){
+        $currentCommon=Assignment (BuildBlock (ParseVariant $control)) common
+        if((LiteralArray $currentCommon.Right) -cnotcontains $userFlag){
+            $control=$control.Insert($currentCommon.Right.Extent.EndOffset-1,",'"+$userFlag+"'")
+        }
+    }
+    $control=$control.Replace($expectedCalls[1].Replace($discoverySuffix,''),$expectedCalls[1])
     $preparationKeys=@('AVALONIA_TELEMETRY_OPTOUT','POWERSHELL_TELEMETRY_OPTOUT')
-    foreach($key in $preparationKeys){
+    $sdkEnvironment=[ordered]@{
+        DOTNET_GENERATE_ASPNET_CERTIFICATE='false';DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
+        DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK='true';VSTEST_DISABLE_ARTIFACTS_POSTPROCESSING='1'
+    }
+    foreach($key in @($preparationKeys)+@($sdkEnvironment.Keys)){
+        $shape=EnvironmentShape (ParseVariant $control)
+        $value=if($sdkEnvironment.Contains($key)){$sdkEnvironment[$key]}else{'1'}
         if(@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ieq $key}).Count -eq 0){
-            $control=$control.Insert($shape.table.Extent.StartOffset+2,"`n                "+$key+"='1';")
+            $control=$control.Insert($shape.table.Extent.StartOffset+2,"`n                "+$key+"='"+$value+"';")
         }
     }
     $positive=ParseVariant $control
@@ -360,6 +419,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     Case 'actual-run-powershell-environment' {AssertEnvironment $Prepare 'POWERSHELL_TELEMETRY_OPTOUT'}
     Case 'actual-launch-powershell-environment' {AssertEnvironment $Launch 'POWERSHELL_TELEMETRY_OPTOUT' $true}
     Case 'actual-build-vectors' {AssertBuildVectors $Prepare}
+    Case 'actual-test-discovery-suffix' {$null=BuildCalls (BuildBlock $Prepare)}
     Case 'controlled-run-avalonia-environment' {AssertEnvironment $positive 'AVALONIA_TELEMETRY_OPTOUT'}
     Case 'controlled-run-powershell-environment' {AssertEnvironment $positive 'POWERSHELL_TELEMETRY_OPTOUT'}
     Case 'controlled-launch-powershell-environment' {AssertEnvironment $launchPositive 'POWERSHELL_TELEMETRY_OPTOUT' $true}
@@ -367,6 +427,16 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     foreach($key in $preparationKeys){
         foreach($variant in (EnvironmentVariants $control $positive $key)){
             Case ('prepare-'+$key+'-'+$variant.name) {Reject $variant.code {AssertEnvironment (ParseVariant $variant.text) $key}}
+        }
+    }
+    foreach($key in $sdkEnvironment.Keys){
+        $value=$sdkEnvironment[$key]
+        Case ('actual-sdk-'+$key) {AssertEnvironment $Prepare $key $false $value}
+        Case ('controlled-sdk-'+$key) {AssertEnvironment $positive $key $false $value}
+        foreach($variant in (EnvironmentVariants $control $positive $key $false $value)){
+            Case ('sdk-'+$key+'-'+$variant.name) {
+                Reject $variant.code {AssertEnvironment (ParseVariant $variant.text) $key $false $value}
+            }
         }
     }
     foreach($variant in (EnvironmentVariants $launchControl $launchPositive 'POWERSHELL_TELEMETRY_OPTOUT' $true)){
@@ -390,6 +460,37 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     Case 'build-site-later-conflict' {
         Reject 'BuildTelemetry.BuildVectors' {AssertBuildVectors (ParseVariant $control.Replace($expectedCalls[0],$expectedCalls[0].Replace('+$common','+$common+@(''-p:UsedAvaloniaProducts=Other'')')))}
     }
+    foreach($userFlag in $userImportFlags){
+        $literal=",'"+$userFlag+"'"
+        $variants=@(
+            @{name='removed';text=$control.Replace($literal,'')}
+            @{name='enabled';text=$control.Replace($literal,$literal.Replace('=false','=true'))}
+            @{name='duplicate';text=$control.Replace($literal,$literal+$literal)}
+            @{name='reordered';text=$control.Replace($literal,'').Replace($flag,$literal+$flag)}
+        )
+        foreach($variant in $variants){
+            Case ('user-import-'+$userFlag+'-'+$variant.name) {
+                Reject 'BuildTelemetry.CommonPolicy' {AssertBuildVectors (ParseVariant $variant.text)}
+            }
+        }
+        $property=($userFlag.Substring(3) -split '=',2)[0]
+        Case ('local-user-import-'+$property) {
+            Reject 'BuildTelemetry.PropertyPropagation' {AssertPropertyPropagation ('<Project TreatAsLocalProperty="'+$property+'"/>')}
+        }
+        Case ('override-user-import-'+$property) {
+            Reject 'BuildTelemetry.PropertyPropagation' {AssertPropertyPropagation ('<Project><ProjectReference AdditionalProperties="'+$property+'=true"/></Project>')}
+        }
+    }
+    $discoveryVariants=@(
+        @{name='removed';text=$control.Replace($discoverySuffix,'')}
+        @{name='eager';text=$control.Replace($discoverySuffix,$discoverySuffix.Replace('=false','=true'))}
+        @{name='before-common';text=$control.Replace('+$common'+$discoverySuffix,$discoverySuffix+'+$common')}
+        @{name='missing-separator';text=$control.Replace($discoverySuffix,'+@(''xUnit.PreEnumerateTheories=false'')')}
+        @{name='publish-suffix';text=$control.Replace($expectedCalls[2],$expectedCalls[2].Replace('+$common','+$common'+$discoverySuffix))}
+    )
+    foreach($variant in $discoveryVariants){
+        Case ('discovery-'+$variant.name) {Reject 'BuildTelemetry.BuildVectors' {AssertBuildVectors (ParseVariant $variant.text)}}
+    }
     $xmlFixtures=@(
         @{name='ordinary-property';reject=$false;xml='<Project><PropertyGroup><UsedAvaloniaProducts>AvaloniaUI</UsedAvaloniaProducts></PropertyGroup></Project>'}
         @{name='unrelated-removal';reject=$false;xml='<Project><MSBuild RemoveProperties="Other" Properties="Unrelated=1"/></Project>'}
@@ -408,7 +509,64 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
             else{AssertPropertyPropagation $fixture.xml}
         }
     }
-    if($names.Count -ne 40){throw 'Build telemetry AST case inventory changed.'}
+    $bootstrapText=@'
+$PSModuleAutoLoadingPreference='None'
+foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')){
+    Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,$name+'.psd1')) -ErrorAction Stop
+}
+'@
+    $loaderControl=$Loader.Extent.Text
+    if(@($Loader.FindAll({param($node)
+        $node -is [Management.Automation.Language.AssignmentStatementAst] -and
+        $node.Left.Extent.Text -ceq '$PSModuleAutoLoadingPreference'
+    },$true)).Count -eq 0){
+        $loaderControl=$loaderControl.Insert($Loader.EndBlock.Statements[1].Extent.EndOffset,"`n"+$bootstrapText)
+    }
+    Case 'actual-loader-bootstrap' {AssertBootstrap $Loader}
+    Case 'controlled-loader-bootstrap' {AssertBootstrap (ParseVariant $loaderControl $Loader)}
+    $bootstrapVariants=@(
+        @{name='autoload-removed';text=$loaderControl.Replace('$PSModuleAutoLoadingPreference=''None''','')}
+        @{name='autoload-enabled';text=$loaderControl.Replace('$PSModuleAutoLoadingPreference=''None''','$PSModuleAutoLoadingPreference=''All''')}
+        @{name='unqualified-module';text=$loaderControl.Replace('([IO.Path]::Combine($PSHOME,''Modules'',$name,$name+''.psd1''))','$name')}
+        @{name='early-module-command';text=$loaderControl.Replace('$PSModuleAutoLoadingPreference=',"Join-Path 'owned' 'file'`n"+'$PSModuleAutoLoadingPreference=')}
+    )
+    foreach($variant in $bootstrapVariants){
+        Case ('bootstrap-'+$variant.name) {Reject 'BuildTelemetry.ModuleBootstrap' {AssertBootstrap (ParseVariant $variant.text $Loader)}}
+    }
+    foreach($role in @(
+        @{name='prepare';ast=$Prepare;launch=$false;expression='"$prefix.module-analysis-cache"'}
+        @{name='launch';ast=$Launch;launch=$true;expression='(Join-Path $launchRoot ''scratch\ModuleAnalysisCache'')'}
+    )){
+        $cacheControl=$role.ast.Extent.Text
+        $shape=EnvironmentShape $role.ast $role.launch
+        if(@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ieq 'PSModuleAnalysisCachePath'}).Count -eq 0){
+            $cacheControl=$cacheControl.Insert($shape.table.Extent.StartOffset+2,"`nPSModuleAnalysisCachePath="+$role.expression+";")
+        }
+        $cacheAst=ParseVariant $cacheControl $role.ast
+        Case ('actual-cache-'+$role.name) {AssertCache $role.ast $role.launch}
+        Case ('controlled-cache-'+$role.name) {AssertCache $cacheAst $role.launch}
+        $shape=EnvironmentShape $cacheAst $role.launch
+        $pair=@($shape.table.KeyValuePairs|Where-Object {$_.Item1.Value -ceq 'PSModuleAnalysisCachePath'})[0]
+        $begin=$pair.Item1.Extent.StartOffset;$end=$pair.Item2.Extent.EndOffset
+        if($end -lt $cacheControl.Length -and $cacheControl[$end] -eq ';'){$end++}
+        $removed=$cacheControl.Remove($begin,$end-$begin)
+        $clear=if($role.launch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
+        $population=if($role.launch){
+            'foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }'
+        }else{'foreach ($k in $environment.Keys) { $info.Environment[$k]=[string]$environment[$k] }'}
+        $variants=@(
+            @{name='removed';text=$removed;code='BuildTelemetry.ModuleCachePolicy'}
+            @{name='unowned';text=$removed.Insert($begin,'PSModuleAnalysisCachePath=''C:\other\ModuleAnalysisCache'';');code='BuildTelemetry.ModuleCachePolicy'}
+            @{name='nul';text=$removed.Insert($begin,'PSModuleAnalysisCachePath=''NUL'';');code='BuildTelemetry.ModuleCachePolicy'}
+            @{name='late-clear';text=$cacheControl.Replace($clear,'').Replace($population,$population+"`n"+$clear);code='BuildTelemetry.EnvironmentOrder'}
+        )
+        foreach($variant in $variants){
+            Case ('cache-'+$role.name+'-'+$variant.name) {
+                Reject $variant.code {AssertCache (ParseVariant $variant.text $role.ast) $role.launch}
+            }
+        }
+    }
+    if($names.Count -ne 128){throw 'Build telemetry AST case inventory changed.'}
     if($failures.Count){throw ('Build telemetry AST cases failed: '+($failures -join '; '))}
     return $names.Count
 }
@@ -451,7 +609,8 @@ function Invoke-PinnedScopeTests([string]$Root){
         if($failure -cne 'Worker deadline; terminate the runner boundary before app cleanup.' -or
             !$receipt.worker_stop_requested -or !$receipt.timed_out -or $receipt.worker_stop_reason -cne 'timeout:owned'){throw "Launcher invocation-local custody failed: $failure"}
     }
-    $telemetryCases=Invoke-PinnedBuildTelemetryTests $prepare $launch
+    $loader=ConvertTo-PinnedProofAst $fixture.buffers['WindowsDesktopProof\PinnedLoader.ps1'] (Join-Path $fixture.scripts 'WindowsDesktopProof\PinnedLoader.ps1')
+    $telemetryCases=Invoke-PinnedBuildTelemetryTests $prepare $launch $loader
     return (3+$telemetryCases)
 }
 

@@ -488,14 +488,21 @@ public class PatchManagerOperationGuardTests
         using var fixture = new Fixture();
         var vm = fixture.CreateViewModel("clean");
         var selection = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
-        Task<string> operation = vm.UninstallPatchAsync(() => selection.Task);
-        var data = fixture.Rom.Data;
-        if (rawArrayWrite) fixture.Rom.Data[0x300] = 0x42;
-        else fixture.Rom.write_u8(0x300, 0x42);
-        bool modified = fixture.Rom.Modified;
-        byte[] edited = (byte[])fixture.Rom.Data.Clone();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<string> operation = vm.UninstallPatchAsync(() =>
+        {
+            entered.SetResult();
+            Assert.True(ContentRepoGitService.IsRunning());
+            return selection.Task;
+        });
         try
         {
+            await entered.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            var data = fixture.Rom.Data;
+            if (rawArrayWrite) fixture.Rom.Data[0x300] = 0x42;
+            else fixture.Rom.write_u8(0x300, 0x42);
+            bool modified = fixture.Rom.Modified;
+            byte[] edited = (byte[])fixture.Rom.Data.Clone();
             Assert.False(operation.IsCompleted);
             Assert.True(ContentRepoGitService.IsRunning());
             selection.SetResult(fixture.CleanRom);

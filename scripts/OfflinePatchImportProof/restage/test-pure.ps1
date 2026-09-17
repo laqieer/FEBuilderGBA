@@ -27,6 +27,7 @@ $environmentSample=@{
     SystemRoot='C:\Windows';WINDIR='C:\Windows';ComSpec='C:\Windows\System32\cmd.exe'
     PATH='C:\ExampleHost;C:\Windows\System32';POWERSHELL_TELEMETRY_OPTOUT='1';POWERSHELL_UPDATECHECK='Off'
     PSModulePath='C:\ExampleHost\Modules'
+    PSModuleAnalysisCachePath='C:\owned\scratch\ModuleAnalysisCache'
     PATHEXT='.EXE;.CPL'
 }
 function Clone($x) { return ConvertFrom-RJson ($x | ConvertTo-Json -Depth 32 -Compress) }
@@ -319,7 +320,15 @@ $cases = @(
     @{name='outer-repeated-kill';reject=$true;run={$x=Clone $outerSample;$x.killAttempts=2;Assert-ROuter $x 'host' $sha}}
     @{name='outer-identity-refused';reject=$true;run={$x=Clone $outerSample;$x.image='wrong';Assert-ROuter $x 'host' $sha}}
     @{name='outer-missing-startticks';reject=$true;run={$x=Clone $outerSample;$x.startTicks=0;Assert-ROuter $x 'host' $sha}}
-    @{name='environment-valid';reject=$false;run={Assert-REnvironment $environmentSample 'C:\owned'}}
+    @{name='environment-valid';reject=$false;run={
+        Assert-REnvironment $environmentSample 'C:\owned'
+        foreach($value in @($null,'','C:\other\ModuleAnalysisCache','NUL')){
+            $x=Clone $environmentSample
+            if($null -eq $value){$null=$x.Remove('PSModuleAnalysisCachePath')}else{$x.PSModuleAnalysisCachePath=$value}
+            $rejected=$false;try{Assert-REnvironment $x 'C:\owned'}catch{$rejected=$true}
+            Assert-R $rejected 'Missing/unowned module cache accepted.'
+        }
+    }}
     @{name='environment-unexpected-key';reject=$true;run={$x=Clone $environmentSample;$x.EXTRA='not-a-secret';Assert-REnvironment $x 'C:\owned'}}
     @{name='environment-unowned-home';reject=$true;run={$x=Clone $environmentSample;$x.HOME='C:\other';Assert-REnvironment $x 'C:\owned'}}
     @{name='environment-unpinned-path';reject=$true;run={$x=Clone $environmentSample;$x.PATH='C:\other';Assert-REnvironment $x 'C:\owned'}}

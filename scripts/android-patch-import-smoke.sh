@@ -27,7 +27,7 @@ DEFINITION = (
 ).encode("utf-8")
 PAYLOAD = bytes([0xAA, 0x55])
 REMOTE_DIR = "/sdcard/Download/zipdb-import-proof"
-REMOTE_DIAGNOSTICS = "/sdcard/.zipdb-import-diagnostics-" + uuid.uuid4().hex
+REMOTE_DIAGNOSTICS = "/data/local/tmp/.zipdb-import-diagnostics-" + uuid.uuid4().hex
 DATABASE = "files/config/patch2/FE8U/proof/PATCH_offline.txt"
 
 parser = argparse.ArgumentParser(description=__doc__)
@@ -478,12 +478,11 @@ try:
     fixture_hashes = {p.name: sha(p) for p in (rom, valid, invalid)}
     if REMOTE_DIAGNOSTICS == REMOTE_DIR or REMOTE_DIAGNOSTICS.startswith(REMOTE_DIR + "/"):
         raise RuntimeError("Diagnostics must not be written inside the browsed fixture tree.")
-    # mkdir without -p refuses a collision; cleanup later removes only our two
-    # known files and this empty directory, never a recursive or shared path.
+    # mkdir without -p refuses a collision; cleanup later removes only our
+    # hierarchy file and this empty directory, never a recursive or shared path.
     adb("shell", "mkdir", REMOTE_DIAGNOSTICS)
     diagnostics_created = True
     report["owned_diagnostic_directory"] = REMOTE_DIAGNOSTICS
-    adb("shell", "touch", REMOTE_DIAGNOSTICS + "/.nomedia")
     report["diagnostics_outside_fixture_tree"] = True
     adb("shell", "wm", "size", "1280x800")
     adb("shell", "wm", "density", "160")
@@ -560,10 +559,8 @@ finally:
             report["stop_error"] = str(error)[:500]
     if diagnostics_created:
         try:
-            cleaned = True
-            for leaf in ("hierarchy.xml", ".nomedia"):
-                if adb("shell", "rm", "-f", REMOTE_DIAGNOSTICS + "/" + leaf, check=False).returncode:
-                    cleaned = False
+            cleaned = adb("shell", "rm", "-f", REMOTE_DIAGNOSTICS + "/hierarchy.xml",
+                          check=False).returncode == 0
             if adb("shell", "rmdir", REMOTE_DIAGNOSTICS, check=False).returncode:
                 cleaned = False
             report["diagnostics_cleaned"] = cleaned

@@ -139,6 +139,7 @@ function ProofEnvelope {
                 ProgramFiles=$proofConfiguration.machine.programFiles; 'ProgramFiles(x86)'=$proofConfiguration.machine.programFilesX86; ProgramW6432=$proofConfiguration.machine.programFiles
                 PATH="$($tools.systemRoot)\System32;$($tools.systemRoot);$($tools.dotnetRoot);$($tools.pshome);$([IO.Path]::GetDirectoryName($proofConfiguration.machine.gitPath))"
                 PSModulePath="$($tools.pshome)\Modules"; HOME="$control\home"; USERPROFILE="$control\home"
+                PSModuleAnalysisCachePath="$prefix.module-analysis-cache"
                 APPDATA="$control\home\AppData\Roaming"; LOCALAPPDATA="$control\home\AppData\Local"
                 TEMP="$control\temp"; TMP="$control\temp"; DOTNET_CLI_HOME="$control\home"
                 DOTNET_ROOT=$tools.dotnetRoot; DOTNET_ROOT_X64=$tools.dotnetRoot; DOTNET_MULTILEVEL_LOOKUP='0'
@@ -146,6 +147,8 @@ function ProofEnvelope {
                 AVALONIA_TELEMETRY_OPTOUT='1'
                 POWERSHELL_TELEMETRY_OPTOUT='1'
                 DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE='1'; DOTNET_ROLL_FORWARD='LatestPatch'
+                DOTNET_GENERATE_ASPNET_CERTIFICATE='false'; DOTNET_ADD_GLOBAL_TOOLS_TO_PATH='false'
+                DOTNET_SKIP_WORKLOAD_INTEGRITY_CHECK='true'; VSTEST_DISABLE_ARTIFACTS_POSTPROCESSING='1'
                 NUGET_PACKAGES=$plan.package_folders[0]; NUGET_FALLBACK_PACKAGES=$plan.package_folders[1]
                 NUGET_HTTP_CACHE_PATH="$control\home\nuget-http"; MSBuildEnableWorkloadResolver='false'
                 MSBuildSDKsPath="$($tools.dotnetRoot)\sdk\$($tools.sdk)\Sdks"
@@ -314,7 +317,7 @@ function ProofEnvelope {
                 JsonNew "$control\resource-sources.json" $resources
                 Fresh "$B\publish"; Fresh "$B\generator"
                 $testEvidence=[Collections.Generic.List[object]]::new()
-                $common=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false','-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false','-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false','-p:UsedAvaloniaProducts=')
+                $common=@('--no-restore','--disable-build-servers','-p:E2E_HOOKS=false','-p:UseSharedCompilation=false','-p:MSBuildEnableWorkloadResolver=false','-p:BuildProjectReferences=true','-p:ImportDirectoryBuildProps=false','-p:ImportDirectoryBuildTargets=false','-p:ImportDirectoryPackagesProps=false','-m:1','-nr:false','-p:UsedAvaloniaProducts=','-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonProps=false','-p:ImportUserLocationsByWildcardAfterMicrosoftCommonProps=false','-p:ImportUserLocationsByWildcardBeforeMicrosoftCommonTargets=false','-p:ImportUserLocationsByWildcardAfterMicrosoftCommonTargets=false','-p:ImportUserLocationsByWildcardBeforeMicrosoftCSharpTargets=false','-p:ImportUserLocationsByWildcardAfterMicrosoftCSharpTargets=false')
                 # Rebuild separately; dotnet test --no-build must not silently validate an old assembly.
                 foreach ($configuration in @('Debug','Release')) {
                     $project="$W\FEBuilderGBA.Avalonia.Tests\FEBuilderGBA.Avalonia.Tests.csproj"
@@ -322,7 +325,7 @@ function ProofEnvelope {
                     $testRoot="$W\FEBuilderGBA.Avalonia.Tests\bin\$configuration\net10.0"
                     $testFiles=@(foreach ($name in @('FEBuilderGBA.Avalonia.Tests.dll','FEBuilderGBA.Avalonia.Tests.deps.json','FEBuilderGBA.Avalonia.Tests.runtimeconfig.json','FEBuilderGBA.Avalonia.dll','FEBuilderGBA.Core.dll','FEBuilderGBA.SkiaSharp.dll','testhost.dll')) { Row (Child $testRoot $name) $name })
                     $trx="fixture-$($configuration.ToLowerInvariant()).trx"
-                    $null=Run $plan.dotnet (@('test',$project,'-c',$configuration,'--no-build','--filter','FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests','--logger',"trx;LogFileName=$trx",'--results-directory',"$control\tests")+$common) 180 $control $true
+                    $null=Run $plan.dotnet (@('test',$project,'-c',$configuration,'--no-build','--filter','FullyQualifiedName~FEBuilderGBA.Avalonia.Tests.SyntheticPatchImportFixtureTests','--logger',"trx;LogFileName=$trx",'--results-directory',"$control\tests")+$common+@('--','xUnit.PreEnumerateTheories=false')) 180 $control $true
                     $settings=[Xml.XmlReaderSettings]::new(); $settings.DtdProcessing=[Xml.DtdProcessing]::Prohibit; $settings.XmlResolver=$null
                     $reader=[Xml.XmlReader]::Create("$control\tests\$trx",$settings)
                     try { $xml=[Xml.XmlDocument]::new(); $xml.XmlResolver=$null; $xml.Load($reader) } finally { $reader.Dispose() }

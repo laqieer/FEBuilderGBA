@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Contract tests only: every subprocess is mocked; these never constitute device proof.
 set -euo pipefail
-exec python3 - <<'PY'
+exec "${PYTHON:-python3}" -B -E -S - <<'PY'
 import contextlib
 import hashlib
 import io
@@ -51,6 +51,8 @@ class Device:
         self.session_changed = False
         self.file_geometry_reads = 0
         self.diagnostics_dir = ""
+        self.diagnostics_children = set()
+        self.diagnostics_present = False
         self.hierarchy_bytes = b""
         self.hierarchy_in_fixture = False
 
@@ -169,18 +171,29 @@ class Device:
             if args[2:] == ["-p", "/sdcard/Download/zipdb-import-proof"]:
                 pass
             else:
-                assert len(args) == 3 and args[2].startswith("/sdcard/.zipdb-import-diagnostics-"), args
+                assert len(args) == 3 and re.fullmatch(
+                    r"/(?:sdcard|data/local/tmp)/\.zipdb-import-diagnostics-[0-9a-f]{32}", args[2]), args
                 assert not args[2].startswith("/sdcard/Download/zipdb-import-proof"), args
-                if self.mode == "diagnostic-directory-conflict":
+                if self.mode == "diagnostic-directory-conflict" or (
+                        self.mode == "diagnostic-shell-temp-only" and not args[2].startswith("/data/local/tmp/")):
                     status = 1
                 else:
                     self.diagnostics_dir = args[2]
+                    self.diagnostics_present = True
+                    if self.mode == "diagnostic-unknown-child":
+                        self.diagnostics_children.add("unowned-child")
         elif args[:2] == ["shell", "touch"]:
             assert args[2] == self.diagnostics_dir + "/.nomedia", args
-        elif args[:2] == ["shell", "rmdir"]:
-            assert self.diagnostics_dir and args[2] == self.diagnostics_dir, args
-            if self.mode == "diagnostic-cleanup-refused":
+            if self.mode == "diagnostic-shell-temp-only":
                 status = 1
+            else:
+                self.diagnostics_children.add(".nomedia")
+        elif args[:2] == ["shell", "rmdir"]:
+            assert len(args) == 3 and self.diagnostics_present and args[2] == self.diagnostics_dir, args
+            if self.mode == "diagnostic-cleanup-refused" or self.diagnostics_children:
+                status = 1
+            else:
+                self.diagnostics_present = False
         elif args[:3] == ["shell", "ls", "-A"]:
             assert args[3] == "/sdcard/Download/zipdb-import-proof", args
             out = "\n".join(sorted(self.documents)).encode()
@@ -216,9 +229,10 @@ class Device:
                           f"      targetUserId=0 sourcePkg=com.android.externalstorage targetPkg={PKG}"]
             out = "\n".join(lines).encode()
         elif args[:3] == ["shell", "rm", "-f"]:
-            assert self.diagnostics_dir and args[3] in (
+            assert len(args) == 4 and self.diagnostics_present and args[3] in (
                 self.diagnostics_dir + "/hierarchy.xml", self.diagnostics_dir + "/.nomedia"), args
             assert not args[3].startswith("/sdcard/Download/zipdb-import-proof/"), args
+            self.diagnostics_children.discard(args[3].rsplit("/", 1)[1])
             if args[3].endswith("/hierarchy.xml"):
                 self.hierarchy_present = False
                 self.hierarchy_bytes = b""
@@ -240,6 +254,7 @@ class Device:
                 # Keeping that write outside the visible tree preserves this geometry.
                 self.hierarchy_bytes = b"malformed hierarchy" if self.mode == "hierarchy-malformed" else self.ui()
                 self.hierarchy_present = True
+                self.diagnostics_children.add("hierarchy.xml")
         elif args[:2] == ["exec-out", "cat"]:
             assert self.hierarchy_present, "Do not read a missing or stale hierarchy."
             assert args[2] == self.diagnostics_dir + "/hierarchy.xml", args
@@ -352,9 +367,11 @@ cases = ["success", "wrong-avd", "physical", "existing-package", "wrong-package"
          "native-reader-overrun", "preexisting-grant", "stale-rom-grant", "app-session-changes",
          "geometry-shifts", "geometry-never-stable", "foreign-uid-grant", "uncontrolled-document-provider",
          "diagnostic-write-isolation", "diagnostic-directory-conflict", "diagnostic-cleanup-refused",
-         "fixture-generator-missing", "fixture-generator-fails", "fixture-receipt-mismatch"]
+         "fixture-generator-missing", "fixture-generator-fails", "fixture-receipt-mismatch",
+         "diagnostic-unknown-child", "diagnostic-shell-temp-only"]
 success_cases = {"success", "hierarchy-initially-empty", "primary-storage-picker", "native-reader-error",
-                 "preexisting-grant", "geometry-shifts", "diagnostic-write-isolation"}
+                 "preexisting-grant", "geometry-shifts", "diagnostic-write-isolation",
+                 "diagnostic-shell-temp-only"}
 try:
     interference = Device("diagnostic-write-isolation")
     interference.page = "rom-picker"
@@ -452,6 +469,19 @@ try:
                            for c in device.calls), mode
         if mode == "diagnostic-cleanup-refused":
             assert report["diagnostic_cleanup_error"] == "Owned diagnostic directory cleanup failed."
+        if mode == "diagnostic-unknown-child":
+            assert report["diagnostic_cleanup_error"] == "Owned diagnostic directory cleanup failed."
+            assert not report["diagnostics_cleaned"]
+            assert device.diagnostics_present and device.diagnostics_children == {"unowned-child"}
+        if mode == "diagnostic-shell-temp-only":
+            assert re.fullmatch(r"/data/local/tmp/\.zipdb-import-diagnostics-[0-9a-f]{32}",
+                                report["owned_diagnostic_directory"])
+            assert report["diagnostics_cleaned"] and not device.diagnostics_present
+            assert not device.diagnostics_children
+            assert not any(".nomedia" in argument for call in device.calls for argument in call)
+            assert not any(call[0] == "adb" and call[3] == "pull" for call in device.calls)
+            assert any(call[3:] == ["exec-out", "cat", device.diagnostics_dir + "/hierarchy.xml"]
+                       for call in device.calls if call[0] == "adb")
     print(f"Passed {len(cases)} fake-adb contract scenarios; no device was contacted.")
 finally:
     os.chdir(repo)
