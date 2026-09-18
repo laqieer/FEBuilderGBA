@@ -466,7 +466,9 @@ internal sealed class DesktopStartupAcquisition {
 
     def test_startup_acquisition_inventory_is_additive_in_both_public_routes(self):
         tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
-        self.assertIn("startupAcquisitionCaseNames.Count != 103", tests)
+        self.assertIn("startupAcquisitionCaseNames.Count != 115", tests)
+        self.assertIn("bf03596c4f1f37a75f440d50587f8372a5bd7ba1fdaa7af828dbd39879a95a2f", tests)
+        self.assertIn("startupAcquisitionCaseNames.GetRange(0, 103)", tests)
         self.assertIn("231875f268ba40c2423ba30541c789056c03c844cd890b553cb3ec6c00b89909", tests)
         self.assertIn("ProjectStartup(Model, tree)", tests)
         self.assertIn("Startup acquisition assertions failed:", tests)
@@ -474,9 +476,23 @@ internal sealed class DesktopStartupAcquisition {
             runner = (PACKAGE / name).read_text(encoding="utf-8")
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
-            self.assertRegex(runner, r"startupAcquisitionCases -ne 103")
+            self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
             for count in (146, 75, 39, 522):
                 self.assertIn(f"-ne {count}", runner)
+
+    def test_empty_startup_discovery_is_discarded_before_capture(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        acquisition = _cs_body(policy, r"\binternal sealed class DesktopStartupAcquisition\s*\{")
+        body = _cs_body(acquisition, r"\binternal bool TryDiscover<TNode>\([^{}]*\)"
+                        r"\s*where TNode : class\s*\{")
+        empty = _cs_body(body, r"\bif\s*\(\s*tree\.Windows\.Count == 0\s*\)\s*\{")
+        self.assertEqual(re.sub(r"\s+", "", _cs_mask(empty)),
+                         "Observation.InvalidateCandidate();Complete(newDesktopStartupDecision(),false);"
+                         "tree=null;returnfalse;")
+        self.assertLess(body.index("catch (DesktopTreeException ex)"),
+                        body.index("if (tree.Windows.Count == 0)"))
+        self.assertLess(body.index("if (tree.Windows.Count == 0)"), body.rindex("return true;"))
+        _assert_initial_discover_boundary(policy)
 
     def test_preparation_run_has_exact_sdk_side_effect_controls(self):
         source = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")

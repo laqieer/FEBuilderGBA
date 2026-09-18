@@ -174,7 +174,7 @@ function ProofEnvelope {
                     'daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7') 'Query diagnostic serialization inventory changed.'
                 [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
                 $report.startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
-                if($report.startupAcquisitionCases -ne 103){throw 'Startup acquisition case inventory changed.'}
+                if($report.startupAcquisitionCases -ne 115){throw 'Startup acquisition case inventory changed.'}
                 [DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()
             } else {
                 $support="$owned\support"

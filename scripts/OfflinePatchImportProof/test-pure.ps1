@@ -140,7 +140,7 @@ function ProofEnvelope {
         [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
         if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 522) { throw 'Incomplete original pure case inventory.' }
         $startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
-        if($startupAcquisitionCases -ne 103){throw 'Startup acquisition case inventory changed.'}
+        if($startupAcquisitionCases -ne 115){throw 'Startup acquisition case inventory changed.'}
         [DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()
         . (Join-Path $PSScriptRoot 'restage\RestagePolicy.ps1')
         $imageReportingCases=Invoke-RetainedImageReportingTests

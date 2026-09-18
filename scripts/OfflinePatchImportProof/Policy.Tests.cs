@@ -879,10 +879,11 @@ public static class DesktopPolicyTests
             {
                 if (!Acquisition.TryDiscover(Model, 7, "loading-handoff", Guard, Record, out var tree))
                 {
-                    AcquisitionAssert(tree == null && Acquisition.RetainedUnavailable != null,
+                    AcquisitionAssert(tree == null &&
+                        (!Acquisition.Recovering || Acquisition.RetainedUnavailable != null),
                         "WholeFailedTreeDiscarded");
                     Guard(); Tails++; At += 25;
-                    return "unavailable";
+                    return Acquisition.Recovering ? "unavailable" : "not-ready";
                 }
                 afterDiscover?.Invoke();
                 LastSample = ProjectStartup(Model, tree);
@@ -1375,6 +1376,140 @@ public static class DesktopPolicyTests
             AcquisitionAssert(f.Terminal == null && actual.Failure.Predicate == "query-native-gone" &&
                 f.Acquisition.Used == 1, "RecoveryEvidenceIsNotTerminalLatch");
         });
+        Case("empty-discover-discards-before-capture", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.SeedResults = seeds =>
+            {
+                if (f.Model.SeedQueries == 1) return Array.Empty<OwnedNode>();
+                f.Model.Native[100].Alive = false;
+                f.Model.Native[100].Pid = 0;
+                return seeds;
+            };
+            f.Expect('C', "not-ready", 0, false);
+            AcquisitionAssert(f.Model.SeedQueries == 1 && f.LastSample == null &&
+                f.Terminal == null && f.Events.Count == 0 && f.Tails == 1 &&
+                f.Acquisition.RetainedUnavailable == null, "EmptyTreeNeverEntersCapture");
+        });
+        Case("empty-discover-followed-by-fresh-unavailable", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.SeedNodes.Clear();
+            f.Expect('C', "not-ready", 0, false);
+            AcquisitionAssert(f.Model.SeedQueries == 1 && f.LastSample == null, "OneEmptyQuery");
+            f.Model.SeedNodes.Add(f.Model.Main);
+            f.Expect('U', "unavailable", 0, true);
+            AcquisitionAssert(f.Events.Count == 1 && f.Terminal == null, "FreshDiscoverOwnsRecovery");
+            f.Expect('C', "candidate", 1, true);
+            f.Expect('A', "accepted", 2, false, true);
+        });
+        Case("repeated-empty-discover-stays-uncharged", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.SeedNodes.Clear();
+            for (int poll = 1; poll <= 5; poll++)
+            {
+                f.Expect('C', "not-ready", 0, false);
+                AcquisitionAssert(f.Model.SeedQueries == poll && f.LastSample == null &&
+                    f.Tails == poll && f.Events.Count == 0 && f.Acquisition.RetainedUnavailable == null,
+                    "OneQueryPerGuardedEmptyPoll");
+            }
+        });
+        Case("empty-acceptance-invalidates-candidate", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('C', "candidate", 0, false);
+            f.Model.SeedNodes.Clear();
+            int queries = f.Model.SeedQueries;
+            f.Expect('A', "not-ready", 0, false, true);
+            AcquisitionAssert(f.Model.SeedQueries == queries + 1 && f.LastSample == null &&
+                f.Dispatches == 0, "EmptyAcceptanceDoesNotProject");
+            AcquisitionError(() => f.Observation.Revalidate(f.At, Array.Empty<DesktopStartupRoot>(), false),
+                "startup-acceptance-candidate");
+        });
+        Case("empty-acceptance-requires-new-ordinary-pair", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('C', "candidate", 0, false);
+            f.Model.SeedNodes.Clear();
+            f.Expect('A', "not-ready", 0, false, true);
+            AcquisitionAssert(f.LastSample == null && f.Dispatches == 0, "EmptyIsNeverAcceptance");
+            f.Model.SeedNodes.Add(f.Model.Main);
+            f.Expect('C', "candidate", 0, false);
+            f.Expect('A', "accepted", 0, false, true);
+        });
+        for (int charge = 1; charge <= 3; charge++)
+            Case("empty-recovery-charge-" + charge + "-retained", () =>
+            {
+                var f = new StartupAcquisitionFixture();
+                f.Expect('U', "unavailable", 0, true);
+                for (int used = 1; used < charge; used++) f.Expect('U', "unavailable", used, true);
+                var retained = f.Acquisition.RetainedUnavailable;
+                f.Model.SeedNodes.Clear();
+                int queries = f.Model.SeedQueries;
+                f.Expect('C', "not-ready", charge, false);
+                AcquisitionAssert(f.LastSample == null && f.Model.SeedQueries == queries + 1 &&
+                    ReferenceEquals(retained, f.Acquisition.RetainedUnavailable) && f.Events.Count == charge,
+                    "EmptyEndsRecoveryWithoutRefundOrEvidenceReset");
+                f.Model.SeedNodes.Add(f.Model.Main);
+                f.Expect('C', "candidate", charge, false);
+                f.Expect('A', "accepted", charge, false, true);
+            });
+        Case("empty-at-charge3-new-unavailable-is-terminal", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Expect('U', "unavailable", 0, true);
+            f.Expect('U', "unavailable", 1, true);
+            f.Expect('U', "unavailable", 2, true);
+            var prior = f.Acquisition.RetainedUnavailable;
+            f.Model.SeedNodes.Clear();
+            f.Expect('C', "not-ready", 3, false);
+            AcquisitionAssert(f.LastSample == null, "LastChargeEmptyIsDiscarded");
+            f.Model.SeedNodes.Add(f.Model.Main);
+            f.Expect('U', "terminal", 3, false);
+            AcquisitionAssert(f.TerminalCode == "query-native-gone" &&
+                !ReferenceEquals(prior, f.Terminal) && f.Events.Count == 3,
+                "EmptyDoesNotRestoreRecoveryBudget");
+        });
+        Case("empty-discover-preserves-loading-and-bindings", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.MainButton.Offscreen = true;
+            f.Model.Add(f.Model.Main, 5, 0, DesktopSelector.Loading);
+            var sample = ProjectStartup(f.Model);
+            AcquisitionAssert(!sample.Observe(f.Observation, 1, true, false).Ready &&
+                f.Observation.LoadingObserved, "LoadingHistoryEstablished");
+            string windowClass = f.Model.Bindings.Expected(100, DesktopRootKind.Avalonia);
+            f.Model.SeedNodes.Clear();
+            f.Expect('N', "not-ready", 0, false);
+            AcquisitionAssert(f.LastSample == null && f.Observation.LoadingObserved &&
+                f.Observation.LoadingHandle == 100 && f.Observation.LoadingAt == 1 &&
+                f.Model.Bindings.HasCanonical(100) &&
+                f.Model.Bindings.Expected(100, DesktopRootKind.Avalonia) == windowClass,
+                "EmptyPreservesStickyLoadingAndCanonicalBindings");
+        });
+        Case("empty-discover-guard-precedes-provider-read", () =>
+        {
+            var f = new StartupAcquisitionFixture { At = 45000 };
+            f.Model.SeedNodes.Clear();
+            f.Expect('C', "terminal", 0, false);
+            AcquisitionAssert(f.TerminalCode == "deadline" && f.Model.SeedQueries == 0 &&
+                f.Model.Reads.Count == 0 && f.Events.Count == 0, "EmptyCannotBypassGuard");
+        });
+        Case("nonempty-capture-native-gone-stays-terminal-after-empty", () =>
+        {
+            var f = new StartupAcquisitionFixture();
+            f.Model.SeedNodes.Clear();
+            f.Expect('C', "not-ready", 0, false);
+            f.Model.SeedNodes.Add(f.Model.Main);
+            AcquisitionAssert(f.Step('C', afterDiscover: () =>
+            {
+                f.Model.Native[100].Alive = false; f.Model.Native[100].Pid = 0;
+            }) == "terminal" && f.TerminalCode == "query-native-gone" &&
+                f.Acquisition.Used == 0 && !f.Acquisition.Recovering &&
+                f.Acquisition.RetainedUnavailable == null && f.Events.Count == 0 && f.Dispatches == 0,
+                "EmptyDoesNotBroadenNonemptyCaptureRecovery");
+        });
         return startupAcquisitionCaseNames.Count;
     }
 
@@ -1382,9 +1517,13 @@ public static class DesktopPolicyTests
     {
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", startupAcquisitionCaseNames)))).ToLowerInvariant();
-        if (startupAcquisitionCaseNames.Count != 103 ||
-            digest != "231875f268ba40c2423ba30541c789056c03c844cd890b553cb3ec6c00b89909")
+        if (startupAcquisitionCaseNames.Count != 115 ||
+            digest != "bf03596c4f1f37a75f440d50587f8372a5bd7ba1fdaa7af828dbd39879a95a2f")
             throw new InvalidOperationException("Startup acquisition case inventory changed.");
+        string originalDigest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", startupAcquisitionCaseNames.GetRange(0, 103))))).ToLowerInvariant();
+        if (originalDigest != "231875f268ba40c2423ba30541c789056c03c844cd890b553cb3ec6c00b89909")
+            throw new InvalidOperationException("Original startup acquisition case prefix changed.");
         if (startupAcquisitionCaseFailures.Count != 0)
             throw new InvalidOperationException("Startup acquisition assertions failed: " +
                 string.Join("; ", startupAcquisitionCaseFailures));

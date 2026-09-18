@@ -798,6 +798,14 @@ internal sealed class DesktopStartupAcquisition
             tree = null;
             return false;
         }
+        if (tree.Windows.Count == 0)
+        {
+            // Reacquire empty snapshots through the guarded loop, not capture-time refreshes.
+            Observation.InvalidateCandidate();
+            Complete(new DesktopStartupDecision(), false);
+            tree = null;
+            return false;
+        }
         return true;
     }
 
