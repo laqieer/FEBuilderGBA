@@ -57,7 +57,7 @@ class Device:
         self.hierarchy_in_fixture = False
 
     def monotonic(self):
-        self.clock += 0.2
+        self.clock += 0.05 if self.mode == "picker-action-geometry-never-stable" else 0.2
         return self.clock
 
     def ui(self):
@@ -110,11 +110,74 @@ class Device:
                     y += 50
                 if self.mode == "geometry-never-stable" and self.file_geometry_reads % 2:
                     y += 50
-            self.tap_actions[(50, y + 10)] = action
-            ET.SubElement(tree, "node", {
+            attributes = {
                 "resource-id": identifier, "text": label, "content-desc": "",
                 "enabled": "true", "bounds": f"[10,{y}][90,{y+20}]",
-            })
+            }
+            fixture = label in ("zipdb-proof.gba", "zipdb-valid.zip", "zipdb-invalid.zip")
+            if fixture:
+                attributes.update({"package": "com.google.android.documentsui", "clickable": "true"})
+            nested = fixture and self.mode.startswith("picker-") and (
+                self.mode != "picker-caption-obscured" or self.version == 2)
+            if not nested:
+                self.tap_actions[(50, y + 10)] = action
+                ET.SubElement(tree, "node", attributes)
+                continue
+
+            package = ("com.android.documentsui" if self.mode == "picker-aosp-action-parent"
+                       else "com.google.android.documentsui")
+            attributes.update({"resource-id": "android:id/title", "package": package, "clickable": "false"})
+            action_bounds = [0, y - 10, 120, y + 40]
+            if self.mode == "picker-caption-obscured":
+                attributes["bounds"] = "[694,752][794,771]"
+                action_bounds = [650, 400, 850, 790]
+            elif self.mode == "picker-action-geometry-shifts" and self.file_geometry_reads <= 2:
+                action_bounds[2] = 140
+            elif self.mode == "picker-action-geometry-never-stable" and self.file_geometry_reads % 2:
+                action_bounds[2] = 140
+            elif self.mode == "picker-caption-outside-action":
+                action_bounds[3] = y + 10
+            elif self.mode == "picker-invalid-action-bounds":
+                action_bounds[2] = 0
+            x1, y1, x2, y2 = action_bounds
+            action_attributes = {
+                "resource-id": package + ":id/item_root", "text": "", "content-desc": "",
+                "enabled": "true", "clickable": "true", "package": package,
+                "bounds": f"[{x1},{y1}][{x2},{y2}]",
+            }
+            if self.mode == "picker-disabled-action-parent":
+                action_attributes["enabled"] = "false"
+            elif self.mode == "picker-foreign-action-parent":
+                action_attributes["package"] = "com.android.systemui"
+            elif self.mode == "picker-missing-action-package":
+                del action_attributes["package"]
+            elif self.mode == "picker-missing-action-clickable":
+                del action_attributes["clickable"]
+            caption_bounds = list(map(int, re.findall(r"\d+", attributes["bounds"])))
+            caption_point = ((caption_bounds[0] + caption_bounds[2]) // 2,
+                             (caption_bounds[1] + caption_bounds[3]) // 2)
+            self.tap_actions[caption_point] = "inert-caption"
+            self.tap_actions[((x1 + x2) // 2, (y1 + y2) // 2)] = action
+            if self.mode == "picker-missing-action-parent":
+                ET.SubElement(tree, "node", attributes)
+                continue
+            parent = ET.SubElement(tree, "node", action_attributes)
+            if self.mode == "picker-action-depth-bound":
+                for _ in range(17):
+                    parent = ET.SubElement(parent, "node", {
+                        **action_attributes, "resource-id": "", "clickable": "false",
+                    })
+            ET.SubElement(parent, "node", attributes)
+            if self.mode == "picker-ambiguous-caption":
+                ET.SubElement(tree, "node", {
+                    **attributes, "clickable": "true", "bounds": "[200,20][280,40]",
+                })
+                self.tap_actions[(240, 30)] = action
+            if self.mode in ("picker-shared-action-parent", "picker-overlapping-action-rectangle"):
+                target = parent if self.mode == "picker-shared-action-parent" else tree
+                ET.SubElement(target, "node", {
+                    **attributes, "text": "other-document.txt", "bounds": f"[10,{y+25}][90,{y+35}]",
+                })
         return ET.tostring(tree, encoding="utf-8", xml_declaration=True)
 
     def run(self, argv, **kwargs):
@@ -369,9 +432,15 @@ cases = ["success", "wrong-avd", "physical", "existing-package", "wrong-package"
          "diagnostic-write-isolation", "diagnostic-directory-conflict", "diagnostic-cleanup-refused",
          "fixture-generator-missing", "fixture-generator-fails", "fixture-receipt-mismatch",
          "diagnostic-unknown-child", "diagnostic-shell-temp-only"]
+cases += ["picker-caption-obscured", "picker-aosp-action-parent", "picker-missing-action-parent",
+          "picker-disabled-action-parent", "picker-foreign-action-parent", "picker-missing-action-package",
+          "picker-missing-action-clickable", "picker-ambiguous-caption", "picker-shared-action-parent",
+          "picker-overlapping-action-rectangle", "picker-caption-outside-action", "picker-invalid-action-bounds",
+          "picker-action-geometry-shifts", "picker-action-geometry-never-stable", "picker-action-depth-bound"]
 success_cases = {"success", "hierarchy-initially-empty", "primary-storage-picker", "native-reader-error",
                  "preexisting-grant", "geometry-shifts", "diagnostic-write-isolation",
-                 "diagnostic-shell-temp-only"}
+                 "diagnostic-shell-temp-only", "picker-caption-obscured", "picker-aosp-action-parent",
+                 "picker-action-geometry-shifts"}
 try:
     interference = Device("diagnostic-write-isolation")
     interference.page = "rom-picker"
@@ -455,6 +524,27 @@ try:
         if mode == "geometry-never-stable":
             assert "stable fixture geometry" in report["error"], report
             assert "rom" not in device.actions
+        if mode.startswith("picker-"):
+            assert "inert-caption" not in device.actions, (mode, device.actions)
+            if mode not in success_cases:
+                assert "rom" not in device.actions, (mode, device.actions)
+            else:
+                assert all(target["action_package"] in ("com.android.documentsui", "com.google.android.documentsui")
+                           for target in report["picker_targets"]), report
+        if mode == "picker-caption-obscured":
+            rom_targets = [target for target in report["picker_targets"]
+                           if target["expected_document"] == "zipdb-proof.gba"]
+            assert len(rom_targets) == 3
+            assert rom_targets[-1]["bounds"] == "[694,752][794,771]"
+            assert rom_targets[-1]["action_bounds"] == "[650,400][850,790]"
+            assert rom_targets[-1]["tap"] == [750, 595]
+        if mode == "picker-aosp-action-parent":
+            assert all(target["action_package"] == "com.android.documentsui"
+                       for target in report["picker_targets"]), report
+        if mode == "picker-action-geometry-shifts":
+            assert len(report["picker_targets"][0]["geometry_samples"]) >= 3
+        if mode == "picker-action-geometry-never-stable":
+            assert "eight fresh snapshots" in report["error"], report
         if mode == "foreign-uid-grant":
             assert "new URI grant for the same live app session" in report["error"], report
         if mode == "uncontrolled-document-provider":

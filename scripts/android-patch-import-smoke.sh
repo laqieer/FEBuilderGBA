@@ -171,28 +171,80 @@ def tap_fixture(filename):
     samples = []
     previous = None
 
+    def bounds(node):
+        match = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+        if match:
+            box = tuple(map(int, match.groups()))
+            if box[2] > box[0] and box[3] > box[1]:
+                return box
+        return None
+
+    def contains(outer, inner):
+        return (outer[0] <= inner[0] and outer[1] <= inner[1]
+                and outer[2] >= inner[2] and outer[3] >= inner[3])
+
+    def fixture_target():
+        snapshot = nodes()
+        packages = ("com.google.android.documentsui", "com.android.documentsui")
+        captions = [node for node in snapshot
+                    if filename in (node.get("text", ""), node.get("content-desc", ""))
+                    and node.get("package") in packages and node.get("enabled") == "true"
+                    and bounds(node) is not None]
+        if not captions:
+            return None
+        if len(captions) != 1:
+            raise RuntimeError("Fixture document caption is ambiguous.")
+        caption = captions[0]
+        caption_bounds = bounds(caption)
+        caption_id = caption.get("resource-id", "")
+        parents = {child: parent for parent in snapshot for child in parent if child.tag == "node"}
+        action = caption
+        for _ in range(16):
+            if action is None:
+                break
+            if action.get("package") != caption.get("package") or action.get("enabled") != "true":
+                raise RuntimeError("Fixture action ancestry is disabled or outside DocumentsUI.")
+            if action.get("clickable") == "true":
+                action_bounds = bounds(action)
+                if action_bounds is None or not contains(action_bounds, caption_bounds):
+                    raise RuntimeError("Fixture action does not contain its document caption.")
+                for other in snapshot:
+                    if other is caption or other.get("package") != caption.get("package"):
+                        continue
+                    document_caption = (caption_id and other.get("resource-id") == caption_id) or any(
+                        value in fixture_hashes for value in (other.get("text", ""), other.get("content-desc", "")))
+                    other_bounds = bounds(other) if document_caption else None
+                    if other_bounds is not None and contains(action_bounds, other_bounds):
+                        raise RuntimeError("Fixture action rectangle contains another document caption.")
+                return dict(caption.attrib), dict(action.attrib)
+            action = parents.get(action)
+        raise RuntimeError("No enabled clickable fixture item within the bounded caption ancestry.")
+
     def stable_target():
         nonlocal previous
-        node = find_node(label=filename)
-        if not node:
+        target = fixture_target()
+        if not target:
             previous = None
             return None
+        node, action = target
         signature = (node["bounds"], node.get("resource-id", ""), node.get("package", ""),
-                     node.get("text") == filename, node.get("content-desc") == filename)
+                     node.get("text") == filename, node.get("content-desc") == filename,
+                     action["bounds"], action.get("resource-id", ""), action["package"],
+                     action.get("class", ""))
         samples.append({"bounds": node["bounds"], "text_matches": signature[3],
-                        "description_matches": signature[4]})
+                        "description_matches": signature[4], "action_bounds": action["bounds"]})
         if signature == previous:
-            return node
+            return target
         previous = signature
         if len(samples) >= 8:
             raise RuntimeError("No stable fixture geometry after eight fresh snapshots.")
         return None
 
-    node = wait_for(stable_target, "stable fixture geometry for " + filename)
+    node, action = wait_for(stable_target, "stable fixture geometry for " + filename)
     targets = report.setdefault("picker_targets", [])
     if len(targets) >= 32:
         raise RuntimeError("Unexpectedly many fixture picker targets.")
-    x1, y1, x2, y2 = map(int, re.findall(r"\d+", node["bounds"]))
+    x1, y1, x2, y2 = bounds(action)
     targets.append({
         "expected_document": filename, "bounds": node["bounds"],
         "tap": [(x1 + x2) // 2, (y1 + y2) // 2],
@@ -200,9 +252,12 @@ def tap_fixture(filename):
         "description_matches": node.get("content-desc") == filename,
         "resource_id": node.get("resource-id", ""),
         "package": node.get("package", ""),
+        "action_bounds": action["bounds"],
+        "action_resource_id": action.get("resource-id", ""),
+        "action_package": action["package"],
         "geometry_samples": samples,
     })
-    tap_node(node)
+    tap_node(action)
 
 
 def pick_document(filename):
