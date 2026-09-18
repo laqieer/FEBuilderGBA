@@ -80,6 +80,7 @@ function ProofEnvelope {
             Plain $parent
         }
         function CopyPinned([string]$source,[string]$destination,$row) {
+            Assert-ProofPublicResource $row.path
             Verify $source $row; MakeParent $destination
             [IO.File]::Copy($source,$destination,$false)
             Verify $source $row; Verify $destination $row
@@ -99,6 +100,8 @@ function ProofEnvelope {
                     Plain $p
                     $rel=[IO.Path]::GetRelativePath($root,$p)
                     if ($projection -and ((Excluded $rel) -or ($root -ceq "$W\config" -and $rel -match '^patch2(\\|$)'))) { continue }
+                    $ownedFixture=$root -ceq "$D\inputs-$Id\desktop-proof-$Id"
+                    Assert-ProofPublicResource $(if($ownedFixture){'fixtures\'+$rel}else{$rel}) -SyntheticFixture:$ownedFixture
                     if ([IO.Directory]::Exists($p)) { $todo.Push($p); continue }
                     $r=Row $p $rel; $bytes+=$r.bytes; $rows.Add($r)
                     $maxFiles=if ($root -ceq "$B\publish" -and !$projection) { 100000 } else { 10000 }

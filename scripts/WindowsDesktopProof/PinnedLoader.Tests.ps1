@@ -6,10 +6,10 @@ function Write-PinnedTestJson([string]$Path,$Value){
     [IO.File]::WriteAllText($Path,($Value|ConvertTo-Json -Depth 8 -Compress),[Text.UTF8Encoding]::new($false))
     return Get-PinnedTestPin $Path
 }
-function New-PinnedProofFixture([string]$Root){
+function New-PinnedProofFixture([string]$Root,[switch]$Prepared){
     $scripts=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $target=Join-Path $Root 'scripts';$buffers=@{}
-    $rows=@(foreach($name in Get-PinnedProofFiles){
+    $rows=@(foreach($name in Get-PinnedProofFiles -Prepared:$Prepared){
         $path=Join-Path $target $name
         [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($path))
         $bytes=[IO.File]::ReadAllBytes((Join-Path $scripts $name));$buffers[$name]=$bytes
@@ -17,7 +17,7 @@ function New-PinnedProofFixture([string]$Root){
         $pin=Get-PinnedTestPin $path
         @{path=$name;bytes=$pin.bytes;sha256=$pin.sha256}
     })
-    $closure=Write-PinnedTestJson (Join-Path $Root 'closure.json') @{schema='pinned-proof-closure-v1';files=$rows}
+    $closure=Write-PinnedTestJson (Join-Path $Root 'closure.json') @{schema=$(if($Prepared){'pinned-prepared-closure-v1'}else{'pinned-proof-closure-v1'});files=$rows}
     $loader=Join-Path $target 'WindowsDesktopProof\PinnedLoader.ps1'
     $ast=ConvertTo-PinnedProofAst $buffers['WindowsDesktopProof\PinnedLoader.ps1'] $loader
     return @{root=$Root;scripts=$target;rows=$rows;buffers=$buffers;closure=$closure;loader=$ast.GetScriptBlock()}
@@ -41,7 +41,7 @@ function Invoke-PinnedDependencyRegression([string]$Root) {
     $owned=Join-Path $Root 'dependency-regression'
     $rows=@(foreach($package in @('OfflinePatchImportProof','WindowsDesktopProof')){
         foreach($file in [IO.Directory]::GetFiles((Join-Path $scripts $package),'*',[IO.SearchOption]::AllDirectories)){
-            if([IO.Path]::GetExtension($file) -cnotin @('.ps1','.cs')){continue}
+            if([IO.Path]::GetExtension($file) -cnotin @('.ps1','.cs') -or [IO.Path]::GetFileName($file).StartsWith('PreparedLaunch.',[StringComparison]::Ordinal)){continue}
             $relative=[IO.Path]::GetRelativePath($scripts,$file).Replace([IO.Path]::DirectorySeparatorChar,'\')
             $destination=Join-Path $owned $relative
             [void][IO.Directory]::CreateDirectory([IO.Path]::GetDirectoryName($destination))
@@ -177,7 +177,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
         $assignment=Assignment $runs[0].Body environment
         Require ($assignment.Right -is [Management.Automation.Language.CommandExpressionAst] -and
             $assignment.Right.Expression -is [Management.Automation.Language.HashtableAst]) 'BuildTelemetry.Structure'
-        return @{run=$runs[0];assignment=$assignment;table=$assignment.Right.Expression}
+        return @{run=$runs[0];assignment=$assignment;table=$assignment.Right.Expression;ast=$Ast}
     }
     function LiteralArray($Ast){
         $allowed=@('CommandExpressionAst','ArrayExpressionAst','StatementBlockAst','PipelineAst',
@@ -218,7 +218,7 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     }
     function AssertEnvironmentOrder($shape,[bool]$IsLaunch=$false){
         $clearText=if($IsLaunch){'$start.Environment.Clear()'}else{'$info.Environment.Clear()'}
-        $startText=if($IsLaunch){'[Diagnostics.Process]::Start($start)'}else{'$p.Start()'}
+        $startText=if($IsLaunch){'Invoke-ProofSupervisedRunner'}else{'$p.Start()'}
         $populateText=if($IsLaunch){
             'foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }'
         }else{'foreach ($k in $environment.Keys) { $info.Environment[$k]=[string]$environment[$k] }'}
@@ -228,9 +228,18 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
             $node.Extent.Text -ceq $clearText
         },$true))
         $start=@($shape.run.Body.FindAll({param($node)
-            $node -is [Management.Automation.Language.InvokeMemberExpressionAst] -and
+            ($node -is [Management.Automation.Language.InvokeMemberExpressionAst] -or
+                ($IsLaunch -and $node -is [Management.Automation.Language.CommandAst])) -and
             $node.Extent.Text -ceq $startText
         },$true))
+        if($IsLaunch){
+            $shared=@($shape.ast.FindAll({param($node)
+                $node -is [Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -ceq 'Invoke-ProofSupervisedRunner'
+            },$true))
+            Require ($shared.Count -eq 1 -and
+                [regex]::Matches($shared[0].Body.Extent.Text,'\[Diagnostics\.Process\]::Start\(\$start\)').Count -eq 1 -and
+                $shared[0].Body.Extent.Text -notmatch '\.Environment') 'BuildTelemetry.SharedRunner'
+        }
         $populate=@($shape.run.Body.FindAll({param($node)
             $node -is [Management.Automation.Language.ForEachStatementAst] -and
             ($node.Extent.Text -replace '\s+',' ').Trim() -ceq $populateText
@@ -355,6 +364,8 @@ function Invoke-PinnedBuildTelemetryTests([Management.Automation.Language.Script
     function AssertBootstrap($Ast){
         try{
             $statements=@($Ast.EndBlock.Statements)
+            Require ($statements[1].Extent.Text -ceq '$PinnedProofEntryTicks=[Diagnostics.Stopwatch]::GetTimestamp()') 'Bootstrap monotonic entry.'
+            $statements=@($statements[0])+@($statements|Select-Object -Skip 2)
             Require ($statements.Count -ge 4 -and
                 $statements[0].Extent.Text -ceq '$ErrorActionPreference=''Stop''' -and
                 $statements[1].Extent.Text -ceq 'Set-StrictMode -Version Latest' -and

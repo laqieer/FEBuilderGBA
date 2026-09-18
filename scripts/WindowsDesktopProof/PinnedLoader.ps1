@@ -3,19 +3,25 @@ param([string]$Mode,[long]$CommandBytes,[string]$CommandSha256,
     [string]$BindingsPath,[long]$BindingsBytes,[string]$BindingsSha256,
     [string]$ClosurePath,[long]$ClosureBytes,[string]$ClosureSha256)
 $ErrorActionPreference='Stop'
+$PinnedProofEntryTicks=[Diagnostics.Stopwatch]::GetTimestamp()
 Set-StrictMode -Version Latest
 $PSModuleAutoLoadingPreference='None'
 foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')){
     Import-Module ([IO.Path]::Combine($PSHOME,'Modules',$name,$name+'.psd1')) -ErrorAction Stop
 }
 
-function Get-PinnedProofFiles {
+function Get-PinnedProofFiles([switch]$Prepared) {
     foreach($name in @('Desktop.cs','Policy.cs','Policy.Tests.cs','Readiness.cs','RuntimeBinding.ps1','RuntimeBinding.Tests.ps1',
         'ProcessImage.ps1','ProcessImage.Tests.ps1','prepare.ps1','validate-helper.ps1','run.ps1','launch.ps1','test-pure.ps1',
         'Configuration.ps1','Configuration.Tests.ps1','restage\RestagePolicy.ps1','restage\restage.ps1','restage\test-pure.ps1',
         'supervision\NonCopySupervisor.ps1','supervision\RestageSupervisor.ps1')){"OfflinePatchImportProof\$name"}
     'WindowsDesktopProof\PinnedLoader.ps1'
     'WindowsDesktopProof\PinnedLoader.Tests.ps1'
+    if($Prepared){
+        foreach($name in @('PreparedLaunch.ps1','PreparedLaunch.cs','PreparedLaunch.Tests.ps1','PreparedLaunch.Tests.cs')){
+            "OfflinePatchImportProof\$name"
+        }
+    }
 }
 function Read-PinnedLoaderBytes {
     param([string]$Path,[long]$Length,[string]$Sha256,[long]$Maximum)
@@ -80,6 +86,14 @@ function Get-PinnedProofDispatch([string]$Mode){
     $validate=$configuration+@('id','sourceManifestSha256','helperSourceManifestSha256')
     $file=$null;$entry=$null;$required=@();$fixed=@{}
     switch -CaseSensitive ($Mode){
+        PrepareBundle {$file='PreparedLaunch.ps1';$entry='Invoke-PrepareBundleEntry';$required=$configuration}
+        PrepareWorkspace {$file='PreparedLaunch.ps1';$entry='Invoke-PrepareWorkspaceEntry';$required=$configuration+@('workspaceId')}
+        ActivatePrepared {$file='PreparedLaunch.ps1';$entry='Invoke-ActivatePreparedEntry';$required=$configuration+@('activationId','userTurn')}
+        PreparedRun {$file='PreparedLaunch.ps1';$entry='Invoke-PreparedRunEntry';$required=$configuration+@('workspaceId','workspaceManifest','workspaceManifestSha256')}
+        PreparedPure {$file='PreparedLaunch.Tests.ps1';$entry='Invoke-PreparedTestsEntry'}
+        PreparedSharedStart {$file='PreparedLaunch.Tests.ps1';$entry='Invoke-PreparedSharedStartEntry'}
+        PreparedCold {$file='PreparedLaunch.Tests.ps1';$entry='Invoke-PreparedColdEntry';$required=@('testManifest','testManifestSha256')}
+        PreparedInertChild {$file='PreparedLaunch.Tests.ps1';$entry='Invoke-PreparedInertEntry';$required=$configuration+@('workspaceId','workspaceManifest','workspaceManifestSha256','testManifest','testManifestSha256')}
         Pure {$file='restage\test-pure.ps1';$entry='Invoke-PinnedRestagePure'}
         AggregatePure {$file='test-pure.ps1';$entry='Invoke-AggregateEntry'}
         SupervisedPure {$file='supervision\NonCopySupervisor.ps1';$entry='Invoke-NonCopyEntry';$required=$configuration;$fixed.Mode='Pure'}
@@ -102,6 +116,13 @@ function New-PinnedProofBinding([string]$Mode,[Collections.IDictionary]$Values){
     $binding=[ordered]@{schema='pinned-proof-bindings-v2';mode=$Mode;configuration=$null;configurationSha256=$null;newGuiId=$null;
         inputManifest=$null;inputManifestSha256=$null;sourceManifestSha256=$null;authorizationReference=$null;id=$null;priorId=$null;
         helperSourceManifestSha256=$null;sourceGateReference=$null;buildReceiptSha256=$null;validationReceiptSha256=$null}
+    if($Mode -cin @('PrepareBundle','PrepareWorkspace','ActivatePrepared','PreparedRun','PreparedPure','PreparedCold','PreparedInertChild','PreparedSharedStart')){
+        $binding=[ordered]@{schema='pinned-prepared-bindings-v1';mode=$Mode;configuration=$null;configurationSha256=$null;
+            workspaceId=$null;workspaceManifest=$null;workspaceManifestSha256=$null;activationId=$null;userTurn=$null}
+    }
+    if($Mode -cin @('PreparedCold','PreparedInertChild','PreparedSharedStart')){
+        $binding.schema='pinned-prepared-test-bindings-v1';$binding.testManifest=$null;$binding.testManifestSha256=$null
+    }
     foreach($name in $Values.Keys){
         if($name -cin @('schema','mode') -or @($binding.Keys) -cnotcontains $name){throw 'PinnedProof.Authentication: Binding field.'}
         $binding[$name]=$Values[$name]
@@ -112,7 +133,7 @@ function Confirm-PinnedProofBinding($Binding,[string]$Mode){
     $shape=New-PinnedProofBinding $Mode @{}
     Assert-PinnedProofKeys $Binding @($shape.Keys)
     if($Binding.schema -isnot [string] -or $Binding.mode -isnot [string] -or
-        $Binding.schema -cne 'pinned-proof-bindings-v2' -or $Binding.mode -cne $Mode){throw 'PinnedProof.Authentication: Binding schema/mode.'}
+        $Binding.schema -cne $shape.schema -or $Binding.mode -cne $Mode){throw 'PinnedProof.Authentication: Binding schema/mode.'}
     $dispatch=Get-PinnedProofDispatch $Mode;$arguments=@{}+$dispatch.fixed
     foreach($name in $shape.Keys){
         if($name -cin @('schema','mode')){continue}
@@ -124,8 +145,10 @@ function Confirm-PinnedProofBinding($Binding,[string]$Mode){
         if($value -isnot [string] -or [string]::IsNullOrWhiteSpace($value)){throw "PinnedProof.Authentication: Required binding: $name"}
         if($name.EndsWith('Sha256',[StringComparison]::Ordinal) -and $value -cnotmatch '^[0-9a-f]{64}$'){throw 'PinnedProof.Authentication: Binding hash.'}
         if($name -cin @('id','priorId','newGuiId') -and $value -cnotmatch '^[0-9a-f]{32}$'){throw 'PinnedProof.Authentication: Binding ID.'}
+        if($name -cin @('workspaceId','activationId') -and $value -cnotmatch '^[0-9a-f]{32}$'){throw 'PinnedProof.Authentication: Prepared ID.'}
+        if($name -ceq 'userTurn' -and $value -cnotmatch '^[A-Za-z0-9._:-]{1,128}$'){throw 'PinnedProof.Authentication: Turn attestation.'}
         if($name.EndsWith('Reference',[StringComparison]::Ordinal) -and $value -cnotmatch '^https://github\.com/laqieer/FEBuilderGBA/issues/[0-9]+#issuecomment-[0-9]+$'){throw 'PinnedProof.Authentication: Binding reference.'}
-        if($name -cin @('configuration','inputManifest') -and
+        if($name -cin @('configuration','inputManifest','workspaceManifest','testManifest') -and
             (![IO.Path]::IsPathFullyQualified($value) -or [IO.Path]::GetFullPath($value) -cne $value -or $value.StartsWith('\\'))){throw 'PinnedProof.Authentication: Binding path.'}
         $arguments[$name]=$value
     }
@@ -134,9 +157,12 @@ function Confirm-PinnedProofBinding($Binding,[string]$Mode){
 function Read-PinnedProofClosure([string]$Path,[long]$Bytes,[string]$Sha256){
     $manifest=ConvertFrom-PinnedProofJson (Read-PinnedLoaderBytes $Path $Bytes $Sha256 16384)
     Assert-PinnedProofKeys $manifest @('schema','files')
-    $required=@(Get-PinnedProofFiles)
+    $prepared=$manifest.schema -ceq 'pinned-prepared-closure-v1'
+    $required=@(Get-PinnedProofFiles -Prepared:$prepared)
     if($manifest.schema -isnot [string] -or $manifest.schema -cne 'pinned-proof-closure-v1' -or
-        $manifest.files -isnot [array] -or $manifest.files.Count -ne 22){throw 'PinnedProof.Authentication: Complete closure required.'}
+        $manifest.files -isnot [array] -or $manifest.files.Count -ne 22){
+        if(!$prepared -or $manifest.files -isnot [array] -or $manifest.files.Count -ne 26){throw 'PinnedProof.Authentication: Complete closure required.'}
+    }
     $root=[IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..'))
     $rows=[Collections.Generic.Dictionary[string,object]]::new([StringComparer]::OrdinalIgnoreCase)
     $buffers=[Collections.Generic.Dictionary[string,byte[]]]::new([StringComparer]::Ordinal)
@@ -192,25 +218,37 @@ function Invoke-PinnedProof {
     if($MyInvocation.UnboundArguments.Count){throw 'PinnedProof.Authentication: Undeclared arguments.'}
     $dispatch=Get-PinnedProofDispatch $Mode
     $admission=Read-PinnedProofClosure $ClosurePath $ClosureBytes $ClosureSha256
+    if($Mode -cin @('PrepareBundle','PrepareWorkspace','ActivatePrepared','PreparedRun','PreparedPure','PreparedCold','PreparedInertChild','PreparedSharedStart') -and
+        !$admission.rows.ContainsKey('OfflinePatchImportProof\PreparedLaunch.ps1')){throw 'PinnedProof.Authentication: Prepared closure required.'}
     $row=$admission.rows[$dispatch.file]
     if($CommandBytes -lt 1 -or $CommandBytes -gt 65536 -or $CommandBytes -ne $row.bytes -or $CommandSha256 -cne $row.sha256){throw 'PinnedProof.Authentication: Selected command pin.'}
     $binding=ConvertFrom-PinnedProofJson (Read-PinnedLoaderBytes $BindingsPath $BindingsBytes $BindingsSha256 16384)
     $entryArguments=Confirm-PinnedProofBinding $binding $Mode
+    function Get-PinnedProofClosureIdentity { return $admission.pin.sha256 }
     $libraries=@{}
     foreach($library in @(
         @{id='Configuration';file='Configuration.ps1';entry=$null},@{id='RestagePolicy';file='restage\RestagePolicy.ps1';entry=$null},
         @{id='NonCopySupervisor';file='supervision\NonCopySupervisor.ps1';entry='Invoke-NonCopyEntry'},
-        @{id='RestageSupervisor';file='supervision\RestageSupervisor.ps1';entry='Invoke-RestageSupervisorEntry'})){
+        @{id='RestageSupervisor';file='supervision\RestageSupervisor.ps1';entry='Invoke-RestageSupervisorEntry'},
+        @{id='Launch';file='launch.ps1';entry='Invoke-LaunchEntry'},
+        @{id='Run';file='run.ps1';entry='Invoke-RunEntry'})){
+        if($Mode -cin @('PrepareBundle','PrepareWorkspace','ActivatePrepared','PreparedRun','PreparedPure','PreparedCold','PreparedInertChild','PreparedSharedStart') -and
+            $library.id -cnotin @('Configuration','Launch','Run')){continue}
         $name='OfflinePatchImportProof\'+$library.file
         $ast=ConvertTo-PinnedProofAst $admission.buffers[$name] (Join-Path $admission.root $name)
         $libraries[$library.id]=if($library.entry){Get-PinnedProofEnvelope $ast $name $library.entry}else{$ast.GetScriptBlock()}
     }
+    if($admission.rows.ContainsKey('OfflinePatchImportProof\PreparedLaunch.ps1')){
+        $preparedName='OfflinePatchImportProof\PreparedLaunch.ps1'
+        $preparedAst=ConvertTo-PinnedProofAst $admission.buffers[$preparedName] (Join-Path $admission.root $preparedName)
+        $libraries['Prepared']=Get-PinnedProofEnvelope $preparedAst $preparedName 'Invoke-PrepareBundleEntry'
+    }
     function Get-PinnedProofLibrary {
-        param([Parameter(Mandatory)][ValidateSet('Configuration','RestagePolicy','NonCopySupervisor','RestageSupervisor')][string]$Library)
+        param([Parameter(Mandatory)][ValidateSet('Configuration','RestagePolicy','NonCopySupervisor','RestageSupervisor','Launch','Run','Prepared')][string]$Library)
         return $libraries[$Library]
     }
     function New-PinnedProofChildArguments {
-        param([Parameter(Mandatory)][ValidateSet('Pure','PrerequisitesChild','RestageChild','ValidatePureChild','ValidateCompileChild','RunChild')][string]$ChildMode,
+        param([Parameter(Mandatory)][ValidateSet('Pure','PrerequisitesChild','RestageChild','ValidatePureChild','ValidateCompileChild','RunChild','PreparedRun','PreparedInertChild','PreparedSharedStart')][string]$ChildMode,
             [Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)][Collections.IDictionary]$Values)
         $fresh=Read-PinnedProofClosure $admission.pin.path $admission.pin.bytes $admission.pin.sha256
         $childBinding=New-PinnedProofBinding $ChildMode $Values
@@ -225,7 +263,7 @@ function Invoke-PinnedProof {
         try{$stream.Write($data);$stream.Flush($true)}finally{$stream.Dispose()}
         $target=Get-PinnedProofDispatch $ChildMode;$pin=$fresh.rows[$target.file]
         $result=@('-NoLogo','-NoProfile','-NonInteractive')
-        if($ChildMode -cin @('ValidatePureChild','ValidateCompileChild','RunChild')){$result+='-STA'}
+        if($ChildMode -cin @('ValidatePureChild','ValidateCompileChild','RunChild','PreparedRun','PreparedInertChild','PreparedSharedStart')){$result+='-STA'}
         return $result+@('-File',(Join-Path $fresh.root 'WindowsDesktopProof\PinnedLoader.ps1'),
             '-Mode',$ChildMode,'-CommandBytes',[string]$pin.bytes,'-CommandSha256',$pin.sha256,
             '-BindingsPath',$Path,'-BindingsBytes',[string]$data.Length,'-BindingsSha256',[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($data)).ToLowerInvariant(),

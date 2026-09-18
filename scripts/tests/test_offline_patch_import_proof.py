@@ -11,6 +11,43 @@ from xml.etree import ElementTree
 ROOT = Path(__file__).resolve().parents[2]
 PACKAGE = ROOT / "scripts" / "OfflinePatchImportProof"
 
+
+class PreparedLaunchContracts(unittest.TestCase):
+    def test_shared_start_regression_calls_the_real_workflow(self):
+        tests = (PACKAGE / "PreparedLaunch.Tests.ps1").read_text()
+        fake = (PACKAGE / "PreparedLaunch.Tests.cs").read_text()
+        self.assertIn("function Invoke-PreparedSharedStartEntry", tests)
+        shared = tests[tests.index("function Invoke-PreparedSharedStartEntry"):]
+        self.assertIn(". (Get-PinnedProofLibrary -Library Run)", shared)
+        self.assertIn("Invoke-PreparedRunCore", shared)
+        self.assertIn("Invoke-ProofAppWorkflow", shared)
+        self.assertIn("#if PREPARED_SHARED_START_TEST", fake)
+        self.assertNotIn("PREPARED_SHARED_START_TEST", (PACKAGE / "run.ps1").read_text())
+
+    def test_prepared_routes_are_explicit_and_separate(self):
+        loader = (ROOT / "scripts/WindowsDesktopProof/PinnedLoader.ps1").read_text()
+        for mode in ("PrepareBundle", "PrepareWorkspace", "ActivatePrepared", "PreparedRun"):
+            self.assertIn(mode, loader)
+        self.assertIn("pinned-prepared-bindings-v1", loader)
+
+    def test_preparation_privacy_admission_precedes_hash(self):
+        text = (PACKAGE / "prepare.ps1").read_text()
+        tree = text[text.index("function Tree("):text.index("function SameRows(")]
+        self.assertLess(tree.index("Assert-ProofPublicResource"), tree.index("$r=Row"))
+
+    def test_prepared_activation_has_no_preparation(self):
+        source = (PACKAGE / "PreparedLaunch.ps1").read_text()
+        activation = source[source.index("function Invoke-ActivatePreparedEntry"):source.index("function Invoke-PreparedRunEntry")]
+        for forbidden in ("Add-Type", "::Copy(", "CopyFile", "dotnet ", "gh ", "Invoke-PreparationEntry"):
+            self.assertNotIn(forbidden, activation)
+        self.assertIn("Invoke-ProofSupervisedRunner", activation)
+
+    def test_attempt_commit_is_after_readiness(self):
+        source = (PACKAGE / "PreparedLaunch.cs").read_text()
+        self.assertLess(source.index("if (!ready())"), source.index("CommitAttempt("))
+        self.assertIn("FileMode.CreateNew", source)
+        self.assertIn("FileShare.Read", source)
+
 _COMMON_BUILD_PREFIX = (
     "--no-restore", "--disable-build-servers", "-p:E2E_HOOKS=false",
     "-p:UseSharedCompilation=false", "-p:MSBuildEnableWorkloadResolver=false",
@@ -128,8 +165,13 @@ def _assert_fixed_child_environment(text, key, *, launch=False, value="1", expre
         population, code,
     ))
     start = list(re.finditer(
-        r"\[Diagnostics\.Process\]::Start\(\$start\)" if launch else r"\$p\.Start\(\)", code,
+        r"\bInvoke-ProofSupervisedRunner\b" if launch else r"\$p\.Start\(\)", code,
     ))
+    if launch:
+        left, right = _source_block(text, r"^\s*function Invoke-ProofSupervisedRunner\s*\{")
+        shared = _ps_source_mask(text[left + 1:right])
+        _require_source(shared.count("[Diagnostics.Process]::Start($start)") == 1
+                        and ".Environment" not in shared, "BuildTelemetry.SharedRunner")
     writes = list(re.finditer(r"\$" + receiver + r"\.Environment\[", code))
     _require_source(
         len(clear) == len(populate) == len(start) == len(writes) == 1
@@ -655,6 +697,7 @@ internal sealed class DesktopStartupAcquisition {
         visible = _ps_source_mask(text, keep_strings=True)
         preamble = visible[:visible.index("function Get-PinnedProofFiles")]
         expected = """$ErrorActionPreference='Stop'
+$PinnedProofEntryTicks=[Diagnostics.Stopwatch]::GetTimestamp()
 Set-StrictMode -Version Latest
 $PSModuleAutoLoadingPreference='None'
 foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Management','Microsoft.PowerShell.Security')){
@@ -1005,6 +1048,7 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             "ProcessImage.ps1", "ProcessImage.Tests.ps1", "prepare.ps1",
             "validate-helper.ps1", "run.ps1", "launch.ps1", "test-pure.ps1",
             "Configuration.ps1", "Configuration.Tests.ps1", "configuration.example.json",
+            "PreparedLaunch.ps1", "PreparedLaunch.cs", "PreparedLaunch.Tests.ps1", "PreparedLaunch.Tests.cs",
             "restage/RestagePolicy.ps1", "restage/restage.ps1", "restage/test-pure.ps1",
             "supervision/NonCopySupervisor.ps1", "supervision/RestageSupervisor.ps1",
         }
@@ -1144,6 +1188,8 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             "Pure", "AggregatePure", "SupervisedPure", "ReadOnlyPrerequisites", "Restage", "Gui",
             "Build", "Validate", "Inputs", "ValidatePureChild", "ValidateCompileChild",
             "PrerequisitesChild", "RestageChild", "RunChild",
+            "PrepareBundle", "PrepareWorkspace", "ActivatePrepared", "PreparedRun", "PreparedPure",
+            "PreparedCold", "PreparedInertChild", "PreparedSharedStart",
         }, modes)
         for token in ("ClosurePath", "ClosureBytes", "ClosureSha256", "pinned-proof-bindings-v2",
                       "pinned-proof-closure-v1", "PinnedProof.Authentication:", "23068672",

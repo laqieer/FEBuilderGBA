@@ -202,3 +202,7 @@ $checkoutRoot=Join-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'
 $checkoutFixture=New-PinnedProofFixture $checkoutRoot
 Invoke-PinnedTestMode -Fixture $checkoutFixture -Mode AggregatePure
 [IO.Directory]::Delete($checkoutRoot,$true)
+$preparedRoot=Join-Path ([IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..'))) ('TestResults\prepared-proof-'+[guid]::NewGuid().ToString('N'))
+$preparedFixture=New-PinnedProofFixture $preparedRoot -Prepared
+Invoke-PinnedTestMode -Fixture $preparedFixture -Mode PreparedPure
+[IO.Directory]::Delete($preparedRoot,$true)

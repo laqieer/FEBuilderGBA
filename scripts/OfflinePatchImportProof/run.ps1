@@ -98,38 +98,6 @@ function ProofEnvelope {
             [IO.File]::Copy($from, $to, $false)
             VerifyFile $to $row
         }
-        function CheckArchive([string]$path, [bool]$validArchive) {
-            $stream = [IO.File]::OpenRead($path)
-            $archive = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Read)
-            try {
-                if ($validArchive) {
-                    if ($archive.Entries.Count -ne 2) { throw 'Valid ZIP must contain exactly two small files.' }
-                    $entryNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
-                    foreach ($entry in $archive.Entries) {
-                        $relative = $entry.FullName.Replace('/', '\')
-                        $matched = @($manifest.installedFiles | Where-Object { ('FE8U\' + $_.path) -ceq $relative })
-                        if ($matched.Count -ne 1 -or !$entryNames.Add($relative) -or
-                            $entry.Length -ne $matched[0].bytes -or $entry.Length -gt 4096) {
-                            throw 'Unexpected valid ZIP schema.'
-                        }
-                        $content = $entry.Open()
-                        try {
-                            $sha = [Security.Cryptography.SHA256]::Create()
-                            try { $hash = [Convert]::ToHexString($sha.ComputeHash($content)).ToLowerInvariant() }
-                            finally { $sha.Dispose() }
-                        } finally { $content.Dispose() }
-                        if ($hash -cne $matched[0].sha256) { throw 'ZIP payload identity mismatch.' }
-                    }
-                } else {
-                    if ($archive.Entries.Count -ne 1 -or
-                        $archive.Entries[0].FullName -cne 'FE8U/../../zipdb-import-escape.txt' -or
-                        $archive.Entries[0].Length -ne 1) { throw 'Unexpected invalid ZIP schema.' }
-                    $content = $archive.Entries[0].Open()
-                    try { if ($content.ReadByte() -ne 1) { throw 'Invalid ZIP payload mismatch.' } }
-                    finally { $content.Dispose() }
-                }
-            } finally { $archive.Dispose(); $stream.Dispose() }
-        }
         try {
             if ($PSVersionTable.PSEdition -ne 'Core' -or !$IsWindows -or
                 [Threading.Thread]::CurrentThread.ApartmentState -ne 'STA') {
@@ -286,7 +254,49 @@ function ProofEnvelope {
             }
             foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
             $report.launch_requested_utc = [DateTime]::UtcNow.ToString('o')
+            $workflowState=@{process=$null}
+            try { Invoke-ProofAppWorkflow }
+            finally { $process=$workflowState.process }
+            foreach ($row in $manifest.fixtures) {
+                VerifyFile (Join-Path $runRoot ('fixtures\' + $row.path)) $row
+                VerifyFile (Join-Path $inputRoot ('desktop-proof-' + $manifest.runId + '\' + $row.path)) $row
+            }
+            foreach ($row in $manifest.appFiles) { VerifyFile (Join-Path $inputRoot ('app\' + $row.path)) $row }
+        } catch {
+            # No raw exception messages, paths from providers, environment values, or desktop titles.
+            $report.passed = $false
+            $report.failure_type = $_.Exception.GetType().Name
+            $report.failure_utc = [DateTime]::UtcNow.ToString('o')
+        } finally {
+            if($currentHost) { $currentHost.Dispose() }
+            if ($process) {
+                try {
+                    $report.app_exit_observed_by_runner = $process.HasExited
+                    if (!$report.app_exit_observed_by_runner) { $report.passed = $false }
+                } catch { $report.passed = $false; $report.app_exit_observation_failed = $true }
+                finally { $process.Dispose() }
+            }
+            $report.completed_utc = [DateTime]::UtcNow.ToString('o')
+            $report.elapsed_ms = $clock.ElapsedMilliseconds
+            if ($report.elapsed_ms -ge 420000) { $report.passed = $false; $report.overall_timeout = $true }
+            if ($ownedOutput) {
+                # Write a terminal result even when the budget has expired; never replace an old result.
+                Plain $runRoot
+                $stream = [IO.File]::Open((Join-Path $runRoot 'result.json'), [IO.FileMode]::CreateNew,
+                    [IO.FileAccess]::Write, [IO.FileShare]::None)
+                try {
+                    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($report | ConvertTo-Json -Depth 12))
+                    $stream.Write($bytes, 0, $bytes.Length)
+                } finally { $stream.Dispose() }
+            }
+        }
+        if (!$report.passed) { throw 'Bounded GUI acceptance failed/refused; preserve the exact owned outputs, no retry.' }
+        Write-Output 'Bounded runtime assertions passed; independent owned-editor image review remains required.'
+    }
+    function Invoke-ProofAppWorkflow {
             $process = [Diagnostics.Process]::Start($start)
+            $workflowState.process=$process
+            $report.launch_returned_utc=[DateTime]::UtcNow.ToString('o')
             $appHandle = $process.SafeHandle
             $startTicks = $process.StartTime.ToUniversalTime().Ticks
             $stdoutDrain = $process.StandardOutput.BaseStream.CopyToAsync([IO.Stream]::Null)
@@ -324,41 +334,38 @@ function ProofEnvelope {
             if (!$report.gui.WorkerJoined -or !$report.gui.DispatchAdmissionClosed -or !$report.gui.Passed) {
                 throw 'GUI failed; app cleanup belongs to the launcher after this runner exits.'
             }
-            foreach ($row in $manifest.fixtures) {
-                VerifyFile (Join-Path $runRoot ('fixtures\' + $row.path)) $row
-                VerifyFile (Join-Path $inputRoot ('desktop-proof-' + $manifest.runId + '\' + $row.path)) $row
-            }
-            foreach ($row in $manifest.appFiles) { VerifyFile (Join-Path $inputRoot ('app\' + $row.path)) $row }
             $report.passed = $report.gui.Passed
-        } catch {
-            # No raw exception messages, paths from providers, environment values, or desktop titles.
-            $report.passed = $false
-            $report.failure_type = $_.Exception.GetType().Name
-            $report.failure_utc = [DateTime]::UtcNow.ToString('o')
-        } finally {
-            if($currentHost) { $currentHost.Dispose() }
-            if ($process) {
-                try {
-                    $report.app_exit_observed_by_runner = $process.HasExited
-                    if (!$report.app_exit_observed_by_runner) { $report.passed = $false }
-                } catch { $report.passed = $false; $report.app_exit_observation_failed = $true }
-                finally { $process.Dispose() }
+    }
+    function CheckArchive([string]$path, [bool]$validArchive) {
+        $stream = [IO.File]::OpenRead($path)
+        $archive = [IO.Compression.ZipArchive]::new($stream, [IO.Compression.ZipArchiveMode]::Read)
+        try {
+            if ($validArchive) {
+                if ($archive.Entries.Count -ne 2) { throw 'Valid ZIP must contain exactly two small files.' }
+                $entryNames = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+                foreach ($entry in $archive.Entries) {
+                    $relative = $entry.FullName.Replace('/', '\')
+                    $matched = @($manifest.installedFiles | Where-Object { ('FE8U\' + $_.path) -ceq $relative })
+                    if ($matched.Count -ne 1 -or !$entryNames.Add($relative) -or
+                        $entry.Length -ne $matched[0].bytes -or $entry.Length -gt 4096) {
+                        throw 'Unexpected valid ZIP schema.'
+                    }
+                    $content = $entry.Open()
+                    try {
+                        $sha = [Security.Cryptography.SHA256]::Create()
+                        try { $hash = [Convert]::ToHexString($sha.ComputeHash($content)).ToLowerInvariant() }
+                        finally { $sha.Dispose() }
+                    } finally { $content.Dispose() }
+                    if ($hash -cne $matched[0].sha256) { throw 'ZIP payload identity mismatch.' }
+                }
+            } else {
+                if ($archive.Entries.Count -ne 1 -or
+                    $archive.Entries[0].FullName -cne 'FE8U/../../zipdb-import-escape.txt' -or
+                    $archive.Entries[0].Length -ne 1) { throw 'Unexpected invalid ZIP schema.' }
+                $content = $archive.Entries[0].Open()
+                try { if ($content.ReadByte() -ne 1) { throw 'Invalid ZIP payload mismatch.' } }
+                finally { $content.Dispose() }
             }
-            $report.completed_utc = [DateTime]::UtcNow.ToString('o')
-            $report.elapsed_ms = $clock.ElapsedMilliseconds
-            if ($report.elapsed_ms -ge 420000) { $report.passed = $false; $report.overall_timeout = $true }
-            if ($ownedOutput) {
-                # Write a terminal result even when the budget has expired; never replace an old result.
-                Plain $runRoot
-                $stream = [IO.File]::Open((Join-Path $runRoot 'result.json'), [IO.FileMode]::CreateNew,
-                    [IO.FileAccess]::Write, [IO.FileShare]::None)
-                try {
-                    $bytes = [Text.UTF8Encoding]::new($false).GetBytes(($report | ConvertTo-Json -Depth 12))
-                    $stream.Write($bytes, 0, $bytes.Length)
-                } finally { $stream.Dispose() }
-            }
-        }
-        if (!$report.passed) { throw 'Bounded GUI acceptance failed/refused; preserve the exact owned outputs, no retry.' }
-        Write-Output 'Bounded runtime assertions passed; independent owned-editor image review remains required.'
+        } finally { $archive.Dispose(); $stream.Dispose() }
     }
 }

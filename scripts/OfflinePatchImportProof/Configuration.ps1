@@ -3,6 +3,13 @@ Set-StrictMode -Version Latest
 function Assert-Proof([bool]$Condition,[string]$Message) {
     if (!$Condition) { throw $Message }
 }
+function Assert-ProofPublicResource([string]$Relative,[switch]$SyntheticFixture) {
+    $value=$Relative.Replace('/','\')
+    Assert-Proof ($value -notmatch '(^|\\)(log|logs)(\\|$)' -and
+        $value -notmatch '(^|\\)generated-core-suite-log-preserved\.txt$' -and
+        ($value -notmatch '\.(gba|gb|gbc|nds|rom)$' -or
+        ($SyntheticFixture -and $value -ceq 'fixtures\zipdb-proof.gba'))) 'Private resource refused before content access.'
+}
 function Assert-ProofProcessDeadline([Collections.IDictionary]$Record,[double]$Elapsed,[double]$Deadline) {
     if($Record.timedOut -isnot [bool] -or $Record.timedOut -or ![double]::IsFinite($Elapsed) -or
         ![double]::IsFinite($Deadline) -or $Elapsed -lt 0 -or $Elapsed -ge $Deadline){
@@ -16,7 +23,9 @@ function Assert-ProofBooleanFields($Value,[string[]]$TrueFields,[string[]]$False
 }
 function Assert-ProofKeys($Value,[string[]]$Keys) {
     Assert-Proof ($Value -is [Collections.IDictionary] -and $Value.Count -eq $Keys.Count) 'Configuration object shape.'
-    foreach ($key in $Keys) { Assert-Proof (@($Value.Keys | Where-Object { $_ -ceq $key }).Count -eq 1) "Configuration field: $key" }
+    $actual=[Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach($name in $Value.Keys){Assert-Proof ($name -is [string] -and $actual.Add($name)) 'Configuration key type.'}
+    foreach ($key in $Keys) { Assert-Proof ($actual.Contains($key)) "Configuration field: $key" }
 }
 function ConvertFrom-ProofJson([string]$Text) {
     Assert-Proof (![string]::IsNullOrWhiteSpace($Text) -and [Text.Encoding]::UTF8.GetByteCount($Text) -le 4194304) 'JSON byte bound.'

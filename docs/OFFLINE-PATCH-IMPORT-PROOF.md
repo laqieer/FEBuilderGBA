@@ -1,5 +1,93 @@
 # Offline patch-import desktop proof
 
+## Reusable prepared activation
+
+The additional **prepared** route separates immutable `preparedId`, pristine
+`workspaceId`, explicit-user `activationId`, and consumed `attemptId`. It does
+not reinterpret legacy configuration-v1, input-v1, bindings-v2, Gui or RunChild.
+Its authenticated `pinned-prepared-closure-v1` contains the original 22 members
+plus `PreparedLaunch.ps1`, `PreparedLaunch.cs`, and their two test files.
+`pinned-prepared-bindings-v1` is a separate closed nine-field object: `schema`,
+`mode`, `configuration`, `configurationSha256`, `workspaceId`,
+`workspaceManifest`, `workspaceManifestSha256`, `activationId`, and `userTurn`.
+Only fields required by the selected route may be non-null.
+
+| Mode | Non-null data besides schema/mode |
+| --- | --- |
+| PrepareBundle | configuration, configurationSha256 |
+| PrepareWorkspace | configuration, configurationSha256, workspaceId |
+| ActivatePrepared | configuration, configurationSha256, activationId, userTurn |
+| PreparedRun | configuration, configurationSha256, workspaceId, workspaceManifest, workspaceManifestSha256 |
+
+The new `windows-prepared-configuration-v1` has `preparedId`, `applicationTree`,
+`baseConfiguration` (a pinned legacy configuration), `inputManifest`, pinned
+`receipts` for Build/Validate/Inputs, separate owned `root` and `evidenceRoot`,
+`workspaceIds` (1..8), `bundle`, `bootstrap`, `jsonReference`, `slots`, and
+`authority`, in addition to `schema`. Bundle/bootstrap are null only before
+bundle preparation. Each slot contains `workspaceId`, `manifest`, `runner` and
+`launch` pins. The compact frozen runner descriptor binds the full workspace
+manifest without reparsing its bulk file list in the child.
+
+`PrepareBundle` copies reviewed inputs and compiles its runtime helper once.
+It additionally pins the **existing** `PSHOME\ref\System.Text.Json.dll` compiler
+reference in `jsonReference`; legacy compiler inventories are unchanged.
+The authenticated helper implements bounded duplicate-rejecting JSON parsing
+and current-content admission without activation-time compilation.
+`PrepareWorkspace` makes all copies, empty canonical FE8U storage, ordinary
+configuration, profile/scratch directories, and exact app/runner argv, CWD and
+cleared environments in advance. Initially prepare two slots. Neither executable
+payloads nor replacement environments are accepted as activation arguments.
+
+Authority contains `reference`, `sha256`, fixed `scenario`, nullable
+`expiresUtc`, exact local `revocationPath`, and `replenishmentAllowed`.
+These are caller-approved metadata, not acquired approval. A trusted coordinator
+attests each actual subsequent explicit user RUN through `userTurn`; neither
+the helper, a URL nor desktop readiness proves conversation intent. Null expiry
+means until revocation/invalidation, not permission for automatic execution.
+No network/GitHub, review, build, copy, replenishment or agent handoff runs on
+ActivatePrepared. It uses the same public pinned-loader nine-argument command
+shape above, selecting the new mode and freshly pinned data-only bindings.
+
+One package-exclusive reservation admits current file contents/inventory and
+holds owned immutable-file read leases through use. Ordinary writable config
+is not held open. Source bootstrap and all helper content remain caller-pinned;
+mtime is not authentication. No shared-checkout/PSHOME locks, hardlinks, daemon,
+session manipulation or OS containment claim is introduced.
+
+The runner takes one current-thread readiness sample. A negative sample leaves
+an immutable activation record but no commitment/app start. After confirmed
+runner exit, the same unchanged workspace/package can serve a later explicit
+RUN. Once a commitment is created, even a throwing/uncertain Start consumes that
+slot. Later attempts use another pristine slot; old process/window identities
+and evidence are never reused. Exhausted capacity refuses without preparation.
+Replenishment is a separate pre-RUN operation, not a rebuild of unchanged bytes.
+
+The five-second monotonic activation budget includes helper/content admission;
+480s supervisor, 420s runner and 240s GUI limits remain. Native calls and
+Process.Start are not hard-real-time. Existing retained cleanup and Desktop
+automation are shared, not duplicated. Blocked/failed/inert results never claim
+GUI success or normal closure.
+
+The ordinary aggregate additionally runs `PreparedPure`, with separately counted
+content/state, bounded-JSON and locked synthetic-private-canary cases.
+`PreparedCold`/`PreparedInertChild` use a separate
+`pinned-prepared-test-bindings-v1` schema and production internal admission/run
+seams; production activation has no readiness/start override flag. These tests
+load the same runtime helper, hash representative owned payloads and launch only
+an explicitly pinned PowerShell `--version` actor. Five fresh-host timings and
+blocked-then-ready reuse are non-GUI evidence, never desktop/picker proof.
+Private log/ROM rejection happens before content access; test canaries are
+synthetic, not the user's actual log files.
+
+`PreparedSharedStart` adds a fresh STA test host to the prepared suite. It calls
+the unchanged `Invoke-PreparedRunCore` and real `Invoke-ProofAppWorkflow`, including
+the actual `Process.Start`, stream drains, identity publication and stop callback.
+Only scoped test imports/target image and conditionally compiled fake desktop
+types replace GUI dependencies. The owned actor is pinned PowerShell, not the
+editor. Eight cases cover successful composition, no-readiness/deadline refusal,
+throwing and uncertain starts, and rejection of test overrides in production
+bindings. A simulated result is explicitly marked and is not GUI acceptance.
+
 This package keeps the feature's actual Windows UI automation and necessary
 support in the same feature PR. It does not modify application behavior and does
 not depend on another GUI-readiness PR. Pure tests are **not GUI acceptance**.

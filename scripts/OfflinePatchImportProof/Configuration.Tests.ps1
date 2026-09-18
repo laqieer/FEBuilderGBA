@@ -572,11 +572,11 @@ function Invoke-LaterProductionTests([string]$Root) {
         $cases++
     }
     foreach($name in @('inventory-json-depth-bound','receipt-completion-depth-bound')){
-        $output=@(Invoke-ProofPureCase @{name=$name;run={Write-Warning 'Deliberate depth fixture'}} 3>&1)
+        $output=@(Invoke-ProofPureCase @{name=$name;run={Write-Warning 'Deliberate depth fixture' -WarningAction Continue}} 3>&1)
         Assert-Proof ($output.Count -eq 0) 'Expected case-local warning leaked.'
         $cases++
     }
-    $output=@(Invoke-ProofPureCase @{name='unexpected-warning';run={Write-Warning 'Unexpected warning fixture'}} 3>&1)
+    $output=@(Invoke-ProofPureCase @{name='unexpected-warning';run={Write-Warning 'Unexpected warning fixture' -WarningAction Continue}} 3>&1)
     Assert-Proof ($output.Count -eq 1 -and $output[0] -is [Management.Automation.WarningRecord] -and
         $output[0].Message -ceq 'Unexpected warning fixture') 'Unexpected warnings were suppressed.'
     $cases++

@@ -103,6 +103,12 @@ function ProofEnvelope {
             POWERSHELL_TELEMETRY_OPTOUT = '1'
         }
         foreach ($entry in $environment.GetEnumerator()) { $start.Environment[$entry.Key] = $entry.Value }
+        $receipt=Invoke-ProofSupervisedRunner
+        if (!$receipt.passed) { throw 'One bounded attempt failed/refused; preserve outputs, no retry.' }
+        Write-Output 'Runtime assertions passed; independent image review remains required.'
+    }
+    function Invoke-ProofSupervisedRunner {
+        param([long]$ActivationEntryTicks=0,[string]$CommitPath=$null)
         $runner = $null
         $runnerHandle = $null
         $custody = @{app=$null;appHandle=$null;appReceipt=$null}
@@ -194,6 +200,10 @@ function ProofEnvelope {
             while (!$runner.WaitForExit(100)) {
                 RetainApp
                 CheckWorkerStop
+                if ($ActivationEntryTicks -gt 0) {
+                    try { [PreparedContentLease]::Deadline($ActivationEntryTicks) }
+                    catch { if (![IO.File]::Exists($CommitPath)) { throw } }
+                }
                 if ($clock.ElapsedMilliseconds -ge 480000) { $receipt.timed_out = $true; throw 'Runner deadline.' }
             }
             if ($clock.ElapsedMilliseconds -ge 480000) { $receipt.timed_out = $true; throw 'Late runner exit is not success.' }
@@ -282,7 +292,6 @@ function ProofEnvelope {
                 $stream.Write($bytes, 0, $bytes.Length)
             } finally { $stream.Dispose() }
         }
-        if (!$receipt.passed) { throw 'One bounded attempt failed/refused; preserve outputs, no retry.' }
-        Write-Output 'Runtime assertions passed; independent image review remains required.'
+        return $receipt
     }
 }
