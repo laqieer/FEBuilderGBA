@@ -123,6 +123,55 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaTheory]
+        [InlineData("BIN", false)]
+        [InlineData("EA", false)]
+        [InlineData("BIN", true)]
+        [InlineData("EA", true)]
+        public async Task SelectingPatchPreservesRecoveryNoticeAndActionRestriction(string type, bool retained)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            string descriptor = Path.Combine(fixture.Library, "PATCH_owned.txt");
+            File.WriteAllText(descriptor, File.ReadAllText(descriptor).Replace("TYPE=BIN", "TYPE=" + type));
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            var view = new PatchManagerView();
+            var host = new Window { Content = view };
+            try
+            {
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (retained)
+                    App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(
+                        fixture.Root, new IOException("owned retained workspace")));
+                var noticeIdentity = App.CapturePatchDatabaseRecoveryNotice();
+                string notice = App.PatchDatabaseRecoveryNotice;
+                host.Show();
+                Assert.True(await view.RefreshTask);
+                var list = view.FindControl<ListBox>("PatchListBox")!;
+                var patch = Assert.IsType<PatchEntry>(Assert.Single(list.Items));
+
+                list.SelectedIndex = 0;
+
+                string actual = view.FindControl<TextBlock>("StatusMessageLabel")!.Text!;
+                if (retained)
+                {
+                    Assert.Contains(notice, actual, StringComparison.Ordinal);
+                    if (patch.ActionRestrictionMessage.Length != 0)
+                        Assert.Contains(patch.ActionRestrictionMessage, actual, StringComparison.Ordinal);
+                }
+                else Assert.Equal(patch.ActionRestrictionMessage, actual);
+                Assert.Same(noticeIdentity, App.CapturePatchDatabaseRecoveryNotice());
+            }
+            finally
+            {
+                host.Close();
+                await view.RefreshTask;
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData("en", "Working…", false)]
         [InlineData("ja", "処理中…", false)]
         [InlineData("zh", "正在处理…", false)]

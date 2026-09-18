@@ -286,7 +286,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             UpdateActionButtons();
-            StatusMessageLabel.Text = patch.ActionRestrictionMessage;
+            StatusMessageLabel.Text = WithRecoveryNotice(patch.ActionRestrictionMessage);
         }
 
         void UpdateActionButtons()
