@@ -68,6 +68,17 @@ public sealed class BoundedDesktopSmoke
     readonly Stopwatch clock = Stopwatch.StartNew();
     readonly object sync = new object();
     readonly List<DesktopEvent> events = new List<DesktopEvent>();
+    enum EditorProbe
+    {
+        WizardCloseReturned, PatchManagerInvokeReturned,
+        ImportCatalogStarted, ImportCatalogCompleted,
+        ImportMainSearchStarted, ImportMainNotFound,
+        ImportOtherSearchStarted, ImportOtherNotFound,
+        ImportCandidateFound, ImportTypeAccepted,
+        ImportEnabled, ImportDisabled, ImportOnscreen, ImportOffscreen,
+        ImportSearchCompleted
+    }
+    readonly HashSet<EditorProbe> editorProbes = new HashSet<EditorProbe>();
     readonly DesktopResult result = new DesktopResult();
     readonly DesktopDispatchGate dispatch = new DesktopDispatchGate();
     readonly DesktopRootBindings rootBindings = new DesktopRootBindings();
@@ -179,6 +190,16 @@ public sealed class BoundedDesktopSmoke
             Require(events.Count < 240, "event-bound");
             events.Add(new DesktopEvent { Utc = DateTime.UtcNow.ToString("o"), ElapsedMs = clock.ElapsedMilliseconds,
                 Kind = kind, Code = code, Window = Key(handle) });
+        }
+    }
+
+    void RecordEditorProbe(EditorProbe probe)
+    {
+        lock (sync)
+        {
+            Require(!dispatch.IsClosed, "cancelled");
+            if (!editorProbes.Add(probe)) return;
+            Record("observation", "editor:" + probe.ToString());
         }
     }
 
@@ -475,33 +496,56 @@ public sealed class BoundedDesktopSmoke
     }
 
     AutomationElement Control(AutomationElement window, string id, ControlType type, bool active = true,
-        DesktopOwnedTree<AutomationElement> tree = null)
+        DesktopOwnedTree<AutomationElement> tree = null, bool? importMainRoot = null)
     {
+        bool traceImport = id == ImportButton && stage == "open-editor";
         tree = tree ?? NewTree(window);
         var selector = Selector(id);
         var found = Find(window, selector, tree: tree);
         Require(found.Count <= 1, "ambiguous-control");
-        if (found.Count == 0) return null;
+        if (found.Count == 0)
+        {
+            if (traceImport && importMainRoot.HasValue)
+                RecordEditorProbe(importMainRoot.Value ? EditorProbe.ImportMainNotFound : EditorProbe.ImportOtherNotFound);
+            return null;
+        }
+        if (traceImport) RecordEditorProbe(EditorProbe.ImportCandidateFound);
         var control = found[0];
         Require(QueryRead(tree, window, control, selector, () => control.Current.ControlType) == type, "control-type");
-        if (active && (!QueryRead(tree, window, control, selector, () => control.Current.IsEnabled) ||
-            QueryRead(tree, window, control, selector, () => control.Current.IsOffscreen))) return null;
+        if (traceImport) RecordEditorProbe(EditorProbe.ImportTypeAccepted);
+        if (active)
+        {
+            bool enabled = QueryRead(tree, window, control, selector, () => control.Current.IsEnabled);
+            if (traceImport) RecordEditorProbe(enabled ? EditorProbe.ImportEnabled : EditorProbe.ImportDisabled);
+            if (!enabled) return null;
+            bool offscreen = QueryRead(tree, window, control, selector, () => control.Current.IsOffscreen);
+            if (traceImport) RecordEditorProbe(offscreen ? EditorProbe.ImportOffscreen : EditorProbe.ImportOnscreen);
+            if (offscreen) return null;
+        }
         return control;
     }
 
     AutomationElement WindowFor(string id, ControlType type, bool active = true)
     {
+        bool traceImport = id == ImportButton && stage == "open-editor";
         AutomationElement result = null;
+        if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogStarted);
         var tree = NewTree();
+        if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogCompleted);
         for (int i = 0; i < tree.Windows.Count; i++)
         {
             var owned = tree.Windows[i];
             if (!TreeCall(() => tree.Visible(owned)) || owned.Class == "#32770") continue;
             var window = owned.Element;
-            if (Control(window, id, type, active, tree) == null) continue;
+            if (traceImport)
+                RecordEditorProbe(owned.Handle == Key(mainHandle)
+                    ? EditorProbe.ImportMainSearchStarted : EditorProbe.ImportOtherSearchStarted);
+            if (Control(window, id, type, active, tree,
+                traceImport ? owned.Handle == Key(mainHandle) : (bool?)null) == null) continue;
             Require(result == null, "ambiguous-window");
             result = window;
         }
+        if (traceImport) RecordEditorProbe(EditorProbe.ImportSearchCompleted);
         return result;
     }
 
@@ -691,10 +735,12 @@ public sealed class BoundedDesktopSmoke
                 Require(!wizardClosed && Same(Native.GetWindow(Handle(wizard), 4), mainHandle), "setup-wizard-owner");
                 wizardClosed = true;
                 Invoke(wizard, "ContentRepoSetupWizard_Close_Button");
+                RecordEditorProbe(EditorProbe.WizardCloseReturned);
             }
             return Control(main, MainButton, ControlType.Button);
         });
         Invoke(main, MainButton);
+        RecordEditorProbe(EditorProbe.PatchManagerInvokeReturned);
         editor = Await(() => WindowFor(ImportButton, ControlType.Button));
         editorHandle = Handle(editor);
         Require(!Same(editorHandle, mainHandle) && Key(Native.GetWindow(editorHandle, 4)) == 0,

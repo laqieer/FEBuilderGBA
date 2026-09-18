@@ -494,6 +494,80 @@ internal sealed class DesktopStartupAcquisition {
         self.assertLess(body.index("if (tree.Windows.Count == 0)"), body.rindex("return true;"))
         _assert_initial_discover_boundary(policy)
 
+    def test_editor_probe_inventory_is_closed_and_does_not_extend_result_schema(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        inventory = _cs_body(desktop, r"\benum EditorProbe\s*\{")
+        self.assertEqual(re.findall(r"\b[A-Za-z]\w*\b", _cs_mask(inventory)), [
+            "WizardCloseReturned", "PatchManagerInvokeReturned",
+            "ImportCatalogStarted", "ImportCatalogCompleted",
+            "ImportMainSearchStarted", "ImportMainNotFound",
+            "ImportOtherSearchStarted", "ImportOtherNotFound",
+            "ImportCandidateFound", "ImportTypeAccepted",
+            "ImportEnabled", "ImportDisabled", "ImportOnscreen", "ImportOffscreen",
+            "ImportSearchCompleted",
+        ])
+        self.assertIn("readonly HashSet<EditorProbe> editorProbes = new HashSet<EditorProbe>();", desktop)
+        result = _cs_body(desktop, r"\bpublic sealed class DesktopResult\s*\{")
+        self.assertNotRegex(result, r"EditorProbe|EditorProgress")
+
+    def test_editor_probe_recorder_is_once_only_locked_and_has_no_provider_reads(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        recorder = _cs_body(desktop, r"\bvoid RecordEditorProbe\(EditorProbe probe\)\s*\{")
+        self.assertEqual(re.sub(r"\s+", "", _cs_mask(recorder, keep_strings=True)),
+                         'lock(sync){Require(!dispatch.IsClosed,"cancelled");'
+                         'if(!editorProbes.Add(probe))return;'
+                         'Record("observation","editor:"+probe.ToString());}')
+        self.assertNotRegex(_cs_mask(recorder),
+                            r"\.Current\b|\.Cached\b|Native\.|QueryRead|TreeCall|NewTree|Identity|Readiness")
+        record = _cs_body(desktop, r"\bvoid Record\([^{}]*\)\s*\{")
+        self.assertIn('Require(events.Count < 240, "event-bound")', record)
+
+    def test_editor_catalog_markers_are_import_only_and_use_existing_root_roles(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        window = _cs_body(desktop, r"\bAutomationElement WindowFor\([^{}]*\)\s*\{")
+        self.assertIn('bool traceImport = id == ImportButton && stage == "open-editor";', window)
+        self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogStarted);", window)
+        self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogCompleted);", window)
+        self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportSearchCompleted);", window)
+        self.assertLess(window.index("ImportCatalogStarted"), window.index("var tree = NewTree();"))
+        self.assertLess(window.index("var tree = NewTree();"), window.index("ImportCatalogCompleted"))
+        self.assertIn("if (traceImport)\n                RecordEditorProbe(owned.Handle == Key(mainHandle)", window)
+        self.assertIn("EditorProbe.ImportMainSearchStarted : EditorProbe.ImportOtherSearchStarted", window)
+        self.assertIn("traceImport ? owned.Handle == Key(mainHandle) : (bool?)null", window)
+        self.assertNotIn("ImportMainNotFound", window)
+        self.assertNotIn("ImportOtherNotFound", window)
+
+    def test_editor_control_markers_preserve_matches_and_state_read_order(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        control = _cs_body(desktop, r"\bAutomationElement Control\([^{}]*\)\s*\{")
+        self.assertIn('bool traceImport = id == ImportButton && stage == "open-editor";', control)
+        empty = _cs_body(control, r"\bif \(found.Count == 0\)\s*\{")
+        self.assertIn("if (traceImport && importMainRoot.HasValue)", empty)
+        self.assertIn("EditorProbe.ImportMainNotFound : EditorProbe.ImportOtherNotFound", empty)
+        self.assertIn("return null;", empty)
+        self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportCandidateFound);", control)
+        self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportTypeAccepted);", control)
+        self.assertIn("if (traceImport) RecordEditorProbe(enabled ? EditorProbe.ImportEnabled : EditorProbe.ImportDisabled);", control)
+        self.assertIn("if (traceImport) RecordEditorProbe(offscreen ? EditorProbe.ImportOffscreen : EditorProbe.ImportOnscreen);", control)
+        self.assertEqual(len(re.findall(r"\bQueryRead\(", _cs_mask(control))), 3)
+        self.assertLess(control.index("control.Current.ControlType"), control.index("ImportTypeAccepted"))
+        active = _cs_body(control, r"\bif \(active\)\s*\{")
+        self.assertLess(active.index("control.Current.IsEnabled"), active.index("if (!enabled) return null;"))
+        self.assertLess(active.index("if (!enabled) return null;"), active.index("control.Current.IsOffscreen"))
+        self.assertLess(active.index("control.Current.IsOffscreen"), active.index("if (offscreen) return null;"))
+
+    def test_editor_invoke_return_markers_follow_existing_invocations(self):
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        editor = _cs_body(desktop, r"\bvoid OpenEditor\(\)\s*\{")
+        self.assertRegex(editor, r'Invoke\(wizard, "ContentRepoSetupWizard_Close_Button"\);\s*'
+                                r"RecordEditorProbe\(EditorProbe.WizardCloseReturned\);")
+        self.assertRegex(editor, r"Invoke\(main, MainButton\);\s*"
+                                r"RecordEditorProbe\(EditorProbe.PatchManagerInvokeReturned\);")
+        self.assertIn('Stage("open-editor", 30000)', editor)
+        self.assertIn("editor = Await(() => WindowFor(ImportButton, ControlType.Button));", editor)
+        invoke = _cs_body(desktop, r"\bvoid Invoke\([^{}]*\)\s*\{")
+        self.assertNotIn("RecordEditorProbe", invoke)
+
     def test_preparation_run_has_exact_sdk_side_effect_controls(self):
         source = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
         for key, value in _SDK_ENVIRONMENT.items():
