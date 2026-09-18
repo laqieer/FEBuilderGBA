@@ -21,7 +21,12 @@ internal sealed class PatchManagerRefreshService
 
     internal sealed record Request(PatchDatabaseImportService.RomIdentity Identity, ROM Rom,
         PatchManagerViewModel.PatchLocation Location, string Language, string ScanLanguage,
-        string Filter, int Selection, long Generation, bool Strict, bool Android);
+        string Filter, int Selection, long Generation, bool Strict, bool Android)
+    {
+        internal bool IsLanguageCurrent =>
+            string.Equals(Language, PatchMetadataCore.GetLanguageSuffix(), StringComparison.Ordinal) &&
+            string.Equals(ScanLanguage, PatchFilterCore.ScanLang(CoreState.Language), StringComparison.Ordinal);
+    }
 
     internal sealed record PatchListSnapshot(Request Request, List<PatchEntry> All,
         ObservableCollection<PatchEntry> Filtered, int Installed, string Message, string GitButton,
@@ -127,7 +132,8 @@ internal sealed class PatchManagerRefreshService
                                 throw new IOException("The managed library changed during refresh.");
                             return result;
                         }, cancellation.Token);
-                        if (request.Generation != generation || cancellation.IsCancellationRequested || !intent.Current(request))
+                        if (request.Generation != generation || cancellation.IsCancellationRequested ||
+                            !request.IsLanguageCurrent || !intent.Current(request))
                             break;
                         if (snapshot.Transition) continue;
                         if (!snapshot.Complete)

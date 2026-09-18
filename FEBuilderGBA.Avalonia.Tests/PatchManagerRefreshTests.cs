@@ -1,13 +1,465 @@
+using System.Reflection;
+using System.IO.Compression;
+using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("SharedState")]
 public class PatchManagerRefreshTests
 {
+    [AvaloniaTheory]
+    [InlineData("metadata")]
+    [InlineData("scanner")]
+    public async Task PublicationRequiresBothCapturedLanguagesWithOrdinalEquality(string mismatch)
+    {
+        using var fixture = new Fixture();
+        var service = new PatchManagerRefreshService();
+        bool published = false;
+        Assert.False(await service.RefreshAsync(g =>
+        {
+            var request = PatchManagerRefreshService.Capture("", 0, g, true);
+            return mismatch == "metadata" ? request with { Language = "EN" } : request with { ScanLanguage = "EN" };
+        }, _ => true, _ => published = true));
+        Assert.False(published);
+        Assert.True(await service.RefreshAsync(g => PatchManagerRefreshService.Capture("", 0, g, true),
+            _ => true, _ => published = true));
+        Assert.True(published);
+    }
+
+    [AvaloniaFact]
+    public async Task LanguageChangeDuringOwnedReadRejectsPublicationWithoutReleasingWorkerOwnership()
+    {
+        using var fixture = new Fixture();
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root)) { }
+        byte[] rom = (byte[])fixture.Rom.Data.Clone();
+        var undo = CoreState.Undo.UndoBuffer.ToArray();
+        byte[] descriptor = File.ReadAllBytes(Path.Combine(fixture.Library, "PATCH_owned.txt"));
+        byte[] payload = File.ReadAllBytes(Path.Combine(fixture.Library, "sig.bin"));
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        bool exited = false, published = false;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            entered.Set();
+            try { release.Wait(); return PatchManagerRefreshService.Read(r, t); }
+            finally { exited = true; }
+        });
+        var stale = service.RefreshAsync(g => PatchManagerRefreshService.Capture("", 0, g, true),
+            _ => true, _ => published = true);
+        try
+        {
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            CoreState.Language = "ja";
+            Assert.False(stale.IsCompleted);
+            Assert.False(exited);
+            Assert.False(ContentRepoGitService.TryEnter());
+            Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() => PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+        }
+        finally { release.Set(); await stale; }
+        Assert.True(exited);
+        Assert.False(await stale);
+        Assert.False(published);
+        Assert.True(await service.RefreshAsync(g => PatchManagerRefreshService.Capture("", 0, g, true),
+            _ => true, s =>
+            {
+                Assert.Equal("", s.Request.Language);
+                Assert.Equal("ja", s.Request.ScanLanguage);
+            }));
+        Assert.Equal(rom, fixture.Rom.Data);
+        Assert.Equal(undo, CoreState.Undo.UndoBuffer);
+        Assert.Equal(descriptor, File.ReadAllBytes(Path.Combine(fixture.Library, "PATCH_owned.txt")));
+        Assert.Equal(payload, File.ReadAllBytes(Path.Combine(fixture.Library, "sig.bin")));
+        Assert.False(ContentRepoGitService.IsRunning());
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+    }
+
+    [AvaloniaFact]
+    public async Task AttachedLanguageEventRefreshesOnDispatcherAndPreservesFilter()
+    {
+        using var fixture = new Fixture();
+        File.WriteAllText(Path.Combine(fixture.Library, "PATCH_owned.txt"),
+            "NAME=Owned Japanese\nNAME.en=Owned English\nTYPE=BIN");
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            Assert.False(Dispatcher.UIThread.CheckAccess());
+            Interlocked.Increment(ref reads);
+            return PatchManagerRefreshService.Read(r, t);
+        });
+        var view = CreateView(service);
+        var vm = ViewModel(view);
+        vm.PropertyChanged += (_, _) => Assert.True(Dispatcher.UIThread.CheckAccess());
+        var host = new Window { Content = view };
+        try
+        {
+            view.FindControl<TextBox>("SearchBox")!.Text = "Owned";
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            host.Show();
+            Assert.True(await view.RefreshTask);
+            var first = view.RefreshTask;
+            var list = view.FindControl<ListBox>("PatchListBox")!;
+            list.SelectedIndex = 0;
+            Assert.Equal("Owned English", view.FindControl<TextBlock>("DetailName")!.Text);
+            await Task.Run(() => { CoreState.Language = "ja"; CoreState.RaiseLanguageChanged(); });
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            Assert.NotSame(first, view.RefreshTask);
+            Assert.True(await view.RefreshTask);
+            Assert.Equal(2, reads);
+            Assert.Equal("Owned", view.FindControl<TextBox>("SearchBox")!.Text);
+            Assert.Equal("Owned Japanese", Assert.Single(vm.FilteredPatches).Name);
+            Assert.Null(vm.SelectedPatch);
+            Assert.Equal("", view.FindControl<TextBlock>("DetailName")!.Text);
+            CoreState.RaiseLanguageChanged();
+            Assert.Equal(2, reads);
+
+            view.RequestClose();
+            await Task.Run(() => { CoreState.Language = "en"; CoreState.RaiseLanguageChanged(); });
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            Assert.Equal(2, reads);
+        }
+        finally { host.Close(); await service.Completion; await view.RefreshTask; }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LanguageChangeClearsPendingSelectionBeforeLocalizedRowsChange(bool duringOperation)
+    {
+        using var fixture = new Fixture();
+        string firstPath = Path.Combine(fixture.Library, "PATCH_first.txt");
+        string secondPath = Path.Combine(fixture.Library, "PATCH_second.txt");
+        File.WriteAllText(firstPath, "NAME=Other Japanese\nNAME.en=Match English\nTYPE=BIN");
+        File.WriteAllText(secondPath, "NAME=Match Japanese\nNAME.en=Other English\nTYPE=BIN");
+        var service = new PatchManagerRefreshService();
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        try
+        {
+            view.JumpTo("Match", 0);
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            host.Show();
+            Assert.True(await view.RefreshTask);
+            var vm = ViewModel(view);
+            var list = view.FindControl<ListBox>("PatchListBox")!;
+            Assert.Equal(firstPath, Assert.Single(vm.FilteredPatches).PatchFilePath);
+            Assert.Equal(firstPath, vm.SelectedPatch!.PatchFilePath);
+            Assert.Equal(0, list.SelectedIndex);
+            Assert.Equal(0, ViewField("_pendingSelection").GetValue(view));
+            ViewField("_patchActionRunning").SetValue(view, duringOperation);
+            CoreState.Language = "ja";
+            CoreState.RaiseLanguageChanged();
+            if (duringOperation)
+            {
+                Assert.False(view.IsLoaded);
+                Assert.Equal(-1, list.SelectedIndex);
+                ViewField("_patchActionRunning").SetValue(view, false);
+                InvokeView(view, "UpdateOperationControls");
+            }
+            Assert.True(await view.RefreshTask);
+            Assert.Equal("Match", view.FindControl<TextBox>("SearchBox")!.Text);
+            Assert.Equal(secondPath, Assert.Single(vm.FilteredPatches).PatchFilePath);
+            Assert.Equal(-1, list.SelectedIndex);
+            Assert.Null(list.SelectedItem);
+            Assert.Null(vm.SelectedPatch);
+            Assert.Equal("", view.FindControl<TextBlock>("DetailName")!.Text);
+            Assert.Equal(-1, ViewField("_pendingSelection").GetValue(view));
+        }
+        finally
+        {
+            ViewField("_patchActionRunning").SetValue(view, false);
+            host.Close();
+            await service.Completion;
+            await view.RefreshTask;
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ModalReattachmentOnlyInvalidatesOperationsForAMissedLanguageChange(bool action, bool change)
+    {
+        using var fixture = new Fixture();
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            Interlocked.Increment(ref reads);
+            return PatchManagerRefreshService.Read(r, t);
+        });
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        using var cancellation = new CancellationTokenSource();
+        string running = action ? "_patchActionRunning" : "_importing";
+        string dialog = action ? "_actionDialogOpen" : "_importDialogOpen";
+        string source = action ? "_actionCancellation" : "_importCancellation";
+        try
+        {
+            host.Show();
+            Assert.True(await view.RefreshTask);
+            var vm = ViewModel(view);
+            view.FindControl<ListBox>("PatchListBox")!.SelectedIndex = 0;
+            var selection = vm.SelectedPatch;
+            long generation = (long)ViewField("_actionGeneration").GetValue(view)!;
+            ViewField(running).SetValue(view, true);
+            ViewField(dialog).SetValue(view, true);
+            ViewField(source).SetValue(view, cancellation);
+            host.Content = null;
+            if (change)
+            {
+                CoreState.Language = "ja";
+                CoreState.RaiseLanguageChanged();
+            }
+            await Dispatcher.UIThread.InvokeAsync(() => { }, DispatcherPriority.Background);
+            Assert.Equal(1, reads);
+            host.Content = view;
+            Assert.False(cancellation.IsCancellationRequested);
+            if (action) Assert.Equal(generation, ViewField("_actionGeneration").GetValue(view));
+            Assert.Equal(!change, vm.IsLoaded);
+            if (change) Assert.Null(vm.SelectedPatch);
+            else Assert.Same(selection, vm.SelectedPatch);
+            Assert.Equal(1, reads);
+            ViewField(running).SetValue(view, false);
+            InvokeView(view, "UpdateOperationControls");
+            Assert.True(await view.RefreshTask);
+            Assert.Equal(change ? 2 : 1, reads);
+        }
+        finally
+        {
+            ViewField(running).SetValue(view, false);
+            ViewField(dialog).SetValue(view, false);
+            ViewField(source).SetValue(view, null);
+            host.Close();
+            await service.Completion;
+            await view.RefreshTask;
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task AttachedLanguageChangeWaitsForTheInvalidatedReaderToActuallyExit()
+    {
+        using var fixture = new Fixture();
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root)) { }
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            if (Interlocked.Increment(ref reads) == 1) { entered.Set(); release.Wait(); }
+            return PatchManagerRefreshService.Read(r, default);
+        });
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        try
+        {
+            host.Show();
+            var stale = view.RefreshTask;
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            CoreState.Language = "ja";
+            CoreState.RaiseLanguageChanged();
+            InvokeView(view, "UpdateOperationControls");
+            Assert.Equal(1, reads);
+            Assert.False(stale.IsCompleted);
+            Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() => PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+            release.Set();
+            Assert.False(await stale);
+            await service.Completion;
+            InvokeView(view, "UpdateOperationControls");
+            Assert.True(await view.RefreshTask);
+            Assert.Equal(2, reads);
+            Assert.True(view.IsLoaded);
+        }
+        finally { release.Set(); host.Close(); await service.Completion; await view.RefreshTask; }
+    }
+
+    [AvaloniaFact]
+    public async Task CommittedImportRefreshSatisfiesPendingLanguageWithoutCancellingTheImport()
+    {
+        using var fixture = new Fixture();
+        byte[] rom = (byte[])fixture.Rom.Data.Clone();
+        using var archive = new MemoryStream();
+        using (var zip = new ZipArchive(archive, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            using var writer = new StreamWriter(zip.CreateEntry("FE8U/PATCH_imported.txt").Open());
+            writer.Write("NAME=Imported Japanese\nNAME.en=Imported English\nTYPE=BIN\nPATCHED_IF:0x200=0xAA");
+        }
+        archive.Position = 0;
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            Interlocked.Increment(ref reads);
+            return PatchManagerRefreshService.Read(r, t);
+        });
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            host.Show();
+            Assert.True(await view.RefreshTask);
+            ViewField("_importing").SetValue(view, true);
+            ViewField("_importCancellation").SetValue(view, cancellation);
+            using (var owner = await PatchDatabaseImportCore.PrepareForTestAsync(archive, fixture.Root, "FE8U",
+                cancellation.Token, _ => false))
+            {
+                Assert.True((await Task.Run(() => owner.Commit(deferCleanup: true))).Success);
+                CoreState.Language = "ja";
+                CoreState.RaiseLanguageChanged();
+                InvokeView(view, "UpdateOperationControls");
+                Assert.False(view.IsLoaded);
+                Assert.Equal(1, reads);
+                Assert.False(cancellation.IsCancellationRequested);
+                Assert.True(await (Task<bool>)InvokeView(view, "LoadPatchesAsync", owner)!);
+                Assert.Equal("Imported Japanese", Assert.Single(ViewModel(view).FilteredPatches).Name);
+                Assert.True(ContentRepoGitService.IsRunning());
+            }
+            ViewField("_importing").SetValue(view, false);
+            InvokeView(view, "UpdateOperationControls");
+            Assert.Equal(2, reads);
+            Assert.True(view.IsLoaded);
+            Assert.Equal(rom, fixture.Rom.Data);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+            Assert.True(File.Exists(Path.Combine(fixture.Library, "PATCH_imported.txt")));
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+        finally
+        {
+            ViewField("_importing").SetValue(view, false);
+            ViewField("_importCancellation").SetValue(view, null);
+            host.Close();
+            await service.Completion;
+            await view.RefreshTask;
+        }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("_importing")]
+    [InlineData("_gitRunning")]
+    [InlineData("_patchActionRunning")]
+    [InlineData("gate")]
+    public async Task LanguageRefreshDefersUntilOperationAndReadOwnershipAreIdle(string operation)
+    {
+        using var fixture = new Fixture();
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            Interlocked.Increment(ref reads);
+            return PatchManagerRefreshService.Read(r, t);
+        });
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        bool ownsGate = false;
+        using var cancellation = new CancellationTokenSource();
+        try
+        {
+            host.Show();
+            Assert.True(await view.RefreshTask);
+            ViewField("_importCancellation").SetValue(view, cancellation);
+            if (operation != "gate") ViewField(operation).SetValue(view, true);
+            Assert.True(ownsGate = ContentRepoGitService.TryEnter());
+            CoreState.Language = "ja";
+            CoreState.RaiseLanguageChanged();
+            InvokeView(view, "UpdateOperationControls");
+            Assert.False(ViewModel(view).IsLoaded);
+            Assert.Equal(1, reads);
+            Assert.False(cancellation.IsCancellationRequested);
+            ContentRepoGitService.Exit();
+            ownsGate = false;
+            if (operation != "gate") ViewField(operation).SetValue(view, false);
+            InvokeView(view, "UpdateOperationControls");
+            Assert.True(await view.RefreshTask);
+            Assert.Equal(2, reads);
+            InvokeView(view, "UpdateOperationControls");
+            Assert.Equal(2, reads);
+        }
+        finally
+        {
+            if (ownsGate) ContentRepoGitService.Exit();
+            if (operation != "gate") ViewField(operation).SetValue(view, false);
+            ViewField("_importCancellation").SetValue(view, null);
+            host.Close();
+            await service.Completion;
+            await view.RefreshTask;
+        }
+    }
+
+    [AvaloniaFact]
+    public async Task SupersededFailureContinuationCannotClearANewerSuccessfulSnapshot()
+    {
+        using var fixture = new Fixture();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        int reads = 0;
+        var service = new PatchManagerRefreshService((r, t) =>
+        {
+            if (Interlocked.Increment(ref reads) == 1) { entered.Set(); release.Wait(); }
+            return PatchManagerRefreshService.Read(r, t) with { Message = "latest success" };
+        });
+        var view = CreateView(service);
+        var host = new Window { Content = view };
+        var held = new HeldContinuation();
+        Task<bool>? stale = null;
+        try
+        {
+            host.Show();
+            Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+            var previousContext = SynchronizationContext.Current;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(held);
+                stale = LoadView(view);
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previousContext); }
+            var latest = LoadView(view);
+            await held.Posted.Task.WaitAsync(TimeSpan.FromSeconds(10));
+            release.Set();
+            Assert.True(await latest);
+            Assert.Equal("latest success", view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+            held.Run();
+            Assert.False(await stale);
+            Assert.True(view.IsLoaded);
+            Assert.Equal("latest success", view.FindControl<TextBlock>("StatusMessageLabel")!.Text);
+        }
+        finally
+        {
+            release.Set();
+            host.Close();
+            await service.Completion;
+            held.Run();
+            if (stale != null) await stale;
+            await view.RefreshTask;
+        }
+    }
+
+    static FieldInfo ViewField(string name) => typeof(PatchManagerView).GetField(name,
+        BindingFlags.Instance | BindingFlags.NonPublic)!;
+    static PatchManagerViewModel ViewModel(PatchManagerView view) => (PatchManagerViewModel)ViewField("_vm").GetValue(view)!;
+    static object? InvokeView(PatchManagerView view, string name, params object?[] args) =>
+        typeof(PatchManagerView).GetMethod(name, BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, args);
+    static Task<bool> LoadView(PatchManagerView view) => (Task<bool>)InvokeView(view, "LoadPatchesAsync", new object?[] { null })!;
+    static PatchManagerView CreateView(PatchManagerRefreshService service) => new(service);
+
+    sealed class HeldContinuation : SynchronizationContext
+    {
+        readonly System.Collections.Concurrent.ConcurrentQueue<(SendOrPostCallback Callback, object? State)> pending = new();
+        internal TaskCompletionSource Posted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            pending.Enqueue((callback, state));
+            Posted.TrySetResult();
+        }
+        internal void Run()
+        {
+            Assert.True(Dispatcher.UIThread.CheckAccess());
+            while (pending.TryDequeue(out var item)) item.Callback(item.State);
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("cancel")]
     [InlineData("detach")]
@@ -427,6 +879,7 @@ public class PatchManagerRefreshTests
     internal sealed class Fixture : IDisposable
     {
         readonly ROM saved = CoreState.ROM;
+        readonly Undo savedUndo = CoreState.Undo;
         readonly string savedBase = CoreState.BaseDirectory, savedLanguage = CoreState.Language;
         internal string Root { get; } = Path.Combine(AppContext.BaseDirectory, "TestResults", "refresh-" + Guid.NewGuid().ToString("N"));
         internal ROM Rom { get; } = new();
@@ -441,12 +894,14 @@ public class PatchManagerRefreshTests
             File.WriteAllText(Path.Combine(Library, "PATCH_owned.txt"),
                 "NAME=Owned FGREP\nTYPE=BIN\nPATCHED_IF:$FGREP4 sig.bin=0xAB 0xCD 0xEF 0x12");
             CoreState.ROM = Rom;
+            CoreState.Undo = new Undo();
             CoreState.BaseDirectory = Root;
             CoreState.Language = "en";
         }
         public void Dispose()
         {
             CoreState.ROM = saved;
+            CoreState.Undo = savedUndo;
             CoreState.BaseDirectory = savedBase;
             CoreState.Language = savedLanguage;
             Directory.Delete(Root, true);

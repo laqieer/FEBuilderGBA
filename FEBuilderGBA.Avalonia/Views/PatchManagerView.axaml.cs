@@ -15,9 +15,12 @@ namespace FEBuilderGBA.Avalonia.Views
     public partial class PatchManagerView : TranslatedUserControl, IEmbeddableEditor
     {
         readonly PatchManagerViewModel _vm = new();
-        readonly PatchManagerRefreshService _refresh = new();
+        readonly PatchManagerRefreshService _refresh;
         bool _attached;
         long _attachment;
+        long _viewIntent;
+        string? _lastObservedLanguage = CoreState.Language;
+        bool _languageRefreshPending;
         int _pendingSelection = -1;
         internal Task<bool> RefreshTask { get; private set; } = Task.FromResult(false);
         bool _importing;
@@ -40,6 +43,8 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             _attached = false;
             _attachment++;
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            _operationTimer.Stop();
             _refresh.Invalidate();
             _importCancellation?.Cancel();
             _actionGeneration++;
@@ -47,8 +52,11 @@ namespace FEBuilderGBA.Avalonia.Views
             CloseRequested?.Invoke(this, EventArgs.Empty);
         }
 
-        public PatchManagerView()
+        public PatchManagerView() : this(new PatchManagerRefreshService()) { }
+
+        internal PatchManagerView(PatchManagerRefreshService refresh)
         {
+            _refresh = refresh;
             InitializeComponent();
             PatchListBox.SelectionChanged += OnPatchSelected;
             SearchBox.TextChanged += OnSearchTextChanged;
@@ -66,8 +74,10 @@ namespace FEBuilderGBA.Avalonia.Views
             base.OnAttachedToVisualTree(e);
             _attached = true;
             _attachment++;
+            CoreState.LanguageChanged += OnLanguageChanged;
             _operationTimer.Start();
-            if (!_importing && !_patchActionRunning) RefreshTask = LoadPatchesAsync();
+            ObserveLanguageChange();
+            if (!_importing && !_patchActionRunning) _languageRefreshPending = true;
             UpdateOperationControls();
         }
 
@@ -76,6 +86,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // An Android modal temporarily detaches the underlying editor without closing it.
             _attached = false;
             _attachment++;
+            CoreState.LanguageChanged -= OnLanguageChanged;
             _refresh.Invalidate();
             if (!_importDialogOpen) _importCancellation?.Cancel();
             if (!_actionDialogOpen)
@@ -87,12 +98,45 @@ namespace FEBuilderGBA.Avalonia.Views
             base.OnDetachedFromVisualTree(e);
         }
 
+        void OnLanguageChanged()
+        {
+            if (!Dispatcher.UIThread.CheckAccess())
+            {
+                Dispatcher.UIThread.Post(OnLanguageChanged);
+                return;
+            }
+            if (!_attached) return;
+            ObserveLanguageChange();
+            UpdateOperationControls();
+        }
+
+        void ObserveLanguageChange()
+        {
+            if (string.Equals(_lastObservedLanguage, CoreState.Language, StringComparison.Ordinal)) return;
+            _lastObservedLanguage = CoreState.Language;
+            _viewIntent++;
+            _refresh.Invalidate();
+            _pendingSelection = -1;
+            _vm.SetPendingFilter(SearchBox.Text ?? "");
+            PatchListBox.SelectedIndex = -1;
+            ClearDetails();
+            _languageRefreshPending = true;
+        }
+
         async Task<bool> LoadPatchesAsync(PatchDatabaseImportCore.PreparedImport? owner = null)
         {
             if (!_attached) return false;
             long attachment = _attachment;
+            long intent = ++_viewIntent;
             string filter = SearchBox.Text ?? "";
+            string language = PatchMetadataCore.GetLanguageSuffix();
+            string scanLanguage = PatchFilterCore.ScanLang(CoreState.Language);
             int selection = _pendingSelection;
+            _languageRefreshPending = false;
+            bool CurrentIntent() => _attached && attachment == _attachment && intent == _viewIntent &&
+                string.Equals(filter, SearchBox.Text ?? "", StringComparison.Ordinal) &&
+                string.Equals(language, PatchMetadataCore.GetLanguageSuffix(), StringComparison.Ordinal) &&
+                string.Equals(scanLanguage, PatchFilterCore.ScanLang(CoreState.Language), StringComparison.Ordinal);
             _vm.SetPendingFilter(filter);
             ClearDetails();
             UpdateOperationControls();
@@ -110,7 +154,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 PatchManagerRefreshService.Request Capture(long generation) =>
                     PatchManagerRefreshService.Capture(filter, selection, generation, owner != null);
                 bool Current(PatchManagerRefreshService.Request request) =>
-                    _attached && attachment == _attachment && request.Identity.IsCurrent &&
+                    CurrentIntent() && request.Identity.IsCurrent && request.IsLanguageCurrent &&
                     string.Equals(SearchBox.Text ?? "", request.Filter, StringComparison.Ordinal);
                 void Publish(PatchManagerRefreshService.PatchListSnapshot snapshot)
                 {
@@ -129,8 +173,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     : _refresh.RefreshCommittedAsync(owner, Capture, Current, Publish, _importCancellation?.Token ?? default);
                 UpdateOperationControls();
                 bool refreshed = await operation;
-                if (!refreshed && _attached && attachment == _attachment &&
-                    string.Equals(filter, SearchBox.Text ?? "", StringComparison.Ordinal))
+                if (!refreshed && CurrentIntent())
                 {
                     _vm.SetPendingFilter(filter);
                     StatusMessageLabel.Text = WithRecoveryNotice(_refresh.Failure?.Localize() ??
@@ -141,7 +184,7 @@ namespace FEBuilderGBA.Avalonia.Views
             catch (Exception ex)
             {
                 Log.ErrorF("PatchManagerView.LoadPatches failed: {0}", ex.Message);
-                if (_attached && attachment == _attachment)
+                if (CurrentIntent())
                 {
                     _vm.SetPendingFilter(filter);
                     StatusMessageLabel.Text = WithRecoveryNotice(
@@ -175,16 +218,26 @@ namespace FEBuilderGBA.Avalonia.Views
             CancelPatchDatabaseImportButton.IsVisible = _importing;
             CancelPatchDatabaseImportButton.IsEnabled = _importing && _importCancellation?.IsCancellationRequested != true;
             UpdateActionButtons();
+            // Committed/post-operation refreshes also consume this pending language intent.
+            if (_attached && _languageRefreshPending && !PatchActionsBlocked)
+                RefreshTask = LoadPatchesAsync();
         }
 
         void OnSearchTextChanged(object? sender, TextChangedEventArgs e)
         {
+            _viewIntent++;
             _vm.SetPendingFilter(SearchBox.Text ?? "");
             if (_patchActionRunning)
             {
                 _actionGeneration++;
                 _actionCancellation?.Cancel();
                 _refresh.Invalidate();
+                return;
+            }
+            if (_languageRefreshPending)
+            {
+                _refresh.Invalidate();
+                UpdateOperationControls();
                 return;
             }
             if (_attached && !_importing) RefreshTask = LoadPatchesAsync();

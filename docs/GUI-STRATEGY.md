@@ -67,6 +67,14 @@ only current results are bulk-published on the dispatcher. Import success
 is latched at commit, separately from refresh and cleanup outcomes. Existing
 synchronous helpers remain for non-interactive callers.
 
+Patch Manager publications require both captured metadata and scanner languages
+to remain current. Attached editors refresh on language changes on the dispatcher,
+preserving the filter and clearing stale selection/details. Changes missed during
+a modal detach are detected on reattachment; same-language modal returns do not
+invalidate the operation. New language reads wait for active import/Git/action/read
+ownership to end, or are satisfied by an existing committed/post-operation refresh.
+Superseded refresh continuations cannot overwrite a newer snapshot or its status.
+
 Managed patch actions verify the published content identity of the complete
 admitted `config/patch2` tree under its existing filesystem lease. This detects
 completed import/Git replacements, including unchanged-length payload edits,
