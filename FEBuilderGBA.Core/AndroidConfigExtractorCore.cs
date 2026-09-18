@@ -97,7 +97,10 @@ namespace FEBuilderGBA
             string stampFileName = DefaultStampFileName)
             => EnsureExtracted(source, targetRootDir, version, false, stampFileName);
 
-        /// <summary>Opt into preserving the separately installed patch database during bundled-config refresh.</summary>
+        /// <summary>
+        /// Opt into preserving the separately installed patch database during bundled-config refresh.
+        /// Preserve mode rejects ambiguous asset paths before changing extracted data.
+        /// </summary>
         public static ExtractionResult EnsureExtracted(
             IAssetSource source,
             string targetRootDir,
@@ -122,7 +125,7 @@ namespace FEBuilderGBA
             {
                 PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(protectedRoot);
                 PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(Path.GetFullPath(stampPath), allowFileLeaf: true);
-                manifest = ReadManifest(source);
+                manifest = ReadManifest(source, preservePatchDatabase: true);
                 foreach (string rel in manifest)
                 {
                     if (PathsOverlap(rel, "config/patch2") || PathsOverlap(rel, ".patch2-import"))
@@ -216,10 +219,36 @@ namespace FEBuilderGBA
 
         // ---- internals ----
 
-        static List<string> ReadManifest(IAssetSource source)
-            => source.EnumerateAssetFiles().Select(NormalizeRelative)
+        static List<string> ReadManifest(IAssetSource source, bool preservePatchDatabase = false)
+        {
+            IEnumerable<string> paths = source.EnumerateAssetFiles();
+            if (preservePatchDatabase)
+            {
+                paths = paths.Select(path =>
+                {
+                    if (!IsCanonicalPreservedPath(path))
+                        throw new IOException("Bundled asset path is not canonical for preservation: " + path);
+                    return path;
+                });
+            }
+            return paths.Select(NormalizeRelative)
                 .Where(p => p.Length > 0 && IsSafeRelativePath(p)).Distinct()
                 .OrderBy(p => p, StringComparer.Ordinal).ToList();
+        }
+
+        static bool IsCanonicalPreservedPath(string raw)
+        {
+            if (!IsSafeStampEntry(raw) || !string.Equals(raw, NormalizeRelative(raw), StringComparison.Ordinal))
+                return false;
+            foreach (string segment in raw.Split('/'))
+            {
+                // Lexical overlap is safe only when the filesystem cannot reinterpret a component.
+                if (segment.Length == 0 || (OperatingSystem.IsWindows() &&
+                    (segment.EndsWith('.') || segment.EndsWith(' '))))
+                    return false;
+            }
+            return true;
+        }
 
         static bool PathsOverlap(string one, string other)
         {
@@ -295,6 +324,7 @@ namespace FEBuilderGBA
                 // relative path and validate against an in-root file — incorrectly
                 // skipping re-extraction. A blank / rooted / '..' / separator-style
                 // entry means the stamp is malformed or tampered -> do NOT skip.
+                if (preservePatchDatabase && !IsCanonicalPreservedPath(lines[i])) return false;
                 string raw = lines[i].Trim();
                 if (!IsSafeStampEntry(raw)) return false;
                 string rel = NormalizeRelative(raw);

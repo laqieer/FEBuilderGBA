@@ -72,6 +72,123 @@ namespace FEBuilderGBA.Core.Tests
             finally { Cleanup(target); }
         }
 
+        [SkippableTheory]
+        [InlineData("config//patch2/FE8U/keep.txt", false)]
+        [InlineData("config/data//new.txt", false)]
+        [InlineData("config/data/new.txt/", false)]
+        [InlineData("/config/data/new.txt", false)]
+        [InlineData(" config/data/new.txt", false)]
+        [InlineData("config/data/new.txt ", false)]
+        [InlineData(@"config\data\new.txt", false)]
+        [InlineData("config/./data/new.txt", false)]
+        [InlineData("config/../new.txt", false)]
+        [InlineData("config/data/new:stream", false)]
+        [InlineData("", false)]
+        [InlineData("config./data/new.txt", true)]
+        [InlineData("config /data/new.txt", true)]
+        [InlineData("config/patch2./FE8U/keep.txt", true)]
+        [InlineData("config/patch2 /FE8U/keep.txt", true)]
+        [InlineData(".patch2-import./retained/old/keep.txt", true)]
+        [InlineData(".patch2-import /retained/old/keep.txt", true)]
+        [InlineData("config/data./new.txt", true)]
+        [InlineData("config/data /new.txt", true)]
+        public void ProtectedNonCanonicalManifestFailsBeforeAnyMutation(string path, bool windowsOnly)
+        {
+            Skip.If(windowsOnly && !OperatingSystem.IsWindows(), "Windows path-component alias.");
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/data/old.txt", "UNCHANGED");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "old stamp");
+                string[] beforeFiles = Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                byte[][] beforeContents = beforeFiles.Select(File.ReadAllBytes).ToArray();
+                string[] beforeDirectories = Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray();
+                var source = new InMemoryAssetSource(new()
+                {
+                    [path] = Encoding.UTF8.GetBytes("FORBIDDEN"),
+                    ["config/fresh.txt"] = Encoding.UTF8.GetBytes("NEW"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal(beforeFiles, Directory.GetFiles(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                Assert.Equal(beforeDirectories, Directory.GetDirectories(target, "*", SearchOption.AllDirectories)
+                    .OrderBy(p => p, StringComparer.Ordinal).ToArray());
+                for (int i = 0; i < beforeFiles.Length; i++)
+                    Assert.Equal(beforeContents[i], File.ReadAllBytes(beforeFiles[i]));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [SkippableTheory]
+        [InlineData("config//data/current.txt", false)]
+        [InlineData("config/data//current.txt", false)]
+        [InlineData("config//patch2/FE8U/keep.txt", false)]
+        [InlineData(" config/data/current.txt", false)]
+        [InlineData("config/data/current.txt ", false)]
+        [InlineData("config./data/current.txt", true)]
+        [InlineData("config /data/current.txt", true)]
+        [InlineData("config/patch2./FE8U/keep.txt", true)]
+        [InlineData("config/patch2 /FE8U/keep.txt", true)]
+        [InlineData(".patch2-import./retained/old/keep.txt", true)]
+        [InlineData(".patch2-import /retained/old/keep.txt", true)]
+        public void ProtectedNonCanonicalStampCannotClaimUpToDate(string entry, bool windowsOnly)
+        {
+            Skip.If(windowsOnly && !OperatingSystem.IsWindows(), "Windows path-component alias.");
+            string target = NewTempDir();
+            try
+            {
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config/data/current.txt"] = Encoding.UTF8.GetBytes("CURRENT"),
+                });
+                AndroidConfigExtractorCore.EnsureExtracted(source, target, "one", preservePatchDatabase: true);
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "IMPORTED");
+                WriteAsset(target, ".patch2-import/retained/old/keep.txt", "BACKUP");
+                WriteAsset(target, "config/data/current.txt", "STALE");
+                WriteAsset(target, AndroidConfigExtractorCore.DefaultStampFileName, "one\n1\n" + entry + "\n");
+                int opens = source.OpenAssetCalls;
+
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.ReExtracted,
+                    AndroidConfigExtractorCore.EnsureExtracted(source, target, "one", preservePatchDatabase: true));
+
+                Assert.Equal(opens + 1, source.OpenAssetCalls);
+                Assert.Equal("CURRENT", File.ReadAllText(Path.Combine(target, "config", "data", "current.txt")));
+                Assert.Equal("IMPORTED", File.ReadAllText(Path.Combine(target, "config", "patch2", "FE8U", "keep.txt")));
+                Assert.Equal("BACKUP", File.ReadAllText(Path.Combine(target, ".patch2-import", "retained", "old", "keep.txt")));
+                Assert.Equal(new[] { "one", "1", "config/data/current.txt" },
+                    File.ReadAllLines(Path.Combine(target, AndroidConfigExtractorCore.DefaultStampFileName)));
+            }
+            finally { Cleanup(target); }
+        }
+
+        [Fact]
+        public void DefaultExtractionRetainsRepeatedSeparatorCompatibility()
+        {
+            string target = NewTempDir();
+            try
+            {
+                var source = new InMemoryAssetSource(new()
+                {
+                    ["config//data/legacy.txt"] = Encoding.UTF8.GetBytes("LEGACY"),
+                });
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.Extracted,
+                    AndroidConfigExtractorCore.EnsureExtracted(source, target, "one"));
+                Assert.Equal("LEGACY", File.ReadAllText(Path.Combine(target, "config", "data", "legacy.txt")));
+                Assert.Equal(AndroidConfigExtractorCore.ExtractionResult.SkippedUpToDate,
+                    AndroidConfigExtractorCore.EnsureExtracted(source, target, "one"));
+                Assert.Equal(1, source.OpenAssetCalls);
+            }
+            finally { Cleanup(target); }
+        }
+
         [Theory]
         [InlineData("config")]
         [InlineData("config/patch2")]
