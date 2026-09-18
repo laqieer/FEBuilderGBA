@@ -64,6 +64,7 @@ namespace FEBuilderGBA
             internal long LocalOffset { get; init; }
             internal bool CentralZip64Sizes { get; init; }
             internal long DataOffset { get; set; }
+            internal int SelectedFileIndex { get; set; } = -1;
         }
 
         internal sealed class Archive
@@ -443,6 +444,7 @@ namespace FEBuilderGBA
                 total = checked(total + entry.Length);
                 if (files.Count >= limits.MaxFiles || total > limits.MaxExpandedBytes)
                     throw Invalid("Selected database file/byte limit exceeded.");
+                entry.SelectedFileIndex = files.Count;
                 files.Add(entry);
             }
             if (files.Count == 0) throw Invalid("The selected database subtree contains no files.");
@@ -471,7 +473,9 @@ namespace FEBuilderGBA
         internal static async Task CopyEntryAsync(Stream source, Archive archive, Entry entry,
             Stream destination, CancellationToken cancellationToken = default)
         {
-            if (source.Length != archive.InputBytes || !archive.Files.Contains(entry))
+            if (source.Length != archive.InputBytes || entry == null ||
+                entry.SelectedFileIndex < 0 || entry.SelectedFileIndex >= archive.Files.Count ||
+                !ReferenceEquals(archive.Files[entry.SelectedFileIndex], entry))
                 throw Invalid("ZIP spool or entry identity changed after validation.");
             source.Position = entry.DataOffset;
             using var slice = new SliceStream(source, entry.CompressedLength);

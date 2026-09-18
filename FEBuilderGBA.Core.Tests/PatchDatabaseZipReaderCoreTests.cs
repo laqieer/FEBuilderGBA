@@ -20,6 +20,98 @@ public class PatchDatabaseZipReaderCoreTests
         return stream;
     }
 
+    sealed class IndexedEntries : IReadOnlyList<PatchDatabaseZipReaderCore.Entry>
+    {
+        readonly IReadOnlyList<PatchDatabaseZipReaderCore.Entry> entries;
+        internal int CountReads, IndexReads, Enumerations;
+        internal IndexedEntries(IReadOnlyList<PatchDatabaseZipReaderCore.Entry> entries) => this.entries = entries;
+        public int Count { get { CountReads++; return entries.Count; } }
+        public PatchDatabaseZipReaderCore.Entry this[int index] { get { IndexReads++; return entries[index]; } }
+        public IEnumerator<PatchDatabaseZipReaderCore.Entry> GetEnumerator()
+        {
+            Enumerations++;
+            throw new InvalidOperationException("Validated entry membership must not enumerate the file list.");
+        }
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() => GetEnumerator();
+    }
+
+    [Theory]
+    [InlineData(8)]
+    [InlineData(50_000)]
+    public async Task CopyingSelectedFilesUsesConstantTimeIdentityAdmission(int count)
+    {
+        using var zip = Zip(Enumerable.Range(0, count)
+            .Select(i => ($"FE8U/f{i:D5}.bin", "x")).ToArray());
+        var inspected = PatchDatabaseZipReaderCore.Inspect(zip, "FE8U");
+        var indexed = new IndexedEntries(inspected.Files);
+        var archive = new PatchDatabaseZipReaderCore.Archive
+        {
+            Files = indexed,
+            InputBytes = inspected.InputBytes,
+        };
+
+        foreach (var entry in inspected.Files)
+            await PatchDatabaseZipReaderCore.CopyEntryAsync(zip, archive, entry, Stream.Null);
+
+        Assert.Equal(0, indexed.Enumerations);
+        Assert.Equal(count, indexed.IndexReads);
+        Assert.InRange(indexed.CountReads, count, count * 2);
+    }
+
+    [Theory]
+    [InlineData("foreign-archive")]
+    [InlineData("unselected-version")]
+    [InlineData("equivalent-object")]
+    [InlineData("directory")]
+    [InlineData("out-of-range")]
+    [InlineData("reordered")]
+    [InlineData("null")]
+    public async Task ChangedEntryIdentityIsRejectedBeforePositionOrOutputChanges(string change)
+    {
+        using var zip = Zip(("FE8U/a.bin", "a"), ("FE8U/b.bin", "b"),
+            ("FE8U/empty/", ""), ("FE7U/other.bin", "c"));
+        var archive = PatchDatabaseZipReaderCore.Inspect(zip, "FE8U");
+        PatchDatabaseZipReaderCore.Entry? entry = archive.Files[0];
+        if (change == "foreign-archive")
+            entry = PatchDatabaseZipReaderCore.Inspect(zip, "FE8U").Files[0];
+        else if (change == "unselected-version")
+            entry = PatchDatabaseZipReaderCore.Inspect(zip, "FE7U").Files[0];
+        else if (change == "equivalent-object")
+            entry = new PatchDatabaseZipReaderCore.Entry
+            {
+                Name = entry.Name, RelativePath = entry.RelativePath, IsDirectory = entry.IsDirectory,
+                Length = entry.Length, CompressedLength = entry.CompressedLength, Crc = entry.Crc,
+                Method = entry.Method, Flags = entry.Flags, RawName = entry.RawName,
+                LocalOffset = entry.LocalOffset, CentralZip64Sizes = entry.CentralZip64Sizes,
+                DataOffset = entry.DataOffset,
+            };
+        else if (change == "directory")
+            entry = Assert.Single(archive.Directories);
+        else if (change == "out-of-range")
+            archive = new PatchDatabaseZipReaderCore.Archive
+            {
+                Files = Array.Empty<PatchDatabaseZipReaderCore.Entry>(),
+                InputBytes = archive.InputBytes,
+            };
+        else if (change == "reordered")
+            archive = new PatchDatabaseZipReaderCore.Archive
+            {
+                Files = archive.Files.Reverse().ToArray(),
+                InputBytes = archive.InputBytes,
+            };
+        else if (change == "null")
+            entry = null;
+        zip.Position = 7;
+        using var destination = new MemoryStream();
+        destination.WriteByte(0x7A);
+
+        await Assert.ThrowsAsync<InvalidDataException>(() =>
+            PatchDatabaseZipReaderCore.CopyEntryAsync(zip, archive, entry!, destination));
+
+        Assert.Equal(7, zip.Position);
+        Assert.Equal(new byte[] { 0x7A }, destination.ToArray());
+    }
+
     [Theory]
     [InlineData("FE6")]
     [InlineData("FE7J")]
