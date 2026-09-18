@@ -1,3 +1,108 @@
+function Invoke-EmptyPatchLibraryTests([string]$Root) {
+    $owned=Join-Path $Root ('empty-library-tests-'+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($owned)
+    $names=[Collections.Generic.List[string]]::new()
+    $failures=[Collections.Generic.List[string]]::new()
+    function Directory([string]$path) { [void][IO.Directory]::CreateDirectory($path) }
+    function Text([string]$path) { [IO.File]::WriteAllText($path,'owned-test-payload') }
+    function Refuse([string]$path) { Assert-ProofTestThrows { Initialize-ProofEmptyPatchLibrary $path } }
+    function Link([string]$path,[string]$target) {
+        if($IsWindows){$null=New-Item -ItemType Junction -Path $path -Target $target -ErrorAction Stop}
+        else{$null=[IO.Directory]::CreateSymbolicLink($path,$target)}
+    }
+    $cases=@(
+        @{name='nested-worktree-canonical-empty';run={
+            Text (Join-Path ([IO.Path]::GetDirectoryName($app)) '.git')
+            $result=@(Initialize-ProofEmptyPatchLibrary $app)
+            Assert-Proof ($result.Count -eq 1 -and $result[0] -is [bool] -and $result[0]) 'Boolean-only setup receipt.'
+            Assert-Proof ([IO.Directory]::Exists($target) -and
+                @([IO.Directory]::EnumerateFileSystemEntries($target)).Count -eq 0 -and
+                @([IO.Directory]::EnumerateFiles($app,'*',[IO.SearchOption]::AllDirectories)).Count -eq 0) 'Canonical empty library, no payload.'
+        }},
+        @{name='existing-config-directory';run={Directory (Join-Path $app 'config');Assert-Proof (Initialize-ProofEmptyPatchLibrary $app) 'Existing config.'}},
+        @{name='existing-patch2-directory';run={Directory ([IO.Path]::GetDirectoryName($target));Assert-Proof (Initialize-ProofEmptyPatchLibrary $app) 'Existing patch2.'}},
+        @{name='second-call-refused';run={$null=Initialize-ProofEmptyPatchLibrary $app;Refuse $app}},
+        @{name='target-file-refused';run={Directory ([IO.Path]::GetDirectoryName($target));Text $target;Refuse $app;Assert-Proof ([IO.File]::ReadAllText($target) -ceq 'owned-test-payload') 'File preserved.'}},
+        @{name='target-empty-directory-refused';run={Directory $target;Refuse $app;Assert-Proof (@([IO.Directory]::EnumerateFileSystemEntries($target)).Count -eq 0) 'Empty target preserved.'}},
+        @{name='target-nonempty-directory-refused';run={Directory $target;Text (Join-Path $target 'owned.txt');Refuse $app;Assert-Proof ([IO.File]::ReadAllText((Join-Path $target 'owned.txt')) -ceq 'owned-test-payload') 'Payload preserved.'}},
+        @{name='missing-app-refused';run={Refuse (Join-Path $app 'absent');Assert-Proof (![IO.Path]::Exists((Join-Path $app 'absent'))) 'Missing app not created.'}},
+        @{name='app-file-refused';run={$file=Join-Path $app 'file';Text $file;Refuse $file}},
+        @{name='config-file-refused';run={Text (Join-Path $app 'config');Refuse $app}},
+        @{name='patch2-file-refused';run={Directory (Join-Path $app 'config');Text (Join-Path $app 'config\patch2');Refuse $app}},
+        @{name='file-ancestor-refused';run={$file=Join-Path $app 'file';Text $file;Refuse (Join-Path $file 'child')}},
+        @{name='relative-app-refused';run={Refuse 'relative-app'}},
+        @{name='noncanonical-app-refused';run={Refuse ($app+'\..\app')}},
+        @{name='app-reparse-refused';run={$link=Join-Path ([IO.Path]::GetDirectoryName($app)) 'linked-app';Link $link $app;try{Refuse $link}finally{[IO.Directory]::Delete($link)}}},
+        @{name='config-reparse-refused';run={$link=Join-Path $app 'config';Link $link $outside;try{Refuse $app}finally{[IO.Directory]::Delete($link)}}},
+        @{name='patch2-reparse-refused';run={Directory (Join-Path $app 'config');$link=Join-Path $app 'config\patch2';Link $link $outside;try{Refuse $app}finally{[IO.Directory]::Delete($link)}}},
+        @{name='target-reparse-refused';run={Directory ([IO.Path]::GetDirectoryName($target));Link $target $outside;try{Refuse $app}finally{[IO.Directory]::Delete($target)}}}
+    )
+    try {
+        foreach($case in $cases){
+            $names.Add($case.name)
+            $base=Join-Path $owned $case.name
+            $app=Join-Path $base 'TestResults\worktrees\fixture\app'
+            $target=Join-Path $app 'config\patch2\FE8U'
+            $outside=Join-Path $base 'owned-link-target'
+            Directory $app;Directory $outside
+            try{& $case.run}catch{$failures.Add($case.name+': '+$_.Exception.Message)}
+            Assert-Proof (@([IO.Directory]::EnumerateFileSystemEntries($outside)).Count -eq 0) 'Reparse target must remain untouched.'
+        }
+    }finally{[IO.Directory]::Delete($owned,$true)}
+    return @{names=$names.ToArray();failures=$failures.ToArray()}
+}
+function Assert-PickerIsolationInventories($Filesystem,[int]$DiagnosticCases) {
+    $digest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+        [Text.Encoding]::UTF8.GetBytes(($Filesystem.names -join "`n")))).ToLowerInvariant()
+    Assert-Proof ($Filesystem.names.Count -eq 18 -and
+        @($Filesystem.names|Select-Object -Unique).Count -eq 18 -and $digest -ceq
+        '40dc0e58985854a014d760f1abd62fff97ed0ab970952b94f6e0031cd3f439de') 'Empty library case inventory.'
+    [DesktopPolicyTests]::AssertRejectedRootClassCaseInventory()
+    Assert-Proof ($DiagnosticCases -eq [DesktopPolicyTests]::RejectedRootClassCaseNames.Length) 'Rejected class case count.'
+    $failures=@($Filesystem.failures)+@([DesktopPolicyTests]::RejectedRootClassCaseFailures)
+    Assert-Proof ($failures.Count -eq 0) ('Picker isolation regressions: '+($failures -join '; '))
+}
+function Invoke-RejectedRootClassSerializationTests {
+    $names=[Collections.Generic.List[string]]::new()
+    $samples=[DesktopPolicyTests]::RejectedRootClassSamples
+    $sampleNames=[DesktopPolicyTests]::RejectedRootClassCaseNames
+    $expected=[DesktopPolicyTests]::RejectedRootClassExpectedValues
+    Assert-Proof ($samples.Length -eq $sampleNames.Length -and $samples.Length -eq $expected.Length) 'Rejected class samples complete.'
+    for($i=0;$i -lt $samples.Length;$i++){
+        $sample=$samples[$i]
+        foreach($shape in @('compact','pretty','nested')){
+            $json=if($shape -ceq 'compact'){$sample|ConvertTo-Json -Depth 8 -Compress}
+                elseif($shape -ceq 'pretty'){$sample|ConvertTo-Json -Depth 8}
+                else{@{gui=@{QueryFailure=$sample}}|ConvertTo-Json -Depth 10}
+            Assert-Proof ([Text.Encoding]::UTF8.GetByteCount($json) -le 4096) 'Rejected class diagnostic byte bound.'
+            $decoded=ConvertFrom-Json $json -AsHashtable
+            if($shape -ceq 'nested'){$decoded=$decoded.gui.QueryFailure}
+            Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
+                'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
+                'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
+                'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows')
+            Assert-Proof ($decoded.Count -eq 21 -and $decoded.ContainsKey('RejectedRootClass') -and
+                $decoded.RejectedRootClass -ceq $expected[$i] -and
+                ($null -eq $decoded.RejectedRootClass -or
+                    ($decoded.RejectedRootClass -is [string] -and $decoded.RejectedRootClass -cmatch '^[\x20-\x7e]{1,256}\z')) -and
+                $decoded.Predicate -ceq $sample.Predicate -and $decoded.Stage -ceq $sample.Stage -and
+                $decoded.Selector -ceq $sample.Selector) 'Exact rejected class and original refusal.'
+            foreach($property in $sample.PSObject.Properties){
+                Assert-Proof ($decoded[$property.Name] -ceq $property.Value) 'Diagnostic wire facts changed.'
+            }
+            foreach($sentinel in [DesktopPolicyTests]::QueryDiagnosticPrivateSentinels){
+                Assert-Proof ($json.IndexOf($sentinel,[StringComparison]::OrdinalIgnoreCase) -lt 0) 'Rejected class private value leaked.'
+            }
+            $names.Add($sampleNames[$i]+':'+$shape)
+        }
+    }
+    $digest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
+        [Text.Encoding]::UTF8.GetBytes(($names -join "`n")))).ToLowerInvariant()
+    Assert-Proof ($names.Count -eq 120 -and $names.Count -eq 3*$samples.Length -and
+        @($names|Select-Object -Unique).Count -eq $names.Count -and $digest -ceq
+        'ff25f9d4341d7520c8847ea3653d51ca345f899082889dc5f218b3d8c071afc2') 'Rejected class wire inventory.'
+    return $names.ToArray()
+}
 function Assert-ProofTestThrows([scriptblock]$Action) {
     $failed=$false
     try { & $Action | Out-Null } catch {

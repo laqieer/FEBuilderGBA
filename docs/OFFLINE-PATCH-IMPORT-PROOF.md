@@ -312,7 +312,7 @@ or arbitrary pointers, and never replaces native PID/root validation.
 
 `QueryFailure` records at most one fixed stage/selector/predicate and bounded
 ownership/counter snapshot. Only previously positively owned HWNDs are included;
-foreign handles/PIDs and all names, text, values, paths and runtime IDs are
+foreign handles/PIDs and all node names, text, values, paths and runtime IDs are
 suppressed. A failure may refresh its known owned handle once, using at most four
 remaining budgeted native calls. If cancellation/deadline intervenes, after-state
 can be unavailable; diagnostics do not mask the original refusal.
@@ -336,14 +336,33 @@ preserving earlier completed observations. Failure-time refresh still targets
 only a previously positively owned handle and cannot update the new fields.
 Legacy ownership context, refusals, call order and budgets do not change.
 
+`RejectedRootClass` is an always-serialized nullable diagnostic, not an admission
+rule. Only `query-root-class` passes the class already read by `RootFacts` into
+the failure path. Publication requires the existing diagnostic refresh to
+complete within its budget and confirm the same nonzero live own-PID root/handle
+before and after. Incomplete/throwing refreshes, changed root/PID/liveness and a
+closed budget leave it null. A different expected root (`RootMatches=false`)
+does not suppress an otherwise positively owned class. Only the complete
+1..256-character printable ASCII value is retained; no truncation or additional
+class/UIA/native read occurs. The first refusal remains frozen.
+
 Both runners separately check 39 named production-model diagnostic cases and 48
 named compact/pretty/nested wire cases using 16 actual model `QueryFailure`
-objects. Each wire shape has exactly 20 properties, nullable/domain checks,
+objects. Each wire shape has exactly 21 properties, nullable/domain checks,
 a 4096-byte UTF-8 cap, and unverified handle/PID/private-text sentinel exclusions.
 These are checked locals, not new runtime report counters; the existing
 146/522/57/75 case inventories and 12 `StartupFailure` serialization cases remain
 separate and unchanged. The model seed adapter makes one fewer call than the
 production adapter; exact model traces are not production call-count claims.
+
+Separate inventories in both runners cover 40 rejected-class model cases and
+120 compact/pretty/nested wire cases, including exact unchanged adapter traces,
+refresh interruption and first-failure retention. The original 39 case names,
+16 sample names and 48 wire names/order/digests are unchanged. The original
+`resolve-success-before-registration-failure` sample now uses the neutral class
+`OwnedAuxiliaryClass` and expects that value; its private node sentinels remain.
+The other 15 original samples explicitly expect null. Every wire case retains
+the exact 21-key schema, private-field exclusions and 4096-byte bound.
 
 The public Windows aggregate includes existing authenticated fixture-worker
 launches and retained-process-image native queries. It is not native-free.
@@ -455,6 +474,26 @@ precise cause. No old preparation or grant is restored. Fresh SOURCE, push,
 independently granted preparation and separate GUI authorization remain required.
 
 ## Reviewable source
+
+### Empty canonical runtime library
+
+After verified app/fixture projection and before readiness or application
+startup, the runner calls `Initialize-ProofEmptyPatchLibrary` once to create
+`app\config\patch2\FE8U` under the fresh owned runtime app root. Existing targets
+(including empty directories), non-directory ancestors and reparse ancestry
+are refused. The helper creates no files and checks emptiness with one bounded
+first-entry enumeration. Preparation and overall budget checks surround the
+call; the receipt records only `empty_patch_library_initialized` as a Boolean.
+Both pure runners invoke a separate 18-case filesystem suite.
+
+The application's first canonical library candidate is therefore the newly
+created empty directory rather than a shared fallback. Setup does not replace
+an empty directory. A later import confirmation may honestly describe replacing
+the now-existing empty directory; no original-absence/new-directory-label claim
+is made. File-row exclusions still forbid patch-library preseed data, and neither
+production fallback nor importer destination changes. This setup isolates the
+initial scan; the diagnostic addition describes a still-refused class and does
+not claim to fix the picker.
 
 `scripts\OfflinePatchImportProof` contains:
 

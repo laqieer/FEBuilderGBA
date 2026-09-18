@@ -264,6 +264,7 @@ public sealed class DesktopQueryFailure
     public bool? SeedResolveKeyEqual { get; set; }
     public bool? ResolveAlive { get; set; }
     public string ResolvePidRelation { get; set; }
+    public string RejectedRootClass { get; set; }
     public int Nodes { get; set; }
     public int Calls { get; set; }
     public int Windows { get; set; }
@@ -390,7 +391,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             ExpectedOwnedRoot = roots.ContainsKey(expected) ? expected : 0 };
     }
 
-    void Fail(string code)
+    void Fail(string code, string rejectedRootClass = null)
     {
         if (failure == null)
         {
@@ -410,6 +411,15 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
                         bool ownedRoot = root != 0 && adapter.NativePid(root) == pid;
                         if (ownedRoot) failure.OwnedRootAfter = root;
                         failure.RootMatchesAfter = ownedRoot && root == failure.ExpectedOwnedRoot;
+                        if (code == "query-root-class" && !Budget.Closed && ownedRoot && root == h &&
+                            failure.AliveBefore == true && failure.OwnPidBefore == true &&
+                            failure.OwnedRootBefore == h && rejectedRootClass != null &&
+                            rejectedRootClass.Length >= 1 && rejectedRootClass.Length <= 256)
+                        {
+                            bool printable = true;
+                            foreach (char c in rejectedRootClass) printable &= c >= 32 && c <= 126;
+                            if (printable) failure.RejectedRootClass = rejectedRootClass;
+                        }
                     }
                 }
                 catch { /* Original refusal and containment take precedence over diagnostics. */ }
@@ -499,7 +509,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         context.OwnedRootBefore = handle;
         context.RootMatchesBefore = handle == context.ExpectedOwnedRoot;
         string windowClass = adapter.Class(handle);
-        Require(DesktopRootBindings.ValidClass(windowClass), "query-root-class");
+        if (!DesktopRootBindings.ValidClass(windowClass)) Fail("query-root-class", windowClass);
         uint owner = adapter.Owner(handle), next = owner;
         var seen = new HashSet<uint> { handle };
         var owners = new List<(uint handle, string windowClass)>();

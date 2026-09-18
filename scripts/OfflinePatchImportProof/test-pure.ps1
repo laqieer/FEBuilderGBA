@@ -37,6 +37,11 @@ function ProofEnvelope {
         }
         . (Join-Path $PSScriptRoot 'RuntimeBinding.ps1')
         . (Join-Path $PSScriptRoot 'RuntimeBinding.Tests.ps1')
+        $emptyPatchLibraryCases=Invoke-EmptyPatchLibraryTests $root
+        $rejectedRootClassCases=[DesktopPolicyTests]::RunRejectedRootClassTests()
+        Assert-PickerIsolationInventories $emptyPatchLibraryCases $rejectedRootClassCases
+        $rejectedRootClassSerializationNames=@(Invoke-RejectedRootClassSerializationTests)
+        Assert-Proof ($rejectedRootClassSerializationNames.Count -eq 120) 'Rejected class wire case count.'
         $imageCases=& (Join-Path $PSScriptRoot 'ProcessImage.Tests.ps1')
         $retainedImageCases=[RetainedProcessImageTests]::Run()
         if($retainedImageCases -ne 32) { throw 'Retained image inventory changed.' }
@@ -99,8 +104,12 @@ function ProofEnvelope {
                 Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
                     'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
                     'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
-                    'ResolvePidRelation','Nodes','Calls','Windows')
-                Assert-Proof ($decoded.Count -eq 20 -and $decoded.Stage -ceq 'loading-handoff' -and
+                    'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows')
+                $expectedRejectedClass=if($queryDiagnosticSampleNames[$sampleIndex] -ceq
+                    'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}
+                Assert-Proof ($decoded.ContainsKey('RejectedRootClass') -and
+                    $decoded.RejectedRootClass -ceq $expectedRejectedClass) 'Exact original-sample rejected class.'
+                Assert-Proof ($decoded.Count -eq 21 -and $decoded.Stage -ceq 'loading-handoff' -and
                     $decoded.Selector -ceq 'Discovery' -and $decoded.Predicate -is [string] -and
                     $decoded.Predicate -ceq $sample.Predicate -and $decoded.Predicate.Length -le 64) 'Query diagnostic envelope.'
                 foreach($key in @('ExpectedOwnedRoot','PreviouslyOwnedHandle','OwnedRootBefore','OwnedRootAfter')){

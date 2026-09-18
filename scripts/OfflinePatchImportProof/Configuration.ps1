@@ -50,6 +50,24 @@ function Assert-ProofPath([string]$Path,[switch]$Existing) {
         Assert-Proof (($attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'Reparse ancestry refused.'
     }
 }
+function Initialize-ProofEmptyPatchLibrary([string]$AppRoot) {
+    Assert-ProofPath $AppRoot -Existing
+    $target=Join-Path $AppRoot 'config\patch2\FE8U'
+    Assert-ProofPath $target
+    for($cursor=$target;$cursor;$cursor=[IO.Path]::GetDirectoryName($cursor)){
+        try{$attributes=[IO.File]::GetAttributes($cursor)}
+        catch [IO.FileNotFoundException]{continue}
+        catch [IO.DirectoryNotFoundException]{continue}
+        Assert-Proof ($cursor -cne $target) 'Canonical patch library already exists.'
+        Assert-Proof (($attributes -band [IO.FileAttributes]::Directory) -ne 0) 'Plain directory ancestry required.'
+    }
+    [void][IO.Directory]::CreateDirectory($target)
+    Assert-ProofPath $target -Existing
+    $entries=[IO.Directory]::EnumerateFileSystemEntries($target).GetEnumerator()
+    try{Assert-Proof (!$entries.MoveNext()) 'Canonical patch library must be empty.'}
+    finally{$entries.Dispose()}
+    return $true
+}
 function Assert-ProofPin($Pin) {
     Assert-ProofKeys $Pin @('path','bytes','sha256')
     Assert-Proof ($Pin.path -is [string]) 'Pin path type.'

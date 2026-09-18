@@ -1491,5 +1491,85 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             self.assertNotRegex(text, r"(?m)^\s*(?:windowIdentityCases|startupDiagnosticSerializationCases)\s*=")
 
 
+class PickerIsolationContracts(unittest.TestCase):
+    def test_empty_library_has_fixed_fresh_bounded_placement(self):
+        source = (PACKAGE / "Configuration.ps1").read_text(encoding="utf-8")
+        start, end = _source_block(
+            source, r"^\s*function Initialize-ProofEmptyPatchLibrary\([^\n]*\)\s*\{")
+        helper = source[start:end]
+        for token in ("Assert-ProofPath $AppRoot -Existing", "'config\\patch2\\FE8U'",
+                      "Assert-ProofPath $target", "[IO.File]::GetAttributes($cursor)",
+                      "[IO.FileAttributes]::Directory", "$cursor -cne $target",
+                      ".GetEnumerator()", ".MoveNext()", ".Dispose()", "return $true"):
+            self.assertIn(token, helper)
+        self.assertEqual(helper.count(".MoveNext()"), 1)
+        self.assertNotRegex(helper, r"WriteAll|Copy|Get-ChildItem|SearchOption|GetFiles|ReadAll|catch\s*\{")
+
+    def test_setup_occurs_once_after_projection_before_readiness(self):
+        source = (PACKAGE / "run.ps1").read_text(encoding="utf-8")
+        call = "$report.empty_patch_library_initialized=Initialize-ProofEmptyPatchLibrary (Join-Path $runRoot 'app')"
+        self.assertEqual(source.count("Initialize-ProofEmptyPatchLibrary"), 1)
+        self.assertIn(call, source)
+        before, after = source.split(call)
+        self.assertLess(before.index("foreach ($row in $manifest.appFiles)"),
+                        before.index("CheckArchive (Join-Path $runRoot 'fixtures\\zipdb-invalid.zip') $false"))
+        self.assertRegex(before, r"Budget\s+if \(\$clock.ElapsedMilliseconds -ge 150000\).*?\s*$")
+        self.assertRegex(after, r"^\s+Budget\s+if \(\$clock.ElapsedMilliseconds -ge 150000\)")
+        self.assertIn("[BoundedWindowsReadiness]::Capture()", after)
+        self.assertIn("[Diagnostics.Process]::Start($start)", after)
+        for token in ("$row.path.StartsWith('config\\patch2\\', [StringComparison]::OrdinalIgnoreCase)",
+                      "$row.path.StartsWith('.patch2-import', [StringComparison]::OrdinalIgnoreCase)",
+                      "throw 'Invalid or preseeded app relative path.'"):
+            self.assertIn(token, source)
+        config = (PACKAGE / "Configuration.ps1").read_text(encoding="utf-8")
+        self.assertIn("patch2|\\.patch2-import.*|", config)
+
+    def test_class_candidate_uses_existing_read_and_completed_refresh_only(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        root = policy.split("(uint owner, string windowClass) RootFacts(uint handle)", 1)[1].split(
+            "DesktopOwnedWindow<TNode> Register", 1)[0]
+        self.assertEqual(root.count("adapter.Class(handle)"), 1)
+        self.assertIn('if (!DesktopRootBindings.ValidClass(windowClass)) Fail("query-root-class", windowClass);', root)
+        fail = policy.split("void Fail(", 1)[1].split("void Require(", 1)[0]
+        self.assertIn("string rejectedRootClass = null", fail)
+        for token in ('code == "query-root-class"', "!Budget.Closed",
+                      "failure.AliveBefore == true", "failure.OwnPidBefore == true",
+                      "failure.OwnedRootBefore == h", "root == h",
+                      "rejectedRootClass.Length >= 1", "rejectedRootClass.Length <= 256",
+                      "c >= 32 && c <= 126", "failure.RejectedRootClass = rejectedRootClass"):
+            self.assertIn(token, fail)
+        self.assertNotIn("adapter.Class", fail)
+        self.assertNotIn("Substring", fail)
+        self.assertNotRegex(fail, r"if\s*\([^)]*RootMatches")
+        self.assertEqual(fail.count("adapter.Alive("), 1)
+        self.assertEqual(fail.count("adapter.NativePid("), 2)
+        self.assertEqual(fail.count("adapter.NativeRoot("), 1)
+        self.assertEqual(policy.count('Fail("query-root-class", windowClass)'), 1)
+
+    def test_both_runners_execute_separate_inventories_and_exact_wire_schema(self):
+        for name in ("test-pure.ps1", "validate-helper.ps1"):
+            source = (PACKAGE / name).read_text(encoding="utf-8")
+            for token in ("Invoke-EmptyPatchLibraryTests", "RunRejectedRootClassTests()",
+                          "Assert-PickerIsolationInventories", "Invoke-RejectedRootClassSerializationTests",
+                          "$queryDiagnosticCases -ne 39", "$queryDiagnosticSerializationNames.Count -eq 48",
+                          "daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7",
+                          "'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows'",
+                          "$decoded.Count -eq 21", "$decoded.ContainsKey('RejectedRootClass')",
+                          "$decoded.RejectedRootClass -ceq $expectedRejectedClass",
+                          "'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}",
+                          "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096"):
+                self.assertIn(token, source)
+        tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
+        for token in ("@('compact','pretty','nested')", "$decoded.Count -eq 21",
+                      "$decoded.RejectedRootClass -ceq $expected[$i]",
+                      "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096",
+                      "QueryDiagnosticPrivateSentinels", "$decoded.Predicate -ceq $sample.Predicate"):
+            self.assertIn(token, tests)
+        tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
+        self.assertIn("24484e7e79d5ca27aed177861afcdc98ac9d7248678ae5d5576bccfc0ff6efaa", tests)
+        self.assertIn("queryDiagnosticSamples.Count != 16", tests)
+        self.assertIn('model.Native[100].Class = "OwnedAuxiliaryClass"', tests)
+
+
 if __name__ == "__main__":
     unittest.main()

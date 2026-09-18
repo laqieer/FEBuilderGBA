@@ -43,6 +43,7 @@ function ProofEnvelope {
             stdout_stderr = 'drained without retaining contents'
             memory_ROM_undo_invariance_claimed = $false
             bindingPolicy = 'pinned-support-or-pshome'; runtimeBindings = @()
+            empty_patch_library_initialized = $false
         }
         function Budget {
             if ($clock.ElapsedMilliseconds -ge 420000) { throw 'Overall deadline.' }
@@ -252,6 +253,10 @@ function ProofEnvelope {
                 NewDirectory (Join-Path $runRoot $name)
             }
             NewText (Join-Path $runRoot 'empty-git.config') ''
+            Budget
+            if ($clock.ElapsedMilliseconds -ge 150000) { throw 'Preparation deadline; no GUI launch.' }
+            $report.empty_patch_library_initialized=Initialize-ProofEmptyPatchLibrary (Join-Path $runRoot 'app')
+            Budget
             if ($clock.ElapsedMilliseconds -ge 150000) { throw 'Preparation deadline; no GUI launch.' }
             $readiness = [BoundedWindowsReadiness]::Capture()
             $report.readiness_sample_utc = [DateTime]::UtcNow.ToString('o')

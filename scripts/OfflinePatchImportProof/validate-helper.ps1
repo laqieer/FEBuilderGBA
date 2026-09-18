@@ -68,6 +68,11 @@ function ProofEnvelope {
                 $report.bindingCases=Invoke-PinnedRuntimeBindingTests
                 if ($report.bindingCases -ne 22) { throw 'Incomplete pure binding cases.' }
                 Add-Type -Path @("$Code\Readiness.cs","$Code\Policy.cs","$Code\Policy.Tests.cs") -ReferencedAssemblies $references
+                $emptyPatchLibraryCases=Invoke-EmptyPatchLibraryTests $owned
+                $rejectedRootClassCases=[DesktopPolicyTests]::RunRejectedRootClassTests()
+                Assert-PickerIsolationInventories $emptyPatchLibraryCases $rejectedRootClassCases
+                $rejectedRootClassSerializationNames=@(Invoke-RejectedRootClassSerializationTests)
+                Assert-Proof ($rejectedRootClassSerializationNames.Count -eq 120) 'Rejected class wire case count.'
                 $report.processImageCases=& "$Code\ProcessImage.Tests.ps1"
                 if($report.processImageCases -ne 10) { throw 'Ten pure process-image cases required.' }
                 $report.retainedImageCases=[RetainedProcessImageTests]::Run()
@@ -134,8 +139,12 @@ function ProofEnvelope {
                         Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
                             'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
                             'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
-                            'ResolvePidRelation','Nodes','Calls','Windows')
-                        Assert-Proof ($decoded.Count -eq 20 -and $decoded.Stage -ceq 'loading-handoff' -and
+                            'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows')
+                        $expectedRejectedClass=if($queryDiagnosticSampleNames[$sampleIndex] -ceq
+                            'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}
+                        Assert-Proof ($decoded.ContainsKey('RejectedRootClass') -and
+                            $decoded.RejectedRootClass -ceq $expectedRejectedClass) 'Exact original-sample rejected class.'
+                        Assert-Proof ($decoded.Count -eq 21 -and $decoded.Stage -ceq 'loading-handoff' -and
                             $decoded.Selector -ceq 'Discovery' -and $decoded.Predicate -is [string] -and
                             $decoded.Predicate -ceq $sample.Predicate -and $decoded.Predicate.Length -le 64) 'Query diagnostic envelope.'
                         foreach($key in @('ExpectedOwnedRoot','PreviouslyOwnedHandle','OwnedRootBefore','OwnedRootAfter')){

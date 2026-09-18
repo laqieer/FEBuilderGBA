@@ -234,6 +234,7 @@ public static class DesktopPolicyTests
         TValue Read<TValue>(string name, OwnedNode node, Func<TValue> value) => Budget.Call(() => Observe(name, node, value));
         internal DesktopOwnedTree<OwnedNode> Tree() =>
             new DesktopOwnedTree<OwnedNode>(this, 7, Bindings, "loading-handoff", () => GuardAction());
+        internal void CloseBudget() => Budget.Close();
         public IReadOnlyList<OwnedNode> Seeds()
         {
             var seeds = Read("seeds", null, () =>
@@ -454,6 +455,10 @@ public static class DesktopPolicyTests
             catch (DesktopTreeGuardException ex) when (ex.Message == "query-budget-closed") { closed = true; }
             Verify(closed && tree.Budget.Calls == calls && model.Reads.Count == calls &&
                 string.Join("|", model.NativeReads) == nativeTrace, "No calls after closure.");
+            var rejectedClass = typeof(DesktopQueryFailure).GetProperty("RejectedRootClass");
+            Verify(rejectedClass != null && (string)rejectedClass.GetValue(failure) ==
+                (currentCase == "resolve-success-before-registration-failure" ? "OwnedAuxiliaryClass" : null),
+                "Exact rejected class or explicit null in original query cases.");
             return failure;
         }
         void Observed(DesktopQueryFailure failure, int? ordinal, bool? equal, bool? alive, string relation)
@@ -474,7 +479,7 @@ public static class DesktopPolicyTests
         Case("nullable-dto-shape", () =>
         {
             var properties = typeof(DesktopQueryFailure).GetProperties();
-            Verify(properties.Length == 20 &&
+            Verify(properties.Length == 21 &&
                 typeof(DesktopQueryFailure).GetProperty("SeedOrdinal").PropertyType == typeof(int?) &&
                 typeof(DesktopQueryFailure).GetProperty("SeedResolveKeyEqual").PropertyType == typeof(bool?) &&
                 typeof(DesktopQueryFailure).GetProperty("ResolveAlive").PropertyType == typeof(bool?) &&
@@ -694,7 +699,7 @@ public static class DesktopPolicyTests
         });
         Case("resolve-success-before-registration-failure", () =>
         {
-            var model = Model(100); model.Native[100].Class = QueryPrivateText; var tree = model.Tree();
+            var model = Model(100); model.Native[100].Class = "OwnedAuxiliaryClass"; var tree = model.Tree();
             var failure = Refused(model, tree, tree.Discover, "query-root-class",
                 resolved + "|alive:0|native-pid:0|native-root:0|class:0|" + refresh,
                 NativeResolved(100) + "|" + NativeProbe(100) + "|native-root:100|" + NativeRefresh(100));
@@ -786,6 +791,200 @@ public static class DesktopPolicyTests
                         call > 9 ? (bool?)true : null, null);
                 });
         return queryDiagnosticCaseNames.Count;
+    }
+
+    static readonly List<string> rejectedRootClassCaseNames = new List<string>();
+    static readonly List<string> rejectedRootClassCaseFailures = new List<string>();
+    static readonly List<DesktopQueryFailure> rejectedRootClassSamples = new List<DesktopQueryFailure>();
+    static readonly List<string> rejectedRootClassExpectedValues = new List<string>();
+    public static string[] RejectedRootClassCaseNames => rejectedRootClassCaseNames.ToArray();
+    public static string[] RejectedRootClassCaseFailures => rejectedRootClassCaseFailures.ToArray();
+    public static DesktopQueryFailure[] RejectedRootClassSamples => rejectedRootClassSamples.ToArray();
+    public static string[] RejectedRootClassExpectedValues => rejectedRootClassExpectedValues.ToArray();
+
+    public static void AssertRejectedRootClassCaseInventory()
+    {
+        string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
+            string.Join("\n", rejectedRootClassCaseNames)))).ToLowerInvariant();
+        if (rejectedRootClassCaseNames.Count != 40 ||
+            new HashSet<string>(rejectedRootClassCaseNames, StringComparer.Ordinal).Count != 40 ||
+            digest != "d64699f354eab3ab60a5ee4b5571684d058f259cb9f92eb3bc38a9cc267069d2")
+            throw new InvalidOperationException("Rejected root class case inventory changed.");
+    }
+
+    public static int RunRejectedRootClassTests()
+    {
+        rejectedRootClassCaseNames.Clear(); rejectedRootClassCaseFailures.Clear();
+        rejectedRootClassSamples.Clear(); rejectedRootClassExpectedValues.Clear();
+        const string prefix = "seeds:0|seed-count:0|seed-item:1|pid:1|handle:1|pid:1|identity:1|handle:1|" +
+            "alive:0|native-pid:0|native-root:0|native-pid:0|alive:0|alive:0|native-pid:0|native-root:0|class:0";
+        const string nativePrefix = "alive:100|native-pid:100|native-root:100|native-pid:100|alive:100|" +
+            "alive:100|native-pid:100|native-root:100";
+        const string refresh = "|alive:0|native-pid:0|native-root:0|native-pid:0";
+        const string nativeRefresh = "|alive:100|native-pid:100|native-root:100|native-pid:100";
+        var property = typeof(DesktopQueryFailure).GetProperty("RejectedRootClass");
+        void Verify(bool condition, string contract)
+        {
+            if (!condition) throw new InvalidOperationException(contract);
+        }
+        DesktopQueryFailure Capture(Action action, string predicate)
+        {
+            try { action(); }
+            catch (DesktopTreeException ex) when (ex.Message == predicate) { return ex.Failure; }
+            throw new InvalidOperationException("Expected original refusal: " + predicate);
+        }
+        void Case(string name, string value, string expected, Action<OwnedModel> setup = null,
+            string trace = prefix + refresh, string native = nativePrefix + nativeRefresh,
+            string predicate = "query-root-class")
+        {
+            rejectedRootClassCaseNames.Add(name);
+            try
+            {
+                var model = new OwnedModel();
+                model.Main.Children.Clear(); model.Native.Remove(200); model.Roots.Remove(200);
+                model.Main.Name = QueryPrivateText; model.Main.AutomationId = QueryPrivateText;
+                model.Main.RuntimeId = new[] { QueryRuntimeId }; model.Native[100].Class = value;
+                setup?.Invoke(model);
+                var tree = model.Tree();
+                var failure = Capture(tree.Discover, predicate);
+                rejectedRootClassSamples.Add(failure); rejectedRootClassExpectedValues.Add(expected);
+                Verify(string.Join("|", model.Reads) == trace, "Exact unchanged adapter trace: " + string.Join("|", model.Reads));
+                Verify(string.Join("|", model.NativeReads) == native, "Exact unchanged native trace.");
+                int calls = trace.Split('|').Length;
+                Verify(failure.Calls == calls && tree.Budget.Calls == calls &&
+                    model.Reads.Count == calls && failure.Nodes == 1 && tree.Budget.Nodes == 1 &&
+                    failure.Windows == 0 && tree.Windows.Count == 0 && model.Bindings.Count == 0 &&
+                    model.SeedQueries == 1 && model.CandidateQueries == 0 &&
+                    model.ProviderNodes == 0 && model.ProviderProperties == 0 && tree.Budget.Closed,
+                    "Refusal must not admit class, owner, window, provider expansion or calls.");
+                string before = failure.Predicate;
+                model.Native[100].Class = "DifferentLaterClass"; model.Native[100].Pid = QueryForeignPid;
+                Verify(ReferenceEquals(Capture(tree.Discover, predicate), failure) &&
+                    ReferenceEquals(Capture(() => tree.Seed(model.Main), predicate), failure) &&
+                    failure.Predicate == before && model.Reads.Count == calls, "First failure frozen without retry.");
+                Verify(property != null && property.PropertyType == typeof(string), "Nullable RejectedRootClass missing.");
+                Verify((string)property.GetValue(failure) == expected, "Rejected class retention/suppression.");
+                if (expected != null)
+                    Verify(failure.PreviouslyOwnedHandle == 100 && failure.OwnedRootBefore == 100 &&
+                        failure.OwnedRootAfter == 100 && failure.AliveBefore == true && failure.AliveAfter == true &&
+                        failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+                        failure.ExpectedOwnedRoot == 0 && failure.RootMatchesBefore == false &&
+                        failure.RootMatchesAfter == false, "RootMatches false must not suppress owned class.");
+            }
+            catch (Exception ex) { rejectedRootClassCaseFailures.Add(name + ": " + ex.Message); }
+        }
+        Case("owned-class-rootmatches-false", "OwnedAuxiliaryClass", "OwnedAuxiliaryClass");
+        Case("printable-one-space", " ", " ");
+        Case("printable-upper-bound", new string('~', 256), new string('~', 256));
+        Case("printable-json-escapes", "Owned\"\\Class", "Owned\"\\Class");
+        var printableAscii = new StringBuilder();
+        for (char c = (char)32; c <= 126; c++) printableAscii.Append(c);
+        Case("all-printable-ascii", printableAscii.ToString(), printableAscii.ToString());
+        Case("null-class", null, null);
+        Case("empty-class", "", null);
+        Case("oversize-no-truncation", new string('A', 257), null);
+        foreach (char c in new[] { '\0', '\t', '\n', '\r', '\x1f', '\x7f', '\x80', '\u2028', '\ud800' })
+            Case("nonprintable-" + ((int)c).ToString("x4"), "Owned" + c + "Class", null);
+        Case("original-class-not-reread", "OwnedAuxiliaryClass", "OwnedAuxiliaryClass", model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 18) model.Native[100].Class = QueryPrivateText; });
+        Case("refresh-dead", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 18) model.Native[100].Alive = false; },
+            prefix + "|alive:0|native-pid:0", nativePrefix + "|alive:100|native-pid:100");
+        foreach (int changedPid in new[] { 0, QueryForeignPid })
+            Case("refresh-pid-" + (changedPid == 0 ? "zero" : "foreign"), "OwnedAuxiliaryClass", null, model =>
+                model.Before = (read, node) => { if (model.Reads.Count == 19) model.Native[100].Pid = changedPid; },
+                prefix + "|alive:0|native-pid:0", nativePrefix + "|alive:100|native-pid:100");
+        Case("refresh-root-zero", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 20) model.Native[100].Root = 0; },
+            prefix + "|alive:0|native-pid:0|native-root:0", nativePrefix + "|alive:100|native-pid:100|native-root:100");
+        Case("refresh-root-changed-owned", "OwnedAuxiliaryClass", null, model =>
+        {
+            model.Native[300] = new OwnedNative { Root = 300 };
+            model.Before = (read, node) => { if (model.Reads.Count == 20) model.Native[100].Root = 300; };
+        }, prefix + refresh, nativePrefix + "|alive:100|native-pid:100|native-root:100|native-pid:300");
+        Case("refresh-root-pid-changed", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 21) model.Native[100].Pid = QueryForeignPid; });
+        foreach (int call in new[] { 18, 19, 20, 21 })
+        {
+            string partial = string.Join("|", (prefix + refresh).Split('|'), 0, call);
+            string nativePartial = string.Join("|", (nativePrefix + nativeRefresh).Split('|'), 0, 8 + call - 18);
+            Case("refresh-provider-exception-" + call, "OwnedAuxiliaryClass", null, model =>
+                model.Before = (read, node) => { if (model.Reads.Count == call) throw new InvalidOperationException(QueryPrivateText); },
+                partial, nativePartial);
+            Case("refresh-post-read-cancellation-" + call, "OwnedAuxiliaryClass", null, model =>
+                model.GuardAction = () => { if (model.Reads.Count == call) throw new DesktopTreeGuardException("query-test-cancelled"); },
+                partial, nativePartial + "|" + (call == 18 ? "alive" : call == 20 ? "native-root" : "native-pid") + ":100");
+        }
+        Case("class-provider-exception", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (read == "class") throw new InvalidOperationException(QueryPrivateText); },
+            predicate: "query-provider-failure");
+        Case("class-post-read-cancellation", "OwnedAuxiliaryClass", null, model =>
+            model.GuardAction = () => { if (model.Reads.Count == 17) throw new DesktopTreeGuardException("query-test-cancelled"); },
+            prefix, nativePrefix, "query-test-cancelled");
+        Case("class-closes-budget", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (read == "class") model.CloseBudget(); },
+            prefix, nativePrefix, "query-budget-closed");
+        Case("refresh-pre-read-cancellation", "OwnedAuxiliaryClass", null, model =>
+        {
+            int checks = 0;
+            model.GuardAction = () => { if (model.Reads.Count == 17 && ++checks == 2) throw new DesktopTreeGuardException("query-test-cancelled"); };
+        }, prefix, nativePrefix);
+        Case("refresh-last-read-closes-budget", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 21) model.CloseBudget(); });
+        Case("other-predicate-root-self", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (model.Reads.Count == 16) model.Native[100].Root = 300; },
+            prefix.Substring(0, prefix.LastIndexOf('|')) + "|alive:0|native-pid:0|native-root:0|native-pid:0",
+            nativePrefix + "|alive:100|native-pid:100|native-root:100|native-pid:300", "query-root-self");
+        Case("other-predicate-class-changed", "OwnedAuxiliaryClass", null, model =>
+            model.Before = (read, node) => { if (read == "class") throw new DesktopTreeGuardException("query-root-class-changed"); },
+            predicate: "query-root-class-changed");
+        rejectedRootClassCaseNames.Add("cross-root-nonzero-expected-root");
+        try
+        {
+            var model = new OwnedModel();
+            model.Main.Children.Clear();
+            var auxiliary = model.Add(model.Main, 9, 200);
+            foreach (var node in new[] { model.Main, auxiliary })
+            {
+                node.Name = QueryPrivateText; node.AutomationId = QueryPrivateText;
+                node.RuntimeId = new[] { QueryRuntimeId, node.Id };
+            }
+            model.Roots[200] = auxiliary; model.Native[200].Class = "OwnedAuxiliaryClass";
+            string registration = "alive:0|native-pid:0|native-root:0|class:0|owner:0|from-handle:0|" +
+                "pid:1|handle:1|identity:1|visible:0|offscreen:1|alive:0|native-pid:0|native-root:0|class:0|owner:0";
+            string nativeRegistration = "alive:100|native-pid:100|native-root:100|alive:100|native-pid:100|native-root:100";
+            string trace = string.Join("|", prefix.Split('|'), 0, 13) + "|" + registration + "|" + registration +
+                "|pid:1|identity:1|candidates-Discovery:1|candidate-count:1|candidate-item:9|" +
+                "pid:9|identity:9|handle:9|alive:0|native-pid:0|native-root:0|native-pid:0|alive:0|identity:9|" +
+                "alive:0|native-pid:0|native-root:0|class:0" + refresh;
+            string native = string.Join("|", nativePrefix.Split('|'), 0, 5) + "|" +
+                nativeRegistration + "|" + nativeRegistration +
+                "|alive:200|native-pid:200|native-root:200|native-pid:200|alive:200|" +
+                "alive:200|native-pid:200|native-root:200|alive:200|native-pid:200|native-root:200|native-pid:200";
+            var tree = model.Tree();
+            var failure = Capture(tree.Discover, "query-root-class");
+            rejectedRootClassSamples.Add(failure); rejectedRootClassExpectedValues.Add("OwnedAuxiliaryClass");
+            Verify(string.Join("|", model.Reads) == trace && string.Join("|", model.NativeReads) == native,
+                "Cross-root exact adapter/native trace.");
+            Verify(failure.Calls == 67 && tree.Budget.Calls == 67 && model.Reads.Count == 67 &&
+                failure.Nodes == 2 && tree.Budget.Nodes == 2 && failure.Windows == 1 &&
+                tree.Windows.Count == 1 && model.Bindings.Count == 1 &&
+                model.SeedQueries == 1 && model.CandidateQueries == 1 && model.ProviderNodes == 1 &&
+                model.ProviderProperties == 2 && tree.Budget.Closed, "Cross-root exact counters and containment.");
+            Verify(failure.ExpectedOwnedRoot == 100 && failure.PreviouslyOwnedHandle == 200 &&
+                failure.OwnedRootBefore == 200 && failure.OwnedRootAfter == 200 &&
+                failure.RootMatchesBefore == false && failure.RootMatchesAfter == false &&
+                failure.AliveBefore == true && failure.AliveAfter == true &&
+                failure.OwnPidBefore == true && failure.OwnPidAfter == true, "Different expected root still owned.");
+            model.Native[200].Class = QueryPrivateText; model.Native[200].Pid = QueryForeignPid;
+            Verify(ReferenceEquals(Capture(tree.Discover, "query-root-class"), failure) &&
+                ReferenceEquals(Capture(() => tree.Seed(auxiliary), "query-root-class"), failure) &&
+                model.Reads.Count == 67, "Cross-root first failure frozen.");
+            Verify(property != null && (string)property.GetValue(failure) == "OwnedAuxiliaryClass",
+                "Different expected owned root must not suppress rejected class.");
+        }
+        catch (Exception ex) { rejectedRootClassCaseFailures.Add("cross-root-nonzero-expected-root: " + ex.Message); }
+        return rejectedRootClassCaseNames.Count;
     }
 
     static readonly List<string> startupAcquisitionCaseNames = new List<string>();
