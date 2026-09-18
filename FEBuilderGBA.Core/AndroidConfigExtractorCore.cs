@@ -224,16 +224,36 @@ namespace FEBuilderGBA
             IEnumerable<string> paths = source.EnumerateAssetFiles();
             if (preservePatchDatabase)
             {
-                paths = paths.Select(path =>
-                {
-                    if (!IsCanonicalPreservedPath(path))
-                        throw new IOException("Bundled asset path is not canonical for preservation: " + path);
-                    return path;
-                });
+                List<string> manifest = paths.ToList();
+                if (!IsValidPreservedNamespace(manifest))
+                    throw new IOException("Bundled asset paths are not canonical or have conflicting destinations.");
+                return manifest.OrderBy(p => p, StringComparer.Ordinal).ToList();
             }
             return paths.Select(NormalizeRelative)
                 .Where(p => p.Length > 0 && IsSafeRelativePath(p)).Distinct()
                 .OrderBy(p => p, StringComparer.Ordinal).ToList();
+        }
+
+        static bool IsValidPreservedNamespace(IEnumerable<string> paths)
+        {
+            var files = new HashSet<string>(OperatingSystem.IsWindows()
+                ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            foreach (string path in paths)
+            {
+                if (!IsCanonicalPreservedPath(path) || !files.Add(path))
+                    return false;
+            }
+            foreach (string path in files)
+            {
+                int separator = path.IndexOf('/');
+                while (separator >= 0)
+                {
+                    if (files.Contains(path.Substring(0, separator)))
+                        return false;
+                    separator = path.IndexOf('/', separator + 1);
+                }
+            }
+            return true;
         }
 
         static bool IsCanonicalPreservedPath(string raw)
@@ -314,6 +334,7 @@ namespace FEBuilderGBA
 
             int listed = lines.Length - 2;
             if (listed != expectedCount) return false;
+            if (preservePatchDatabase && !IsValidPreservedNamespace(lines.Skip(2))) return false;
 
             for (int i = 2; i < lines.Length; i++)
             {
@@ -324,7 +345,6 @@ namespace FEBuilderGBA
                 // relative path and validate against an in-root file — incorrectly
                 // skipping re-extraction. A blank / rooted / '..' / separator-style
                 // entry means the stamp is malformed or tampered -> do NOT skip.
-                if (preservePatchDatabase && !IsCanonicalPreservedPath(lines[i])) return false;
                 string raw = lines[i].Trim();
                 if (!IsSafeStampEntry(raw)) return false;
                 string rel = NormalizeRelative(raw);
