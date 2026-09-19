@@ -620,9 +620,17 @@ public class ToolTranslateROMParityTests
         string src = File.ReadAllText(ViewCsPath());
         // Apply (UserApplied) must actually install the patch (WF parity);
         // Skip leaves it absent.
-        Assert.Contains("if (!view.UserApplied) return", src);
-        Assert.Contains("InstallChapterNameToTextPatch", src);
-        Assert.Contains("PatchMetadataCore.ApplyPatch", src);
+        Assert.Contains("return view.UserApplied", src);
+        Assert.Contains("new ChapterNameTextPatchService(discover).RecommendAsync", src);
+        Assert.Contains("if (continuation == null || !continuation.IsCurrent) return", src);
+        Assert.Contains("return result.Identity.IsCurrent ? result.Identity : null", src);
+        int translateUndo = src.IndexOf("_vm.UndoService.Begin(\"Translate ROM\")", StringComparison.Ordinal);
+        int identityGuard = src.IndexOf("if (!identity.IsCurrent) return;", StringComparison.Ordinal);
+        Assert.True(identityGuard >= 0 && identityGuard < translateUndo);
+        string service = File.ReadAllText(Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia",
+            "Services", "ChapterNameTextPatchService.cs"));
+        Assert.Contains("PatchMetadataCore.ApplyPatch", service);
+        Assert.Contains("if (!apply) return new(identity)", service);
     }
 
     static string ViewCsPath()

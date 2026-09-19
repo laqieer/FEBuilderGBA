@@ -1,0 +1,42 @@
+{
+  "schema": "offline-patch-import-proof-v1",
+  "outputRoot": "C:\\ProofExample\\output",
+  "evidenceRoot": "C:\\ProofExample\\evidence",
+  "applicationSource": "REPLACE_WITH_APPROVED_40_HEX_COMMIT",
+  "host": {"path": "C:\\ProofExample\\host\\pwsh.exe", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+  "sourceManifest": {"path": "C:\\ProofExample\\data\\source.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+  "approval": {
+    "sourceGateReference": "REPLACE_WITH_CALLER_APPROVED_FORK_ISSUE_COMMENT",
+    "authorizationReference": "REPLACE_WITH_DISTINCT_CALLER_EXECUTION_APPROVAL",
+    "authorizationSha256": "REPLACE_WITH_64_HEX_APPROVAL_BODY_SHA256"
+  },
+  "machine": {
+    "systemRoot": "C:\\ProofExample\\system",
+    "dotnetRoot": "C:\\ProofExample\\dotnet",
+    "gitPath": "C:\\ProofExample\\git\\git.exe",
+    "programFiles": "C:\\ProofExample\\program-files",
+    "programFilesX86": "C:\\ProofExample\\program-files-x86"
+  },
+  "preparation": {
+    "root": "C:\\ProofExample\\preparation",
+    "inputs": {"path": "C:\\ProofExample\\data\\inputs.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+    "metadata": {"path": "C:\\ProofExample\\data\\metadata.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"}
+  },
+  "restage": {
+    "priorId": "REPLACE_WITH_32_LOWER_HEX_DONOR_ID",
+    "donorRoot": "C:\\ProofExample\\donor\\inputs-REPLACE_WITH_DONOR_ID",
+    "manifest": {"path": "C:\\ProofExample\\donor\\input-manifest.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+    "metadata": {"path": "C:\\ProofExample\\data\\metadata.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+    "history": {"path": "C:\\ProofExample\\data\\history.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+    "receipts": [
+      {"pin": {"path": "C:\\ProofExample\\data\\validate.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"}, "stage": "Validate", "runId": "REPLACE_WITH_DONOR_ID", "sourceManifestSha256": "REPLACE_WITH_BUILD_SOURCE_SHA256", "helperSourceManifestSha256": "REPLACE_WITH_DESKTOP_SOURCE_SHA256", "toolMetadataSha256": "REPLACE_WITH_METADATA_SHA256", "sourceGateReference": "REPLACE_WITH_HISTORICAL_GATE", "authorizationReference": "REPLACE_WITH_HISTORICAL_APPROVAL", "head": "REPLACE_WITH_COMMIT", "tree": "REPLACE_WITH_TREE"},
+      {"pin": {"path": "C:\\ProofExample\\data\\build.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"}, "stage": "Build", "runId": "REPLACE_WITH_DONOR_ID", "sourceManifestSha256": "REPLACE_WITH_BUILD_SOURCE_SHA256", "helperSourceManifestSha256": "REPLACE_WITH_DESKTOP_SOURCE_SHA256", "toolMetadataSha256": "REPLACE_WITH_METADATA_SHA256", "sourceGateReference": "REPLACE_WITH_HISTORICAL_GATE", "authorizationReference": "REPLACE_WITH_HISTORICAL_APPROVAL", "head": "REPLACE_WITH_COMMIT", "tree": "REPLACE_WITH_TREE"},
+      {"pin": {"path": "C:\\ProofExample\\data\\inputs-receipt.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"}, "stage": "Inputs", "runId": "REPLACE_WITH_DONOR_ID", "sourceManifestSha256": "REPLACE_WITH_BUILD_SOURCE_SHA256", "helperSourceManifestSha256": "REPLACE_WITH_DESKTOP_SOURCE_SHA256", "toolMetadataSha256": "REPLACE_WITH_METADATA_SHA256", "sourceGateReference": "REPLACE_WITH_HISTORICAL_GATE", "authorizationReference": "REPLACE_WITH_HISTORICAL_APPROVAL", "head": "REPLACE_WITH_COMMIT", "tree": "REPLACE_WITH_TREE"}
+    ],
+    "expected": {
+      "payload": {"path": "C:\\ProofExample\\data\\expected-input.json", "bytes": 1, "sha256": "REPLACE_WITH_64_HEX_SHA256"},
+      "files": 605,
+      "bytes": 1
+    }
+  }
+}

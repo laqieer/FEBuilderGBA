@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("FEBuilderGBA.Core.Tests")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia.Tests")]
+[assembly: InternalsVisibleTo("SyntheticProofFixtures")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Browser")]
 
 // Auto-versioning: Build = days since 2000-01-01, Revision = seconds/2 since midnight.
