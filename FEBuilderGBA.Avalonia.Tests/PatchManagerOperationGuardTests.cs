@@ -60,7 +60,7 @@ public class PatchManagerOperationGuardTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void TranslationHoldsNativeLeaseThroughUndoCommitAndRollback(bool failCommit)
+    public async Task TranslationHoldsNativeLeaseThroughUndoCommitAndRollback(bool failCommit)
     {
         using var fixture = new Fixture();
         fixture.MakeManaged();
@@ -70,7 +70,7 @@ public class PatchManagerOperationGuardTests
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
         var undo = new NativeUndoProbe(fixture.Root, failCommit);
         vm.UndoService = undo;
-        InstallTranslationPatch(view, fixture.Rom);
+        await InstallTranslationPatch(view, fixture.Rom);
         Assert.Equal(failCommit ? 3 : 2, undo.Observations.Count);
         Assert.All(undo.Observations, result => Assert.Equal("busy", result));
         Assert.Equal(failCommit ? 0x11u : 0xAAu, fixture.Rom.u8(0x200));
@@ -171,7 +171,7 @@ public class PatchManagerOperationGuardTests
             bool dialog = false;
             string message = action switch
             {
-                "translation" => InstallTranslationPatch(new ToolTranslateROMView(), fixture.Rom),
+                "translation" => await InstallTranslationPatch(new ToolTranslateROMView(), fixture.Rom),
                 "async" => await vm.UninstallPatchAsync(() =>
                 {
                     dialog = true;
@@ -428,7 +428,7 @@ public class PatchManagerOperationGuardTests
     [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
-    public void TranslationPatchRefusesBusyGateBeforeDiscoveryAndMutation(bool invalidDiscoveryRoot)
+    public async Task TranslationPatchRefusesBusyGateBeforeDiscoveryAndMutation(bool invalidDiscoveryRoot)
     {
         using var fixture = new Fixture();
         fixture.SeedTranslationPatch();
@@ -439,7 +439,7 @@ public class PatchManagerOperationGuardTests
         Assert.True(ContentRepoGitService.TryEnter());
         try
         {
-            Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, InstallTranslationPatch(view, fixture.Rom));
+            Assert.Equal(PatchManagerViewModel.PatchDatabaseBusyMessage, await InstallTranslationPatch(view, fixture.Rom));
             Assert.Equal(before, fixture.Rom.Data);
             Assert.False(fixture.Rom.Modified);
             Assert.Empty(CoreState.Undo.UndoBuffer);
@@ -453,13 +453,13 @@ public class PatchManagerOperationGuardTests
     [InlineData("success")]
     [InlineData("missing")]
     [InlineData("invalid-root")]
-    public void TranslationPatchReleasesGateAndPreservesExistingSuccessAndUndo(string outcome)
+    public async Task TranslationPatchReleasesGateAndPreservesExistingSuccessAndUndo(string outcome)
     {
         using var fixture = new Fixture();
         if (outcome == "success") fixture.SeedTranslationPatch();
         if (outcome == "invalid-root") CoreState.BaseDirectory = "\0";
         var view = new ToolTranslateROMView();
-        string result = InstallTranslationPatch(view, fixture.Rom);
+        string result = await InstallTranslationPatch(view, fixture.Rom);
         Assert.False(ContentRepoGitService.IsRunning());
         if (outcome != "success")
         {
@@ -476,9 +476,14 @@ public class PatchManagerOperationGuardTests
         }
     }
 
-    static string InstallTranslationPatch(ToolTranslateROMView view, ROM rom)
-        => (string)typeof(ToolTranslateROMView).GetMethod("InstallChapterNameToTextPatch",
-            BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(view, new object[] { rom })!;
+    static async Task<string> InstallTranslationPatch(ToolTranslateROMView view, ROM rom)
+    {
+        var vm = (ToolTranslateROMViewModel)typeof(ToolTranslateROMView).GetField("_vm",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
+        var result = await new Services.ChapterNameTextPatchService().RecommendAsync(
+            rom, Services.PatchDatabaseImportService.CaptureLoadedRom()!, vm.UndoService, () => Task.FromResult(true));
+        return result.Message;
+    }
 
     [Theory]
     [InlineData(false)]

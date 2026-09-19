@@ -10,6 +10,187 @@ namespace FEBuilderGBA.Core.Tests;
 public class PatchDatabaseImportCoreTests
 {
     [Theory]
+    [InlineData("BeforeTemporaryCreation")]
+    [InlineData("TemporaryCreated")]
+    [InlineData("PartialWrite")]
+    [InlineData("BeforeFlush")]
+    [InlineData("BeforeMove")]
+    public async Task InitialJournalFailureCleansOnlyOwnedBookkeepingAndAllowsLaterImport(string checkpoint)
+    {
+        var fault = Enum.Parse<PatchDatabaseImportCore.InitialJournalCheckpoint>(checkpoint);
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("First");
+        var failure = new IOException("Injected initial journal I/O failure");
+        bool cleanupObserved = false;
+        var actual = await Assert.ThrowsAsync<IOException>(() =>
+            PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U", default, _ => false,
+                initialJournalCheckpoint: (point, operation) =>
+                {
+                    if (point != fault && point != PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeCleanup) return;
+                    Assert.True(ContentRepoGitService.IsRunning());
+                    Assert.False(ContentRepoGitService.TryEnter());
+                    Assert.Throws<PatchDatabaseOperationLeaseCore.BusyException>(() =>
+                        PatchDatabaseOperationLeaseCore.Acquire(fixture.Root));
+                    Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+                    Assert.False(File.Exists(Path.Combine(operation, "state.json")));
+                    Assert.False(Directory.Exists(Path.Combine(operation, "new")));
+                    if (point == fault) throw failure;
+                    cleanupObserved = true;
+                }));
+        Assert.Same(failure, actual);
+        Assert.True(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+        Assert.True(cleanupObserved);
+        fixture.AssertOperationReleased();
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        using var later = Fixture.Zip("Later");
+        using (var prepared = await fixture.Prepare(later)) Assert.True(prepared.Commit().Success);
+        Assert.Contains("NAME=Later", File.ReadAllText(Path.Combine(fixture.Target, "PATCH_test.txt")));
+        fixture.AssertOperationReleased();
+    }
+
+    [Theory]
+    [InlineData("extra")]
+    [InlineData("directory")]
+    [InlineData("directory-slot")]
+    [InlineData("oversize")]
+    [InlineData("mismatch")]
+    [InlineData("foreign-record")]
+    [InlineData("cleanup-failure")]
+    public async Task InitialJournalFailureRetainsUncertainWorkspaceAndBothErrors(string obstruction)
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("Never materialized");
+        var failure = new IOException("Injected publication failure");
+        var cleanupFailure = new IOException("Injected cleanup failure");
+        string operation = "";
+        byte[]? retainedBytes = null;
+        var actual = await Assert.ThrowsAsync<PatchDatabaseImportCore.RecoveryException>(() =>
+            PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U", default, _ => false,
+                initialJournalCheckpoint: (point, path) =>
+                {
+                    operation = path;
+                    if (point == PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeCleanup &&
+                        obstruction == "cleanup-failure") throw cleanupFailure;
+                    if (point != PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeMove) return;
+                    string next = Path.Combine(path, "state.next");
+                    switch (obstruction)
+                    {
+                        case "extra": File.WriteAllText(Path.Combine(path, "unknown.txt"), "retain"); break;
+                        case "directory": Directory.CreateDirectory(Path.Combine(path, "unexpected")); break;
+                        case "directory-slot": File.Delete(next); Directory.CreateDirectory(next); break;
+                        case "oversize": File.WriteAllBytes(next, new byte[4097]); break;
+                        case "mismatch": File.WriteAllText(next, "not this journal"); break;
+                        case "foreign-record": File.WriteAllText(Path.Combine(path, "state.json"), "foreign"); break;
+                    }
+                    if (obstruction != "directory-slot") retainedBytes = File.ReadAllBytes(next);
+                    throw failure;
+                }));
+        Assert.Equal(operation, actual.RetainedPath);
+        var aggregate = Assert.IsType<AggregateException>(actual.InnerException);
+        Assert.Equal(2, aggregate.InnerExceptions.Count);
+        Assert.Same(failure, aggregate.InnerExceptions[0]);
+        if (obstruction == "cleanup-failure") Assert.Same(cleanupFailure, aggregate.InnerExceptions[1]);
+        if (obstruction == "directory-slot") Assert.True(Directory.Exists(Path.Combine(operation, "state.next")));
+        else Assert.Equal(retainedBytes, File.ReadAllBytes(Path.Combine(operation, "state.next")));
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.False(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+        Assert.False(ContentRepoGitService.IsRunning());
+        using var lease = PatchDatabaseOperationLeaseCore.Acquire(fixture.Root);
+    }
+
+    [Fact]
+    public async Task InitialJournalNeverClaimsOrWritesPreexistingOperationCollision()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("Collision");
+        string collision = "";
+        PatchDatabaseImportCore.PreparedImport? unexpected = null;
+        try
+        {
+            await Assert.ThrowsAsync<IOException>(async () =>
+                unexpected = await PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U",
+                    default, _ => false, initialJournalCheckpoint: (point, operation) =>
+                    {
+                        if (point != PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeDirectoryCreation) return;
+                        collision = operation;
+                        Directory.CreateDirectory(operation);
+                        File.WriteAllText(Path.Combine(operation, "state.next"), "preexisting");
+                    }));
+            Assert.Equal("preexisting", File.ReadAllText(Path.Combine(collision, "state.next")));
+            Assert.Equal(new[] { Path.Combine(collision, "state.next") }, Directory.GetFileSystemEntries(collision));
+            Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        }
+        finally { unexpected?.Dispose(); }
+    }
+
+    [Fact]
+    public void DiscoveredJournalLessOperationRemainsFailClosed()
+    {
+        using var fixture = new Fixture();
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root)) { }
+        string operation = Path.Combine(fixture.Root, ".patch2-import", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(operation);
+        Assert.False(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+        Assert.True(Directory.Exists(operation));
+        Assert.Empty(Directory.GetFileSystemEntries(operation));
+    }
+
+    [SkippableFact]
+    public async Task InitialJournalCleanupRetainsReparseWithoutFollowingIt()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        string outside = Path.Combine(fixture.Root, "sentinel.txt");
+        string link = Path.Combine(fixture.Root, "link");
+        File.WriteAllText(outside, "untouched");
+        try { File.CreateSymbolicLink(link, outside); }
+        catch (UnauthorizedAccessException) { Skip.If(true, "Symbolic-link creation is unavailable to this account."); }
+        string retained = link;
+        try
+        {
+            var failure = new IOException("Before temporary creation");
+            using var zip = Fixture.Zip("No materialization");
+            var actual = await Assert.ThrowsAsync<PatchDatabaseImportCore.RecoveryException>(() =>
+                PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U", default, _ => false,
+                    initialJournalCheckpoint: (point, operation) =>
+                    {
+                        if (point != PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeTemporaryCreation) return;
+                        retained = Path.Combine(operation, "state.next");
+                        File.Move(link, retained);
+                        throw failure;
+                    }));
+            Assert.Same(failure, Assert.IsType<AggregateException>(actual.InnerException).InnerExceptions[0]);
+            Assert.True((File.GetAttributes(retained) & FileAttributes.ReparsePoint) != 0);
+            Assert.Equal("untouched", File.ReadAllText(outside));
+            Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+            Assert.False(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+        }
+        finally { File.Delete(retained); }
+    }
+
+    [Fact]
+    public async Task FailureBeforeOperationCreationDoesNotClaimCleanupOwnership()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("No operation");
+        var failure = new IOException("Before operation creation");
+        var actual = await Assert.ThrowsAsync<IOException>(() =>
+            PatchDatabaseImportCore.PrepareForTestAsync(zip, fixture.Root, "FE8U", default, _ => false,
+                initialJournalCheckpoint: (point, operation) =>
+                {
+                    Assert.NotEqual(PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeCleanup, point);
+                    if (point == PatchDatabaseImportCore.InitialJournalCheckpoint.BeforeDirectoryCreation) throw failure;
+                }));
+        Assert.Same(failure, actual);
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        fixture.AssertOperationReleased();
+    }
+
+    [Theory]
     [InlineData("PATCH_test.txt")]
     [InlineData("patch_lower.txt")]
     [InlineData("PATCH_upper.TXT")]

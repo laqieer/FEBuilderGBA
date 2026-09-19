@@ -26,10 +26,14 @@ namespace FEBuilderGBA.Avalonia.Services
                 Version = info.VersionToFilename;
             }
 
-            public bool IsCurrent => ReferenceEquals(CoreState.ROM, rom) &&
+            internal bool HasSameLoadedInstances => ReferenceEquals(CoreState.ROM, rom) &&
                 ReferenceEquals(rom.Data, data) && ReferenceEquals(rom.RomInfo, info) &&
-                rom.RomInfo.VersionToFilename == Version &&
+                rom.RomInfo.VersionToFilename == Version;
+
+            public bool IsCurrent => HasSameLoadedInstances &&
                 CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data));
+
+            internal RomIdentity? RefreshAfterOwnedMutation() => HasSameLoadedInstances ? new RomIdentity(rom) : null;
         }
 
         public sealed class Outcome

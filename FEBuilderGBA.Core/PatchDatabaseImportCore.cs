@@ -46,6 +46,12 @@ namespace FEBuilderGBA
             BeforeMaterialization, Prepared, AfterOldMove, AfterNewMove, BeforeCommitRecord, Committed, BeforeCleanup,
         }
 
+        internal enum InitialJournalCheckpoint
+        {
+            BeforeDirectoryCreation, BeforeTemporaryCreation, TemporaryCreated, PartialWrite,
+            BeforeFlush, BeforeMove, BeforeCleanup,
+        }
+
         internal enum Phase { Preparing, Prepared, OldMoved, Promoted, Committed }
 
         internal sealed class Journal
@@ -251,13 +257,14 @@ namespace FEBuilderGBA
         internal static Task<PreparedImport> PrepareForTestAsync(Stream source, string baseDirectory, string version,
             CancellationToken cancellationToken, Func<string, bool> isGitOwned, Action<Checkpoint>? checkpoint = null,
             PatchDatabaseZipReaderCore.Limits? limits = null, InventoryLimits? inventory = null,
-            Action? recoveryCompleted = null)
+            Action? recoveryCompleted = null, Action<InitialJournalCheckpoint, string>? initialJournalCheckpoint = null)
             => PrepareCoreAsync(source, baseDirectory, version, cancellationToken, isGitOwned, checkpoint, limits, inventory,
-                recoveryCompleted);
+                recoveryCompleted, initialJournalCheckpoint);
 
         static async Task<PreparedImport> PrepareCoreAsync(Stream source, string baseDirectory, string version,
             CancellationToken cancellationToken, Func<string, bool> isGitOwned, Action<Checkpoint>? checkpoint,
-            PatchDatabaseZipReaderCore.Limits? limits, InventoryLimits? inventory, Action? recoveryCompleted)
+            PatchDatabaseZipReaderCore.Limits? limits, InventoryLimits? inventory, Action? recoveryCompleted,
+            Action<InitialJournalCheckpoint, string>? initialJournalCheckpoint = null)
         {
             ArgumentNullException.ThrowIfNull(source);
             if (!source.CanRead) throw new InvalidDataException("The selected ZIP stream is not readable.");
@@ -272,6 +279,8 @@ namespace FEBuilderGBA
             PatchDatabaseOperationLeaseCore.Lease? lease = null;
             string? operation = null;
             Journal? journal = null;
+            bool operationCreated = false, initialJournalPublished = false;
+            byte[]? initialJournalBytes = null;
             try
             {
                 lease = PatchDatabaseOperationLeaseCore.Acquire(baseDirectory);
@@ -286,8 +295,16 @@ namespace FEBuilderGBA
                     Phase = Phase.Preparing, OriginalFingerprint = Snapshot(target, version, cancellationToken, inventory),
                 };
                 operation = Path.Combine(lease.WorkspaceDirectory, journal.Id);
+                initialJournalBytes = SerializeJournal(journal);
+                initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.BeforeDirectoryCreation, operation);
+                PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(operation);
+                // CreatePrivateDirectory is idempotent; a collision is never ours to write or remove.
+                if (ExistsWithoutFollowing(operation))
+                    throw new IOException("An existing import workspace was retained: " + operation);
                 PatchDatabaseOperationLeaseCore.CreatePrivateDirectory(operation);
-                WriteJournal(operation, journal);
+                operationCreated = true;
+                WriteJournal(operation, initialJournalBytes, initialJournalCheckpoint);
+                initialJournalPublished = true;
                 string stage = Path.Combine(operation, "new");
                 PatchDatabaseOperationLeaseCore.CreatePrivateDirectory(stage);
                 string spoolPath = Path.Combine(operation, "source.zip");
@@ -341,8 +358,16 @@ namespace FEBuilderGBA
             {
                 try
                 {
-                    if (operation != null && journal != null && File.Exists(Path.Combine(operation, RecordName)))
-                        CleanupUncommitted(lease!.BaseDirectory, operation, journal, inventory);
+                    if (operationCreated && operation != null && journal != null)
+                    {
+                        if (!initialJournalPublished)
+                        {
+                            initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.BeforeCleanup, operation);
+                            CleanupUnpublishedInitialJournal(lease!.BaseDirectory, operation, journal, initialJournalBytes!);
+                        }
+                        else if (File.Exists(Path.Combine(operation, RecordName)))
+                            CleanupUncommitted(lease!.BaseDirectory, operation, journal, inventory);
+                    }
                 }
                 catch (Exception cleanup) when (IsExpectedFailure(cleanup))
                 {
@@ -508,6 +533,37 @@ namespace FEBuilderGBA
             DeleteOwnedWorkspace(operation, journal, inventory);
         }
 
+        // Only the still-locked invocation that created this directory may use the in-memory record.
+        // Startup recovery intentionally continues to require a durable state.json.
+        static void CleanupUnpublishedInitialJournal(string root, string operation, Journal journal, byte[] attempted)
+        {
+            ValidateOperation(root, operation, journal);
+            if (journal.Phase != Phase.Preparing || !attempted.AsSpan().SequenceEqual(SerializeJournal(journal)))
+                throw new IOException("Initial import journal ownership changed.");
+            string? temporary = null;
+            foreach (string path in Directory.EnumerateFileSystemEntries(operation))
+            {
+                if (temporary != null || Path.GetFileName(path) != "state.next")
+                    throw new IOException("Unexpected initial import bookkeeping was retained.");
+                PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(path, allowFileLeaf: true);
+                temporary = path;
+            }
+            if (temporary != null)
+            {
+                using var file = ProjectionFileSystemSafety.OpenRegularFileForRead(temporary);
+                var before = ProjectionFileSystemSafety.InspectOpenedRegularFile(file.SafeFileHandle, temporary, false);
+                if (before.Length > MaxRecordBytes || before.Length > attempted.Length)
+                    throw new IOException("Oversized initial import bookkeeping was retained.");
+                byte[] actual = new byte[(int)before.Length];
+                file.ReadExactly(actual);
+                if (file.ReadByte() != -1 || !actual.AsSpan().SequenceEqual(attempted.AsSpan(0, actual.Length)))
+                    throw new IOException("Unrecognized initial import bookkeeping was retained.");
+                ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(file.SafeFileHandle, temporary, false, before);
+            }
+            if (temporary != null) File.Delete(temporary);
+            Directory.Delete(operation, false);
+        }
+
         static void CleanupCommitted(string root, string operation, Journal journal, InventoryLimits inventory)
         {
             ValidateOperation(root, operation, journal);
@@ -662,17 +718,33 @@ namespace FEBuilderGBA
                 throw new IOException("Unrecognized import recovery record.");
         }
 
-        static void WriteJournal(string operation, Journal journal)
+        static byte[] SerializeJournal(Journal journal)
         {
             byte[] bytes = JsonSerializer.SerializeToUtf8Bytes(journal, JournalTypeInfo);
             if (bytes.Length > MaxRecordBytes) throw new IOException("Import recovery record exceeds its limit.");
+            return bytes;
+        }
+
+        static void WriteJournal(string operation, Journal journal)
+            => WriteJournal(operation, SerializeJournal(journal));
+
+        static void WriteJournal(string operation, byte[] bytes,
+            Action<InitialJournalCheckpoint, string>? initialJournalCheckpoint = null)
+        {
             string next = Path.Combine(operation, "state.next");
             PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(next, allowFileLeaf: true);
+            initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.BeforeTemporaryCreation, operation);
             using (var stream = new FileStream(next, FileMode.Create, FileAccess.Write, FileShare.None))
             {
-                stream.Write(bytes);
+                initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.TemporaryCreated, operation);
+                int prefix = initialJournalCheckpoint == null ? bytes.Length : bytes.Length / 2;
+                stream.Write(bytes.AsSpan(0, prefix));
+                initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.PartialWrite, operation);
+                stream.Write(bytes.AsSpan(prefix));
+                initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.BeforeFlush, operation);
                 stream.Flush(true);
             }
+            initialJournalCheckpoint?.Invoke(InitialJournalCheckpoint.BeforeMove, operation);
             File.Move(next, Path.Combine(operation, RecordName), true);
         }
 
