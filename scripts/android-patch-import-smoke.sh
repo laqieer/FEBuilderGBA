@@ -84,6 +84,25 @@ def adb(*parts, check=True, timeout=60):
     return command(["adb", "-s", args.serial, *parts], timeout, check)
 
 
+def push_fixture(path):
+    destination = REMOTE_DIR + "/" + path.name
+    attempts = []
+    report.setdefault("fixture_push_attempts", {})[path.name] = attempts
+    for attempt in range(1, 4):
+        result = adb("push", str(path), destination, check=False)
+        detail = "\n".join(part.decode("utf-8", errors="replace").strip()
+                           for part in (result.stdout, result.stderr) if part).strip()
+        attempts.append({"attempt": attempt, "return_code": result.returncode,
+                         "diagnostic": detail[:500]})
+        if result.returncode == 0:
+            return
+        if "remote couldn't create file: Operation not permitted" not in detail:
+            raise RuntimeError(f"Command failed ({result.returncode}): adb {detail[:500]}")
+        if attempt < 3:
+            time.sleep(2)
+    raise RuntimeError("adb push failed after 3 attempts: " + attempts[0]["diagnostic"])
+
+
 def text(*parts, check=True):
     return adb(*parts, check=check).stdout.decode("utf-8", errors="replace").strip()
 
@@ -546,7 +565,7 @@ try:
     adb("shell", "svc", "data", "disable")
     adb("shell", "mkdir", "-p", REMOTE_DIR)
     for path in (rom, valid, invalid):
-        adb("push", str(path), REMOTE_DIR + "/" + path.name)
+        push_fixture(path)
     assert_fact(sorted(text("shell", "ls", "-A", REMOTE_DIR).splitlines()) == sorted(fixture_hashes),
                 "The browsed fixture directory contains exactly the three generated documents.")
     adb("install", "--streaming", str(base_apk), timeout=180)

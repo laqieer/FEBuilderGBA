@@ -55,6 +55,7 @@ class Device:
         self.diagnostics_present = False
         self.hierarchy_bytes = b""
         self.hierarchy_in_fixture = False
+        self.push_attempts = {}
 
     def monotonic(self):
         self.clock += 0.05 if self.mode == "picker-action-geometry-never-stable" else 0.2
@@ -206,7 +207,7 @@ class Device:
             return subprocess.CompletedProcess(argv, 0, data.encode(), b"")
         assert argv[:3] == ["adb", "-s", "emulator-5554"], argv
         args = argv[3:]
-        status, out = 0, b""
+        status, out, error = 0, b"", b""
         if args == ["get-state"]:
             out = b"device"
         elif args == ["emu", "avd", "name"]:
@@ -261,7 +262,17 @@ class Device:
             assert args[3] == "/sdcard/Download/zipdb-import-proof", args
             out = "\n".join(sorted(self.documents)).encode()
         elif args[0] == "push":
-            self.documents[Path(args[1]).name] = Path(args[1]).read_bytes()
+            name = Path(args[1]).name
+            self.push_attempts[name] = self.push_attempts.get(name, 0) + 1
+            if name == "zipdb-proof.gba" and (
+                    self.mode == "push-eperm-persistent"
+                    or (self.mode == "push-eperm-once" and self.push_attempts[name] == 1)):
+                status = 1
+                out = b"1 file pushed, 0 skipped. 387.9 MB/s\n"
+                error = (b"adb: error: failed to copy fixture to destination: "
+                         b"remote couldn't create file: Operation not permitted\n")
+            else:
+                self.documents[name] = Path(args[1]).read_bytes()
         elif args[0] == "install":
             if self.mode == "install-fails":
                 status = 1
@@ -387,7 +398,7 @@ class Device:
             out = hashlib.sha256(data).hexdigest().encode()
         else:
             raise AssertionError(args)
-        return subprocess.CompletedProcess(argv, status, out, b"fake failure" if status else b"")
+        return subprocess.CompletedProcess(argv, status, out, error or (b"fake failure" if status else b""))
 
     def popen(self, argv, stdout, **kwargs):
         if argv[3:9] == ["exec-out", "run-as", PKG, "content", "read", "--uri"]:
@@ -431,7 +442,8 @@ cases = ["success", "wrong-avd", "physical", "existing-package", "wrong-package"
          "geometry-shifts", "geometry-never-stable", "foreign-uid-grant", "uncontrolled-document-provider",
          "diagnostic-write-isolation", "diagnostic-directory-conflict", "diagnostic-cleanup-refused",
          "fixture-generator-missing", "fixture-generator-fails", "fixture-receipt-mismatch",
-         "diagnostic-unknown-child", "diagnostic-shell-temp-only"]
+         "diagnostic-unknown-child", "diagnostic-shell-temp-only", "push-eperm-once",
+         "push-eperm-persistent"]
 cases += ["picker-caption-obscured", "picker-aosp-action-parent", "picker-missing-action-parent",
           "picker-disabled-action-parent", "picker-foreign-action-parent", "picker-missing-action-package",
           "picker-missing-action-clickable", "picker-ambiguous-caption", "picker-shared-action-parent",
@@ -440,7 +452,7 @@ cases += ["picker-caption-obscured", "picker-aosp-action-parent", "picker-missin
 success_cases = {"success", "hierarchy-initially-empty", "primary-storage-picker", "native-reader-error",
                  "preexisting-grant", "geometry-shifts", "diagnostic-write-isolation",
                  "diagnostic-shell-temp-only", "picker-caption-obscured", "picker-aosp-action-parent",
-                 "picker-action-geometry-shifts"}
+                 "picker-action-geometry-shifts", "push-eperm-once"}
 try:
     interference = Device("diagnostic-write-isolation")
     interference.page = "rom-picker"
@@ -572,6 +584,17 @@ try:
             assert not any(call[0] == "adb" and call[3] == "pull" for call in device.calls)
             assert any(call[3:] == ["exec-out", "cat", device.diagnostics_dir + "/hierarchy.xml"]
                        for call in device.calls if call[0] == "adb")
+        if mode == "push-eperm-once":
+            assert device.push_attempts["zipdb-proof.gba"] == 2
+            assert len(report["fixture_push_attempts"]["zipdb-proof.gba"]) == 2
+            assert report["fixture_push_attempts"]["zipdb-proof.gba"][0]["return_code"] == 1
+            assert "Operation not permitted" in \
+                report["fixture_push_attempts"]["zipdb-proof.gba"][0]["diagnostic"]
+        if mode == "push-eperm-persistent":
+            assert device.push_attempts["zipdb-proof.gba"] == 3
+            assert "adb push failed after 3 attempts" in report["error"], report
+            assert "Operation not permitted" in report["error"], report
+            assert not any(c[0] == "adb" and c[3] == "install" for c in device.calls), mode
     print(f"Passed {len(cases)} fake-adb contract scenarios; no device was contacted.")
 finally:
     os.chdir(repo)
