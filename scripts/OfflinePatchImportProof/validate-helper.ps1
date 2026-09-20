@@ -89,7 +89,7 @@ function ProofEnvelope {
                 if($report.startupObservationCases -ne 75) { throw 'Startup observation case inventory changed.' }
                 [DesktopPolicyTests]::AssertStartupCaseInventory()
                 $report.ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
-                if($report.ownedTreeCases -ne 146) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
+                if($report.ownedTreeCases -ne 152) { throw "Owned-tree case inventory changed: $($report.ownedTreeCases)." }
                 [DesktopPolicyTests]::AssertOwnedTreeCaseInventory()
                 $windowIdentityCases=[DesktopPolicyTests]::RunWindowIdentityTests()
                 if($windowIdentityCases -ne 57){throw 'Window identity case inventory changed.'}

@@ -535,7 +535,8 @@ public sealed class BoundedDesktopSmoke
         for (int i = 0; i < tree.Windows.Count; i++)
         {
             var owned = tree.Windows[i];
-            if (!TreeCall(() => tree.Visible(owned)) || owned.Class == "#32770") continue;
+            if (!TreeCall(() => tree.Visible(owned)) ||
+                owned.Class == "#32770" || owned.Class == "ComboLBox") continue;
             var window = owned.Element;
             if (traceImport)
                 RecordEditorProbe(owned.Handle == Key(mainHandle)

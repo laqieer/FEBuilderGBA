@@ -2103,11 +2103,11 @@ public static class DesktopPolicyTests
 
     public static void AssertOwnedTreeCaseInventory()
     {
-        if (ownedTreeCaseNames.Count != 146 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
+        if (ownedTreeCaseNames.Count != 152 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
             throw new InvalidOperationException("Owned-tree inventory incomplete.");
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
-        if (digest != "a71b278f9d82083304e2cd1cc7e932ab920a5de660614c34353fb44601c83671")
+        if (digest != "d34296d2f494e8cbeac06c1e3197ba3c1da8a7b07d87e63352bbf200346d3616")
             throw new InvalidOperationException("Owned-tree case names/order changed.");
     }
 
@@ -2323,6 +2323,57 @@ public static class DesktopPolicyTests
             Verify(tree.Find(100, null, DesktopSelector.ConfirmationYes, 1).Count == 0);
             Verify(tree.Find(300, null, DesktopSelector.ConfirmationYes, 1)[0] == yes);
             Verify(tree.Find(400, null, DesktopSelector.PickerOpen, 1)[0] == open);
+        });
+        Case("owned-combo-popup-chain-is-transient", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            var popup = AddRoot(model, 500, 8, picker, 400, "ComboLBox");
+            var tree = model.Tree(); tree.Discover();
+            Verify(tree.Windows.Count == 4 && model.Bindings.KnownNativeOwner(400) &&
+                !model.Bindings.KnownNativeOwner(500));
+            tree.ValidateWindow(popup, DesktopRootKind.TransientPopup, 400);
+            Refused(() => tree.ValidateWindow(popup, DesktopRootKind.Avalonia, 400), "query-root-kind");
+            Refused(() => tree.ValidateWindow(popup, DesktopRootKind.NativeDialog, 400), "query-root-kind");
+        });
+        Case("combo-popup-requires-avalonia-terminus", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 0, "#32770");
+            AddRoot(model, 500, 8, picker, 400, "ComboLBox");
+            Refused(() => model.Tree().Discover(), "query-owner-root");
+        });
+        Case("combo-popup-foreign-dialog-owner-refused", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            var popup = AddRoot(model, 500, 8, picker, 400, "ComboLBox");
+            model.SeedNodes.Insert(0, popup);
+            model.Native[400].Pid = 8;
+            Refused(() => model.Tree().Discover(), "query-owner-pid");
+        });
+        Case("combo-popup-dialog-owner-must-be-root", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            AddRoot(model, 500, 8, picker, 400, "ComboLBox");
+            model.Native[400].Root = 100;
+            Refused(() => model.Tree().Discover(), "query-owner-root");
+        });
+        Case("combo-popup-owner-cycle-refused", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 500, "#32770");
+            var popup = AddRoot(model, 500, 8, picker, 400, "ComboLBox");
+            model.SeedNodes.Insert(0, popup);
+            Refused(() => model.Tree().Discover(), "query-owner-bound");
+        });
+        Case("combo-popup-cannot-own-popup", () =>
+        {
+            var model = new OwnedModel();
+            var owner = AddRoot(model, 400, 7, model.Main, 100, "ComboLBox");
+            AddRoot(model, 500, 8, owner, 400, "ComboLBox");
+            Refused(() => model.Tree().Discover(), "query-owner-root");
         });
         Case("unowned-nonmodal-editor-root-is-separately-discovered", () =>
         {

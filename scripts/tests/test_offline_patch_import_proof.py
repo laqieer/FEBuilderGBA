@@ -519,7 +519,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (146, 75, 39, 522):
+            for count in (152, 75, 39, 522):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):
@@ -570,6 +570,10 @@ internal sealed class DesktopStartupAcquisition {
         self.assertIn('bool traceImport = id == ImportButton && stage == "open-editor";', window)
         self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogStarted);", window)
         self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogCompleted);", window)
+        self.assertIn('owned.Class == "#32770" || owned.Class == "ComboLBox"', window)
+        picker = _cs_body(desktop, r"\bAutomationElement Picker\(\)\s*\{")
+        self.assertIn('owned.Class != "#32770"', picker)
+        self.assertNotIn('owned.Class == "ComboLBox"', picker)
         self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportSearchCompleted);", window)
         self.assertLess(window.index("ImportCatalogStarted"), window.index("var tree = NewTree();"))
         self.assertLess(window.index("var tree = NewTree();"), window.index("ImportCatalogCompleted"))
@@ -1343,9 +1347,9 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             runner = (PACKAGE / name).read_text(encoding="utf-8")
             self.assertIn("[DesktopPolicyTests]::RunOwnedTreeTests()", runner)
             self.assertIn("ownedTreeCases", runner)
-            self.assertRegex(runner, r"ownedTreeCases -ne 146")
+            self.assertRegex(runner, r"ownedTreeCases -ne 152")
             self.assertIn("[DesktopPolicyTests]::AssertOwnedTreeCaseInventory()", runner)
-        self.assertIn("a71b278f9d82083304e2cd1cc7e932ab920a5de660614c34353fb44601c83671", tests)
+        self.assertIn("d34296d2f494e8cbeac06c1e3197ba3c1da8a7b07d87e63352bbf200346d3616", tests)
 
     def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
         policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")

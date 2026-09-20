@@ -88,7 +88,7 @@ internal static class DesktopHwnd
     internal static bool Same(IntPtr first, IntPtr second) => Key(first.ToInt64()) == Key(second.ToInt64());
 }
 
-internal enum DesktopRootKind { Avalonia, NativeDialog }
+internal enum DesktopRootKind { Avalonia, NativeDialog, TransientPopup }
 
 internal sealed class DesktopRootBindings
 {
@@ -103,7 +103,7 @@ internal sealed class DesktopRootBindings
     internal int Count => roots.Count;
 
     internal static bool ValidClass(string windowClass) =>
-        windowClass == "#32770" || DesktopPolicy.AvaloniaClass(windowClass);
+        windowClass == "#32770" || windowClass == "ComboLBox" || DesktopPolicy.AvaloniaClass(windowClass);
 
     // Only the native/root/owner validation path admits these records.
     internal void BindNativeClass(uint handle, string windowClass)
@@ -137,12 +137,14 @@ internal sealed class DesktopRootBindings
         roots.TryGetValue(handle, out var known) && known.Identity != null &&
         known.Class == windowClass && known.Owner == owner;
     internal bool KnownNativeOwner(uint handle) => handle == 0 ||
-        (roots.TryGetValue(handle, out var known) && DesktopPolicy.AvaloniaClass(known.Class));
+        (roots.TryGetValue(handle, out var known) &&
+        (known.Class == "#32770" || DesktopPolicy.AvaloniaClass(known.Class)));
     internal DesktopRootKind Kind(uint handle)
     {
         if (!roots.TryGetValue(handle, out var known) || known.Identity == null)
             throw new DesktopTreeGuardException("query-root-unbound");
-        return known.Class == "#32770" ? DesktopRootKind.NativeDialog : DesktopRootKind.Avalonia;
+        return known.Class == "#32770" ? DesktopRootKind.NativeDialog :
+            known.Class == "ComboLBox" ? DesktopRootKind.TransientPopup : DesktopRootKind.Avalonia;
     }
     internal string Expected(uint handle, DesktopRootKind kind)
     {
@@ -510,6 +512,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         context.RootMatchesBefore = handle == context.ExpectedOwnedRoot;
         string windowClass = adapter.Class(handle);
         if (!DesktopRootBindings.ValidClass(windowClass)) Fail("query-root-class", windowClass);
+        bool transientCombo = windowClass == "ComboLBox";
         uint owner = adapter.Owner(handle), next = owner;
         var seen = new HashSet<uint> { handle };
         var owners = new List<(uint handle, string windowClass)>();
@@ -518,10 +521,17 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             Require(depth < 8 && seen.Add(next), "query-owner-bound");
             Require(adapter.Alive(next) && adapter.NativePid(next) == pid, "query-owner-pid");
             string ownerClass = adapter.Class(next);
-            Require(adapter.NativeRoot(next) == next && DesktopPolicy.AvaloniaClass(ownerClass), "query-owner-root");
+            uint parent = adapter.Owner(next);
+            bool avaloniaOwner = DesktopPolicy.AvaloniaClass(ownerClass);
+            bool comboDialogOwner = transientCombo && ownerClass == "#32770" && parent != 0;
+            Require(adapter.NativeRoot(next) == next && (avaloniaOwner || comboDialogOwner), "query-owner-root");
+            if (transientCombo && avaloniaOwner) Require(parent == 0, "query-owner-root");
             owners.Add((next, ownerClass));
-            next = adapter.Owner(next);
+            next = parent;
         }
+        if (transientCombo)
+            Require(owners.Count >= 2 && owners[0].windowClass == "#32770" &&
+                DesktopPolicy.AvaloniaClass(owners[owners.Count - 1].windowClass), "query-owner-root");
         foreach (var parent in owners) bindings.BindNativeClass(parent.handle, parent.windowClass);
         bindings.BindNativeClass(handle, windowClass);
         return (owner, windowClass);
