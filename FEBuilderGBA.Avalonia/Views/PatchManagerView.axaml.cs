@@ -504,7 +504,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     if (selected == null || this.GetVisualRoot() == null)
                     {
-                        StatusMessageLabel.Text = R._("Import cancelled. The previous database was not replaced.");
+                        PublishImportNonCommitStatus(R._("Import cancelled. The previous database was not replaced."));
                         return;
                     }
                     StatusMessageLabel.Text = R._("Validating the ZIP and staging the patch database…");
@@ -520,15 +520,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     {
                         ShowImportedOutcome(result, identity.Version);
                     }
-                    else StatusMessageLabel.Text = result.Message;
+                    else PublishImportNonCommitStatus(result.Message);
                 }
             }
             catch (Exception ex)
             {
-                if (_attached) StatusMessageLabel.Text = committed
+                if (_attached) PublishImportNonCommitStatus(committed
                     ? R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.",
                         identity.Version) + "\n" + ex.Message
-                    : R._("Patch database import failed: {0}", ex.Message);
+                    : R._("Patch database import failed: {0}", ex.Message));
             }
             finally
             {
@@ -536,6 +536,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 _importing = false;
                 if (_attached) UpdateOperationControls();
             }
+        }
+
+        internal void PublishImportNonCommitStatus(string message)
+        {
+            StatusMessageLabel.Text = WithRecoveryNotice(message);
         }
 
         internal void ShowImportedOutcome(PatchDatabaseImportService.Outcome result, string version)

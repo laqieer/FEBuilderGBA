@@ -27111,6 +27111,9 @@ CSA动画扫描失败 — 帧数据指针无效。
 :Could not install the ChapterNameToText patch.
 无法安装 ChapterNameToText 补丁。
 
+:ChapterNameToText patch not found in {0}
+在 {0} 中未找到 ChapterNameToText 补丁。
+
 :Could not read the skill palette; aborting import.
 无法读取技能调色板，导入中止。
 

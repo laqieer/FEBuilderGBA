@@ -13283,6 +13283,9 @@ SongID 0x0 には書き込めません。
 :Could not install the ChapterNameToText patch.
 ChapterNameToText パッチをインストールできませんでした。
 
+:ChapterNameToText patch not found in {0}
+ChapterNameToText パッチが {0} に見つかりません。
+
 :Could not read the skill palette; aborting import.
 スキルパレットを読み込めませんでした。インポートを中止します。
 

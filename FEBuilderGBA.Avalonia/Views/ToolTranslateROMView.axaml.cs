@@ -526,7 +526,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     rom, identity, _vm.UndoService, prompt ?? Prompt, token);
                 if (result.Identity == null)
                 {
-                    await ShowInfo(result.Message);
+                    await ShowInfo(FormatChapterNameTextResult(result));
                     return null;
                 }
                 if (!result.Identity.IsCurrent) return null;
@@ -542,6 +542,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 Log.ErrorF("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
                 return null;
             }
+        }
+
+        internal static string FormatChapterNameTextResult(ChapterNameTextPatchService.Result result)
+        {
+            return result.Failure == ChapterNameTextPatchService.FailureKind.PatchNotFound
+                ? R._("ChapterNameToText patch not found in {0}", result.Detail)
+                : result.Message;
         }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }

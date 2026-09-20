@@ -172,6 +172,48 @@ namespace FEBuilderGBA.Avalonia.Tests
         }
 
         [AvaloniaTheory]
+        [InlineData(false, "Import cancelled. The previous database was not replaced.")]
+        [InlineData(false, "Patch database import failed: invalid ZIP")]
+        [InlineData(false, "The imported database was refused.")]
+        [InlineData(true, "Import cancelled. The previous database was not replaced.")]
+        [InlineData(true, "Patch database import failed: invalid ZIP")]
+        [InlineData(true, "The imported database was refused.")]
+        public async Task NonCommitImportStatusPreservesRecoveryNotice(bool retained, string message)
+        {
+            using var fixture = new PatchManagerRefreshTests.Fixture();
+            var previousNotice = App.CapturePatchDatabaseRecoveryNotice();
+            var view = new PatchManagerView();
+            var host = new Window { Content = view };
+            try
+            {
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (retained) App.RecordPatchDatabaseRecovery(new PatchDatabaseImportCore.RecoveryException(
+                    fixture.Root, new IOException("owned retained workspace")));
+                var noticeIdentity = App.CapturePatchDatabaseRecoveryNotice();
+                string notice = App.PatchDatabaseRecoveryNotice;
+                host.Show();
+                Assert.True(await view.RefreshTask);
+
+                view.PublishImportNonCommitStatus(message);
+
+                string actual = view.FindControl<TextBlock>("StatusMessageLabel")!.Text!;
+                Assert.Contains(message, actual, StringComparison.Ordinal);
+                if (retained) Assert.Contains(notice, actual, StringComparison.Ordinal);
+                else Assert.Equal(message, actual);
+                Assert.Same(noticeIdentity, App.CapturePatchDatabaseRecoveryNotice());
+            }
+            finally
+            {
+                host.Close();
+                await view.RefreshTask;
+                App.ClearPatchDatabaseRecoveryNotice();
+                if (previousNotice?.Result != null) App.RecordPatchDatabaseRecovery(previousNotice.Result);
+                if (previousNotice?.Exception != null) App.RecordPatchDatabaseRecovery(previousNotice.Exception);
+            }
+            Assert.False(ContentRepoGitService.IsRunning());
+        }
+
+        [AvaloniaTheory]
         [InlineData("en", "Working…", false)]
         [InlineData("ja", "処理中…", false)]
         [InlineData("zh", "正在处理…", false)]

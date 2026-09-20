@@ -224,6 +224,66 @@ public class ChapterNameTextPatchSafetyTests
         Assert.False(ContentRepoGitService.IsRunning());
     }
 
+    [AvaloniaFact]
+    public async Task CancellationAfterCommitReturnsCommittedMutationIdentity()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.SeedTranslationPatch();
+        fixture.MakeManaged();
+        using var cancellation = new CancellationTokenSource();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        var undo = new UiUndo(fixture.Root, cancellation.Cancel);
+
+        var result = await new ChapterNameTextPatchService().RecommendAsync(fixture.Rom, identity, undo,
+            () => Task.FromResult(true), cancellation.Token);
+
+        Assert.True(result.Applied);
+        Assert.NotNull(result.Identity);
+        Assert.True(result.Identity.IsCurrent);
+        Assert.False(identity.IsCurrent);
+        Assert.Equal(0xAAu, fixture.Rom.u8(0x200));
+        Assert.Equal(["Begin", "Commit"], undo.Calls);
+        Assert.Single(CoreState.Undo.UndoBuffer);
+        Assert.False(undo.HasPendingUndo);
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [AvaloniaFact]
+    public async Task MissingPatchPreservesMessageContractAndFailureKind()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var result = await new ChapterNameTextPatchService().RecommendAsync(
+            fixture.Rom, PatchDatabaseImportService.CaptureLoadedRom()!, new UiUndo(fixture.Root),
+            () => Task.FromResult(true));
+
+        Assert.Null(result.Identity);
+        Assert.Equal(ChapterNameTextPatchService.FailureKind.PatchNotFound, result.Failure);
+        Assert.Contains("ChapterNameToText patch not found in ", result.Message, StringComparison.Ordinal);
+        Assert.False(string.IsNullOrEmpty(result.Detail));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
+    [AvaloniaTheory]
+    [InlineData("ja", "ChapterNameToText パッチが C:\\patches に見つかりません。")]
+    [InlineData("zh", "在 C:\\patches 中未找到 ChapterNameToText 补丁。")]
+    public void PatchNotFoundMessageUsesRuntimeTranslation(string language, string expected)
+    {
+        var translations = typeof(MyTranslateResource).GetField("Resource",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        object? previousTranslations = translations.GetValue(null);
+        try
+        {
+            translations.SetValue(null, new MyTranslateResourceLow());
+            MyTranslateResource.LoadResource(Path.Combine(PatchDatabaseImportServiceTests.FindRepoRoot(),
+                "config", "translate", language + ".txt"));
+            var result = new ChapterNameTextPatchService.Result(null,
+                Failure: ChapterNameTextPatchService.FailureKind.PatchNotFound, Detail: @"C:\patches");
+
+            Assert.Equal(expected, ToolTranslateROMView.FormatChapterNameTextResult(result));
+        }
+        finally { translations.SetValue(null, previousTranslations); }
+    }
+
     [AvaloniaTheory]
     [InlineData("none")]
     [InlineData("replace")]

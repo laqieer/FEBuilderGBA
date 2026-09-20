@@ -9,7 +9,14 @@ namespace FEBuilderGBA.Avalonia.Services;
 
 internal sealed class ChapterNameTextPatchService
 {
-    internal sealed record Result(PatchDatabaseImportService.RomIdentity? Identity, string Message = "", bool Applied = false);
+    internal enum FailureKind
+    {
+        None,
+        PatchNotFound,
+    }
+
+    internal sealed record Result(PatchDatabaseImportService.RomIdentity? Identity, string Message = "",
+        bool Applied = false, FailureKind Failure = FailureKind.None, string Detail = "");
 
     readonly Func<string, ROM, string, CancellationToken, List<PatchMetadataCore.PatchInfo>> discover;
     readonly Func<PatchDatabaseOperationLeaseCore.ExistingReadSnapshot,
@@ -53,17 +60,23 @@ internal sealed class ChapterNameTextPatchService
                 if ((!ownership.Managed && after.Managed) ||
                     (ownership.Managed && (!after.Managed || !after.HasLock || before == null ||
                         !matches(before, after, token))))
-                    return (Target: (PatchMetadataCore.PatchInfo?)null, Message: PatchManagerViewModel.PatchDatabaseChangedMessage);
+                    return (Target: (PatchMetadataCore.PatchInfo?)null,
+                        Message: PatchManagerViewModel.PatchDatabaseChangedMessage,
+                        Failure: FailureKind.None, Detail: "");
                 var target = infos.FirstOrDefault(p => p.Name.IndexOf("Convert Chapter Titles to Text",
                     StringComparison.OrdinalIgnoreCase) >= 0);
-                return (Target: target, Message: "ChapterNameToText patch not found in " + location.Directory);
+                return (Target: target,
+                    Message: target == null ? "ChapterNameToText patch not found in " + location.Directory : "",
+                    Failure: target == null ? FailureKind.PatchNotFound : FailureKind.None,
+                    Detail: target == null ? location.Directory : "");
             }, token);
             if (!Current()) return Cancelled();
             if (selection.Target == null || string.IsNullOrEmpty(selection.Target.PatchFilePath))
-                return new(null, selection.Message);
+                return new(null, selection.Message, Failure: selection.Failure, Detail: selection.Detail);
 
             // No await separates UI-side admission, undo and mutation.
             undo.Begin("Install ChapterNameToText");
+            string resultMessage;
             try
             {
                 if (!Current()) { undo.Rollback(); return Cancelled(); }
@@ -73,16 +86,16 @@ internal sealed class ChapterNameTextPatchService
                     undo.Rollback();
                     return new(null, result.Message);
                 }
+                resultMessage = result.Message;
                 undo.Commit();
-                if (token.IsCancellationRequested) return Cancelled();
-                var continuation = identity.RefreshAfterOwnedMutation();
-                return continuation == null ? Cancelled() : new(continuation, result.Message, Applied: true);
             }
             catch
             {
-                undo.Rollback();
+                if (undo.HasPendingUndo) undo.Rollback();
                 throw;
             }
+            var continuation = identity.RefreshAfterOwnedMutation();
+            return new(continuation, resultMessage, Applied: true);
         }
         catch (OperationCanceledException) { return Cancelled(); }
         catch (PatchDatabaseOperationLeaseCore.BusyException)
