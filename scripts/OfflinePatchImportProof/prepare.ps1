@@ -62,7 +62,10 @@ function ProofEnvelope {
         function Verify([string]$path,$row) {
             if ($row.sha256 -cnotmatch '^[0-9a-f]{64}$' -or (Hash $path) -cne $row.sha256 -or ([IO.FileInfo]$path).Length -ne $row.bytes) { throw "Pin mismatch: $path" }
         }
-        function ReadJson([string]$path) { Plain $path; return Read-ProofJsonFile $path }
+        function ReadJson([string]$path,[long]$maximum=4194304,[int]$maximumNodes=50000) {
+            Plain $path
+            return Read-ProofJsonFile $path $maximum $maximumNodes
+        }
         function WriteNew([string]$path,[byte[]]$bytes) {
             Plain ([IO.Path]::GetDirectoryName($path))
             $s=[IO.File]::Open($path,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
@@ -374,7 +377,7 @@ function ProofEnvelope {
                 $validation=PassingReceipt "$B\validate-$Id\result.json" $ValidationReceiptSha256 'Validate'
                 foreach ($r in $validation.validationFiles) { Verify (Child "$B\validate-$Id" $r.path) $r }
                 if ((Hash "$B\build-attempt\output-manifest.json") -cne $build.outputManifestSha256) { throw 'Build output manifest changed.' }
-                $outputs=ReadJson "$B\build-attempt\output-manifest.json"
+                $outputs=ReadJson "$B\build-attempt\output-manifest.json" 33554432 1000000
                 SameRows $outputs.appFiles @(Tree "$B\publish")
                 SameRows $outputs.generatorFiles @(Tree "$B\generator")
                 SameRows $outputs.projectionFiles @(Tree "$B\publish" $true)

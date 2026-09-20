@@ -608,6 +608,50 @@ function Write-ProofTestBytes([string]$Path,[byte[]]$Bytes) {
 function Write-ProofTestJson([string]$Path,$Value) {
     Write-ProofTestBytes $Path ([Text.UTF8Encoding]::new($false).GetBytes((ConvertTo-Json -InputObject $Value -Depth 32 -Compress)))
 }
+function Invoke-ProofJsonLimitTests([string]$Root) {
+    $owned=Join-Path $Root ('json-limit-tests-'+[guid]::NewGuid().ToString('N'))
+    [void][IO.Directory]::CreateDirectory($owned)
+    $cases=0
+    try {
+        $row='{"path":"a","bytes":0,"sha256":"' + ('0'*64) + '"}'
+        $builder=[Text.StringBuilder]::new(20000000)
+        [void]$builder.Append('{')
+        $collections=@(
+            @{name='appFiles';count=100000},
+            @{name='generatorFiles';count=10000},
+            @{name='projectionFiles';count=10000},
+            @{name='config';count=10000},
+            @{name='codes';count=10000}
+        )
+        for($collectionIndex=0;$collectionIndex -lt $collections.Count;$collectionIndex++){
+            if($collectionIndex){[void]$builder.Append(',')}
+            [void]$builder.Append('"').Append($collections[$collectionIndex].name).Append('":[')
+            for($i=0;$i -lt $collections[$collectionIndex].count;$i++){
+                if($i){[void]$builder.Append(',')}
+                [void]$builder.Append($row)
+            }
+            [void]$builder.Append(']')
+        }
+        [void]$builder.Append(',"tests":[]}')
+        $manifestPath=Join-Path $owned 'output-manifest.json'
+        $manifestBytes=[Text.UTF8Encoding]::new($false).GetBytes($builder.ToString())
+        Assert-Proof ($manifestBytes.Length -gt 4194304 -and $manifestBytes.Length -le 33554432) 'Large manifest fixture byte range.'
+        $null=Write-ProofTestBytes $manifestPath $manifestBytes
+        Assert-ProofTestThrows {Read-ProofJsonFile $manifestPath};$cases++
+        $manifest=Read-ProofJsonFile $manifestPath 33554432 1000000
+        Assert-Proof ($manifest.appFiles.Count -eq 100000 -and $manifest.generatorFiles.Count -eq 10000 -and
+            $manifest.projectionFiles.Count -eq 10000 -and $manifest.config.Count -eq 10000 -and
+            $manifest.codes.Count -eq 10000) 'Producer-envelope manifest shape.';$cases++
+        Assert-ProofTestThrows {ConvertFrom-ProofJson '[0,0,0]' 33554432 3};$cases++
+        $oversized=Join-Path $owned 'oversized.json'
+        $stream=[IO.File]::Open($oversized,[IO.FileMode]::CreateNew,[IO.FileAccess]::Write,[IO.FileShare]::None)
+        try{$stream.SetLength(33554433)}finally{$stream.Dispose()}
+        Assert-ProofTestThrows {Read-ProofJsonFile $oversized 33554432 1000000};$cases++
+    } finally {
+        [IO.Directory]::Delete($owned,$true)
+    }
+    return $cases
+}
 function Get-ProofTestCompileReferences {
     $names=@(
         'Microsoft.Win32.Primitives.dll','System.Text.RegularExpressions.dll','System.Runtime.dll',

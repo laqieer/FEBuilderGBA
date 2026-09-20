@@ -990,7 +990,8 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             "startupAcquisitionCases",
             "processImageCases", "retainedImageCases", "retainedImageReportingCases",
             "runtimeBindingCases", "windowsLexicalCases", "reportingWriterCases",
-            "laterProductionCases", "configurationIntegrationCases", "compilerReferenceFixtureCases",
+            "laterProductionCases", "configurationIntegrationCases", "jsonLimitCases",
+            "compilerReferenceFixtureCases",
             "restageCases", "loaderCases", "liveProcessImageIntegrationCases",
             "outputOnlyCompilations", "passed", "native_calls", "gui_authorization",
         }, set(re.findall(r"(?m)^\s*(\w+)\s*=", result)))
@@ -1141,6 +1142,9 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
         for token in ("Invoke-ConfigurationIntegrationTests", "Invoke-ReportingWriterTests", "Invoke-PinnedLoaderTests"):
             self.assertIn(token, aggregate)
+        self.assertIn("Invoke-ProofJsonLimitTests", aggregate)
+        self.assertIn('ReadJson "$B\\build-attempt\\output-manifest.json" 33554432 1000000',
+                      (PACKAGE / "prepare.ps1").read_text(encoding="utf-8"))
         self.assertIn("Invoke-PinnedTestMode -Root $Root -Mode RestageChild", tests)
         self.assertIn("Invoke-PinnedTestMode -Fixture $relocated -Mode PrerequisitesChild", tests)
         self.assertIn("Confirm-ProofChildResult", tests)

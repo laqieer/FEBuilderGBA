@@ -27,15 +27,17 @@ function Assert-ProofKeys($Value,[string[]]$Keys) {
     foreach($name in $Value.Keys){Assert-Proof ($name -is [string] -and $actual.Add($name)) 'Configuration key type.'}
     foreach ($key in $Keys) { Assert-Proof ($actual.Contains($key)) "Configuration field: $key" }
 }
-function ConvertFrom-ProofJson([string]$Text) {
-    Assert-Proof (![string]::IsNullOrWhiteSpace($Text) -and [Text.Encoding]::UTF8.GetByteCount($Text) -le 4194304) 'JSON byte bound.'
+function ConvertFrom-ProofJson([string]$Text,[long]$MaximumBytes=4194304,[int]$MaximumNodes=50000) {
+    Assert-Proof ($MaximumBytes -ge 1 -and $MaximumBytes -le 33554432) 'JSON maximum byte bound.'
+    Assert-Proof ($MaximumNodes -ge 1 -and $MaximumNodes -le 1000000) 'JSON maximum structural bound.'
+    Assert-Proof (![string]::IsNullOrWhiteSpace($Text) -and [Text.Encoding]::UTF8.GetByteCount($Text) -le $MaximumBytes) 'JSON byte bound.'
     $document=[Text.Json.JsonDocument]::Parse($Text)
     try {
         $pending=[Collections.Generic.Stack[object]]::new()
         $pending.Push(@{value=$document.RootElement;depth=0});$count=0
         while ($pending.Count) {
             $item=$pending.Pop();$count++
-            Assert-Proof ($count -le 50000 -and $item.depth -le 32) 'JSON structural bound.'
+            Assert-Proof ($count -le $MaximumNodes -and $item.depth -le 32) 'JSON structural bound.'
             if ($item.value.ValueKind -eq [Text.Json.JsonValueKind]::Object) {
                 $seen=[Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
                 foreach ($property in $item.value.EnumerateObject()) {
@@ -105,7 +107,7 @@ function Read-ProofPinnedBytes($Pin,[long]$Maximum=4194304) {
 function Read-ProofPinnedJson($Pin) {
     return ,(ConvertFrom-ProofJson ([Text.UTF8Encoding]::new($false,$true).GetString((Read-ProofPinnedBytes $Pin))))
 }
-function Read-ProofJsonFile([string]$Path,[long]$Maximum=4194304) {
+function Read-ProofJsonFile([string]$Path,[long]$Maximum=4194304,[int]$MaximumNodes=50000) {
     Assert-ProofPath $Path -Existing
     $stream=[IO.File]::Open($Path,[IO.FileMode]::Open,[IO.FileAccess]::Read,[IO.FileShare]::Read)
     try {
@@ -117,7 +119,7 @@ function Read-ProofJsonFile([string]$Path,[long]$Maximum=4194304) {
         }
         Assert-Proof ($stream.ReadByte() -eq -1) 'JSON extra bytes.'
     }finally{$stream.Dispose()}
-    return ,(ConvertFrom-ProofJson ([Text.UTF8Encoding]::new($false,$true).GetString($bytes)))
+    return ,(ConvertFrom-ProofJson ([Text.UTF8Encoding]::new($false,$true).GetString($bytes)) $Maximum $MaximumNodes)
 }
 function Read-ProofInput([string]$Path,[string]$Sha256,$Configuration) {
     Assert-ProofPath $Path -Existing

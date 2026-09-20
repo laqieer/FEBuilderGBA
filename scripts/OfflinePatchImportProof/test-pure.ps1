@@ -161,6 +161,8 @@ function ProofEnvelope {
         $writerCases=Invoke-ReportingWriterTests $root
         $laterProductionCases=Invoke-LaterProductionTests $root
         $configurationCases=Invoke-ConfigurationIntegrationTests $root
+        $jsonLimitCases=Invoke-ProofJsonLimitTests $root
+        if($jsonLimitCases -ne 4){throw 'JSON limit case inventory changed.'}
         $referenceCases=Invoke-CompilerReferenceFixtureTests $root
         if($referenceCases -ne $(if($IsWindows){8}else{0})){throw 'Compiler reference fixture inventory changed.'}
         $restage=& (Join-Path $PSScriptRoot 'restage\test-pure.ps1') | ConvertFrom-Json
@@ -180,6 +182,7 @@ function ProofEnvelope {
             reportingWriterCases = $writerCases
             laterProductionCases = $laterProductionCases
             configurationIntegrationCases = $configurationCases
+            jsonLimitCases = $jsonLimitCases
             compilerReferenceFixtureCases = $referenceCases
             restageCases = $restage.executed
             loaderCases = $loaderCases
