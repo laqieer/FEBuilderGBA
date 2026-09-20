@@ -621,6 +621,8 @@ namespace FEBuilderGBA
                     if (name == "new")
                     {
                         string? marker = ReadOwnershipId(path, journal.Version);
+                        if (journal.Phase >= Phase.Prepared && marker == null)
+                            throw new IOException("The staged database ownership marker is missing.");
                         if (marker != null && marker != journal.Id)
                             throw new IOException("The staged database marker belongs to another operation.");
                     }

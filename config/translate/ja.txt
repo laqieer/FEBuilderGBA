@@ -13286,6 +13286,9 @@ ChapterNameToText パッチをインストールできませんでした。
 :ChapterNameToText patch not found in {0}
 ChapterNameToText パッチが {0} に見つかりません。
 
+:The loaded ROM changed while finalizing the ChapterNameToText patch.
+ChapterNameToText パッチの完了処理中に、読み込まれている ROM が変更されました。
+
 :Could not read the skill palette; aborting import.
 スキルパレットを読み込めませんでした。インポートを中止します。
 

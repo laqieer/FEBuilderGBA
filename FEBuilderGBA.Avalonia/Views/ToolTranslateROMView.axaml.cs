@@ -546,9 +546,14 @@ namespace FEBuilderGBA.Avalonia.Views
 
         internal static string FormatChapterNameTextResult(ChapterNameTextPatchService.Result result)
         {
-            return result.Failure == ChapterNameTextPatchService.FailureKind.PatchNotFound
-                ? R._("ChapterNameToText patch not found in {0}", result.Detail)
-                : result.Message;
+            return result.Failure switch
+            {
+                ChapterNameTextPatchService.FailureKind.PatchNotFound =>
+                    R._("ChapterNameToText patch not found in {0}", result.Detail),
+                ChapterNameTextPatchService.FailureKind.CommittedRomChanged =>
+                    R._("The loaded ROM changed while finalizing the ChapterNameToText patch."),
+                _ => result.Message,
+            };
         }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }

@@ -13,6 +13,7 @@ internal sealed class ChapterNameTextPatchService
     {
         None,
         PatchNotFound,
+        CommittedRomChanged,
     }
 
     internal sealed record Result(PatchDatabaseImportService.RomIdentity? Identity, string Message = "",
@@ -95,7 +96,10 @@ internal sealed class ChapterNameTextPatchService
                 throw;
             }
             var continuation = identity.RefreshAfterOwnedMutation();
-            return new(continuation, resultMessage, Applied: true);
+            return continuation == null
+                ? new(null, "The loaded ROM changed while finalizing the ChapterNameToText patch.",
+                    Applied: true, Failure: FailureKind.CommittedRomChanged)
+                : new(continuation, resultMessage, Applied: true);
         }
         catch (OperationCanceledException) { return Cancelled(); }
         catch (PatchDatabaseOperationLeaseCore.BusyException)

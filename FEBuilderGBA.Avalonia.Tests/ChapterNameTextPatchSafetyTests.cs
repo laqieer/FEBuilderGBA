@@ -316,6 +316,13 @@ public class ChapterNameTextPatchSafetyTests
             Assert.Equal(0x11u, fixture.Rom.u8(0x200));
         }
         else Assert.Null(result.Identity);
+        if (change is "replace" or "reload" or "info")
+        {
+            Assert.True(result.Applied);
+            Assert.Equal(ChapterNameTextPatchService.FailureKind.CommittedRomChanged, result.Failure);
+            Assert.Equal(R._("The loaded ROM changed while finalizing the ChapterNameToText patch."),
+                ToolTranslateROMView.FormatChapterNameTextResult(result));
+        }
         if (change == "commit-failure") Assert.Equal(0x11u, fixture.Rom.u8(0x200));
         Assert.False(undo.HasPendingUndo);
         Assert.False(ContentRepoGitService.IsRunning());

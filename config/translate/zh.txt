@@ -27114,6 +27114,9 @@ CSA动画扫描失败 — 帧数据指针无效。
 :ChapterNameToText patch not found in {0}
 在 {0} 中未找到 ChapterNameToText 补丁。
 
+:The loaded ROM changed while finalizing the ChapterNameToText patch.
+完成 ChapterNameToText 补丁操作时，已加载的 ROM 发生了变化。
+
 :Could not read the skill palette; aborting import.
 无法读取技能调色板，导入中止。
 

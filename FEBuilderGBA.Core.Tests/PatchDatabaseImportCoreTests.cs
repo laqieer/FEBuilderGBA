@@ -497,6 +497,33 @@ public class PatchDatabaseImportCoreTests
     }
 
     [Fact]
+    public async Task PreparedStageWithoutOwnershipMarkerIsRefusedBeforeCommit()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("New");
+        var prepared = await fixture.Prepare(zip);
+        string operation = Assert.Single(fixture.OperationDirectories());
+        string stage = Path.Combine(operation, "new");
+        string marker = Path.Combine(stage, PatchDatabaseZipReaderCore.OwnershipFileName);
+        File.Delete(marker);
+        try
+        {
+            var error = Assert.Throws<IOException>(() => prepared.ValidateForCommit());
+            Assert.Contains("marker", error.Message, StringComparison.OrdinalIgnoreCase);
+            Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+            Assert.True(Directory.Exists(stage));
+        }
+        finally
+        {
+            WriteMarker(stage, Path.GetFileName(operation));
+            prepared.Dispose();
+        }
+        Assert.Equal("old", File.ReadAllText(fixture.OldFile));
+        Assert.Empty(fixture.OperationDirectories());
+    }
+
+    [Fact]
     public async Task CommitReplacesOnlyTheSelectedVersion()
     {
         using var fixture = new Fixture();
