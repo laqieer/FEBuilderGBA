@@ -31,7 +31,7 @@ function ProofEnvelope {
         }
         if ($SourceGateReference -ceq $AuthorizationReference) { throw 'Source review is not stage authorization.' }
         $clock = [Diagnostics.Stopwatch]::StartNew()
-        $limit = @{Build=2100;Validate=300;Inputs=300}[$Stage]
+        $limit = @{Build=2100;Validate=300;Inputs=900}[$Stage]
         $utf8 = [Text.UTF8Encoding]::new($false)
         $processes = [Collections.Generic.List[object]]::new()
         $processState = @{sequence=0}

@@ -1140,6 +1140,8 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
     def test_real_staging_and_reporting_regressions_are_in_aggregate(self):
         aggregate = (PACKAGE / "test-pure.ps1").read_text(encoding="utf-8")
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
+        prepare = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        self.assertIn("$limit = @{Build=2100;Validate=300;Inputs=900}[$Stage]", prepare)
         for token in ("Invoke-ConfigurationIntegrationTests", "Invoke-ReportingWriterTests", "Invoke-PinnedLoaderTests"):
             self.assertIn(token, aggregate)
         self.assertIn("Invoke-ProofJsonLimitTests", aggregate)
