@@ -607,8 +607,9 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         if (transientCombo)
         {
             ChainDiagnostics(owners, true);
-            Require(owners.Count >= 2 && owners[0].windowClass == "#32770" &&
-                DesktopPolicy.AvaloniaClass(owners[owners.Count - 1].windowClass), "query-owner-root");
+            bool ownerless = owner == 0 && owners.Count == 0;
+            Require(ownerless || (owners.Count >= 2 && owners[0].windowClass == "#32770" &&
+                DesktopPolicy.AvaloniaClass(owners[owners.Count - 1].windowClass)), "query-owner-root");
             ClearChainDiagnostics();
         }
         foreach (var parent in owners) bindings.BindNativeClass(parent.handle, parent.windowClass);

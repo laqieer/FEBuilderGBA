@@ -1370,7 +1370,8 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
                       "combo-popup-child-owner-must-be-same-process",
                       "combo-popup-child-root-must-be-same-process",
                       "combo-popup-child-root-must-be-native-dialog",
-                      "combo-popup-child-root-cycle-refused"):
+                      "combo-popup-child-root-cycle-refused",
+                      "ownerless-combo-popup-is-inert-transient-root"):
             self.assertIn(token, tests)
         for name in ("test-pure.ps1", "validate-helper.ps1"):
             runner = (PACKAGE / name).read_text(encoding="utf-8")
@@ -1378,7 +1379,7 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             self.assertIn("ownedTreeCases", runner)
             self.assertRegex(runner, r"ownedTreeCases -ne 159")
             self.assertIn("[DesktopPolicyTests]::AssertOwnedTreeCaseInventory()", runner)
-        self.assertIn("23639f690101752f7a44e0bc6e2f375c3f02e888ebf6637c58dab0b10600ddb8", tests)
+        self.assertIn("68e9caf8c11e39b9d066b203861964847dcdf9a77abeb4b40f77b23953e18d6f", tests)
 
     def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
         policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")

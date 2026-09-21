@@ -2111,7 +2111,7 @@ public static class DesktopPolicyTests
             throw new InvalidOperationException("Owned-tree inventory incomplete.");
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
-        if (digest != "23639f690101752f7a44e0bc6e2f375c3f02e888ebf6637c58dab0b10600ddb8")
+        if (digest != "68e9caf8c11e39b9d066b203861964847dcdf9a77abeb4b40f77b23953e18d6f")
             throw new InvalidOperationException("Owned-tree case names/order changed.");
     }
 
@@ -2406,14 +2406,15 @@ public static class DesktopPolicyTests
                 failure.OwnerChainLastHandle == 100 &&
                 failure.OwnerChainLastClass == failure.OwnerChainFirstClass);
         });
-        Case("combo-popup-empty-owner-chain-is-reported", () =>
+        Case("ownerless-combo-popup-is-inert-transient-root", () =>
         {
             var model = new OwnedModel();
-            AddRoot(model, 500, 8, model.Main, 0, "ComboLBox");
-            var failure = Refused(() => model.Tree().Discover(), "query-owner-root");
-            Verify(failure.OwnerChainCount == 0 && failure.OwnerChainTransient == true &&
-                failure.OwnerChainFirstHandle == 0 && failure.OwnerChainFirstClass == null &&
-                failure.OwnerChainLastHandle == 0 && failure.OwnerChainLastClass == null);
+            var popup = AddRoot(model, 500, 8, model.Main, 0, "ComboLBox");
+            var tree = model.Tree(); tree.Discover();
+            tree.ValidateWindow(popup, DesktopRootKind.TransientPopup, 0);
+            Refused(() => tree.ValidateWindow(popup, DesktopRootKind.Avalonia, 0), "query-root-kind");
+            Refused(() => tree.ValidateWindow(popup, DesktopRootKind.NativeDialog, 0), "query-root-kind");
+            Verify(!model.Bindings.KnownNativeOwner(500));
         });
         Case("combo-popup-foreign-dialog-owner-refused", () =>
         {
