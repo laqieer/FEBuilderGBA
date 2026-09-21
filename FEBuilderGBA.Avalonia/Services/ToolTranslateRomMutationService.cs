@@ -35,7 +35,9 @@ namespace FEBuilderGBA.Avalonia.Services
                     return new Result(false, 0);
                 if (!rom.SwapNewROMData(working.Data, "Translate ROM", active, confirmHeaderChange: false))
                     throw new InvalidOperationException("Translate ROM changes were not applied.");
-                undoService.CommitExternal(active);
+                bool mutated = active.list.Count > 0 || active.filesize != (uint)rom.Data.Length;
+                if (mutated && !undoService.CommitExternal(active))
+                    throw new InvalidOperationException("Translate ROM undo history was not committed.");
                 return new Result(true, total);
             }
             catch

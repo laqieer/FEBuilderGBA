@@ -27,6 +27,30 @@ public class ToolTranslateRomMutationServiceTests
         Assert.Equal(0u, fixture.Rom.u8(0x300));
     }
 
+    [Fact]
+    public async Task AppendOnlyWorkerCommitsLengthAsUndoableMutation()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        int originalLength = fixture.Rom.Data.Length;
+
+        var result = await ToolTranslateRomMutationService.ExecuteAsync(
+            fixture.Rom, identity, new UndoService(), (working, undo) =>
+            {
+                Assert.True(working.write_resize_data((uint)(working.Data.Length + 4)));
+                return 4;
+            });
+
+        Assert.True(result.Applied);
+        Assert.Equal(originalLength + 4, fixture.Rom.Data.Length);
+        Undo.UndoData committed = Assert.Single(CoreState.Undo.UndoBuffer);
+        Assert.Empty(committed.list);
+        Assert.Equal((uint)originalLength, committed.filesize);
+
+        CoreState.Undo.RunUndo();
+        Assert.Equal(originalLength, fixture.Rom.Data.Length);
+    }
+
     [Theory]
     [InlineData("replace")]
     [InlineData("reload")]

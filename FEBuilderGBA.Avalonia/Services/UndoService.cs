@@ -76,7 +76,9 @@ namespace FEBuilderGBA.Avalonia.Services
         public virtual bool CommitExternal(Undo.UndoData undoData)
         {
             if (undoData == null || CoreState.Undo == null) return false;
-            if (undoData.list.Count == 0) return false;
+            bool lengthChanged = CoreState.ROM != null &&
+                undoData.filesize != (uint)CoreState.ROM.Data.Length;
+            if (undoData.list.Count == 0 && !lengthChanged) return false;
             CoreState.Undo.Push(undoData);
             NotifyUnsavedChanges();
             return true;
