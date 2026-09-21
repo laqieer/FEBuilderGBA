@@ -36,6 +36,13 @@ public static class DesktopPolicy
             ownedChain && foreground && enabled && editClass == "Edit" && buttonClass == "Button" && buttonId == 1;
     }
 
+    public static bool FilenameHost(long expectedRoot, long host, int expectedPid, int hostPid,
+        long hostRoot, long uiaHost)
+    {
+        return expectedRoot != 0 && host != 0 && host != expectedRoot && expectedPid > 0 &&
+            hostPid == expectedPid && hostRoot == expectedRoot && uiaHost == host;
+    }
+
     public static bool Handoff(bool observedLoading, long loadingAt, long mainAt,
         long loading, long main, bool loadingGone, bool mainReady)
     {

@@ -776,9 +776,13 @@ public sealed class BoundedDesktopSmoke
         var picker = Await(Picker);
         IntPtr pickerHandle = Handle(picker);
         var tree = NewTree(picker);
-        var fields = Find(picker, DesktopSelector.FilenameHost, tree: tree);
-        Require(fields.Count == 1, "filename-host");
-        var field = fields[0];
+        IntPtr hostHandle = Native.GetDlgItem(pickerHandle, 1148);
+        Require(hostHandle != IntPtr.Zero && Native.IsWindow(hostHandle), "filename-host-window");
+        var host = AutomationElement.FromHandle(hostHandle);
+        IntPtr uiaHostHandle = Handle(host);
+        Require(DesktopPolicy.FilenameHost(Key(pickerHandle), Key(hostHandle), pid, Pid(hostHandle),
+            Key(Native.GetAncestor(hostHandle, 2)), Key(uiaHostHandle)), "filename-host");
+        var field = host;
         if (QueryRead(tree, picker, field, DesktopSelector.FilenameHost, () => field.Current.ControlType) != ControlType.Edit)
         {
             var edits = Find(picker, DesktopSelector.FilenameEdit, 1, field, tree);
@@ -985,6 +989,7 @@ public sealed class BoundedDesktopSmoke
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern bool IsWindow(IntPtr h);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern bool IsWindowVisible(IntPtr h);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern bool IsWindowEnabled(IntPtr h);
+        [DllImport("user32.dll", ExactSpelling = true)] internal static extern IntPtr GetDlgItem(IntPtr h, int id);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern int GetDlgCtrlID(IntPtr h);
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Unicode)]
         internal static extern int GetClassNameW(IntPtr h, StringBuilder name, int count);

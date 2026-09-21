@@ -542,7 +542,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (159, 75, 40, 528):
+            for count in (159, 75, 40, 534):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):

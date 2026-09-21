@@ -3911,6 +3911,12 @@ public static class DesktopPolicyTests
         Check(!DesktopPolicy.Picker(200, 200, 200, true, true, true, "Other", "Button", 1));
         Check(!DesktopPolicy.Picker(200, 200, 200, true, true, true, "Edit", "Other", 1));
         Check(!DesktopPolicy.Picker(200, 200, 200, true, true, true, "Edit", "Button", 2));
+        Check(DesktopPolicy.FilenameHost(200, 300, 42, 42, 200, 300));
+        Check(!DesktopPolicy.FilenameHost(200, 0, 42, 42, 200, 0));
+        Check(!DesktopPolicy.FilenameHost(200, 300, 42, 43, 200, 300));
+        Check(!DesktopPolicy.FilenameHost(200, 300, 42, 42, 201, 300));
+        Check(!DesktopPolicy.FilenameHost(200, 300, 42, 42, 200, 301));
+        Check(!DesktopPolicy.FilenameHost(200, 200, 42, 42, 200, 200));
         Check(DesktopPolicy.Handoff(true, 5, 10, 100, 200, true, true));
         Check(!DesktopPolicy.Handoff(false, 5, 10, 100, 200, true, true));
         Check(!DesktopPolicy.Handoff(true, 10, 5, 100, 200, true, true));
