@@ -48,7 +48,7 @@ namespace FEBuilderGBA.Core.Tests
                 uint tail = (uint)rom.Data.Length - 4;
                 rom.write_fill(tail, 4, 0xA5);
                 byte[] before = (byte[])rom.Data.Clone();
-                var range = new Address(tail, 3, 0, "tail", Address.DataTypeEnum.BIN);
+                var range = new Address(tail, 3, U.NOT_FOUND, "tail", Address.DataTypeEnum.BIN);
                 range.Length = 4;
                 var ranges = new System.Collections.Generic.List<Address> { range };
                 var recycle = new RecycleAddress(rom, ranges);
