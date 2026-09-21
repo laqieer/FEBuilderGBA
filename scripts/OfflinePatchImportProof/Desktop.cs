@@ -796,6 +796,10 @@ public sealed class BoundedDesktopSmoke
             field.Current.IsEnabled && !field.Current.IsOffscreen, "filename-native-identity");
         Action("focus-owned-active-picker", picker, Key(editorHandle));
         Dispatch(() => picker.SetFocus());
+        bool activated = false;
+        Action("foreground-owned-active-picker", picker, Key(editorHandle));
+        Dispatch(() => activated = Native.SetForegroundWindow(pickerHandle));
+        Require(activated, "picker-activation-refused");
         Await(() => Same(Native.GetForegroundWindow(), pickerHandle) ? picker : null);
         ValidateControl(field, picker, DesktopSelector.FilenameEdit, Key(editorHandle));
         var value = (ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);
@@ -995,6 +999,7 @@ public sealed class BoundedDesktopSmoke
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern bool IsWindowEnabled(IntPtr h);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern IntPtr GetDlgItem(IntPtr h, int id);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern int GetDlgCtrlID(IntPtr h);
+        [DllImport("user32.dll", ExactSpelling = true)] internal static extern bool SetForegroundWindow(IntPtr h);
         [DllImport("user32.dll", ExactSpelling = true, CharSet = CharSet.Unicode)]
         internal static extern int GetClassNameW(IntPtr h, StringBuilder name, int count);
         [DllImport("user32.dll", ExactSpelling = true)] internal static extern IntPtr GetForegroundWindow();

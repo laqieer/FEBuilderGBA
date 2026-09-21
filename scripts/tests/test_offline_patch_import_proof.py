@@ -1140,10 +1140,12 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             self.assertIn(token, desktop)
         self.assertEqual(1, desktop.count("Native.PrintWindow("))
         self.assertEqual(1, desktop.count("value.SetValue(path)"))
+        self.assertEqual(1, desktop.count("Native.SetForegroundWindow(pickerHandle)"))
+        self.assertEqual(1, desktop.count("extern bool SetForegroundWindow(IntPtr h)"))
         self.assertEqual(1, launch.count("[Diagnostics.Process]::GetProcessById("))
         self.assertIn("ArgumentList.Add('--rom='", run)
         for text in (desktop, launch, run):
-            self.assertNotRegex(text, r"GetProcesses(?:ByName)?\s*\(|SetForegroundWindow|SendInput|SendKeys|\.Kill\((?:true|\$true)\)")
+            self.assertNotRegex(text, r"GetProcesses(?:ByName)?\s*\(|SendInput|SendKeys|\.Kill\((?:true|\$true)\)")
             self.assertNotRegex(text, r"--smoke-test|--screenshot-all")
 
     def test_installed_marker_uses_the_production_snapshot_and_both_pure_runners(self):
