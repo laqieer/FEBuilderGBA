@@ -166,7 +166,7 @@ public sealed class BoundedWindowsReadiness
 
     public static bool Decide(int sessionId, int state, bool interactive, bool input, bool foreground)
     {
-        return sessionId > 0 && state == 0 && interactive && input && foreground;
+        return sessionId > 0 && state == 0 && interactive && input;
     }
 
     public static BoundedWindowsReadiness Capture()

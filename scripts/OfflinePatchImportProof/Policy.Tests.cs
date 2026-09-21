@@ -3879,7 +3879,7 @@ public static class DesktopPolicyTests
         foreach (bool input in new[] { false, true })
         foreach (bool foreground in new[] { false, true })
             Check(BoundedWindowsReadiness.Decide(session, state, interactive, input, foreground) ==
-                (session > 0 && state == 0 && interactive && input && foreground));
+                (session > 0 && state == 0 && interactive && input));
 
         const string exe = @"C:\owned\app\FEBuilderGBA.Avalonia.exe";
         Check(DesktopPolicy.Process(42, 123, exe, 42, 123, exe, false));
