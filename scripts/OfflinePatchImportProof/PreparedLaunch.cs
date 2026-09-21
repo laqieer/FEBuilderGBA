@@ -91,11 +91,20 @@ public sealed class PreparedContentLease : IDisposable
             throw new InvalidDataException("prepared-inventory-incomplete");
     }
 
+    const double ActivationDeadlineMilliseconds = 5000;
+    const double ContentDeadlineMilliseconds = 15000;
+
     public static void Deadline(long entryTicks)
+        => CheckDeadline(entryTicks, ActivationDeadlineMilliseconds);
+
+    public static void ContentDeadline(long entryTicks)
+        => CheckDeadline(entryTicks, ContentDeadlineMilliseconds);
+
+    static void CheckDeadline(long entryTicks, double milliseconds)
     {
         long now = Stopwatch.GetTimestamp();
         if (entryTicks <= 0 || now < entryTicks ||
-            (now - entryTicks) * 1000.0 / Stopwatch.Frequency >= 5000)
+            (now - entryTicks) * 1000.0 / Stopwatch.Frequency >= milliseconds)
             throw new InvalidOperationException("prepared-activation-deadline");
     }
 
@@ -141,7 +150,7 @@ public sealed class PreparedContentLease : IDisposable
 
     void Admit(string root, IDictionary inventory, long ticks)
     {
-        Deadline(ticks);
+        ContentDeadline(ticks);
         Plain(root);
         var expected = new Dictionary<string, IDictionary>(StringComparer.OrdinalIgnoreCase);
         var directories = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -162,10 +171,10 @@ public sealed class PreparedContentLease : IDisposable
         int actualDirectories = 0;
         while (pending.Count != 0)
         {
-            Deadline(ticks);
+            ContentDeadline(ticks);
             foreach (string path in Directory.EnumerateFileSystemEntries(pending.Pop()))
             {
-                Deadline(ticks);
+                ContentDeadline(ticks);
                 string relative = Path.GetRelativePath(root, path).Replace(Path.DirectorySeparatorChar, '\\');
                 if (!PublicResource(relative, true)) throw new InvalidDataException("prepared-private-file");
                 var attributes = File.GetAttributes(path);
@@ -193,7 +202,7 @@ public sealed class PreparedContentLease : IDisposable
                     int read;
                     while ((read = stream.Read(buffer, 0, buffer.Length)) != 0)
                     {
-                        Deadline(ticks);
+                        ContentDeadline(ticks);
                         hash.AppendData(buffer, 0, read);
                     }
                     if (Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant() != sha)
@@ -210,7 +219,7 @@ public sealed class PreparedContentLease : IDisposable
         }
         if (Files != expected.Count || actualDirectories != directories.Count)
             throw new InvalidDataException("prepared-missing-file");
-        Deadline(ticks);
+        ContentDeadline(ticks);
     }
 
     public void Dispose()

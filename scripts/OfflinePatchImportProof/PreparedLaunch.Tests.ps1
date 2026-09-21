@@ -277,7 +277,7 @@ function ProofEnvelope {
         try{
             Add-Type -Path @((Join-Path $PSScriptRoot 'PreparedLaunch.cs'),(Join-Path $PSScriptRoot 'PreparedLaunch.Tests.cs')) -ErrorAction Stop -WarningAction Stop
             $cases=[PreparedLaunchTests]::Run($root)
-            Assert-Proof ($cases -eq $(if($IsWindows){21}else{20})) 'Prepared case inventory.'
+            Assert-Proof ($cases -eq $(if($IsWindows){25}else{24})) 'Prepared case inventory.'
             $jsonCases=[PreparedLaunchTests]::RunJson()
             Assert-Proof ($jsonCases -eq 12) 'Prepared bounded JSON inventory.'
             $manifestCases=[PreparedLaunchTests]::RunManifest()
@@ -366,6 +366,30 @@ function ProofEnvelope {
                 }
             }
             Assert-Proof ($bindingCases -eq 74) 'Prepared binding case inventory.'
+            $clockCases=0
+            $originalEntryTicks=[Diagnostics.Stopwatch]::GetTimestamp()
+            Start-Sleep -Milliseconds 10
+            $handoff=New-PreparedActivationRequest ('a'*32) ('b'*32) $PID 1 (Join-Path $root 'clock-output')
+            Assert-Proof ($handoff.entryTicks -gt $originalEntryTicks -and
+                $handoff.request.entryTicks -eq $handoff.entryTicks) 'Fresh post-content request clock.';$clockCases++
+            $clockActive=Join-Path $root 'clock-active.json'
+            $null=Write-PreparedJson $clockActive $handoff.request
+            $clockRequest=Read-ProofJsonFile $clockActive
+            Assert-Proof ($clockRequest.entryTicks -eq $handoff.entryTicks -and
+                $clockRequest.entryTicks -ne $originalEntryTicks) 'Active request carries the post-content clock.';$clockCases++
+            $lateRefused=$false
+            try{[PreparedContentLease]::Deadline($handoff.entryTicks-[Diagnostics.Stopwatch]::Frequency*6)}
+            catch{$lateRefused=$_.Exception.GetBaseException().Message -ceq 'prepared-activation-deadline'}
+            Assert-Proof $lateRefused 'Post-content admission remains five seconds.';$clockCases++
+            $failedRoot=Join-Path $root 'clock-failed-content'
+            [void][IO.Directory]::CreateDirectory($failedRoot)
+            $failedActive=Join-Path $failedRoot 'active.json'
+            $failedOpen=$false
+            try{$unexpected=[PreparedContentLease]::Open($failedRoot,@{files=@(@{path='missing.bin';bytes=1;sha256=('f'*64)});directories=@()},
+                    [Diagnostics.Stopwatch]::GetTimestamp());$unexpected.Dispose()}
+            catch{$failedOpen=$true}
+            Assert-Proof ($failedOpen -and ![IO.File]::Exists($failedActive)) 'Failed content admission creates no active request.';$clockCases++
+            Assert-Proof ($clockCases -eq 4) 'Prepared clock case inventory.'
             $target=Join-Path $root 'owned-link-target';[void][IO.Directory]::CreateDirectory((Join-Path $target 'child'))
             $link=Join-Path $root 'owned-link'
             if($IsWindows){$null=New-Item -ItemType Junction -Path $link -Target $target -ErrorAction Stop}
@@ -405,7 +429,7 @@ function ProofEnvelope {
             }
             @{schema='windows-prepared-tests-v1';cases=$cases;jsonCases=$jsonCases;privacyCases=$privacy;stateCases=$stateNames;
                 reparseCases=$reparseCases;bindingCases=$bindingCases;manifestCases=$manifestCases;
-                sharedStartCases=$sharedCases;passed=$true;nativeReadiness=$false;appLaunched=$false}|ConvertTo-Json -Compress
+                clockCases=$clockCases;sharedStartCases=$sharedCases;passed=$true;nativeReadiness=$false;appLaunched=$false}|ConvertTo-Json -Compress
         }finally{[IO.Directory]::Delete($root,$true)}
     }
 }

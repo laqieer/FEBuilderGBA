@@ -142,6 +142,13 @@ public static class PreparedLaunchTests
         Reject(() => PreparedAttempt.Transition(() => true, commit + ".late", "late",
             Stopwatch.GetTimestamp() - Stopwatch.Frequency * 6));
         Check(!File.Exists(commit + ".late"));
+        PreparedContentLease.ContentDeadline(Stopwatch.GetTimestamp() - Stopwatch.Frequency * 14);
+        Check(true);
+        Reject(() => PreparedContentLease.ContentDeadline(
+            Stopwatch.GetTimestamp() - Stopwatch.Frequency * 15));
+        Reject(() => PreparedContentLease.ContentDeadline(0));
+        Reject(() => PreparedContentLease.ContentDeadline(
+            Stopwatch.GetTimestamp() + Stopwatch.Frequency));
         foreach (string privatePath in new[] { @"config\log\log.txt", @"config\logs\other.txt",
             "generated-core-suite-log-preserved.txt", "private.gba", @"a\game.ROM", @"..\escape" })
             Check(!PreparedContentLease.PublicResource(privatePath));

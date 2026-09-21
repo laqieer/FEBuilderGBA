@@ -338,6 +338,11 @@ function ProofEnvelope {
         }
         return $null
     }
+    function New-PreparedActivationRequest($activationId,$preparedId,$parentPid,$parentTicks,$outputRoot) {
+        $entryTicks=[Diagnostics.Stopwatch]::GetTimestamp()
+        return @{entryTicks=$entryTicks;request=@{activationId=$activationId;attemptId=([guid]::NewGuid().ToString('N'));preparedId=$preparedId;
+            parentPid=$parentPid;parentTicks=$parentTicks;entryTicks=$entryTicks;outputRoot=$outputRoot}}
+    }
     function Invoke-PreparedActivationCore {
         $c=Read-PreparedConfiguration $Configuration $ConfigurationSha256
         Assert-Proof ($activationId -cmatch '^[0-9a-f]{32}$' -and $userTurn -cmatch '^[A-Za-z0-9._:-]{1,128}$') 'Explicit caller turn attestation.'
@@ -368,17 +373,17 @@ function ProofEnvelope {
             $activePath=Join-Path $control 'active.json'
             $self=[Diagnostics.Process]::GetCurrentProcess()
             try{
-                $request=@{activationId=$activationId;attemptId=([guid]::NewGuid().ToString('N'));preparedId=$c.preparedId;
-                    parentPid=$self.Id;parentTicks=$self.StartTime.ToUniversalTime().Ticks;entryTicks=$PinnedProofEntryTicks;outputRoot=$launchRoot}
+                $handoff=New-PreparedActivationRequest $activationId $c.preparedId $self.Id $self.StartTime.ToUniversalTime().Ticks $launchRoot
             }finally{$self.Dispose()}
+            $postContentEntryTicks=$handoff.entryTicks;$request=$handoff.request
             $null=Write-PreparedJson $activePath $request
             $manifest=@{runId=$request.attemptId}
             $InputManifestSha256=$c.inputManifest.sha256;$SourceManifestSha256=$b.sourceSha256
             $runRoot=$slotData.root;$root=$c.root;$pwsh=$basis.base.host.path
             $PreparedCommitPath=Join-Path $control 'committed.json'
             function Plain([string]$p){Assert-ProofPath $p -Existing}
-            [PreparedContentLease]::Deadline($PinnedProofEntryTicks)
-            $receipt=Invoke-ProofSupervisedRunner -ActivationEntryTicks $PinnedProofEntryTicks -CommitPath $PreparedCommitPath
+            [PreparedContentLease]::Deadline($postContentEntryTicks)
+            $receipt=Invoke-ProofSupervisedRunner -ActivationEntryTicks $postContentEntryTicks -CommitPath $PreparedCommitPath
             $result.supervision=$receipt
             $result.state=if([IO.File]::Exists($PreparedCommitPath)){'attempt-terminal'}else{'refused-before-commit'}
             if([IO.File]::Exists((Join-Path $launchRoot 'readiness.json'))){

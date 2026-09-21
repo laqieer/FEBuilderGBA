@@ -48,6 +48,29 @@ class PreparedLaunchContracts(unittest.TestCase):
         self.assertIn("FileMode.CreateNew", source)
         self.assertIn("FileShare.Read", source)
 
+    def test_prepared_activation_uses_two_bounded_clocks(self):
+        helper = (PACKAGE / "PreparedLaunch.cs").read_text()
+        launch = (PACKAGE / "PreparedLaunch.ps1").read_text()
+        admit = helper[helper.index("    void Admit("):helper.index("    public void Dispose()")]
+        handoff = launch[launch.index("    function New-PreparedActivationRequest"):
+                         launch.index("    function Invoke-PreparedActivationCore")]
+        activation = launch[launch.index("    function Invoke-PreparedActivationCore"):
+                            launch.index("    function Invoke-PreparedRunEntry")]
+        self.assertIn("const double ActivationDeadlineMilliseconds = 5000;", helper)
+        self.assertIn("const double ContentDeadlineMilliseconds = 15000;", helper)
+        self.assertNotRegex(admit, r"(?<!Content)Deadline\(ticks\);")
+        self.assertGreaterEqual(admit.count("ContentDeadline(ticks);"), 5)
+        self.assertIn("$handoff=New-PreparedActivationRequest", activation)
+        self.assertLess(activation.index("[PreparedContentLease]::Open("),
+                        activation.index("$handoff=New-PreparedActivationRequest"))
+        self.assertLess(activation.index("$handoff=New-PreparedActivationRequest"),
+                        activation.index("$null=Write-PreparedJson $activePath $request"))
+        self.assertIn("$postContentEntryTicks=$handoff.entryTicks;$request=$handoff.request", activation)
+        self.assertIn("entryTicks=$entryTicks", handoff)
+        self.assertIn("[PreparedContentLease]::Deadline($postContentEntryTicks)", activation)
+        self.assertIn("-ActivationEntryTicks $postContentEntryTicks", activation)
+        self.assertIn("entryTicks=$PinnedProofEntryTicks", activation)
+
 _COMMON_BUILD_PREFIX = (
     "--no-restore", "--disable-build-servers", "-p:E2E_HOOKS=false",
     "-p:UseSharedCompilation=false", "-p:MSBuildEnableWorkloadResolver=false",
