@@ -75,7 +75,7 @@ public static class DesktopPolicy
                 return false;
             foreach (char c in part) if (c < 32) return false;
             string stem = part.Split('.')[0].TrimEnd(' ').ToUpperInvariant();
-            if (Regex.IsMatch(stem, "^(CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$|COM[0-9]|LPT[0-9])$")) return false;
+            if (Regex.IsMatch(stem, "^(CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$|COM[123456789¹²³]|LPT[123456789¹²³])$")) return false;
         }
         return true;
     }

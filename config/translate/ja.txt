@@ -14862,6 +14862,18 @@ ZIPを検証し、パッチデータベースを一時領域に準備してい�
 :Patch database import failed: {0}
 パッチデータベースのインポートに失敗しました: {0}
 
+:The existing patch database changed while confirmation was open.
+確認ダイアログを開いている間に既存のパッチデータベースが変更されました。
+
+:The existing patch database directory changed before promotion.
+適用前に既存のパッチデータベースディレクトリが変更されました。
+
+:ZIP import cannot replace a Git-owned patch database. Use its Git update operation instead.
+Gitで管理されているパッチデータベースをZIPインポートで置き換えることはできません。代わりにGit更新操作を使用してください。
+
+:The patch database has not been installed yet.\r\nChoose Import Patch Database ZIP, or use Check for Updates / Initialize Repository.
+パッチデータベースはまだインストールされていません。\r\n「パッチデータベースZIPをインポート」を選択するか、「更新の確認」/「リポジトリを初期化」を使用してください。
+
 :The patch database could not be refreshed: {0}
 パッチデータベースを更新できませんでした: {0}
 

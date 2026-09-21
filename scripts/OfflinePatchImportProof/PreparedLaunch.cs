@@ -128,7 +128,7 @@ public sealed class PreparedContentLease : IDisposable
                 part.IndexOfAny(new[] { ':', '*', '?', '"', '<', '>', '|' }) >= 0)
                 return false;
             foreach (char c in part) if (char.IsControl(c)) return false;
-            if (Regex.IsMatch(part.Split('.')[0], "^(?i:CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$|COM[0-9]|LPT[0-9])$")) return false;
+            if (Regex.IsMatch(part.Split('.')[0], "^(?i:CON|PRN|AUX|NUL|CONIN\\$|CONOUT\\$|COM[123456789¹²³]|LPT[123456789¹²³])$")) return false;
             if (part.Equals("log", StringComparison.OrdinalIgnoreCase) ||
                 part.Equals("logs", StringComparison.OrdinalIgnoreCase) ||
                 part.Equals("generated-core-suite-log-preserved.txt", StringComparison.OrdinalIgnoreCase))

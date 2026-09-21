@@ -542,7 +542,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (159, 75, 39, 522):
+            for count in (159, 75, 40, 528):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):
@@ -1637,8 +1637,8 @@ class PickerIsolationContracts(unittest.TestCase):
             source = (PACKAGE / name).read_text(encoding="utf-8")
             for token in ("Invoke-EmptyPatchLibraryTests", "RunRejectedRootClassTests()",
                           "Assert-PickerIsolationInventories", "Invoke-RejectedRootClassSerializationTests",
-                          "$queryDiagnosticCases -ne 39", "$queryDiagnosticSerializationNames.Count -eq 48",
-                          "daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7",
+                          "$queryDiagnosticCases -ne 40", "$queryDiagnosticSerializationNames.Count -eq 51",
+                          "9ac69bee98244df7a57d34bab907750b663d40e630130d95f8d554aaf92989db",
                           "'ResolvePidRelation','RejectedRootClass','OwnerHandle','OwnerClass','OwnerParent','OwnerNativeRoot'",
                           "'OwnerDepth','OwnerIsSelfRoot','OwnerChainCount','OwnerChainTransient','OwnerChainFirstHandle'",
                           "'OwnerChainFirstClass','OwnerChainLastHandle','OwnerChainLastClass','Nodes','Calls','Windows'",
@@ -1654,8 +1654,8 @@ class PickerIsolationContracts(unittest.TestCase):
                       "QueryDiagnosticPrivateSentinels", "$decoded.Predicate -ceq $sample.Predicate"):
             self.assertIn(token, tests)
         tests = (PACKAGE / "Policy.Tests.cs").read_text(encoding="utf-8")
-        self.assertIn("24484e7e79d5ca27aed177861afcdc98ac9d7248678ae5d5576bccfc0ff6efaa", tests)
-        self.assertIn("queryDiagnosticSamples.Count != 16", tests)
+        self.assertIn("46962af70ac337dd2ea717112ff7bf25cc117691afdd75dc4613e16bea721de5", tests)
+        self.assertIn("queryDiagnosticSamples.Count != 17", tests)
         self.assertIn('model.Native[100].Class = "OwnedAuxiliaryClass"', tests)
 
 

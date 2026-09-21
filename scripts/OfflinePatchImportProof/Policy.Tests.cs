@@ -348,7 +348,8 @@ public static class DesktopPolicyTests
         "seed-alive-zero", "seed-alive-foreign", "seed-different-key", "seed-highbits-sign-extended",
         "seed-highbits-zero-extended", "seed-second-zero", "raw-parent-dead-foreign",
         "direct-seed-dead", "resolve-success-before-registration-failure",
-        "seed-private-provider-failure", "cancel-after-handle", "cancel-after-native-pid"
+        "seed-private-provider-failure", "cancel-after-handle", "cancel-after-native-pid",
+        "owner-diagnostics-nondefault"
     };
     public static string[] QueryDiagnosticCaseNames => queryDiagnosticCaseNames.ToArray();
     public static string[] QueryDiagnosticCaseFailures => queryDiagnosticCaseFailures.ToArray();
@@ -363,7 +364,7 @@ public static class DesktopPolicyTests
 
     public static void AssertQueryDiagnosticSampleInventory()
     {
-        if (queryDiagnosticSamples.Count != 16 ||
+        if (queryDiagnosticSamples.Count != 17 ||
             string.Join("\n", queryDiagnosticSampleNames) != string.Join("\n", queryDiagnosticSampleInventory))
             throw new InvalidOperationException("Query diagnostic sample inventory changed.");
     }
@@ -372,7 +373,7 @@ public static class DesktopPolicyTests
     {
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", queryDiagnosticCaseNames)))).ToLowerInvariant();
-        if (queryDiagnosticCaseNames.Count != 39 || digest != "24484e7e79d5ca27aed177861afcdc98ac9d7248678ae5d5576bccfc0ff6efaa")
+        if (queryDiagnosticCaseNames.Count != 40 || digest != "46962af70ac337dd2ea717112ff7bf25cc117691afdd75dc4613e16bea721de5")
             throw new InvalidOperationException("Query diagnostic case names/order changed.");
         if (queryDiagnosticCaseFailures.Count != 0)
             throw new InvalidOperationException("Query diagnostic cases failed: " + string.Join("; ", queryDiagnosticCaseFailures));
@@ -435,7 +436,7 @@ public static class DesktopPolicyTests
             var failure = Capture(action, predicate);
             if (Array.IndexOf(queryDiagnosticSampleInventory, currentCase) >= 0)
             {
-                Verify(queryDiagnosticSamples.Count < 16, "Query diagnostic sample bound.");
+                Verify(queryDiagnosticSamples.Count < 17, "Query diagnostic sample bound.");
                 queryDiagnosticSampleNames.Add(currentCase); queryDiagnosticSamples.Add(failure);
             }
             Verify(failure.Stage == "loading-handoff" && failure.Selector == "Discovery", "Legacy query context.");
@@ -794,6 +795,23 @@ public static class DesktopPolicyTests
                     Unowned(failure); Observed(failure, 1, call > 8 ? (bool?)true : null,
                         call > 9 ? (bool?)true : null, null);
                 });
+        Case("owner-diagnostics-nondefault", () =>
+        {
+            var model = Model(500);
+            model.Native[500].Class = "ComboLBox";
+            model.Native[500].Owner = 400;
+            model.Native.Add(400, new OwnedNative { Root = 400, Class = "#32770" });
+            var failure = Capture(model.Tree().Discover, "query-owner-root");
+            queryDiagnosticSampleNames.Add(currentCase);
+            queryDiagnosticSamples.Add(failure);
+            Verify(failure.OwnerHandle == 400 && failure.OwnerClass == "#32770" &&
+                failure.OwnerParent == 0 && failure.OwnerNativeRoot == 400 &&
+                failure.OwnerDepth == 0 && failure.OwnerIsSelfRoot == true &&
+                failure.OwnerChainCount == null && failure.OwnerChainTransient == null &&
+                failure.OwnerChainFirstHandle == 0 && failure.OwnerChainFirstClass == null &&
+                failure.OwnerChainLastHandle == 0 && failure.OwnerChainLastClass == null,
+                "Non-default owner diagnostic sample.");
+        });
         return queryDiagnosticCaseNames.Count;
     }
 
@@ -3975,7 +3993,8 @@ public static class DesktopPolicyTests
         Check(DesktopPolicy.RelativeFile(@"config\patch2\FE8U\proof\PATCH_offline.txt"));
         foreach (string bad in new[] { "", ".", "..", @"..\escape", @"C:\outside", @"\absolute",
             "a/b", @"a\..\b", @"a\.\b", @"a\\b", "a:stream", "a.", "a ", @"a\NUL", "CON.txt",
-            "CONIN$", "CONOUT$", "NUL .txt" })
+            "CONIN$", "CONOUT$", "NUL .txt", "COM¹.txt", "COM²", "COM³.any",
+            "LPT¹.txt", "LPT²", "LPT³.any" })
             Check(!DesktopPolicy.RelativeFile(bad));
         return cases;
     }

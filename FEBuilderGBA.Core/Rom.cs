@@ -855,31 +855,31 @@ namespace FEBuilderGBA
 
         public void write_p32(uint addr, uint a)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 4));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, 4));
             U.write_u32(Data, addr, U.toPointer(a));
             Modified = true;
         }
         public void write_u32(uint addr, uint a)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 4));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, 4));
             U.write_u32(Data, addr, a);
             Modified = true;
         }
         public void write_u16(uint addr,uint a)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 2));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, 2));
             U.write_u16(Data, addr, a);
             Modified = true;
         }
         public void write_u8(uint addr,uint a)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 1));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, 1));
             U.write_u8(Data, addr, a);
             Modified = true;
         }
         public void write_u4(uint addr, uint a, bool isHigh)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, 1));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, 1));
             U.write_u4(Data, addr, a, isHigh);
             Modified = true;
         }
@@ -933,14 +933,14 @@ namespace FEBuilderGBA
         }
         public void write_range(uint addr, byte[] write_data)
         {
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, (uint)write_data.Length));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, (uint)write_data.Length));
             U.write_range(Data, addr, write_data);
             Modified = true;
         }
         public void write_fill(uint addr,uint length,byte fill = 0x00)
         {
 //            Debug.Assert(length < 0xFFFF);
-            _ambientUndoData?.list.Add(new Undo.UndoPostion(addr, length));
+            _ambientUndoData?.list.Add(new Undo.UndoPostion(this, addr, length));
             U.write_fill(Data, addr, length, fill);
             Modified = true;
         }
@@ -948,38 +948,38 @@ namespace FEBuilderGBA
 
         public void write_p32(uint addr, uint a, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr, 4));
+            undodata.list.Add(new Undo.UndoPostion(this, addr, 4));
             write_p32(addr, a);
         }
         public void write_u32(uint addr, uint a, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr, 4));
+            undodata.list.Add(new Undo.UndoPostion(this, addr, 4));
             write_u32(addr, a);
         }
         public void write_u16(uint addr, uint a, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr, 2));
+            undodata.list.Add(new Undo.UndoPostion(this, addr, 2));
             write_u16(addr, a);
         }
         public void write_u8(uint addr, uint a, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr, 1));
+            undodata.list.Add(new Undo.UndoPostion(this, addr, 1));
             write_u8(addr, a);
         }
         public void write_u4(uint addr, uint a, bool isHigh, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr, 1));
+            undodata.list.Add(new Undo.UndoPostion(this, addr, 1));
             write_u4(addr, a, isHigh);
         }
 
         public void write_range(uint addr, byte[] write_data, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr,(uint) write_data.Length));
+            undodata.list.Add(new Undo.UndoPostion(this, addr,(uint) write_data.Length));
             write_range(addr, write_data);
         }
         public void write_fill(uint addr,uint length,byte fill, Undo.UndoData undodata)
         {
-            undodata.list.Add(new Undo.UndoPostion(addr,length));
+            undodata.list.Add(new Undo.UndoPostion(this, addr,length));
             write_fill(addr, length, fill);
         }
 
@@ -1200,7 +1200,7 @@ namespace FEBuilderGBA
                 uint size = (uint)(i - checkpoint);
 
                 //checkpoint ～ i の間を相違点として記録.
-                undodata.list.Add(new Undo.UndoPostion((uint)checkpoint , size ));
+                undodata.list.Add(new Undo.UndoPostion(this, (uint)checkpoint , size ));
                 //この範囲にコメントがある場合は再定義するので消す
                 CoreState.CommentCache?.RemoveRange((uint)checkpoint, (uint)checkpoint + size);
             }

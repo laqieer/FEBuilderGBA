@@ -28692,6 +28692,18 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 :Patch database import failed: {0}
 补丁数据库导入失败：{0}
 
+:The existing patch database changed while confirmation was open.
+确认对话框打开期间，现有补丁数据库已发生变化。
+
+:The existing patch database directory changed before promotion.
+应用前，现有补丁数据库目录已发生变化。
+
+:ZIP import cannot replace a Git-owned patch database. Use its Git update operation instead.
+ZIP 导入无法替换由 Git 管理的补丁数据库。请改用 Git 更新操作。
+
+:The patch database has not been installed yet.\r\nChoose Import Patch Database ZIP, or use Check for Updates / Initialize Repository.
+尚未安装补丁数据库。\r\n请选择“导入补丁数据库 ZIP”，或使用“检查更新”/“初始化仓库”。
+
 :The patch database could not be refreshed: {0}
 无法刷新补丁数据库：{0}
 

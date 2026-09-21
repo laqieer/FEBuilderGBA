@@ -182,8 +182,8 @@ function ProofEnvelope {
             $compileRow=@($v.validationFiles | Where-Object { $_.path -ceq 'Compile.json' })[0]
             $pure=ConvertFrom-RJson (ReadPinnedText (Join-Path $validationRoot 'Pure.json') $pureRow)
             $compile=ConvertFrom-RJson (ReadPinnedText (Join-Path $validationRoot 'Compile.json') $compileRow)
-            Assert-RInteger $v.processImageCases 10 10;Assert-RInteger $pure.cases 522 522;Assert-RInteger $pure.bindingCases 22 22
-            Assert-R ($pure.passed -is [bool] -and $pure.passed -and $pure.cases -eq 522 -and $pure.bindingCases -eq 22 -and
+            Assert-RInteger $v.processImageCases 10 10;Assert-RInteger $pure.cases 528 528;Assert-RInteger $pure.bindingCases 22 22
+            Assert-R ($pure.passed -is [bool] -and $pure.passed -and $pure.cases -eq 528 -and $pure.bindingCases -eq 22 -and
                 $pure.nativeCalls -is [bool] -and !$pure.nativeCalls -and $pure.appLaunched -is [bool] -and !$pure.appLaunched) 'Original pure result.'
             Assert-R ($compile.passed -is [bool] -and $compile.passed -and $compile.nativeCalls -is [bool] -and !$compile.nativeCalls -and
                 $compile.appLaunched -is [bool] -and !$compile.appLaunched -and $compile.runtimeBindings.Count -eq 7) 'Original compile result.'
@@ -194,7 +194,7 @@ function ProofEnvelope {
                     $binding.actualIdentity -ceq $binding.expectedIdentity) 'Original seven-runtime binding.'
             }
             foreach($key in @('bindingCases','pureCases','runtimeBindingsAccepted','outputOnlyDlls')) {
-                $expectedCount=@{bindingCases=22;pureCases=522;runtimeBindingsAccepted=7;outputOnlyDlls=2}[$key]
+                $expectedCount=@{bindingCases=22;pureCases=528;runtimeBindingsAccepted=7;outputOnlyDlls=2}[$key]
                 Assert-RInteger $outers.Validate[$key] $expectedCount $expectedCount
                 Assert-R ($outers.Validate[$key] -eq $expectedCount) 'Original outer Validate count.'
             }

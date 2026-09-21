@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     if (snapshot.Request.Selection >= 0 && snapshot.Filtered.Count > 0)
                         PatchListBox.SelectedIndex = Math.Min(snapshot.Request.Selection, snapshot.Filtered.Count - 1);
                     StatusMessageLabel.Text = string.IsNullOrEmpty(App.PatchDatabaseRecoveryNotice)
-                        ? R._(snapshot.Message) : App.PatchDatabaseRecoveryNotice;
+                        ? LocalizePatchDatabaseStatus(snapshot.Message) : App.PatchDatabaseRecoveryNotice;
                 }
                 Task<bool> operation = owner == null
                     ? _refresh.RefreshAsync(Capture, Current, Publish)
@@ -527,8 +527,9 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 if (_attached) PublishImportNonCommitStatus(committed
                     ? R._("Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.",
-                        identity.Version) + "\n" + ex.Message
-                    : R._("Patch database import failed: {0}", ex.Message));
+                        identity.Version) + "\n" + PatchDatabaseImportService.LocalizeDiagnostic(ex.Message)
+                    : R._("Patch database import failed: {0}",
+                        PatchDatabaseImportService.LocalizeDiagnostic(ex.Message)));
             }
             finally
             {
@@ -542,6 +543,11 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             StatusMessageLabel.Text = WithRecoveryNotice(message);
         }
+
+        internal static string LocalizePatchDatabaseStatus(string message) =>
+            message == PatchMetadataCore.NotInitializedMessage
+                ? R._("The patch database has not been installed yet.\r\nChoose Import Patch Database ZIP, or use Check for Updates / Initialize Repository.")
+                : R._(message);
 
         internal void ShowImportedOutcome(PatchDatabaseImportService.Outcome result, string version)
         {

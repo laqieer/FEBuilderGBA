@@ -624,8 +624,11 @@ public class ToolTranslateROMParityTests
         Assert.Contains("new ChapterNameTextPatchService(discover).RecommendAsync", src);
         Assert.Contains("if (continuation == null || !continuation.IsCurrent) return", src);
         Assert.Contains("return result.Identity.IsCurrent ? result.Identity : null", src);
-        int translateUndo = src.IndexOf("_vm.UndoService.Begin(\"Translate ROM\")", StringComparison.Ordinal);
-        int identityGuard = src.IndexOf("if (!identity.IsCurrent) return;", StringComparison.Ordinal);
+        Assert.Contains("ToolTranslateRomMutationService.ExecuteAsync(", src);
+        string mutationService = File.ReadAllText(Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia",
+            "Services", "ToolTranslateRomMutationService.cs"));
+        int translateUndo = mutationService.IndexOf("CoreState.Undo.NewUndoData(\"Translate ROM\")", StringComparison.Ordinal);
+        int identityGuard = mutationService.IndexOf("if (!identity.IsCurrent)", StringComparison.Ordinal);
         Assert.True(identityGuard >= 0 && identityGuard < translateUndo);
         string service = File.ReadAllText(Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia",
             "Services", "ChapterNameTextPatchService.cs"));

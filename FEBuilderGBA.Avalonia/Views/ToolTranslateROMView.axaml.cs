@@ -190,14 +190,13 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             if (!identity.IsCurrent) return;
-            _vm.UndoService.Begin("Translate ROM");
             try
             {
-                int total = 0;
                 // Heavy I/O + decode work runs on a background thread so the
                 // UI thread stays responsive (mirrors WF AutoPleaseWait /
                 // DoEvents which yields control during the loop).
-                await Task.Run(() =>
+                var result = await ToolTranslateRomMutationService.ExecuteAsync(
+                    rom, identity, _vm.UndoService, (working, undo) =>
                 {
                     var opts = new ToolTranslateROMCore.SimpleFireOptions
                     {
@@ -212,13 +211,15 @@ namespace FEBuilderGBA.Avalonia.Views
                         // captured value (no dialog on the worker thread).
                         ChapterNameTextPrecondition = () => chapterNameTextOk,
                     };
-                    var recycle = new RecycleAddress();
-                    total = ToolTranslateROMCore.SimpleFireTranslate(rom, opts, recycle,
-                        _vm.UndoService.GetActiveUndoData(), null);
+                    var recycle = new RecycleAddress(working);
+                    return ToolTranslateROMCore.SimpleFireTranslate(working, opts, recycle, undo, null);
                 });
-
-                _vm.UndoService.Commit();
-                string msg = $"Translation complete. {total} text entries written.";
+                if (!result.Applied)
+                {
+                    await ShowError("Translation was cancelled because the loaded ROM changed.");
+                    return;
+                }
+                string msg = $"Translation complete. {result.Total} text entries written.";
                 if (overrideJpFont)
                 {
                     msg += "\n\n" + R._("Override JP Font: the Japanese font tables were wiped " +
@@ -228,7 +229,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                _vm.UndoService.Rollback();
                 await ShowError("Translation failed: " + ex.Message);
                 Log.ErrorF("ToolTranslateROMView.SimpleFire: {0}", ex.Message);
             }

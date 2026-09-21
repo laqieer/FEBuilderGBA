@@ -866,6 +866,18 @@ namespace FEBuilderGBA
                     (directory ? "D" : new FileInfo(path).Length.ToString(System.Globalization.CultureInfo.InvariantCulture)) +
                     "\0" + File.GetLastWriteTimeUtc(path).Ticks.ToString(System.Globalization.CultureInfo.InvariantCulture) + "\n";
                 hash.AppendData(Encoding.UTF8.GetBytes(item));
+                if (!directory)
+                {
+                    using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    byte[] buffer = new byte[64 * 1024];
+                    int read;
+                    while ((read = input.Read(buffer, 0, buffer.Length)) != 0)
+                    {
+                        cancellationToken.ThrowIfCancellationRequested();
+                        hash.AppendData(buffer, 0, read);
+                    }
+                    hash.AppendData(new byte[] { 0 });
+                }
             }
             return Convert.ToHexString(hash.GetHashAndReset());
         }

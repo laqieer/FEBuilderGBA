@@ -277,7 +277,7 @@ function ProofEnvelope {
         try{
             Add-Type -Path @((Join-Path $PSScriptRoot 'PreparedLaunch.cs'),(Join-Path $PSScriptRoot 'PreparedLaunch.Tests.cs')) -ErrorAction Stop -WarningAction Stop
             $cases=[PreparedLaunchTests]::Run($root)
-            Assert-Proof ($cases -eq $(if($IsWindows){25}else{24})) 'Prepared case inventory.'
+            Assert-Proof ($cases -eq $(if($IsWindows){31}else{30})) 'Prepared case inventory.'
             $jsonCases=[PreparedLaunchTests]::RunJson()
             Assert-Proof ($jsonCases -eq 12) 'Prepared bounded JSON inventory.'
             $manifestCases=[PreparedLaunchTests]::RunManifest()

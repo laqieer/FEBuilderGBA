@@ -968,6 +968,43 @@ public class PatchDatabaseImportCoreTests
         Assert.Equal("externally changed", File.ReadAllText(fixture.OldFile));
     }
 
+    [Fact]
+    public async Task SameLengthTimestampRestoredMutationBeforeCommitIsRefused()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("New");
+        using var prepared = await fixture.Prepare(zip);
+        DateTime timestamp = File.GetLastWriteTimeUtc(fixture.OldFile);
+        File.WriteAllText(fixture.OldFile, "OLD");
+        File.SetLastWriteTimeUtc(fixture.OldFile, timestamp);
+
+        var result = prepared.Commit();
+
+        Assert.False(result.Success);
+        Assert.Equal("OLD", File.ReadAllText(fixture.OldFile));
+    }
+
+    [Fact]
+    public void SameLengthTimestampRestoredRetainedBackupMutationBlocksRecovery()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        RunCrashProbe(fixture.Root, "AfterOldMove");
+        string operation = Assert.Single(fixture.OperationDirectories());
+        string backup = Path.Combine(operation, "old", "old.txt");
+        DateTime timestamp = File.GetLastWriteTimeUtc(backup);
+        File.WriteAllText(backup, "OLD");
+        File.SetLastWriteTimeUtc(backup, timestamp);
+
+        var result = PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false);
+
+        Assert.False(result.Success);
+        Assert.True(result.RecoveryRequired);
+        Assert.Equal("OLD", File.ReadAllText(backup));
+        Assert.False(Directory.Exists(fixture.Target));
+    }
+
     [Theory]
     [InlineData("AfterOldMove")]
     [InlineData("AfterNewMove")]

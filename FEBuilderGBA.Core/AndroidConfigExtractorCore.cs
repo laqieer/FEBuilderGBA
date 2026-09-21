@@ -236,12 +236,23 @@ namespace FEBuilderGBA
 
         static bool IsValidPreservedNamespace(IEnumerable<string> paths)
         {
-            var files = new HashSet<string>(OperatingSystem.IsWindows()
-                ? StringComparer.OrdinalIgnoreCase : StringComparer.Ordinal);
+            StringComparer comparer = PreservedPathComparer;
+            var files = new HashSet<string>(comparer);
+            var directories = new Dictionary<string, string>(comparer);
             foreach (string path in paths)
             {
                 if (!IsCanonicalPreservedPath(path) || !files.Add(path))
                     return false;
+                int separator = path.IndexOf('/');
+                while (separator >= 0)
+                {
+                    string directory = path.Substring(0, separator);
+                    if (directories.TryGetValue(directory, out string? existing) &&
+                        !string.Equals(existing, directory, StringComparison.Ordinal))
+                        return false;
+                    directories[directory] = directory;
+                    separator = path.IndexOf('/', separator + 1);
+                }
             }
             foreach (string path in files)
             {
@@ -272,14 +283,14 @@ namespace FEBuilderGBA
 
         static bool PathsOverlap(string one, string other)
         {
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var comparison = PreservedPathComparison;
             return one.Equals(other, comparison) || one.StartsWith(other + "/", comparison) ||
                 other.StartsWith(one + "/", comparison);
         }
 
         static void PruneExceptProtected(string path, string protectedRoot)
         {
-            var comparison = OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal;
+            var comparison = PreservedPathComparison;
             if (path.Equals(protectedRoot, comparison)) return;
             FileAttributes attributes;
             try { attributes = File.GetAttributes(path); }
@@ -300,6 +311,18 @@ namespace FEBuilderGBA
             if (directory) Directory.Delete(path, false);
             else File.Delete(path);
         }
+
+        static bool UsesCaseInsensitivePreservedPaths =>
+            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
+            OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
+
+        static StringComparer PreservedPathComparer => UsesCaseInsensitivePreservedPaths
+            ? StringComparer.OrdinalIgnoreCase
+            : StringComparer.Ordinal;
+
+        static StringComparison PreservedPathComparison => UsesCaseInsensitivePreservedPaths
+            ? StringComparison.OrdinalIgnoreCase
+            : StringComparison.Ordinal;
 
         /// <summary>
         /// A stamp is valid (skip) only when its version line matches AND every

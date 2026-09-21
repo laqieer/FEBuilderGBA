@@ -82,6 +82,18 @@ namespace FEBuilderGBA.Avalonia.Services
             return true;
         }
 
+        public virtual void RollbackExternal(ROM rom, Undo.UndoData undoData)
+        {
+            if (rom == null || undoData == null || CoreState.Undo == null ||
+                !ReferenceEquals(CoreState.ROM, rom))
+                return;
+            if (undoData.list.Count == 0 && (uint)rom.Data.Length == undoData.filesize)
+                return;
+            CoreState.Undo.Push(undoData);
+            CoreState.Undo.RunUndo();
+            ImageImportCore.RestoreExactRomLengthAfterUndo(rom, undoData.filesize);
+        }
+
         /// <summary>Whether there's an active undo group.</summary>
         public bool HasPendingUndo => _currentUndoData != null;
 

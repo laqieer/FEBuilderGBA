@@ -150,7 +150,8 @@ public static class PreparedLaunchTests
         Reject(() => PreparedContentLease.ContentDeadline(
             Stopwatch.GetTimestamp() + Stopwatch.Frequency));
         foreach (string privatePath in new[] { @"config\log\log.txt", @"config\logs\other.txt",
-            "generated-core-suite-log-preserved.txt", "private.gba", @"a\game.ROM", @"..\escape" })
+            "generated-core-suite-log-preserved.txt", "private.gba", @"a\game.ROM", @"..\escape",
+            @"a\COM¹.txt", @"a\COM²", @"a\COM³.any", @"a\LPT¹.txt", @"a\LPT²", @"a\LPT³.any" })
             Check(!PreparedContentLease.PublicResource(privatePath));
         Check(PreparedContentLease.PublicResource(@"fixtures\zipdb-proof.gba", true));
         Check(!PreparedContentLease.PublicResource(@"fixtures\other.gba", true));

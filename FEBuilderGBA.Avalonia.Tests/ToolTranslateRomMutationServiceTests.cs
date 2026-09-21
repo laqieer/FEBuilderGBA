@@ -1,0 +1,135 @@
+using FEBuilderGBA.Avalonia.Services;
+
+namespace FEBuilderGBA.Avalonia.Tests;
+
+[Collection("SharedState")]
+public class ToolTranslateRomMutationServiceTests
+{
+    [Fact]
+    public async Task SuccessfulWorkerCommitsCloneAsOneUndoableMutation()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        var result = await ToolTranslateRomMutationService.ExecuteAsync(
+            fixture.Rom, identity, new UndoService(), (working, undo) =>
+            {
+                working.write_u8(0x300, 0x7A, undo);
+                return 3;
+            });
+
+        Assert.True(result.Applied);
+        Assert.Equal(3, result.Total);
+        Assert.Equal(0x7Au, fixture.Rom.u8(0x300));
+        Undo.UndoData committed = Assert.Single(CoreState.Undo.UndoBuffer);
+        Assert.DoesNotContain(committed.list, position =>
+            position.addr == 0 && position.data.Length == fixture.Rom.Data.Length);
+        CoreState.Undo.RunUndo();
+        Assert.Equal(0u, fixture.Rom.u8(0x300));
+    }
+
+    [Theory]
+    [InlineData("replace")]
+    [InlineData("reload")]
+    [InlineData("edit")]
+    [InlineData("info")]
+    public async Task LoadedRomChangeWhileWorkerRunsDiscardsClone(string change)
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        byte[] original = (byte[])fixture.Rom.Data.Clone();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        Task<ToolTranslateRomMutationService.Result> pending =
+            ToolTranslateRomMutationService.ExecuteAsync(
+                fixture.Rom, identity, new UndoService(), (working, undo) =>
+                {
+                    entered.Set();
+                    release.Wait();
+                    working.write_u8(0x300, 0x7A, undo);
+                    return 3;
+                });
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+
+        switch (change)
+        {
+            case "replace":
+                var replacement = new ROM();
+                replacement.LoadLow("replacement-synthetic.gba", new byte[0x1000000], "BE8E01");
+                CoreState.ROM = replacement;
+                break;
+            case "reload":
+                fixture.Rom.LoadLow("reload-synthetic.gba", (byte[])fixture.Rom.Data.Clone(), "BE8E01");
+                break;
+            case "edit":
+                fixture.Rom.Data[0x400] ^= 1;
+                break;
+            case "info":
+                typeof(ROM).GetProperty(nameof(ROM.RomInfo))!.SetValue(
+                    fixture.Rom, new ROMFE8U(fixture.Rom));
+                break;
+        }
+        byte[] changed = (byte[])fixture.Rom.Data.Clone();
+        release.Set();
+
+        var result = await pending;
+
+        Assert.False(result.Applied);
+        Assert.Equal(changed, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+        if (change == "replace")
+            Assert.Equal(original, fixture.Rom.Data);
+    }
+
+    [Fact]
+    public async Task WorkerFailureLeavesLoadedRomAndUndoUntouched()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+
+        await Assert.ThrowsAsync<IOException>(() =>
+            ToolTranslateRomMutationService.ExecuteAsync(
+                fixture.Rom, identity, new UndoService(), (working, undo) =>
+                {
+                    working.write_u8(0x300, 0x7A, undo);
+                    throw new IOException("Injected worker failure.");
+                }));
+
+        Assert.Equal(before, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+    }
+
+    [Fact]
+    public async Task BoundRecycleWritesNeverTouchLoadedRomBeforeApply()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+        using var entered = new ManualResetEventSlim();
+        using var release = new ManualResetEventSlim();
+        Task<ToolTranslateRomMutationService.Result> pending =
+            ToolTranslateRomMutationService.ExecuteAsync(
+                fixture.Rom, identity, new UndoService(), (working, undo) =>
+                {
+                    var recycle = new RecycleAddress(working,
+                    [
+                        new Address(0x300, 8, U.NOT_FOUND, "", Address.DataTypeEnum.BIN),
+                    ]);
+                    Assert.Equal(0x300u, recycle.Write([0x7A, 0x7B], undo));
+                    recycle.BlackOut(undo);
+                    entered.Set();
+                    release.Wait();
+                    return 2;
+                });
+
+        Assert.True(entered.Wait(TimeSpan.FromSeconds(10)));
+        Assert.Equal(before, fixture.Rom.Data);
+        release.Set();
+        var result = await pending;
+
+        Assert.True(result.Applied);
+        Assert.Equal(0x7Au, fixture.Rom.u8(0x300));
+        Assert.Equal(0x7Bu, fixture.Rom.u8(0x301));
+        Assert.Equal(0u, fixture.Rom.u8(0x304));
+    }
+}

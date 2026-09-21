@@ -34,6 +34,21 @@ namespace FEBuilderGBA.Avalonia.Services
                 CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data));
 
             internal RomIdentity? RefreshAfterOwnedMutation() => HasSameLoadedInstances ? new RomIdentity(rom) : null;
+
+            internal bool TryCreateWorkingCopy(out ROM? working)
+            {
+                working = null;
+                if (!HasSameLoadedInstances) return false;
+                byte[] copy = (byte[])data.Clone();
+                if (!HasSameLoadedInstances ||
+                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(copy)) ||
+                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data)))
+                    return false;
+                var candidate = new ROM();
+                if (!candidate.LoadFromBytes(rom.Filename, copy, out _)) return false;
+                working = candidate;
+                return true;
+            }
         }
 
         public sealed class Outcome
@@ -71,20 +86,22 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 PatchDatabaseImportCore.ResultKind.Completed => "",
                 PatchDatabaseImportCore.ResultKind.CommittedAfterInterruption =>
-                    R._("The database was committed despite an interrupted commit response: {0}", result.Detail),
+                    R._("The database was committed despite an interrupted commit response: {0}",
+                        LocalizeDiagnostic(result.Detail)),
                 PatchDatabaseImportCore.ResultKind.StoppedBeforeCommit =>
-                    R._("Import stopped without committing: {0}", result.Detail),
+                    R._("Import stopped without committing: {0}", LocalizeDiagnostic(result.Detail)),
                 PatchDatabaseImportCore.ResultKind.RecoveryFailed when !result.RecoveryRequired =>
-                    R._("Import stopped without committing: {0}", result.Detail),
+                    R._("Import stopped without committing: {0}", LocalizeDiagnostic(result.Detail)),
                 PatchDatabaseImportCore.ResultKind.RecoveryFailed =>
                     R._("Import recovery is required; the owned workspace was retained.\r\n{0}\r\nRecovery: {1}",
-                        result.Detail, result.RecoveryDetail),
-                _ => R._("Patch database recovery needs attention: {0}", result.Detail),
+                        LocalizeDiagnostic(result.Detail), LocalizeDiagnostic(result.RecoveryDetail)),
+                _ => R._("Patch database recovery needs attention: {0}", LocalizeDiagnostic(result.Detail)),
             };
             if (result.RecoveryRequired && (result.Success || result.CleanupDetail.Length != 0))
                 message = Append(message, result.Success
-                    ? R._("The new database is installed, but owned backup cleanup is pending: {0}", result.CleanupDetail)
-                    : R._("Owned workspace cleanup is pending: {0}", result.CleanupDetail));
+                    ? R._("The new database is installed, but owned backup cleanup is pending: {0}",
+                        LocalizeDiagnostic(result.CleanupDetail))
+                    : R._("Owned workspace cleanup is pending: {0}", LocalizeDiagnostic(result.CleanupDetail)));
             if (result.RetainedPath.Length != 0)
                 message = Append(message, R._("Retained workspace: {0}", result.RetainedPath));
             return message;
@@ -92,7 +109,9 @@ namespace FEBuilderGBA.Avalonia.Services
 
         internal static string FormatRecoveryException(PatchDatabaseImportCore.RecoveryException exception)
             => R._("Import cleanup requires recovery. Retained workspace: {0}\r\n{1}",
-                exception.RetainedPath, exception.InnerException?.Message ?? "");
+                exception.RetainedPath, LocalizeDiagnostic(exception.InnerException?.Message ?? ""));
+
+        internal static string LocalizeDiagnostic(string detail) => R._(detail);
 
         static string Append(string message, string next) => message.Length == 0 ? next : message + "\n" + next;
 
@@ -227,8 +246,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 if (failure != null) refreshed = false;
                 if (message.Length == 0 && receipt?.RecoveryRequired == true)
                     message = R._("The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}",
-                        receipt.RetainedPath, receipt.Detail, receipt.CleanupDetail);
-                if (failure != null) message = Append(message, failure.Message);
+                        receipt.RetainedPath, LocalizeDiagnostic(receipt.Detail),
+                        LocalizeDiagnostic(receipt.CleanupDetail));
+                if (failure != null) message = Append(message, LocalizeDiagnostic(failure.Message));
                 return new Outcome { Imported = true, Refreshed = refreshed, Receipt = receipt,
                     RecoveryRequired = receipt?.RecoveryRequired == true ||
                         recoveryException != null, Message = message };
@@ -237,9 +257,13 @@ namespace FEBuilderGBA.Avalonia.Services
                 return new Outcome { RecoveryRequired = true, Message = FormatRecoveryException(recoveryException), Receipt = receipt };
             if (receipt != null)
                 return new Outcome { Receipt = receipt, RecoveryRequired = receipt.RecoveryRequired,
-                    Message = message.Length != 0 ? message : R._("Import stopped without committing: {0}", receipt.Detail) };
+                    Message = message.Length != 0 ? message :
+                        R._("Import stopped without committing: {0}", LocalizeDiagnostic(receipt.Detail)) };
             if (failure is OperationCanceledException) return Cancelled();
-            if (failure != null) return new Outcome { Message = R._("Patch database import failed: {0}", failure.Message) };
+            if (failure != null) return new Outcome
+            {
+                Message = R._("Patch database import failed: {0}", LocalizeDiagnostic(failure.Message)),
+            };
             return early ?? new Outcome();
         }
 

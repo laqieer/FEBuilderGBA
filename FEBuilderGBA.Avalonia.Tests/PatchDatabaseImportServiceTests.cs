@@ -677,6 +677,47 @@ public class PatchDatabaseImportServiceTests
         Assert.DoesNotContain("The owned import workspace could not be cleaned up", App.PatchDatabaseRecoveryNotice);
     }
 
+    [Theory]
+    [InlineData("ja", "The existing patch database changed while confirmation was open.",
+        "確認ダイアログを開いている間に既存のパッチデータベースが変更されました。")]
+    [InlineData("zh", "The existing patch database changed while confirmation was open.",
+        "确认对话框打开期间，现有补丁数据库已发生变化。")]
+    [InlineData("ja", "ZIP import cannot replace a Git-owned patch database. Use its Git update operation instead.",
+        "Gitで管理されているパッチデータベースをZIPインポートで置き換えることはできません。")]
+    [InlineData("zh", "ZIP import cannot replace a Git-owned patch database. Use its Git update operation instead.",
+        "ZIP 导入无法替换由 Git 管理的补丁数据库。")]
+    public void KnownCoreImportDiagnosticsUseShippedTranslations(string language, string diagnostic, string expected)
+    {
+        var resource = typeof(MyTranslateResource).GetField("Resource", BindingFlags.Static | BindingFlags.NonPublic)!;
+        object? previous = resource.GetValue(null);
+        try
+        {
+            MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+            string localized = PatchDatabaseImportService.LocalizeDiagnostic(diagnostic);
+            Assert.Contains(expected, localized);
+            Assert.DoesNotContain(diagnostic, localized);
+        }
+        finally { resource.SetValue(null, previous); }
+    }
+
+    [Theory]
+    [InlineData("ja", "パッチデータベースはまだインストールされていません。")]
+    [InlineData("zh", "尚未安装补丁数据库。")]
+    public void DesktopEmptyStatusUsesOnlyTheSelectedLanguage(string language, string expected)
+    {
+        var resource = typeof(MyTranslateResource).GetField("Resource", BindingFlags.Static | BindingFlags.NonPublic)!;
+        object? previous = resource.GetValue(null);
+        try
+        {
+            MyTranslateResource.LoadResource(Path.Combine(FindRepoRoot(), "config", "translate", language + ".txt"));
+            string localized = PatchManagerView.LocalizePatchDatabaseStatus(PatchMetadataCore.NotInitializedMessage);
+            Assert.Contains(expected, localized);
+            Assert.DoesNotContain("パッチデータがまだダウンロードされていません。", localized);
+            Assert.DoesNotContain("The patch database has not been downloaded yet.", localized);
+        }
+        finally { resource.SetValue(null, previous); }
+    }
+
     static void FailCleanup(PatchDatabaseImportCore.Checkpoint point)
     {
         if (point == PatchDatabaseImportCore.Checkpoint.BeforeCleanup)

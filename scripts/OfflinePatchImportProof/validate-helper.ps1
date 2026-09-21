@@ -82,7 +82,7 @@ function ProofEnvelope {
                 $preparationExitReportingCases=@(Invoke-PreparationExitReportingTests)
                 Assert-PreparationExitCaseNames $preparationExitReportingCases 72 'f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42'
                 $report.cases=[DesktopPolicyTests]::Run()
-                if ($report.cases -ne 522) { throw 'Original pure case inventory changed.' }
+                if ($report.cases -ne 528) { throw 'Original pure case inventory changed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()
@@ -122,7 +122,7 @@ function ProofEnvelope {
                 }
                 if($startupDiagnosticSerializationCases -ne 12){throw 'Startup diagnostic serialization inventory changed.'}
                 $queryDiagnosticCases=[DesktopPolicyTests]::RunQueryDiagnosticTests()
-                if($queryDiagnosticCases -ne 39){throw 'Query diagnostic case inventory changed.'}
+                if($queryDiagnosticCases -ne 40){throw 'Query diagnostic case inventory changed.'}
                 [DesktopPolicyTests]::AssertQueryDiagnosticSampleInventory()
                 $queryDiagnosticSerializationNames=[Collections.Generic.List[string]]::new()
                 $queryDiagnosticSamples=[DesktopPolicyTests]::QueryDiagnosticSamples
@@ -146,6 +146,23 @@ function ProofEnvelope {
                             'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}
                         Assert-Proof ($decoded.ContainsKey('RejectedRootClass') -and
                             $decoded.RejectedRootClass -ceq $expectedRejectedClass) 'Exact original-sample rejected class.'
+                        if($queryDiagnosticSampleNames[$sampleIndex] -ceq 'owner-diagnostics-nondefault'){
+                            Assert-Proof (($decoded.OwnerHandle -is [int] -or $decoded.OwnerHandle -is [long]) -and
+                                $decoded.OwnerHandle -eq 400 -and $decoded.OwnerClass -is [string] -and
+                                $decoded.OwnerClass -ceq '#32770' -and
+                                ($decoded.OwnerParent -is [int] -or $decoded.OwnerParent -is [long]) -and
+                                $decoded.OwnerParent -eq 0 -and
+                                ($decoded.OwnerNativeRoot -is [int] -or $decoded.OwnerNativeRoot -is [long]) -and
+                                $decoded.OwnerNativeRoot -eq 400 -and
+                                ($decoded.OwnerDepth -is [int] -or $decoded.OwnerDepth -is [long]) -and
+                                $decoded.OwnerDepth -eq 0 -and $decoded.OwnerIsSelfRoot -is [bool] -and
+                                $decoded.OwnerIsSelfRoot -and $null -eq $decoded.OwnerChainCount -and
+                                $null -eq $decoded.OwnerChainTransient -and
+                                ($decoded.OwnerChainFirstHandle -is [int] -or $decoded.OwnerChainFirstHandle -is [long]) -and
+                                $decoded.OwnerChainFirstHandle -eq 0 -and $null -eq $decoded.OwnerChainFirstClass -and
+                                ($decoded.OwnerChainLastHandle -is [int] -or $decoded.OwnerChainLastHandle -is [long]) -and
+                                $decoded.OwnerChainLastHandle -eq 0 -and $null -eq $decoded.OwnerChainLastClass) 'Exact non-default owner diagnostics.'
+                        }
                         Assert-Proof ($decoded.Count -eq 33 -and $decoded.Stage -ceq 'loading-handoff' -and
                             $decoded.Selector -ceq 'Discovery' -and $decoded.Predicate -is [string] -and
                             $decoded.Predicate -ceq $sample.Predicate -and $decoded.Predicate.Length -le 64) 'Query diagnostic envelope.'
@@ -181,8 +198,8 @@ function ProofEnvelope {
                 }
                 $queryDiagnosticSerializationDigest=[Convert]::ToHexString([Security.Cryptography.SHA256]::HashData(
                     [Text.Encoding]::UTF8.GetBytes(($queryDiagnosticSerializationNames -join "`n")))).ToLowerInvariant()
-                Assert-Proof ($queryDiagnosticSerializationNames.Count -eq 48 -and $queryDiagnosticSerializationDigest -ceq
-                    'daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7') 'Query diagnostic serialization inventory changed.'
+                Assert-Proof ($queryDiagnosticSerializationNames.Count -eq 51 -and $queryDiagnosticSerializationDigest -ceq
+                    '9ac69bee98244df7a57d34bab907750b663d40e630130d95f8d554aaf92989db') 'Query diagnostic serialization inventory changed.'
                 [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
                 $report.startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
                 if($report.startupAcquisitionCases -ne 115){throw 'Startup acquisition case inventory changed.'}

@@ -33,8 +33,11 @@ namespace FEBuilderGBA
                 this.data = data;
             }
             public UndoPostion(uint addr, uint size)
+                : this(CoreState.ROM, addr, size)
             {
-                var rom = CoreState.ROM;
+            }
+            public UndoPostion(ROM rom, uint addr, uint size)
+            {
                 if (rom == null || addr >= rom.Data.Length)
                 {
                     this.data = new byte[0];

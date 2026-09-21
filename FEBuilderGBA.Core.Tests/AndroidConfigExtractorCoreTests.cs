@@ -173,6 +173,7 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("config/new/file.txt", "config/new/file.txt", false)]
         [InlineData("config/new/A.txt", "config/new/a.txt", true)]
         [InlineData("config/NEW/file.txt", "config/new/file.txt", true)]
+        [InlineData("Config/new/one.txt", "config/new/two.txt", true)]
         [InlineData("config/new/file", "config/new/file/child.txt", false)]
         [InlineData("config/new/file/child.txt", "config/new/file", false)]
         [InlineData("config/new/FILE", "config/new/file/child.txt", true)]
@@ -180,7 +181,8 @@ namespace FEBuilderGBA.Core.Tests
         public void ProtectedManifestNamespaceConflictsFailBeforeAnyMutation(
             string first, string second, bool windowsOnly)
         {
-            Skip.If(windowsOnly && !OperatingSystem.IsWindows(), "Windows destination case equivalence.");
+            Skip.If(windowsOnly && !UsesCaseInsensitivePreservedPaths(),
+                "Case-insensitive preserved-path destination equivalence.");
             string target = NewTempDir();
             try
             {
@@ -219,7 +221,8 @@ namespace FEBuilderGBA.Core.Tests
         [InlineData("CONFIG/DATA/current.txt", true)]
         public void ProtectedStampNamespaceDuplicatesCannotClaimUpToDate(string duplicate, bool windowsOnly)
         {
-            Skip.If(windowsOnly && !OperatingSystem.IsWindows(), "Windows destination case equivalence.");
+            Skip.If(windowsOnly && !UsesCaseInsensitivePreservedPaths(),
+                "Case-insensitive preserved-path destination equivalence.");
             string target = NewTempDir();
             try
             {
@@ -275,6 +278,39 @@ namespace FEBuilderGBA.Core.Tests
             }
             finally { Cleanup(target); }
         }
+
+        [SkippableTheory]
+        [InlineData("CONFIG/PATCH2/FE8U/bundled.txt")]
+        [InlineData("Config/Patch2")]
+        [InlineData(".PATCH2-IMPORT/state.json")]
+        public void ProtectedRuntimeCaseVariantOverlapFailsBeforeAnyMutation(string conflictingPath)
+        {
+            Skip.If(!UsesCaseInsensitivePreservedPaths(),
+                "Case-insensitive preserved-path destination equivalence.");
+            string target = NewTempDir();
+            try
+            {
+                WriteAsset(target, "config/patch2/FE8U/keep.txt", "KEEP");
+                WriteAsset(target, "config/data/old.txt", "OLD");
+                var source = new InMemoryAssetSource(new()
+                {
+                    [conflictingPath] = Encoding.UTF8.GetBytes("forbidden"),
+                    ["config/data/new.txt"] = Encoding.UTF8.GetBytes("new"),
+                });
+
+                Assert.Throws<IOException>(() => AndroidConfigExtractorCore.EnsureExtracted(
+                    source, target, "two", preservePatchDatabase: true));
+
+                Assert.Equal(0, source.OpenAssetCalls);
+                Assert.Equal("KEEP", File.ReadAllText(Path.Combine(target, "config", "patch2", "FE8U", "keep.txt")));
+                Assert.Equal("OLD", File.ReadAllText(Path.Combine(target, "config", "data", "old.txt")));
+            }
+            finally { Cleanup(target); }
+        }
+
+        static bool UsesCaseInsensitivePreservedPaths() =>
+            OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
+            OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
 
         [Fact]
         public void DefaultExtractionRetainsDuplicateAssetDeduplication()
