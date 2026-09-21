@@ -794,6 +794,10 @@ public sealed class BoundedDesktopSmoke
         Require(fieldHandle != IntPtr.Zero && Class(fieldHandle) == "Edit" &&
             Pid(fieldHandle) == pid && Same(Native.GetAncestor(fieldHandle, 2), pickerHandle) &&
             field.Current.IsEnabled && !field.Current.IsOffscreen, "filename-native-identity");
+        Action("focus-owned-active-picker", picker, Key(editorHandle));
+        Dispatch(() => picker.SetFocus());
+        Await(() => Same(Native.GetForegroundWindow(), pickerHandle) ? picker : null);
+        ValidateControl(field, picker, DesktopSelector.FilenameEdit, Key(editorHandle));
         var value = (ValuePattern)field.GetCurrentPattern(ValuePattern.Pattern);
         Require(!value.Current.IsReadOnly && Same(Native.GetForegroundWindow(), pickerHandle), "picker-not-active");
         Action("picker-set-exact-" + name + "-fixture", picker, Key(editorHandle));
