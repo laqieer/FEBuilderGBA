@@ -156,6 +156,9 @@ namespace FEBuilderGBA
                     if (!readyForCommit) ValidateForCommit(cancellationToken);
                     if (TargetStamp() != targetStamp)
                         throw new IOException("The existing patch database directory changed before promotion.");
+                    RefuseGitOwnership(TargetDirectory, isGitOwned);
+                    if (Snapshot(TargetDirectory, Version, cancellationToken, inventory) != journal.OriginalFingerprint)
+                        throw new IOException("The existing patch database changed before promotion.");
                     PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(TargetDirectory);
                     cancellationToken.ThrowIfCancellationRequested();
                     PatchDatabaseOperationLeaseCore.CreatePrivateDirectory(Path.GetDirectoryName(TargetDirectory)!);

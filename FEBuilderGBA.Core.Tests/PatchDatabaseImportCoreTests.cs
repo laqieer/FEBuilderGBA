@@ -544,6 +544,38 @@ public class PatchDatabaseImportCoreTests
     }
 
     [Fact]
+    public async Task CommitRefusesInPlaceTargetEditAfterValidation()
+    {
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        using var zip = Fixture.Zip("New");
+        using var prepared = await fixture.Prepare(zip);
+        prepared.ValidateForCommit();
+        string operation = Assert.Single(fixture.OperationDirectories());
+        string stage = Path.Combine(operation, "new");
+
+        File.WriteAllText(fixture.OldFile, "bad");
+        string unchangedStamp = Directory.GetCreationTimeUtc(fixture.Target).Ticks + ":" +
+            Directory.GetLastWriteTimeUtc(fixture.Target).Ticks;
+        typeof(PatchDatabaseImportCore.PreparedImport)
+            .GetField("targetStamp", System.Reflection.BindingFlags.Instance |
+                System.Reflection.BindingFlags.NonPublic)!
+            .SetValue(prepared, unchangedStamp);
+
+        var result = prepared.Commit(deferCleanup: true);
+
+        Assert.False(result.Success);
+        Assert.True(result.RecoveryRequired);
+        Assert.Equal("bad", File.ReadAllText(fixture.OldFile));
+        Assert.True(Directory.Exists(stage));
+        result = prepared.CompleteCleanup();
+        Assert.False(result.Success);
+        Assert.False(result.RecoveryRequired);
+        Assert.Equal("bad", File.ReadAllText(fixture.OldFile));
+        Assert.Empty(fixture.OperationDirectories());
+    }
+
+    [Fact]
     public async Task DeferredCleanupKeepsTheBackupUntilExplicitCompletion()
     {
         using var fixture = new Fixture();
