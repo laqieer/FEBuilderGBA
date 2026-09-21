@@ -267,6 +267,12 @@ public sealed class DesktopQueryFailure
     public bool? ResolveAlive { get; set; }
     public string ResolvePidRelation { get; set; }
     public string RejectedRootClass { get; set; }
+    public long OwnerHandle { get; set; }
+    public string OwnerClass { get; set; }
+    public long OwnerParent { get; set; }
+    public long OwnerNativeRoot { get; set; }
+    public int? OwnerDepth { get; set; }
+    public bool? OwnerIsSelfRoot { get; set; }
     public int Nodes { get; set; }
     public int Calls { get; set; }
     public int Windows { get; set; }
@@ -422,6 +428,7 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
                             foreach (char c in rejectedRootClass) printable &= c >= 32 && c <= 126;
                             if (printable) failure.RejectedRootClass = rejectedRootClass;
                         }
+
                     }
                 }
                 catch { /* Original refusal and containment take precedence over diagnostics. */ }
@@ -432,6 +439,31 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             failure.Windows = windows.Count;
         }
         throw new DesktopTreeException(failure);
+    }
+
+    void OwnerDiagnostics(uint handle, string windowClass, uint parent, uint nativeRoot, int depth)
+    {
+        context.OwnerHandle = handle;
+        context.OwnerClass = Printable(windowClass) ? windowClass : null;
+        context.OwnerParent = parent;
+        context.OwnerNativeRoot = nativeRoot;
+        context.OwnerDepth = depth;
+        context.OwnerIsSelfRoot = nativeRoot == handle;
+    }
+
+    void ClearOwnerDiagnostics()
+    {
+        context.OwnerHandle = context.OwnerParent = context.OwnerNativeRoot = 0;
+        context.OwnerClass = null;
+        context.OwnerDepth = null;
+        context.OwnerIsSelfRoot = null;
+    }
+
+    static bool Printable(string value)
+    {
+        if (string.IsNullOrEmpty(value) || value.Length > 256) return false;
+        foreach (char c in value) if (c < 32 || c > 126) return false;
+        return true;
     }
 
     void Require(bool condition, string code) { if (!condition) Fail(code); }
@@ -522,8 +554,11 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             uint ownerRoot = adapter.NativeRoot(next);
             Require(ownerRoot != 0 && !seen.Contains(ownerRoot), "query-owner-bound");
             Require(adapter.Alive(ownerRoot) && adapter.NativePid(ownerRoot) == pid, "query-owner-pid");
-            Require(adapter.NativeRoot(ownerRoot) == ownerRoot &&
-                adapter.Class(ownerRoot) == "#32770", "query-owner-root");
+            uint canonicalRoot = adapter.NativeRoot(ownerRoot);
+            OwnerDiagnostics(next, null, 0, ownerRoot, 0);
+            Require(canonicalRoot == ownerRoot, "query-owner-root");
+            Require(adapter.Class(ownerRoot) == "#32770", "query-owner-root");
+            ClearOwnerDiagnostics();
             owner = next = ownerRoot;
         }
         var owners = new List<(uint handle, string windowClass)>();
@@ -535,8 +570,11 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             uint parent = adapter.Owner(next);
             bool avaloniaOwner = DesktopPolicy.AvaloniaClass(ownerClass);
             bool comboDialogOwner = transientCombo && ownerClass == "#32770" && parent != 0;
-            Require(adapter.NativeRoot(next) == next && (avaloniaOwner || comboDialogOwner), "query-owner-root");
+            uint nativeRoot = adapter.NativeRoot(next);
+            OwnerDiagnostics(next, ownerClass, parent, nativeRoot, depth);
+            Require(nativeRoot == next && (avaloniaOwner || comboDialogOwner), "query-owner-root");
             if (transientCombo && avaloniaOwner) Require(parent == 0, "query-owner-root");
+            ClearOwnerDiagnostics();
             owners.Add((next, ownerClass));
             next = parent;
         }

@@ -1638,14 +1638,15 @@ class PickerIsolationContracts(unittest.TestCase):
                           "Assert-PickerIsolationInventories", "Invoke-RejectedRootClassSerializationTests",
                           "$queryDiagnosticCases -ne 39", "$queryDiagnosticSerializationNames.Count -eq 48",
                           "daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7",
-                          "'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows'",
-                          "$decoded.Count -eq 21", "$decoded.ContainsKey('RejectedRootClass')",
+                          "'ResolvePidRelation','RejectedRootClass','OwnerHandle','OwnerClass','OwnerParent','OwnerNativeRoot'",
+                          "'OwnerDepth','OwnerIsSelfRoot','Nodes','Calls','Windows'",
+                          "$decoded.Count -eq 27", "$decoded.ContainsKey('RejectedRootClass')",
                           "$decoded.RejectedRootClass -ceq $expectedRejectedClass",
                           "'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}",
                           "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096"):
                 self.assertIn(token, source)
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
-        for token in ("@('compact','pretty','nested')", "$decoded.Count -eq 21",
+        for token in ("@('compact','pretty','nested')", "$decoded.Count -eq 27",
                       "$decoded.RejectedRootClass -ceq $expected[$i]",
                       "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096",
                       "QueryDiagnosticPrivateSentinels", "$decoded.Predicate -ceq $sample.Predicate"):

@@ -104,12 +104,13 @@ function ProofEnvelope {
                 Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
                     'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
                     'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
-                    'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows')
+                    'ResolvePidRelation','RejectedRootClass','OwnerHandle','OwnerClass','OwnerParent','OwnerNativeRoot',
+                    'OwnerDepth','OwnerIsSelfRoot','Nodes','Calls','Windows')
                 $expectedRejectedClass=if($queryDiagnosticSampleNames[$sampleIndex] -ceq
                     'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}
                 Assert-Proof ($decoded.ContainsKey('RejectedRootClass') -and
                     $decoded.RejectedRootClass -ceq $expectedRejectedClass) 'Exact original-sample rejected class.'
-                Assert-Proof ($decoded.Count -eq 21 -and $decoded.Stage -ceq 'loading-handoff' -and
+                Assert-Proof ($decoded.Count -eq 27 -and $decoded.Stage -ceq 'loading-handoff' -and
                     $decoded.Selector -ceq 'Discovery' -and $decoded.Predicate -is [string] -and
                     $decoded.Predicate -ceq $sample.Predicate -and $decoded.Predicate.Length -le 64) 'Query diagnostic envelope.'
                 foreach($key in @('ExpectedOwnedRoot','PreviouslyOwnedHandle','OwnedRootBefore','OwnedRootAfter')){

@@ -479,11 +479,13 @@ public static class DesktopPolicyTests
         Case("nullable-dto-shape", () =>
         {
             var properties = typeof(DesktopQueryFailure).GetProperties();
-            Verify(properties.Length == 21 &&
+            Verify(properties.Length == 27 &&
                 typeof(DesktopQueryFailure).GetProperty("SeedOrdinal").PropertyType == typeof(int?) &&
                 typeof(DesktopQueryFailure).GetProperty("SeedResolveKeyEqual").PropertyType == typeof(bool?) &&
                 typeof(DesktopQueryFailure).GetProperty("ResolveAlive").PropertyType == typeof(bool?) &&
-                typeof(DesktopQueryFailure).GetProperty("ResolvePidRelation").PropertyType == typeof(string), "Nullable DTO seam.");
+                typeof(DesktopQueryFailure).GetProperty("ResolvePidRelation").PropertyType == typeof(string) &&
+                typeof(DesktopQueryFailure).GetProperty("OwnerDepth").PropertyType == typeof(int?) &&
+                typeof(DesktopQueryFailure).GetProperty("OwnerIsSelfRoot").PropertyType == typeof(bool?), "Nullable DTO seam.");
             Observed(new DesktopQueryFailure(), null, null, null, null);
         });
         Case("collection-nine-seeds", () =>
@@ -2402,7 +2404,10 @@ public static class DesktopPolicyTests
             var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
             AddRoot(model, 500, 8, picker, 400, "ComboLBox");
             model.Native[400].Root = 100;
-            Refused(() => model.Tree().Discover(), "query-owner-root");
+            var failure = Refused(() => model.Tree().Discover(), "query-owner-root");
+            Verify(failure.OwnerHandle == 400 && failure.OwnerClass == null &&
+                failure.OwnerParent == 0 && failure.OwnerNativeRoot == 100 &&
+                failure.OwnerDepth == 0 && failure.OwnerIsSelfRoot == false);
         });
         Case("combo-popup-owner-cycle-refused", () =>
         {

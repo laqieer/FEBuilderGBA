@@ -80,8 +80,9 @@ function Invoke-RejectedRootClassSerializationTests {
             Assert-ProofKeys $decoded @('Stage','Selector','Predicate','ExpectedOwnedRoot','PreviouslyOwnedHandle',
                 'OwnedRootBefore','OwnedRootAfter','AliveBefore','AliveAfter','OwnPidBefore','OwnPidAfter',
                 'RootMatchesBefore','RootMatchesAfter','SeedOrdinal','SeedResolveKeyEqual','ResolveAlive',
-                'ResolvePidRelation','RejectedRootClass','Nodes','Calls','Windows')
-            Assert-Proof ($decoded.Count -eq 21 -and $decoded.ContainsKey('RejectedRootClass') -and
+                'ResolvePidRelation','RejectedRootClass','OwnerHandle','OwnerClass','OwnerParent','OwnerNativeRoot',
+                'OwnerDepth','OwnerIsSelfRoot','Nodes','Calls','Windows')
+            Assert-Proof ($decoded.Count -eq 27 -and $decoded.ContainsKey('RejectedRootClass') -and
                 $decoded.RejectedRootClass -ceq $expected[$i] -and
                 ($null -eq $decoded.RejectedRootClass -or
                     ($decoded.RejectedRootClass -is [string] -and $decoded.RejectedRootClass -cmatch '^[\x20-\x7e]{1,256}\z')) -and
