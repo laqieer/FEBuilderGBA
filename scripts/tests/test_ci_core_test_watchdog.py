@@ -54,13 +54,24 @@ class CoreTestWatchdogTests(unittest.TestCase):
 
     def test_success_propagates_and_uses_same_session_process_group(self):
         process = FakeProcess([0])
-        popen = mock.Mock(return_value=process)
+        signal_handlers = {}
+
+        def set_signal(number, handler):
+            previous = signal_handlers.get(number, signal.SIG_DFL)
+            signal_handlers[number] = handler
+            return previous
+
+        def spawn(*args, **kwargs):
+            self.assertIs(signal.SIG_IGN, signal_handlers[watchdog.SIGHUP])
+            return process
+
+        popen = mock.Mock(side_effect=spawn)
         setters = []
 
         result = watchdog.run(
             platform="darwin",
             popen_factory=popen,
-            signal_setter=lambda number, handler: setters.append((number, handler)) or signal.SIG_DFL,
+            signal_setter=lambda number, handler: setters.append((number, handler)) or set_signal(number, handler),
             kill_group=mock.Mock(),
         )
 
@@ -76,7 +87,14 @@ class CoreTestWatchdogTests(unittest.TestCase):
         )
         self.assertEqual(
             set(watchdog.PARENT_SIGNALS),
-            {number for number, _ in setters[:3]},
+            {number for number, _ in setters[:4]},
+        )
+        self.assertEqual(
+            [
+                (watchdog.SIGHUP, signal.SIG_IGN),
+                (watchdog.SIGHUP, mock.ANY),
+            ],
+            [(number, handler) for number, handler in setters[:4] if number == watchdog.SIGHUP],
         )
 
     def test_nonzero_exit_is_propagated(self):

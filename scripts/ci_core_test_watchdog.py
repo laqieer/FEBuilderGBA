@@ -98,8 +98,9 @@ def run(
     state = ProcessGroupWatchdog(kill_group=kill_group)
     previous_handlers = {}
     try:
-        for number in PARENT_SIGNALS:
+        for number in (signal.SIGINT, signal.SIGTERM):
             previous_handlers[number] = signal_setter(number, state.handle_signal)
+        previous_handlers[SIGHUP] = signal_setter(SIGHUP, signal.SIG_IGN)
 
         state.process = popen_factory(
             COMMAND,
@@ -110,8 +111,12 @@ def run(
             shell=False,
             process_group=0,
         )
+        signal_setter(SIGHUP, state.handle_signal)
         try:
-            return state.process.wait(timeout=WATCHDOG_SECONDS)
+            exit_code = state.process.wait(timeout=WATCHDOG_SECONDS)
+            if exit_code != 0:
+                print(f"Core test command exited with code {exit_code}.", file=sys.stderr)
+            return exit_code
         except subprocess.TimeoutExpired:
             print(
                 f"Core tests exceeded the {WATCHDOG_SECONDS}-second watchdog deadline.",
