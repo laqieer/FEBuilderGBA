@@ -479,13 +479,15 @@ public static class DesktopPolicyTests
         Case("nullable-dto-shape", () =>
         {
             var properties = typeof(DesktopQueryFailure).GetProperties();
-            Verify(properties.Length == 27 &&
+            Verify(properties.Length == 33 &&
                 typeof(DesktopQueryFailure).GetProperty("SeedOrdinal").PropertyType == typeof(int?) &&
                 typeof(DesktopQueryFailure).GetProperty("SeedResolveKeyEqual").PropertyType == typeof(bool?) &&
                 typeof(DesktopQueryFailure).GetProperty("ResolveAlive").PropertyType == typeof(bool?) &&
                 typeof(DesktopQueryFailure).GetProperty("ResolvePidRelation").PropertyType == typeof(string) &&
                 typeof(DesktopQueryFailure).GetProperty("OwnerDepth").PropertyType == typeof(int?) &&
-                typeof(DesktopQueryFailure).GetProperty("OwnerIsSelfRoot").PropertyType == typeof(bool?), "Nullable DTO seam.");
+                typeof(DesktopQueryFailure).GetProperty("OwnerIsSelfRoot").PropertyType == typeof(bool?) &&
+                typeof(DesktopQueryFailure).GetProperty("OwnerChainCount").PropertyType == typeof(int?) &&
+                typeof(DesktopQueryFailure).GetProperty("OwnerChainTransient").PropertyType == typeof(bool?), "Nullable DTO seam.");
             Observed(new DesktopQueryFailure(), null, null, null, null);
         });
         Case("collection-nine-seeds", () =>
@@ -2105,11 +2107,11 @@ public static class DesktopPolicyTests
 
     public static void AssertOwnedTreeCaseInventory()
     {
-        if (ownedTreeCaseNames.Count != 157 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
+        if (ownedTreeCaseNames.Count != 159 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
             throw new InvalidOperationException("Owned-tree inventory incomplete.");
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
-        if (digest != "61e4c11d331af6e3093a08b9f1670809482e3495c0c70f8b7a79e3774f76bc2e")
+        if (digest != "23639f690101752f7a44e0bc6e2f375c3f02e888ebf6637c58dab0b10600ddb8")
             throw new InvalidOperationException("Owned-tree case names/order changed.");
     }
 
@@ -2387,7 +2389,31 @@ public static class DesktopPolicyTests
             var model = new OwnedModel();
             var picker = AddRoot(model, 400, 7, model.Main, 0, "#32770");
             AddRoot(model, 500, 8, picker, 400, "ComboLBox");
-            Refused(() => model.Tree().Discover(), "query-owner-root");
+            var failure = Refused(() => model.Tree().Discover(), "query-owner-root");
+            Verify(failure.OwnerHandle == 400 && failure.OwnerClass == "#32770" &&
+                failure.OwnerParent == 0 && failure.OwnerNativeRoot == 400 &&
+                failure.OwnerDepth == 0 && failure.OwnerIsSelfRoot == true &&
+                failure.OwnerChainCount == null);
+        });
+        Case("combo-popup-single-avalonia-chain-is-reported", () =>
+        {
+            var model = new OwnedModel();
+            AddRoot(model, 500, 8, model.Main, 100, "ComboLBox");
+            var failure = Refused(() => model.Tree().Discover(), "query-owner-root");
+            Verify(failure.OwnerChainCount == 1 && failure.OwnerChainTransient == true &&
+                failure.OwnerChainFirstHandle == 100 &&
+                DesktopPolicy.AvaloniaClass(failure.OwnerChainFirstClass) &&
+                failure.OwnerChainLastHandle == 100 &&
+                failure.OwnerChainLastClass == failure.OwnerChainFirstClass);
+        });
+        Case("combo-popup-empty-owner-chain-is-reported", () =>
+        {
+            var model = new OwnedModel();
+            AddRoot(model, 500, 8, model.Main, 0, "ComboLBox");
+            var failure = Refused(() => model.Tree().Discover(), "query-owner-root");
+            Verify(failure.OwnerChainCount == 0 && failure.OwnerChainTransient == true &&
+                failure.OwnerChainFirstHandle == 0 && failure.OwnerChainFirstClass == null &&
+                failure.OwnerChainLastHandle == 0 && failure.OwnerChainLastClass == null);
         });
         Case("combo-popup-foreign-dialog-owner-refused", () =>
         {

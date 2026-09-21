@@ -542,7 +542,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (157, 75, 39, 522):
+            for count in (159, 75, 39, 522):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):
@@ -1376,9 +1376,9 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
             runner = (PACKAGE / name).read_text(encoding="utf-8")
             self.assertIn("[DesktopPolicyTests]::RunOwnedTreeTests()", runner)
             self.assertIn("ownedTreeCases", runner)
-            self.assertRegex(runner, r"ownedTreeCases -ne 157")
+            self.assertRegex(runner, r"ownedTreeCases -ne 159")
             self.assertIn("[DesktopPolicyTests]::AssertOwnedTreeCaseInventory()", runner)
-        self.assertIn("61e4c11d331af6e3093a08b9f1670809482e3495c0c70f8b7a79e3774f76bc2e", tests)
+        self.assertIn("23639f690101752f7a44e0bc6e2f375c3f02e888ebf6637c58dab0b10600ddb8", tests)
 
     def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
         policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
@@ -1639,14 +1639,15 @@ class PickerIsolationContracts(unittest.TestCase):
                           "$queryDiagnosticCases -ne 39", "$queryDiagnosticSerializationNames.Count -eq 48",
                           "daf65e77d4b7fb0a6775f4a14193d0041270d10fa46256beacfb7c3a64e933f7",
                           "'ResolvePidRelation','RejectedRootClass','OwnerHandle','OwnerClass','OwnerParent','OwnerNativeRoot'",
-                          "'OwnerDepth','OwnerIsSelfRoot','Nodes','Calls','Windows'",
-                          "$decoded.Count -eq 27", "$decoded.ContainsKey('RejectedRootClass')",
+                          "'OwnerDepth','OwnerIsSelfRoot','OwnerChainCount','OwnerChainTransient','OwnerChainFirstHandle'",
+                          "'OwnerChainFirstClass','OwnerChainLastHandle','OwnerChainLastClass','Nodes','Calls','Windows'",
+                          "$decoded.Count -eq 33", "$decoded.ContainsKey('RejectedRootClass')",
                           "$decoded.RejectedRootClass -ceq $expectedRejectedClass",
                           "'resolve-success-before-registration-failure'){'OwnedAuxiliaryClass'}else{$null}",
                           "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096"):
                 self.assertIn(token, source)
         tests = (PACKAGE / "Configuration.Tests.ps1").read_text(encoding="utf-8")
-        for token in ("@('compact','pretty','nested')", "$decoded.Count -eq 27",
+        for token in ("@('compact','pretty','nested')", "$decoded.Count -eq 33",
                       "$decoded.RejectedRootClass -ceq $expected[$i]",
                       "[Text.Encoding]::UTF8.GetByteCount($json) -le 4096",
                       "QueryDiagnosticPrivateSentinels", "$decoded.Predicate -ceq $sample.Predicate"):

@@ -273,6 +273,12 @@ public sealed class DesktopQueryFailure
     public long OwnerNativeRoot { get; set; }
     public int? OwnerDepth { get; set; }
     public bool? OwnerIsSelfRoot { get; set; }
+    public int? OwnerChainCount { get; set; }
+    public bool? OwnerChainTransient { get; set; }
+    public long OwnerChainFirstHandle { get; set; }
+    public string OwnerChainFirstClass { get; set; }
+    public long OwnerChainLastHandle { get; set; }
+    public string OwnerChainLastClass { get; set; }
     public int Nodes { get; set; }
     public int Calls { get; set; }
     public int Windows { get; set; }
@@ -466,6 +472,26 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         return true;
     }
 
+    void ChainDiagnostics(List<(uint handle, string windowClass)> owners, bool transient)
+    {
+        context.OwnerChainCount = owners.Count;
+        context.OwnerChainTransient = transient;
+        if (owners.Count == 0) return;
+        context.OwnerChainFirstHandle = owners[0].handle;
+        context.OwnerChainFirstClass = Printable(owners[0].windowClass) ? owners[0].windowClass : null;
+        context.OwnerChainLastHandle = owners[owners.Count - 1].handle;
+        context.OwnerChainLastClass = Printable(owners[owners.Count - 1].windowClass) ?
+            owners[owners.Count - 1].windowClass : null;
+    }
+
+    void ClearChainDiagnostics()
+    {
+        context.OwnerChainCount = null;
+        context.OwnerChainTransient = null;
+        context.OwnerChainFirstHandle = context.OwnerChainLastHandle = 0;
+        context.OwnerChainFirstClass = context.OwnerChainLastClass = null;
+    }
+
     void Require(bool condition, string code) { if (!condition) Fail(code); }
 
     TValue Execute<TValue>(DesktopSelector selector, uint expected, Func<TValue> operation)
@@ -579,8 +605,12 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
             next = parent;
         }
         if (transientCombo)
+        {
+            ChainDiagnostics(owners, true);
             Require(owners.Count >= 2 && owners[0].windowClass == "#32770" &&
                 DesktopPolicy.AvaloniaClass(owners[owners.Count - 1].windowClass), "query-owner-root");
+            ClearChainDiagnostics();
+        }
         foreach (var parent in owners) bindings.BindNativeClass(parent.handle, parent.windowClass);
         bindings.BindNativeClass(handle, windowClass);
         return (owner, windowClass);
