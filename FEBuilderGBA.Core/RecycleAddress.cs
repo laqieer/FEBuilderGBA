@@ -436,7 +436,10 @@ namespace FEBuilderGBA
                 if (lastP.Addr + lastP.Length >= TargetRom.Data.Length)
                 {//自分が最後のデータだった場合
                     //ROMサイズを増設.
-                    TargetRom.write_resize_data(U.Padding4(lastP.Addr + (uint)write_data.Length));
+                    if (!TargetRom.write_resize_data(U.Padding4(lastP.Addr + (uint)write_data.Length)))
+                    {
+                        return U.NOT_FOUND;
+                    }
                     TargetRom.write_range(lastP.Addr, write_data, undodata);
 
                     this.Recycle.RemoveAt(lasiI);

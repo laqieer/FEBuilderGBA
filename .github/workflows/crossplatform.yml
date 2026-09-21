@@ -24,7 +24,7 @@ jobs:
         python-version: '3.12'
 
     - name: Validate fail-closed .NET workflow steps
-      run: python -m unittest scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v
+      run: python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v
 
   build:
     name: build (${{ matrix.check_name }})
@@ -129,7 +129,7 @@ jobs:
     - name: Run Core tests (macOS no-dump diagnostics)
       if: ${{ matrix.runner == 'macos-15' }}
       timeout-minutes: 15
-      run: dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=core-tests.trx" --logger "console;verbosity=minimal" --results-directory TestResults/core-ci-diagnostics/raw --blame-hang --blame-hang-timeout 5m --blame-hang-dump-type none
+      run: python scripts/ci_core_test_watchdog.py
 
     - name: Run Avalonia tests (data-verify headless validation)
       run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
