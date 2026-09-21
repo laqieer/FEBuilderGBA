@@ -515,6 +515,17 @@ internal sealed class DesktopOwnedTree<TNode> where TNode : class
         bool transientCombo = windowClass == "ComboLBox";
         uint owner = adapter.Owner(handle), next = owner;
         var seen = new HashSet<uint> { handle };
+        if (transientCombo && next != 0 && adapter.NativeRoot(next) != next)
+        {
+            Require(seen.Add(next), "query-owner-bound");
+            Require(adapter.Alive(next) && adapter.NativePid(next) == pid, "query-owner-pid");
+            uint ownerRoot = adapter.NativeRoot(next);
+            Require(ownerRoot != 0 && !seen.Contains(ownerRoot), "query-owner-bound");
+            Require(adapter.Alive(ownerRoot) && adapter.NativePid(ownerRoot) == pid, "query-owner-pid");
+            Require(adapter.NativeRoot(ownerRoot) == ownerRoot &&
+                adapter.Class(ownerRoot) == "#32770", "query-owner-root");
+            owner = next = ownerRoot;
+        }
         var owners = new List<(uint handle, string windowClass)>();
         for (int depth = 0; next != 0; depth++)
         {

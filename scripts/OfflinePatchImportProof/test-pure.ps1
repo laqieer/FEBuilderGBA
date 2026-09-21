@@ -54,7 +54,7 @@ function ProofEnvelope {
         if($startupCases -ne 75) { throw 'Startup observation case inventory changed.' }
         [DesktopPolicyTests]::AssertStartupCaseInventory()
         $ownedTreeCases=[DesktopPolicyTests]::RunOwnedTreeTests()
-        if($ownedTreeCases -ne 152) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
+        if($ownedTreeCases -ne 157) { throw "Owned-tree case inventory changed: $ownedTreeCases." }
         [DesktopPolicyTests]::AssertOwnedTreeCaseInventory()
         $windowIdentityCases=[DesktopPolicyTests]::RunWindowIdentityTests()
         if($windowIdentityCases -ne 57){throw 'Window identity case inventory changed.'}

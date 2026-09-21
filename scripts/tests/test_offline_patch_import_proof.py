@@ -542,7 +542,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (152, 75, 39, 522):
+            for count in (157, 75, 39, 522):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):
@@ -1366,13 +1366,19 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
                       "observed-visibility-change-invalidates-acceptance-revision",
                       "diagnostics-cannot-hide-original-refusal-when-budget-closes"):
             self.assertIn(token, tests)
+        for token in ("combo-popup-child-owner-normalizes-to-picker-root",
+                      "combo-popup-child-owner-must-be-same-process",
+                      "combo-popup-child-root-must-be-same-process",
+                      "combo-popup-child-root-must-be-native-dialog",
+                      "combo-popup-child-root-cycle-refused"):
+            self.assertIn(token, tests)
         for name in ("test-pure.ps1", "validate-helper.ps1"):
             runner = (PACKAGE / name).read_text(encoding="utf-8")
             self.assertIn("[DesktopPolicyTests]::RunOwnedTreeTests()", runner)
             self.assertIn("ownedTreeCases", runner)
-            self.assertRegex(runner, r"ownedTreeCases -ne 152")
+            self.assertRegex(runner, r"ownedTreeCases -ne 157")
             self.assertIn("[DesktopPolicyTests]::AssertOwnedTreeCaseInventory()", runner)
-        self.assertIn("d34296d2f494e8cbeac06c1e3197ba3c1da8a7b07d87e63352bbf200346d3616", tests)
+        self.assertIn("61e4c11d331af6e3093a08b9f1670809482e3495c0c70f8b7a79e3774f76bc2e", tests)
 
     def test_projection_epoch_is_frozen_before_skipped_or_projected_roots(self):
         policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")

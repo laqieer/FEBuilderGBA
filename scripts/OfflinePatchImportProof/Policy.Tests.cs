@@ -2103,11 +2103,11 @@ public static class DesktopPolicyTests
 
     public static void AssertOwnedTreeCaseInventory()
     {
-        if (ownedTreeCaseNames.Count != 152 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
+        if (ownedTreeCaseNames.Count != 157 || ownedTreeCaseFailures.Count != 0 || ownedTreeScaleProfiles.Count != 3)
             throw new InvalidOperationException("Owned-tree inventory incomplete.");
         string digest = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(
             string.Join("\n", ownedTreeCaseNames)))).ToLowerInvariant();
-        if (digest != "d34296d2f494e8cbeac06c1e3197ba3c1da8a7b07d87e63352bbf200346d3616")
+        if (digest != "61e4c11d331af6e3093a08b9f1670809482e3495c0c70f8b7a79e3774f76bc2e")
             throw new InvalidOperationException("Owned-tree case names/order changed.");
     }
 
@@ -2335,6 +2335,50 @@ public static class DesktopPolicyTests
             tree.ValidateWindow(popup, DesktopRootKind.TransientPopup, 400);
             Refused(() => tree.ValidateWindow(popup, DesktopRootKind.Avalonia, 400), "query-root-kind");
             Refused(() => tree.ValidateWindow(popup, DesktopRootKind.NativeDialog, 400), "query-root-kind");
+        });
+        Case("combo-popup-child-owner-normalizes-to-picker-root", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            var popup = AddRoot(model, 500, 8, picker, 401, "ComboLBox");
+            model.Native.Add(401, new OwnedNative { Root = 400, Class = "ComboBox" });
+            var tree = model.Tree(); tree.Discover();
+            tree.ValidateWindow(popup, DesktopRootKind.TransientPopup, 400);
+            Verify(model.Bindings.KnownNativeOwner(400) && !model.Bindings.KnownNativeOwner(401));
+        });
+        Case("combo-popup-child-owner-must-be-same-process", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            AddRoot(model, 500, 8, picker, 401, "ComboLBox");
+            model.Native.Add(401, new OwnedNative { Root = 400, Pid = 8, Class = "ComboBox" });
+            Refused(() => model.Tree().Discover(), "query-owner-pid");
+        });
+        Case("combo-popup-child-root-must-be-same-process", () =>
+        {
+            var model = new OwnedModel();
+            var picker = AddRoot(model, 400, 7, model.Main, 100, "#32770");
+            var popup = AddRoot(model, 500, 8, picker, 401, "ComboLBox");
+            model.Native.Add(401, new OwnedNative { Root = 400, Class = "ComboBox" });
+            model.Native[400].Pid = 8;
+            model.SeedNodes.Insert(0, popup);
+            Refused(() => model.Tree().Discover(), "query-owner-pid");
+        });
+        Case("combo-popup-child-root-must-be-native-dialog", () =>
+        {
+            var model = new OwnedModel();
+            var other = AddRoot(model, 400, 7, model.Main, 100);
+            AddRoot(model, 500, 8, other, 401, "ComboLBox");
+            model.Native.Add(401, new OwnedNative { Root = 400, Class = "ComboBox" });
+            Refused(() => model.Tree().Discover(), "query-owner-root");
+        });
+        Case("combo-popup-child-root-cycle-refused", () =>
+        {
+            var model = new OwnedModel();
+            var popup = AddRoot(model, 500, 8, model.Main, 401, "ComboLBox");
+            model.Native.Add(401, new OwnedNative { Root = 500, Class = "ComboBox" });
+            model.SeedNodes.Insert(0, popup);
+            Refused(() => model.Tree().Discover(), "query-owner-bound");
         });
         Case("combo-popup-requires-avalonia-terminus", () =>
         {
