@@ -155,6 +155,23 @@ namespace FEBuilderGBA.Avalonia.Tests
             Assert.False(svc.CommitExternal(empty));
         }
 
+        [Fact]
+        public void UndoService_CommitExternal_LengthOnlyMutationPushes()
+        {
+            if (!_fixture.IsAvailable) return;
+            if (CoreState.Undo == null || CoreState.ROM == null) return;
+
+            var svc = new UndoService();
+            var lengthOnly = CoreState.Undo.NewUndoData("length only");
+            int originalLength = CoreState.ROM.Data.Length;
+            Assert.True(CoreState.ROM.write_resize_data((uint)(originalLength + 4)));
+
+            Assert.True(svc.CommitExternal(CoreState.ROM, CoreState.Undo, lengthOnly));
+            Assert.Single(CoreState.Undo.UndoBuffer);
+            CoreState.Undo.RunUndo();
+            Assert.Equal(originalLength, CoreState.ROM.Data.Length);
+        }
+
         // =================================================================
         // Single Undo (tests 7-11) -- requires ROM
         // =================================================================

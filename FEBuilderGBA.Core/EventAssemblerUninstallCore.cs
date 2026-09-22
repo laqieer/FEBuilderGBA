@@ -124,10 +124,16 @@ namespace FEBuilderGBA
         /// or the file cannot be parsed.
         /// </summary>
         public static TraceResult TraceEAFile(string eaFilePath)
+            => TraceEAFile(CoreState.ROM, eaFilePath);
+
+        /// <summary>
+        /// Trace against an explicitly captured ROM so dialog awaits cannot retarget
+        /// an uninstall to a subsequently loaded ROM.
+        /// </summary>
+        public static TraceResult TraceEAFile(ROM rom, string eaFilePath)
         {
             var result = new TraceResult();
             List<BinMapping> binMappings = result.Mappings;
-            ROM rom = CoreState.ROM;
             // RomInfo is needed for the GREP search baseline
             // (compress_image_borderline_address); it is null only for a not-yet-
             // identified ROM, which the EA tool never uninstalls against. Guard so a
@@ -516,10 +522,12 @@ namespace FEBuilderGBA
         /// returned; the caller rolls back <paramref name="undo"/>.
         /// </summary>
         public static UninstallResult Uninstall(string eaFilePath, byte[] cleanOriginalRom, Undo.UndoData undo)
+            => Uninstall(CoreState.ROM, eaFilePath, cleanOriginalRom, undo);
+
+        public static UninstallResult Uninstall(ROM rom, string eaFilePath, byte[] cleanOriginalRom, Undo.UndoData undo)
         {
             var result = new UninstallResult();
 
-            ROM rom = CoreState.ROM;
             if (rom == null)
             {
                 result.ErrorMessage = R._("No ROM is loaded.");
@@ -541,7 +549,7 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            TraceResult trace = TraceEAFile(eaFilePath);
+            TraceResult trace = TraceEAFile(rom, eaFilePath);
             List<BinMapping> binmap = trace.Mappings;
 
             // Surface untraceable blocks on the result so the View can warn the user
@@ -577,7 +585,7 @@ namespace FEBuilderGBA
                 return result;
             }
 
-            string error = UninstallPatchInner(binmap, cleanOriginalRom, undo, result);
+            string error = UninstallPatchInner(rom, binmap, cleanOriginalRom, undo, result);
             if (error != "")
             {
                 result.ErrorMessage = error;
@@ -594,9 +602,8 @@ namespace FEBuilderGBA
         // Faithful port of PatchForm.UninstallPatchInner (EA path): overwrite each
         // traced byte with the clean-original byte, under undo; auto-length unknown
         // ranges; then strip a zero-filled extended ROM tail.
-        static string UninstallPatchInner(List<BinMapping> binmap, byte[] orignalROM, Undo.UndoData undodata, UninstallResult result)
+        static string UninstallPatchInner(ROM rom, List<BinMapping> binmap, byte[] orignalROM, Undo.UndoData undodata, UninstallResult result)
         {
-            ROM rom = CoreState.ROM;
             uint current_rom_length = (uint)rom.Data.Length;
             uint reverted = 0;
 
@@ -606,14 +613,15 @@ namespace FEBuilderGBA
 
                 if (map.length == 0)
                 {//サイズがわからないので、自動的に求めます.
-                    map.length = CalcAutoLength(map.addr, orignalROM);
+                    map.length = CalcAutoLength(rom, map.addr, orignalROM);
                     map.bin = rom.getBinaryData(map.addr, map.length);
                 }
 
                 for (int i = 0; i < map.length; i++)
                 {
                     uint addr = map.addr + (uint)i;
-                    CoreState.CommentCache?.Remove(addr);
+                    if (ReferenceEquals(CoreState.ROM, rom))
+                        CoreState.CommentCache?.Remove(addr);
                     if (addr >= current_rom_length)
                     {
                         continue;
@@ -627,7 +635,7 @@ namespace FEBuilderGBA
                 // does not arise for an instant-EA patch — omitted, see class doc.)
             }
 
-            StripROM(binmap, undodata);
+            StripROM(rom, binmap, undodata);
 
             result.BytesReverted = reverted;
             return "";
@@ -635,9 +643,8 @@ namespace FEBuilderGBA
 
         // Port of PatchForm.StripROM: if reverting leaves the extended ROM tail all
         // zero, shrink the ROM back down (recorded in undo as a resize position).
-        static void StripROM(List<BinMapping> binmap, Undo.UndoData undodata)
+        static void StripROM(ROM rom, List<BinMapping> binmap, Undo.UndoData undodata)
         {
-            ROM rom = CoreState.ROM;
             uint extendsAddr = U.toOffset(rom.RomInfo.extends_address);
             int length = rom.Data.Length;
 
@@ -670,16 +677,16 @@ namespace FEBuilderGBA
             if (rom.Data.Length > stripSize
                 && stripSize >= extendsAddr)
             {
-                undodata.list.Add(new Undo.UndoPostion(stripSize, (uint)rom.Data.Length - stripSize));
+                undodata.list.Add(new Undo.UndoPostion(
+                    rom, stripSize, (uint)rom.Data.Length - stripSize));
                 rom.write_resize_data(stripSize);
             }
         }
 
         // Port of PatchForm.CalcAutoLength: how far the live ROM diverges from the
         // clean ROM starting at addr, tolerating up to RecoverMissMatch matching bytes.
-        static uint CalcAutoLength(uint addr, byte[] other, int RecoverMissMatch = 10)
+        static uint CalcAutoLength(ROM rom, uint addr, byte[] other, int RecoverMissMatch = 10)
         {
-            ROM rom = CoreState.ROM;
             int length = Math.Min(rom.Data.Length, other.Length);
             int i;
             for (i = (int)addr; i < length; i++)
@@ -791,8 +798,16 @@ namespace FEBuilderGBA
         /// the rebuild-producer TYPE=BIN arm, s2pf-15.
         /// </summary>
         internal static byte[] ReadMod(string[] sp, string filename, out bool[] isSkip, ROM rom)
+            => ReadModCore(sp, filename, out isSkip, rom, System.IO.File.Exists, System.IO.File.ReadAllBytes);
+
+        internal static byte[] ReadModWithFileReadsForTest(string[] sp, string filename, out bool[] isSkip, ROM rom,
+            Func<string, bool> fileExists, Func<string, byte[]> readBytes)
+            => ReadModCore(sp, filename, out isSkip, rom, fileExists, readBytes);
+
+        static byte[] ReadModCore(string[] sp, string filename, out bool[] isSkip, ROM rom,
+            Func<string, bool> fileExists, Func<string, byte[]> readBytes)
         {
-            if (string.IsNullOrEmpty(filename) || !System.IO.File.Exists(filename))
+            if (string.IsNullOrEmpty(filename) || !fileExists(filename))
             {//WF :4311-4315 — missing file: empty bin + empty mask.
                 isSkip = new bool[0];
                 return new byte[0];
@@ -803,7 +818,7 @@ namespace FEBuilderGBA
             // and silently hide a corrupt/locked installed BIN file as a zero-length mapping
             // (Copilot plan-review #1261 s2pf-15). A genuine read error propagates exactly as
             // it does in WF.
-            byte[] b = System.IO.File.ReadAllBytes(filename);
+            byte[] b = readBytes(filename);
 
             // WF :4320 — chaddr = U.atoi0x(U.at(sp, 2)); the address the block was relocated
             // to, so MakeMaskAddress can mask the LDR-pointer words that depend on it.

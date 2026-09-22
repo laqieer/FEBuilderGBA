@@ -171,6 +171,29 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(eaFile); CoreState.Undo = null!; }
         }
 
+        [Fact]
+        public void Uninstall_ExplicitRom_IgnoresReplacementGlobalState()
+        {
+            var source = CreateFE8Rom();
+            byte[] clean = (byte[])source.Data.Clone();
+            uint patchAddr = 0x800000;
+            source.write_u8(patchAddr, 0xDE);
+            var replacement = CreateFE8Rom();
+            byte[] replacementBefore = (byte[])replacement.Data.Clone();
+            CoreState.ROM = replacement;
+            var undo = NewUndo(source);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
+            try
+            {
+                var result = EventAssemblerUninstallCore.Uninstall(source, eaFile, clean, undo);
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.Equal(clean[patchAddr], (byte)source.u8(patchAddr));
+                Assert.Equal(replacementBefore, replacement.Data);
+            }
+            finally { TryDelete(eaFile); CoreState.Undo = null!; }
+        }
+
         // ---- Untraceable blocks are SIGNALLED, never silently dropped --------------
         //
         // An .event with a traceable ORG range AND an un-hinted inline `#incext Png2Dmp`
@@ -295,6 +318,40 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(trace.UntracedCount > 0);
                 Assert.Equal(trace.UntracedCount, trace.Untraceable.Count);
                 Assert.NotEmpty(trace.Untraceable);
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
+        [Fact]
+        public void TraceEAFile_ExplicitRom_DoesNotFollowGlobalRomReplacement()
+        {
+            ROM capturedRom = CreateFE8Rom();
+            const uint tracedAddress = 0x12340;
+            capturedRom.write_u32(tracedAddress, 0x44332211);
+
+            var replacementRom = new ROM();
+            replacementRom.LoadLow("replacement.gba", new byte[0x1000000], "BE8E01");
+            replacementRom.write_u32(tracedAddress, 0x88776655);
+            CoreState.ROM = replacementRom;
+
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-explicit-rom-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            File.WriteAllBytes(Path.Combine(eaDir, "explicit.bin"),
+                new byte[] { 0x11, 0x22, 0x33, 0x44 });
+            string eaFile = Path.Combine(eaDir, "explicit.event");
+            File.WriteAllText(eaFile,
+                "ORG 0x" + tracedAddress.ToString("X") + "\r\n" +
+                "#incbin \"explicit.bin\" // HINT=BIN\r\n");
+            try
+            {
+                var trace = EventAssemblerUninstallCore.TraceEAFile(capturedRom, eaFile);
+
+                Assert.True(trace.FullyTraced);
+                Assert.Empty(trace.Untraceable);
+                var mapping = trace.Mappings.Find(item =>
+                    item.addr == tracedAddress && item.length == 4);
+                Assert.NotNull(mapping);
+                Assert.Equal(new byte[] { 0x11, 0x22, 0x33, 0x44 }, mapping.bin);
             }
             finally { try { Directory.Delete(eaDir, true); } catch { } }
         }

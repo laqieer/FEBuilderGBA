@@ -464,9 +464,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // explicitly to the Core helper" pattern).
             var undoService = new UndoService();
             Undo undoMgr = CoreState.Undo;
-            Undo.UndoData undo = undoMgr != null
-                ? undoMgr.NewUndoData("Event Script Write All")
-                : new Undo.UndoData { name = "Event Script Write All", list = new List<Undo.UndoPostion>() };
+            var identity = PatchDatabaseImportService.CaptureCurrentRom();
+            if (undoMgr == null || identity == null)
+            {
+                StatusText = R._("Error: ROM identity or undo history is unavailable.");
+                return false;
+            }
+            Undo.UndoData undo = undoMgr.NewUndoData("Event Script Write All");
+            bool modifiedBefore = rom.Modified;
+            EtcCacheSnapshot? commentCacheBefore = null;
+            CoreState.CommentCache?.TryCaptureAll(out commentCacheBefore);
+            List<EventScript.OneCode> editorSnapshot =
+                _editor.Codes.Select(EventScript.CloneCode).ToList();
+            bool committed = false;
 
             try
             {
@@ -477,7 +487,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     case EventScriptEditorCore.WriteResult.InPlace:
                     case EventScriptEditorCore.WriteResult.Relocated:
-                        undoService.CommitExternal(undo);
+                        bool mutated = undo.list.Count > 0 || undo.filesize != (uint)rom.Data.Length;
+                        var appliedIdentity = identity.RefreshAfterOwnedMutation();
+                        if (appliedIdentity == null || !appliedIdentity.IsCurrent ||
+                            (mutated && !undoService.CommitExternal(rom, undoMgr, undo)))
+                        {
+                            if (appliedIdentity?.IsSourceCurrent == true)
+                                undoService.RestoreExternal(
+                                    rom, undo, modifiedBefore, commentCacheBefore);
+                            throw new InvalidOperationException("Event script undo history was not committed.");
+                        }
+                        committed = true;
                         CurrentAddr = newAddr;
                         AddressText = $"0x{U.toPointer(newAddr):X08}";
                         IsDirty = false;
@@ -507,6 +527,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                                      "Add the script's End/TERM command before writing. ROM unchanged.";
                         return false;
 
+                    case EventScriptEditorCore.WriteResult.NoOp:
+                        IsDirty = false;
+                        StatusText = R._("The script already matches the ROM.");
+                        return true;
+
                     case EventScriptEditorCore.WriteResult.UnsafeAddress:
                         StatusText = "Unsafe target address: must be 4-byte aligned and within the " +
                                      "safe ROM range (>= 0x200, not the header/BIOS). ROM unchanged.";
@@ -519,9 +544,16 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
             catch (Exception ex)
             {
-                // WriteAll restores byte-identical on a fault; undo.list is rolled back.
+                if (!committed)
+                {
+                    // WriteAll restores byte-identical on a fault; keep the editor aligned
+                    // with that rollback. A post-commit display failure must not restore
+                    // stale commands over the successfully written ROM state.
+                    _editor.SetCodes(editorSnapshot);
+                    RefreshDisplay();
+                }
                 StatusText = $"Error writing script: {ex.Message}";
-                return false;
+                return committed;
             }
         }
 

@@ -1,7 +1,9 @@
 ﻿using global::Avalonia;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -145,6 +147,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 await ShowInfo("No ROM loaded.");
                 return;
             }
+            var identity = new PatchDatabaseImportService.RomIdentity(rom);
 
             // Parse target language from the TO combo.
             string toLang = ToolTranslateROMCore.ParseLanguageKey(
@@ -176,7 +179,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 chapterNameTextOk = PatchDetection.SearchChapterNameToTextPatch(rom);
                 if (!chapterNameTextOk && rom.RomInfo.version == 8)
                 {
-                    await ShowChapterNameTextRecommendation(rom);
+                    var continuation = await ShowChapterNameTextRecommendation(rom, identity);
+                    if (continuation == null || !continuation.IsCurrent) return;
+                    identity = continuation;
                     // Re-check: ShowChapterNameTextRecommendation installs the patch
                     // when the user clicks Apply. The wipe proceeds only if it's now
                     // present.
@@ -184,14 +189,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
-            _vm.UndoService.Begin("Translate ROM");
+            if (!identity.IsCurrent) return;
             try
             {
-                int total = 0;
                 // Heavy I/O + decode work runs on a background thread so the
                 // UI thread stays responsive (mirrors WF AutoPleaseWait /
                 // DoEvents which yields control during the loop).
-                await Task.Run(() =>
+                var result = await ToolTranslateRomMutationService.ExecuteAsync(
+                    rom, identity, _vm.UndoService, (working, undo) =>
                 {
                     var opts = new ToolTranslateROMCore.SimpleFireOptions
                     {
@@ -206,13 +211,15 @@ namespace FEBuilderGBA.Avalonia.Views
                         // captured value (no dialog on the worker thread).
                         ChapterNameTextPrecondition = () => chapterNameTextOk,
                     };
-                    var recycle = new RecycleAddress();
-                    total = ToolTranslateROMCore.SimpleFireTranslate(rom, opts, recycle,
-                        _vm.UndoService.GetActiveUndoData(), null);
+                    var recycle = new RecycleAddress(working);
+                    return ToolTranslateROMCore.SimpleFireTranslate(working, opts, recycle, undo, null);
                 });
-
-                _vm.UndoService.Commit();
-                string msg = $"Translation complete. {total} text entries written.";
+                if (!result.Applied)
+                {
+                    await ShowError("Translation was cancelled because the loaded ROM changed.");
+                    return;
+                }
+                string msg = $"Translation complete. {result.Total} text entries written.";
                 if (overrideJpFont)
                 {
                     msg += "\n\n" + R._("Override JP Font: the Japanese font tables were wiped " +
@@ -222,7 +229,6 @@ namespace FEBuilderGBA.Avalonia.Views
             }
             catch (Exception ex)
             {
-                _vm.UndoService.Rollback();
                 await ShowError("Translation failed: " + ex.Message);
                 Log.ErrorF("ToolTranslateROMView.SimpleFire: {0}", ex.Message);
             }
@@ -499,79 +505,57 @@ namespace FEBuilderGBA.Avalonia.Views
         /// caller's re-check can then let the chapter-title wipe proceed. Clicking
         /// Skip leaves the patch absent, and the wipe skips the chapter-title part.
         /// </summary>
-        async Task ShowChapterNameTextRecommendation(ROM rom)
+        internal async Task<PatchDatabaseImportService.RomIdentity?> ShowChapterNameTextRecommendation(
+            ROM rom, PatchDatabaseImportService.RomIdentity identity, Func<Task<bool>>? prompt = null,
+            Func<string, ROM, string, CancellationToken, List<PatchMetadataCore.PatchInfo>>? discover = null,
+            CancellationToken token = default)
         {
             try
             {
-                var view = await WindowManager.Instance.OpenModal<HowDoYouLikePatchView>(
+                async Task<bool> Prompt()
+                {
+                    var view = await WindowManager.Instance.OpenModal<HowDoYouLikePatchView>(
                     TopLevel.GetTopLevel(this) as Window,
                     v => v.SetPatchInfo(R._(
                         "To display chapter titles as text (required before wiping the Japanese " +
                         "chapter-title images), the ChapterNameToText patch must be installed. " +
                         "Apply it now?")));
-                if (!view.UserApplied) return; // Skip — leave the patch absent.
-
-                // Apply the ChapterNameToText patch (mirrors WF Enable button ->
-                // PatchForm.ApplyPatch). On success the caller's re-check of
-                // SearchChapterNameToTextPatch passes and the wipe proceeds.
-                string result = InstallChapterNameToTextPatch(rom);
-                if (!PatchDetection.SearchChapterNameToTextPatch(rom))
+                    return view.UserApplied;
+                }
+                var result = await new ChapterNameTextPatchService(discover).RecommendAsync(
+                    rom, identity, _vm.UndoService, prompt ?? Prompt, token);
+                if (result.Identity == null)
+                {
+                    await ShowInfo(FormatChapterNameTextResult(result));
+                    return !token.IsCancellationRequested && identity.IsCurrent ? identity : null;
+                }
+                if (!result.Identity.IsCurrent) return null;
+                if (result.Applied && !PatchDetection.SearchChapterNameToTextPatch(rom))
                 {
                     await ShowInfo(R._("Could not install the ChapterNameToText patch.") +
-                        "\n" + result);
+                        "\n" + result.Message);
                 }
+                return result.Identity.IsCurrent ? result.Identity : null;
             }
             catch (Exception ex)
             {
                 Log.ErrorF("ToolTranslateROMView.ShowChapterNameTextRecommendation: {0}", ex.Message);
+                return null;
             }
         }
 
-        /// <summary>
-        /// Find and apply the "Convert Chapter Titles to Text" patch for the
-        /// current ROM version (the WF ChapterNameToText patch). Returns a status
-        /// message. Mirrors <see cref="PatchManagerViewModel.InstallPatch"/>'s
-        /// enumerate -&gt; ApplyPatch path. The mutation is recorded in the active
-        /// translate undo scope.
-        /// </summary>
-        string InstallChapterNameToTextPatch(ROM rom)
+        internal static string FormatChapterNameTextResult(ChapterNameTextPatchService.Result result)
         {
-            try
+            return result.Failure switch
             {
-                string version = rom.RomInfo.VersionToFilename;
-                string patchDir = PatchManagerViewModel.ResolvePatchDirectory(version);
-                string lang = PatchMetadataCore.GetLanguageSuffix();
-                var infos = PatchMetadataCore.EnumeratePatches(patchDir, rom, lang);
-
-                // Match the WF ChapterNameToText installer patch by name.
-                var target = infos.FirstOrDefault(p =>
-                    p.Name.IndexOf("Convert Chapter Titles to Text",
-                        StringComparison.OrdinalIgnoreCase) >= 0);
-                if (target == null || string.IsNullOrEmpty(target.PatchFilePath))
-                    return "ChapterNameToText patch not found in " + patchDir;
-
-                // The patch install is a distinct user action (the Apply button),
-                // so it gets its OWN undo scope — separate from the translate undo
-                // begun later in SimpleFire_Click.
-                _vm.UndoService.Begin("Install ChapterNameToText");
-                try
-                {
-                    var res = PatchMetadataCore.ApplyPatch(rom, target.PatchFilePath,
-                        _vm.UndoService.GetActiveUndoData());
-                    _vm.UndoService.Commit();
-                    return res.Message ?? string.Empty;
-                }
-                catch
-                {
-                    _vm.UndoService.Rollback();
-                    throw;
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.ErrorF("ToolTranslateROMView.InstallChapterNameToTextPatch: {0}", ex.Message);
-                return ex.Message;
-            }
+                ChapterNameTextPatchService.FailureKind.PatchNotFound =>
+                    R._("ChapterNameToText patch not found in {0}", result.Detail),
+                ChapterNameTextPatchService.FailureKind.ApplyFailed =>
+                    R._("Could not install the ChapterNameToText patch."),
+                ChapterNameTextPatchService.FailureKind.CommittedRomChanged =>
+                    R._("The loaded ROM changed while finalizing the ChapterNameToText patch."),
+                _ => result.Message,
+            };
         }
 
         public void NavigateTo(uint address) { /* tool dialog - nothing to navigate to */ }

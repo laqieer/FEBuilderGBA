@@ -60,6 +60,78 @@ def run_command(step: str) -> str:
         if line.startswith("        ") and line.strip()
     )
 
+PROOF_HOST_CHECK = """$ErrorActionPreference = 'Stop'
+$null = Get-Command pwsh -CommandType Application -ErrorAction Stop
+if ($PSVersionTable.PSEdition -ne 'Core' -or $PSVersionTable.PSVersion.Major -ne 7 -or $PSVersionTable.PSVersion -lt [version]'7.5') { throw 'Supported PowerShell 7.5+ required.' }"""
+PROOF_COMMAND = r"""$ErrorActionPreference = 'Stop'
+& pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+python -m unittest scripts.tests.test_offline_patch_import_proof -v
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }"""
+
+
+def assert_offline_proof_contract(text: str) -> None:
+    build = all_job_blocks(text)["build"]
+    header = build.split("    steps:", 1)[0]
+    if re.search(r"(?mi)^\s*(?:if|continue-on-error|allow-failure|allowed-failure|exclude)\s*:", header):
+        raise AssertionError("Proof job/matrix bypass")
+    matrix = re.findall(r"(?m)^          - check_name: (.+)\n            runner: (.+)$", header)
+    if matrix != [("ubuntu-latest", "ubuntu-latest"), ("macos-latest", "macos-15"), ("windows-latest", "windows-latest")]:
+        raise AssertionError("Proof must run on the unchanged three-OS matrix")
+    pairs = named_steps(build)
+    names = [name for name, _ in pairs]
+    for name, expected in (("Require preinstalled PowerShell 7", PROOF_HOST_CHECK),
+                           ("Run offline patch-import proof pure tests", PROOF_COMMAND)):
+        if names.count(name) != 1:
+            raise AssertionError("Exactly one unconditional proof step required")
+        step = pairs[names.index(name)][1]
+        metadata = re.findall(r"(?m)^      (\S+):\s*(.*)$", step)
+        if metadata != [("shell", "pwsh"), ("run", "|")]:
+            raise AssertionError("Proof shell/step bypass")
+        if run_command(step) != expected:
+            raise AssertionError("Exact fail-closed proof invocation required")
+    if not names.index("Setup .NET 10.0") < names.index("Require preinstalled PowerShell 7") < names.index("Run offline patch-import proof pure tests"):
+        raise AssertionError("Proof prerequisite ordering")
+    if text.count(r"& pwsh -NoLogo -NoProfile -NonInteractive -File scripts\OfflinePatchImportProof\test-pure.ps1") != 1:
+        raise AssertionError("Duplicate proof invocation")
+
+
+class OfflineProofWorkflowContractTests(unittest.TestCase):
+    def test_exact_three_os_proof_contract(self):
+        assert_offline_proof_contract(WORKFLOW_PATH.read_text(encoding="utf-8"))
+
+    def test_each_failure_bypass_is_rejected(self):
+        text = WORKFLOW_PATH.read_text(encoding="utf-8")
+        step = "    - name: Run offline patch-import proof pure tests\n"
+        mutations = {
+            "step-if": (step, step + "      if: false\n"),
+            "step-continue": (step, step + "      continue-on-error: true\n"),
+            "job-if": ("  build:\n", "  build:\n    if: false\n"),
+            "job-continue": ("  build:\n", "  build:\n    continue-on-error: true\n"),
+            "allowed-matrix-failure": ("            runner: macos-15\n", "            runner: macos-15\n            allow-failure: true\n"),
+            "matrix-exclude": ("    strategy:\n", "    strategy:\n      exclude: [ubuntu-latest]\n"),
+            "two-os": ("          - check_name: macos-latest\n            runner: macos-15\n", ""),
+            "wrong-shell": ("      shell: pwsh\n", "      shell: bash\n"),
+            "ignored-native-exit": ("{ exit $LASTEXITCODE }", "{ exit 0 }"),
+            "success-wrapper": ("& pwsh -NoLogo", "try { & pwsh -NoLogo"),
+            "retry": ("& pwsh -NoLogo", "retry & pwsh -NoLogo"),
+            "filter": (r"test-pure.ps1" + "\n", r"test-pure.ps1 -Filter fast" + "\n"),
+            "suppression": ("$ErrorActionPreference = 'Stop'", "$ErrorActionPreference = 'Continue'"),
+            "missing-host-check": ("$null = Get-Command pwsh -CommandType Application -ErrorAction Stop", "# missing availability check"),
+            "missing-version": ("$PSVersionTable.PSVersion.Major -ne 7", "$false"),
+            "conditional-host-check": ("    - name: Require preinstalled PowerShell 7\n", "    - name: Require preinstalled PowerShell 7\n      if: false\n"),
+            "host-after-tests": ("    - name: Require preinstalled PowerShell 7\n", "    - name: Missing host check\n"),
+            "duplicate-step": (step, step + step),
+            "hidden-extra-command": ("        python -m unittest scripts.tests.test_offline_patch_import_proof -v", "        exit 0\n        python -m unittest scripts.tests.test_offline_patch_import_proof -v"),
+        }
+        for name, (before, after) in mutations.items():
+            with self.subTest(bypass=name):
+                self.assertIn(before, text)
+                changed = text.replace(before, after, 1)
+                self.assertNotEqual(text, changed)
+                with self.assertRaises(AssertionError):
+                    assert_offline_proof_contract(changed)
+
 
 class CrossPlatformWorkflowContractTests(unittest.TestCase):
     @classmethod
@@ -80,7 +152,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
     def test_contract_job_gates_parallel_dotnet_jobs(self) -> None:
         contract_steps = dict(named_steps(self.jobs["workflow-contract"]))
         self.assertEqual(
-            "python -m unittest scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v",
+            "python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v",
             run_command(contract_steps["Validate fail-closed .NET workflow steps"]),
         )
         self.assertRegex(self.jobs["build"], r"(?m)^    needs: workflow-contract$")
@@ -108,9 +180,6 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     "FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj",
                 ),
                 "Run Core tests": ("test", "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj"),
-                "Run Core tests (macOS no-dump diagnostics)": (
-                    "test", "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj",
-                ),
                 "Run Avalonia tests (data-verify headless validation)": (
                     "test",
                     "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
@@ -285,6 +354,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
 
 class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):
     MAC_STEP = "Run Core tests (macOS no-dump diagnostics)"
+    WATCHDOG_COMMAND = "python scripts/ci_core_test_watchdog.py"
     CORE_COMMAND = (
         "dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj "
         "-c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false "
@@ -323,7 +393,8 @@ class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):
             )
         self.assertEqual([non_mac], re.findall(r"(?m)^      if:\s*(.+)$", steps["Run Core tests"]))
         self.assertEqual(self.CORE_COMMAND, run_command(steps["Run Core tests"]))
-        self.assertEqual(self.MAC_COMMAND, run_command(steps[self.MAC_STEP]))
+        self.assertEqual(self.WATCHDOG_COMMAND, run_command(steps[self.MAC_STEP]))
+        self.assertNotIn(self.MAC_COMMAND, run_command(steps[self.MAC_STEP]))
         self.assertEqual(["15"], re.findall(r"(?m)^      timeout-minutes:\s*(\d+)$", steps[self.MAC_STEP]))
         self.assertEqual(
             "python scripts/ci_core_diagnostics.py prepare", run_command(steps[self.PREPARE])
@@ -417,19 +488,18 @@ class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):
                 ) if condition]
                 self.assertEqual(1, len(selected))
                 command = run_command(steps[selected[0]])
-                self.assertEqual(self.MAC_COMMAND if runner == "macos-15" else self.CORE_COMMAND, command)
+                self.assertEqual(
+                    self.WATCHDOG_COMMAND if runner == "macos-15" else self.CORE_COMMAND,
+                    command,
+                )
 
     def test_live_contract_rejects_diagnostic_bypasses(self) -> None:
         text = WORKFLOW_PATH.read_text(encoding="utf-8")
         self.assert_contract(text)
         mutations = (
-            ("no dump", "--blame-hang-dump-type none", "--blame-hang-dump-type full"),
-            ("hang limit", "--blame-hang-timeout 5m", "--blame-hang-timeout 0"),
             ("step limit", "      timeout-minutes: 15", "      timeout-minutes: 0"),
-            ("filter", self.MAC_COMMAND, self.MAC_COMMAND + " --filter FullyQualifiedName~One"),
-            ("trace", self.MAC_COMMAND, self.MAC_COMMAND + " --diag private.log"),
-            ("crash", self.MAC_COMMAND, self.MAC_COMMAND + " --blame-crash"),
-            ("mask exit", self.MAC_COMMAND, self.MAC_COMMAND + " || true"),
+            ("watchdog", self.WATCHDOG_COMMAND, "python scripts/other.py"),
+            ("mask exit", self.WATCHDOG_COMMAND, self.WATCHDOG_COMMAND + " || true"),
             ("runner", "            runner: macos-15", "            runner: macos-14"),
             ("permission", "  contents: read", "  contents: write"),
             ("overlap", "matrix.runner != 'macos-15'", "matrix.runner == 'macos-15'"),

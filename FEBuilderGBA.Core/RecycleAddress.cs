@@ -8,12 +8,26 @@ namespace FEBuilderGBA
     public class RecycleAddress
     {
         List<Address> Recycle;
+        readonly ROM? boundRom;
+        ROM TargetRom => boundRom ?? CoreState.ROM;
+
         public RecycleAddress()
         {
             this.Recycle = new List<Address>();
         }
+        public RecycleAddress(ROM rom)
+        {
+            boundRom = rom ?? throw new ArgumentNullException(nameof(rom));
+            this.Recycle = new List<Address>();
+        }
         public RecycleAddress(List<Address> list)
         {
+            this.Recycle = list;
+            this.RecycleOptimize();
+        }
+        public RecycleAddress(ROM rom, List<Address> list)
+        {
+            boundRom = rom ?? throw new ArgumentNullException(nameof(rom));
             this.Recycle = list;
             this.RecycleOptimize();
         }
@@ -174,7 +188,7 @@ namespace FEBuilderGBA
 
         public uint WritePointerOnly(uint write_pointer, uint content_addr, Undo.UndoData undodata)
         {
-            CoreState.ROM.write_p32(write_pointer, content_addr, undodata);
+            TargetRom.write_p32(write_pointer, content_addr, undodata);
             return content_addr;
         }
         public uint WriteAndWritePointer(uint write_pointer, byte[] write_data, Undo.UndoData undodata)
@@ -185,7 +199,7 @@ namespace FEBuilderGBA
                 return U.NOT_FOUND;
             }
             //ポインタ先に書き込んで領域を入れる
-            CoreState.ROM.write_p32(write_pointer, use_addr, undodata);
+            TargetRom.write_p32(write_pointer, use_addr, undodata);
 
             return use_addr;
         }
@@ -211,7 +225,7 @@ namespace FEBuilderGBA
         /// </summary>
         public uint WritePointerOnlyAmbient(uint write_pointer, uint content_addr)
         {
-            CoreState.ROM.write_p32(write_pointer, content_addr);
+            TargetRom.write_p32(write_pointer, content_addr);
             return content_addr;
         }
 
@@ -227,7 +241,7 @@ namespace FEBuilderGBA
             {
                 return U.NOT_FOUND;
             }
-            CoreState.ROM.write_p32(write_pointer, use_addr);
+            TargetRom.write_p32(write_pointer, use_addr);
             return use_addr;
         }
 
@@ -266,7 +280,7 @@ namespace FEBuilderGBA
                         Log.Notify("アドレスが端数値なので補正します。", U.To0xHexString(p.Addr));
                     }
 
-                    CoreState.ROM.write_range(use_addr, write_data);
+                    TargetRom.write_range(use_addr, write_data);
                     uint next_addr = U.Padding4(use_addr + (uint)write_data.Length);
                     left_size = U.Sub(left_size, (next_addr - use_addr));
 
@@ -296,18 +310,18 @@ namespace FEBuilderGBA
 
             int lastI = this.Recycle.Count - 1;
             Address lastP = this.Recycle[lastI];
-            if (lastP.Addr + lastP.Length >= CoreState.ROM.Data.Length)
+            if (lastP.Addr + lastP.Length >= TargetRom.Data.Length)
             {
                 // Tail-resize special case (matches Write(_,undodata)).
                 // Bail out on a failed resize (e.g., >32MB) so the caller
                 // gets U.NOT_FOUND instead of a crashing write_range
                 // (Copilot bot review on PR #634).
                 uint newRomSize = U.Padding4(lastP.Addr + (uint)write_data.Length);
-                if (!CoreState.ROM.write_resize_data(newRomSize))
+                if (!TargetRom.write_resize_data(newRomSize))
                 {
                     return U.NOT_FOUND;
                 }
-                CoreState.ROM.write_range(lastP.Addr, write_data);
+                TargetRom.write_range(lastP.Addr, write_data);
                 this.Recycle.RemoveAt(lastI);
                 return lastP.Addr;
             }
@@ -328,7 +342,7 @@ namespace FEBuilderGBA
         /// </summary>
         uint AllocFreeSpace(byte[] write_data)
         {
-            var rom = CoreState.ROM;
+            var rom = TargetRom;
             uint searchStart = (uint)(rom.Data.Length / 2);
             uint addr = rom.FindFreeSpace(searchStart, (uint)write_data.Length);
             if (addr == U.NOT_FOUND)
@@ -356,7 +370,7 @@ namespace FEBuilderGBA
         {
             foreach (Address p in Recycle)
             {
-                CoreState.ROM.write_fill(p.Addr, p.Length, 0x00);
+                TargetRom.write_fill(p.Addr, p.Length, 0x00);
             }
             this.Recycle.Clear();
         }
@@ -390,7 +404,7 @@ namespace FEBuilderGBA
                     }
 
                     //ちょうど良い領域があったので利用しよう
-                    CoreState.ROM.write_range(use_addr, write_data, undodata);
+                    TargetRom.write_range(use_addr, write_data, undodata);
                     uint next_addr = U.Padding4(use_addr + (uint)write_data.Length);
                     left_size = U.Sub(left_size, (next_addr - use_addr));
 
@@ -407,32 +421,39 @@ namespace FEBuilderGBA
             if (this.Recycle.Count <= 0)
             {
                 //空き領域から利用.
-                if (CoreState.AppendBinaryData != null)
+                if (boundRom == null)
                 {
-                    return CoreState.AppendBinaryData(write_data, undodata);
+                    return CoreState.AppendBinaryData != null
+                        ? CoreState.AppendBinaryData(write_data, undodata)
+                        : U.NOT_FOUND;
                 }
-                return U.NOT_FOUND;
+                return AllocFreeSpace(write_data, undodata);
             }
             else
             {
                 int lasiI = this.Recycle.Count - 1;
                 Address lastP = this.Recycle[lasiI];
-                if (lastP.Addr + lastP.Length >= CoreState.ROM.Data.Length)
+                if (lastP.Addr + lastP.Length >= TargetRom.Data.Length)
                 {//自分が最後のデータだった場合
                     //ROMサイズを増設.
-                    CoreState.ROM.write_resize_data(U.Padding4(lastP.Addr + (uint)write_data.Length));
-                    CoreState.ROM.write_range(lastP.Addr, write_data, undodata);
+                    if (!TargetRom.write_resize_data(U.Padding4(lastP.Addr + (uint)write_data.Length)))
+                    {
+                        return U.NOT_FOUND;
+                    }
+                    TargetRom.write_range(lastP.Addr, write_data, undodata);
 
                     this.Recycle.RemoveAt(lasiI);
                     return lastP.Addr;
                 }
 
                 //空き領域から利用.
-                if (CoreState.AppendBinaryData != null)
+                if (boundRom == null)
                 {
-                    return CoreState.AppendBinaryData(write_data, undodata);
+                    return CoreState.AppendBinaryData != null
+                        ? CoreState.AppendBinaryData(write_data, undodata)
+                        : U.NOT_FOUND;
                 }
-                return U.NOT_FOUND;
+                return AllocFreeSpace(write_data, undodata);
             }
         }
 
@@ -442,9 +463,28 @@ namespace FEBuilderGBA
         {
             foreach(Address p in Recycle)
             {
-                CoreState.ROM.write_fill(p.Addr, p.Length, 0x00, undodata);
+                TargetRom.write_fill(p.Addr, p.Length, 0x00, undodata);
             }
             this.Recycle.Clear();
+        }
+
+        uint AllocFreeSpace(byte[] write_data, Undo.UndoData undodata)
+        {
+            ROM rom = TargetRom;
+            uint addr = rom.FindFreeSpace((uint)(rom.Data.Length / 2), (uint)write_data.Length);
+            if (addr == U.NOT_FOUND)
+            {
+                addr = rom.FindFreeSpace(0x100u, (uint)write_data.Length);
+            }
+            if (addr == U.NOT_FOUND)
+            {
+                uint newSize = U.Padding4((uint)rom.Data.Length + (uint)write_data.Length);
+                if (newSize > 0x02000000u) return U.NOT_FOUND;
+                addr = (uint)rom.Data.Length;
+                if (!rom.write_resize_data(newSize)) return U.NOT_FOUND;
+            }
+            rom.write_range(addr, write_data, undodata);
+            return addr;
         }
     }
 }

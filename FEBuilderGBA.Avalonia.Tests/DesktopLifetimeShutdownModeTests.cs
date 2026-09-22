@@ -1,8 +1,8 @@
 using System;
-using Avalonia;
+using System.Runtime.ExceptionServices;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
-using Avalonia.Headless;
+using Avalonia.Headless.XUnit;
 using Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 
@@ -17,25 +17,6 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("WindowManagerSerial")]
 public sealed class DesktopLifetimeShutdownModeTests
 {
-    sealed class ClassicDesktopLifetimeApp : Application
-    {
-        public ClassicDesktopLifetimeApp()
-        {
-            var lifetime = new ClassicDesktopStyleApplicationLifetime();
-            Program.ConfigureDesktopLifetime(lifetime);
-            ApplicationLifetime = lifetime;
-        }
-
-        public override void Initialize() { }
-    }
-
-    sealed class ClassicDesktopLifetimeEntryPoint
-    {
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<ClassicDesktopLifetimeApp>()
-                .UseHeadless(new AvaloniaHeadlessPlatformOptions());
-    }
-
     sealed class LifecycleEditorWindow : Window, IEditorView
     {
         public string ViewTitle => "Lifecycle";
@@ -61,51 +42,132 @@ public sealed class DesktopLifetimeShutdownModeTests
         Assert.Equal(ShutdownMode.OnMainWindowClose, lifetime.ShutdownMode);
     }
 
+    [Theory]
+    [InlineData(nameof(LoadingHandoffKeepsMainWindowShutdownPolicyAndClosesEditorsExactlyOnce), typeof(AvaloniaTheoryAttribute))]
+    [InlineData(nameof(LoadingHandoffConstructionFailureKeepsTheLiveLoadingWindow), typeof(AvaloniaFactAttribute))]
+    [InlineData(nameof(LifetimeTestHelperPropagatesBodyFailures), typeof(AvaloniaFactAttribute))]
+    [InlineData(nameof(Closing_main_window_shuts_down_desktop_lifetime_and_closes_managed_editor), typeof(AvaloniaFactAttribute))]
+    public void LifetimeHelperConsumersUseFrameworkOwnedDispatcher(string methodName, Type expectedAttribute)
+    {
+        var method = typeof(DesktopLifetimeShutdownModeTests).GetMethod(methodName);
+
+        Assert.NotNull(method);
+        Assert.True(method.IsDefined(expectedAttribute, inherit: false),
+            $"{methodName} must use {expectedAttribute.Name} for framework-owned dispatcher execution.");
+    }
+
+    [AvaloniaTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void LoadingHandoffKeepsMainWindowShutdownPolicyAndClosesEditorsExactlyOnce(bool alreadyVisible)
+    {
+        WithClassicDesktopLifetime((lifetime, service) =>
+        {
+            var loading = new Window();
+            lifetime.MainWindow = loading;
+            int exits = 0;
+            lifetime.Exit += (_, _) => exits++;
+            if (alreadyVisible) loading.Show();
+            var shell = new Window();
+            PatchDatabaseStartupService.Handoff(lifetime, loading, () => shell);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Same(shell, lifetime.MainWindow);
+            Assert.True(shell.IsVisible);
+            Assert.False(loading.IsVisible);
+            Assert.Equal(0, exits);
+            Assert.Equal(ShutdownMode.OnMainWindowClose, lifetime.ShutdownMode);
+            WindowManager.Instance.MainWindow = shell;
+            var editor = service.Open<LifecycleEditorWindow>();
+            shell.Close();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, exits);
+            Assert.Equal(1, editor.ClosedCount);
+        });
+    }
+
+    [AvaloniaFact]
+    public void LoadingHandoffConstructionFailureKeepsTheLiveLoadingWindow()
+    {
+        WithClassicDesktopLifetime((lifetime, _) =>
+        {
+            var loading = new Window();
+            lifetime.MainWindow = loading;
+            loading.Show();
+            int exits = 0;
+            lifetime.Exit += (_, _) => exits++;
+            Assert.Throws<IOException>(() => PatchDatabaseStartupService.Handoff(lifetime, loading,
+                () => throw new IOException("shell construction")));
+            Assert.Same(loading, lifetime.MainWindow);
+            Assert.True(loading.IsVisible);
+            Assert.Equal(0, exits);
+            loading.Close();
+        });
+    }
+
+    [AvaloniaFact]
+    public void LifetimeTestHelperPropagatesBodyFailures()
+    {
+        var expected = new InvalidOperationException("Owned lifetime test failure");
+        var actual = Assert.Throws<InvalidOperationException>(() =>
+            WithClassicDesktopLifetime((_, _) => throw expected));
+        Assert.Same(expected, actual);
+    }
+
     static void WithClassicDesktopLifetime(Action<ClassicDesktopStyleApplicationLifetime, DesktopNavigationService> body)
     {
-        using var session = HeadlessUnitTestSession.StartNew(
-            typeof(ClassicDesktopLifetimeEntryPoint),
-            AvaloniaTestIsolationLevel.PerTest);
+        Assert.True(Dispatcher.UIThread.CheckAccess());
 
-        session.Dispatch(() =>
+        using var lifetime = new ClassicDesktopStyleApplicationLifetime();
+        Program.ConfigureDesktopLifetime(lifetime);
+        var originalService = WindowManager.Instance.Service;
+        var originalMainWindow = WindowManager.Instance.MainWindow;
+        int originalExitCode = Environment.ExitCode;
+        var service = new DesktopNavigationService();
+        WindowManager.Instance.SetService(service);
+        bool exited = false;
+        lifetime.Exit += (_, _) => exited = true;
+        ExceptionDispatchInfo? failure = null;
+        Dispatcher.UIThread.Post(() =>
         {
-            var originalService = WindowManager.Instance.Service;
-            var originalMainWindow = WindowManager.Instance.MainWindow;
-            var service = new DesktopNavigationService();
-            WindowManager.Instance.SetService(service);
+            try { body(lifetime, service); }
+            catch (Exception ex) { failure = ExceptionDispatchInfo.Capture(ex); }
+            finally
+            {
+                if (!exited) lifetime.Shutdown();
+            }
+        });
 
+        try
+        {
+            lifetime.Start(Array.Empty<string>());
+            failure?.Throw();
+        }
+        finally
+        {
             try
             {
-                var lifetime = Assert.IsType<ClassicDesktopStyleApplicationLifetime>(
-                    Application.Current!.ApplicationLifetime);
-                body(lifetime, service);
+                WindowManager.Instance.CloseAll();
+                Dispatcher.UIThread.RunJobs();
             }
-            finally
+            catch { }
+
+            if (WindowManager.Instance.MainWindow is { } mainWindow)
             {
                 try
                 {
-                    WindowManager.Instance.CloseAll();
+                    mainWindow.Close();
                     Dispatcher.UIThread.RunJobs();
                 }
                 catch { }
-
-                if (WindowManager.Instance.MainWindow is { } mainWindow)
-                {
-                    try
-                    {
-                        mainWindow.Close();
-                        Dispatcher.UIThread.RunJobs();
-                    }
-                    catch { }
-                }
-
-                WindowManager.Instance.SetService(originalService);
-                WindowManager.Instance.MainWindow = originalMainWindow;
             }
-        }, default);
+
+            WindowManager.Instance.SetService(originalService);
+            WindowManager.Instance.MainWindow = originalMainWindow;
+            Environment.ExitCode = originalExitCode;
+        }
     }
 
-    [Fact]
+    [AvaloniaFact]
     public void Closing_main_window_shuts_down_desktop_lifetime_and_closes_managed_editor()
     {
         WithClassicDesktopLifetime((lifetime, service) =>

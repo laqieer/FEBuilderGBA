@@ -82,6 +82,59 @@ namespace FEBuilderGBA.Avalonia.Services
             return true;
         }
 
+        public virtual bool CommitExternal(ROM rom, Undo expectedUndo, Undo.UndoData undoData)
+        {
+            if (rom == null || expectedUndo == null || undoData == null ||
+                !ReferenceEquals(CoreState.ROM, rom) ||
+                !ReferenceEquals(CoreState.Undo, expectedUndo))
+                return false;
+            if (undoData.list.Count == 0 && (uint)rom.Data.Length == undoData.filesize)
+                return false;
+            expectedUndo.Push(undoData);
+            NotifyUnsavedChanges();
+            return true;
+        }
+
+        public virtual void RestoreExternal(ROM rom, Undo.UndoData undoData)
+        {
+            RestoreExternal(rom, undoData, rom.Modified, null);
+        }
+
+        public void RestoreExternal(
+            ROM rom,
+            Undo.UndoData undoData,
+            bool modifiedBefore,
+            EtcCacheSnapshot? commentCacheBefore)
+        {
+            ArgumentNullException.ThrowIfNull(rom);
+            ArgumentNullException.ThrowIfNull(undoData);
+            if ((uint)rom.Data.Length < undoData.filesize &&
+                !rom.write_resize_data(undoData.filesize))
+                throw new InvalidOperationException("The source ROM could not be restored.");
+            for (int i = undoData.list.Count - 1; i >= 0; i--)
+            {
+                Undo.UndoPostion position = undoData.list[i];
+                Array.Copy(position.data, 0, rom.Data, position.addr, position.data.Length);
+            }
+            ImageImportCore.RestoreExactRomLengthAfterUndo(rom, undoData.filesize);
+            rom.RestoreModifiedFlag(modifiedBefore);
+            if (commentCacheBefore != null &&
+                ReferenceEquals(CoreState.ROM, rom))
+                CoreState.CommentCache?.TryRestoreAll(commentCacheBefore);
+        }
+
+        public virtual void RollbackExternal(ROM rom, Undo.UndoData undoData)
+        {
+            if (rom == null || undoData == null || CoreState.Undo == null ||
+                !ReferenceEquals(CoreState.ROM, rom))
+                return;
+            if (undoData.list.Count == 0 && (uint)rom.Data.Length == undoData.filesize)
+                return;
+            CoreState.Undo.Push(undoData);
+            CoreState.Undo.RunUndo();
+            ImageImportCore.RestoreExactRomLengthAfterUndo(rom, undoData.filesize);
+        }
+
         /// <summary>Whether there's an active undo group.</summary>
         public bool HasPendingUndo => _currentUndoData != null;
 

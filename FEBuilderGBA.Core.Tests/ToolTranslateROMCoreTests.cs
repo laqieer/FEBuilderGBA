@@ -36,6 +36,40 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        [Fact]
+        public void BoundRecycleTail_WhenGrowthExceeds32MiB_ReturnsNotFoundWithoutMutation()
+        {
+            ROM rom = MakeRomLoadable("BE8E01");
+            Assert.True(rom.write_resize_data(0x01FFFFFC));
+            ROM previous = CoreState.ROM;
+            CoreState.ROM = rom;
+            try
+            {
+                uint tail = (uint)rom.Data.Length - 4;
+                rom.write_fill(tail, 4, 0xA5);
+                byte[] before = (byte[])rom.Data.Clone();
+                var range = new Address(tail, 3, U.NOT_FOUND, "tail", Address.DataTypeEnum.BIN);
+                range.Length = 4;
+                var ranges = new System.Collections.Generic.List<Address> { range };
+                var recycle = new RecycleAddress(rom, ranges);
+                Undo.UndoData undo = NewUndo();
+
+                uint result = recycle.Write(new byte[12], undo);
+
+                Assert.Equal(U.NOT_FOUND, result);
+                Assert.Equal(before, rom.Data);
+                Assert.Empty(undo.list);
+                Assert.Single(ranges);
+                Assert.Same(range, ranges[0]);
+                Assert.Equal(tail, range.Addr);
+                Assert.Equal(4u, range.Length);
+            }
+            finally
+            {
+                CoreState.ROM = previous;
+            }
+        }
+
         // ============================================================
         // GetROMBaseTable
         // ============================================================

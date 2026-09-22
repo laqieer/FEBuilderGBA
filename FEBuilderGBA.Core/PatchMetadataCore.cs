@@ -3,8 +3,10 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.IO.Enumeration;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 
 namespace FEBuilderGBA
 {
@@ -75,16 +77,9 @@ namespace FEBuilderGBA
         /// <param name="patchBaseDir">The <c>config/patch2/{version}</c> directory.</param>
         public static bool IsPatchLibraryEmpty(string patchBaseDir)
         {
-            if (string.IsNullOrEmpty(patchBaseDir))
-                return true;
             try
             {
-                return Directory.GetFiles(patchBaseDir, "PATCH_*.txt", SearchOption.AllDirectories).Length == 0;
-            }
-            catch (DirectoryNotFoundException)
-            {
-                // Genuinely missing directory -> the fresh-install / not-initialized state.
-                return true;
+                return IsPatchLibraryEmpty(patchBaseDir, CancellationToken.None);
             }
             catch
             {
@@ -93,6 +88,26 @@ namespace FEBuilderGBA
                 // with the not-downloaded-yet notice and mask the actual failure. (Directory.Exists is
                 // deliberately NOT used to gate this: it also returns false on an existence-probe error,
                 // which would misclassify an inaccessible dir as "not initialized".)
+                return false;
+            }
+        }
+
+        internal static bool IsPatchLibraryEmpty(string patchBaseDir, CancellationToken token,
+            Action<string> visit = null)
+        {
+            token.ThrowIfCancellationRequested();
+            if (string.IsNullOrEmpty(patchBaseDir))
+                return true;
+            try
+            {
+                return !EnumeratePatchFiles(patchBaseDir, token, visit).Any();
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return true;
+            }
+            catch (Exception ex) when (IsExpectedFileSystemException(ex))
+            {
                 return false;
             }
         }
@@ -107,16 +122,58 @@ namespace FEBuilderGBA
         public static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang)
             => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null);
 
+        internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            CancellationToken cancellationToken)
+            => EnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, cancellationToken);
+
+        static readonly string PatchFilePattern = FileSystemName.TranslateWin32Expression("PATCH_*.txt");
+        static readonly bool IgnorePatchFileCase = OperatingSystem.IsWindows() || OperatingSystem.IsMacOS() ||
+            OperatingSystem.IsIOS() || OperatingSystem.IsTvOS();
+
+        internal static bool IsDiscoverablePatchFileName(string fileName)
+            => FileSystemName.MatchesWin32Expression(PatchFilePattern, fileName, IgnorePatchFileCase);
+
+        internal static string[] DiscoverPatchFiles(string directory, CancellationToken token,
+            Action<string> visit = null)
+            => EnumeratePatchFiles(directory, token, visit).ToArray();
+
+        static IEnumerable<string> EnumeratePatchFiles(string directory, CancellationToken token,
+            Action<string> visit)
+        {
+            token.ThrowIfCancellationRequested();
+            // Preserve Directory's SearchOption defaults, including access-error reporting.
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = false,
+                AttributesToSkip = 0,
+                MatchType = MatchType.Win32,
+            };
+            var entries = new FileSystemEnumerable<(string Path, bool IsDirectory)>(directory,
+                (ref FileSystemEntry entry) => (entry.ToSpecifiedFullPath(), entry.IsDirectory), options);
+            foreach (var entry in entries)
+            {
+                token.ThrowIfCancellationRequested();
+                visit?.Invoke(entry.Path);
+                token.ThrowIfCancellationRequested();
+                if (!entry.IsDirectory && IsDiscoverablePatchFileName(Path.GetFileName(entry.Path)))
+                    yield return entry.Path;
+            }
+            token.ThrowIfCancellationRequested();
+        }
+
         /// <summary>Internal read/listing seam for legacy per-file tolerance coverage.</summary>
         internal static List<PatchInfo> EnumeratePatches(string patchBaseDir, ROM rom, string lang,
-            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles)
+            Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
+            CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             var patches = new List<PatchInfo>();
             if (string.IsNullOrEmpty(patchBaseDir))
                 return patches;
 
             Func<string, string[]> list = listPatchFiles
-                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+                ?? (dir => DiscoverPatchFiles(dir, cancellationToken));
 
             string[] patchFiles;
             try
@@ -135,8 +192,10 @@ namespace FEBuilderGBA
 
             foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 string defaultName = GetDefaultPatchName(file);
                 PatchInfo info = ParsePatchFileTolerant(file, defaultName, rom, lang, readAllLines);
+                cancellationToken.ThrowIfCancellationRequested();
                 SetContainingDirectory(info, file);
                 patches.Add(info);
             }
@@ -154,6 +213,10 @@ namespace FEBuilderGBA
             out List<PatchInfo> patches, out string error)
             => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, out patches, out error);
 
+        internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
+            CancellationToken cancellationToken, out List<PatchInfo> patches, out string error)
+            => TryEnumeratePatches(patchBaseDir, rom, lang, File.ReadAllLines, null, out patches, out error, cancellationToken);
+
         /// <summary>Internal read seam for deterministic enumeration-failure coverage.</summary>
         internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             Func<string, string[]> readAllLines, out List<PatchInfo> patches, out string error)
@@ -167,8 +230,9 @@ namespace FEBuilderGBA
         /// </summary>
         internal static bool TryEnumeratePatches(string patchBaseDir, ROM rom, string lang,
             Func<string, string[]> readAllLines, Func<string, string[]> listPatchFiles,
-            out List<PatchInfo> patches, out string error)
+            out List<PatchInfo> patches, out string error, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             patches = new List<PatchInfo>();
             error = "";
             // A null/empty patchBaseDir never touches the filesystem — legacy callers rely on
@@ -177,7 +241,7 @@ namespace FEBuilderGBA
                 return true;
 
             Func<string, string[]> list = listPatchFiles
-                ?? (dir => Directory.GetFiles(dir, "PATCH_*.txt", SearchOption.AllDirectories));
+                ?? (dir => DiscoverPatchFiles(dir, cancellationToken));
 
             string[] patchFiles;
             try
@@ -207,8 +271,10 @@ namespace FEBuilderGBA
                 // filename minus the PATCH_ prefix).
                 foreach (string file in patchFiles.OrderBy(f => f, StringComparer.OrdinalIgnoreCase))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     string defaultName = GetDefaultPatchName(file);
                     var info = ParsePatchFileStrict(file, defaultName, rom, lang, readAllLines);
+                    cancellationToken.ThrowIfCancellationRequested();
                     SetContainingDirectory(info, file);
                     patches.Add(info);
                 }
@@ -1808,10 +1874,18 @@ namespace FEBuilderGBA
         /// </summary>
         public static List<PatchRegion> CollectPatchRegionsWithBytes(
             ROM rom, string patchFilePath, out int untraceableCount)
+            => CollectPatchRegionsWithBytesCore(rom, patchFilePath, out untraceableCount, File.Exists, File.ReadAllBytes);
+
+        internal static List<PatchRegion> CollectPatchRegionsWithBytesForTest(ROM rom, string patchFilePath,
+            out int untraceableCount, Func<string, bool> fileExists, Func<string, byte[]> readBytes)
+            => CollectPatchRegionsWithBytesCore(rom, patchFilePath, out untraceableCount, fileExists, readBytes);
+
+        static List<PatchRegion> CollectPatchRegionsWithBytesCore(ROM rom, string patchFilePath,
+            out int untraceableCount, Func<string, bool> fileExists, Func<string, byte[]> readBytes)
         {
             untraceableCount = 0;
             var regions = new List<PatchRegion>();
-            if (rom == null || !File.Exists(patchFilePath)) return regions;
+            if (rom == null || !fileExists(patchFilePath)) return regions;
 
             var allParams = ParsePatchParams(patchFilePath);
             string type = GetPatchType(allParams);
@@ -1847,10 +1921,10 @@ namespace FEBuilderGBA
                 if (addrPart.StartsWith("$", StringComparison.OrdinalIgnoreCase)) { untraceableCount++; continue; }
                 uint addr = ParseHexAddress(addrPart);
                 if (addr == U.NOT_FOUND) { untraceableCount++; continue; }
-                if (!File.Exists(filePath)) { untraceableCount++; continue; }
+                if (!fileExists(filePath)) { untraceableCount++; continue; }
 
                 byte[] binData;
-                try { binData = File.ReadAllBytes(filePath); }
+                try { binData = readBytes(filePath); }
                 catch { untraceableCount++; continue; }
                 if (binData.Length == 0) continue;
                 if (addr + binData.Length > rom.Data.Length) continue;

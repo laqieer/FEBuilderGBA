@@ -27111,6 +27111,12 @@ CSA动画扫描失败 — 帧数据指针无效。
 :Could not install the ChapterNameToText patch.
 无法安装 ChapterNameToText 补丁。
 
+:ChapterNameToText patch not found in {0}
+在 {0} 中未找到 ChapterNameToText 补丁。
+
+:The loaded ROM changed while finalizing the ChapterNameToText patch.
+完成 ChapterNameToText 补丁操作时，已加载的 ROM 发生了变化。
+
 :Could not read the skill palette; aborting import.
 无法读取技能调色板，导入中止。
 
@@ -28092,6 +28098,9 @@ ROM 重建需要桌面文件系统访问权限，本设备不可用。
 :Initialize Patch Database
 初始化补丁数据库
 
+:Update Patch Database
+更新补丁数据库
+
 :Initialize / Update Patch Database Now
 立即初始化/更新补丁数据库
 
@@ -28640,3 +28649,144 @@ Avalonia 补丁管理器目前不支持补丁类型“{0}”。
 
 :Unknown
 未知
+
+:Import Patch Database ZIP
+导入补丁数据库 ZIP
+
+:Patch database ZIP
+补丁数据库 ZIP
+
+:Load a ROM before importing its patch database.
+请先加载 ROM，再导入对应的补丁数据库。
+
+:Patch database import is unavailable for this ROM version.
+此 ROM 版本不支持导入补丁数据库。
+
+:Import the validated patch database for {0}?\r\nTarget: {1}\r\nFiles: {2}; expanded bytes: {3}\r\n{4}\r\nNo patches will be applied to the ROM.
+是否导入已验证的 {0} 补丁数据库？\r\n目标位置：{1}\r\n文件数：{2}；解压后字节数：{3}\r\n{4}\r\n不会向 ROM 应用任何补丁。
+
+:The existing database for this version will be replaced after confirmation.
+确认后将替换此版本现有的数据库。
+
+:A new database for this version will be installed.
+将安装此版本的新数据库。
+
+:Import cancelled. The previous database was not replaced.
+已取消导入，未替换原有数据库。
+
+:The loaded ROM changed. Import was cancelled; the previous database was not replaced.
+加载的 ROM 已发生变化。已取消导入，未替换原有数据库。
+
+:Validating the ZIP and staging the patch database…
+正在验证 ZIP 并将补丁数据库暂存至工作目录…
+
+:Working…
+正在处理…
+
+:Imported patch database for {0}; list refreshed. No patches were applied. Restart recommended for cached data.
+已导入 {0} 补丁数据库并刷新列表。未应用任何补丁。建议重新启动以更新缓存数据。
+
+:Imported patch database for {0}, but the list was not refreshed. Reopen Patch Manager. No patches were applied.
+已导入 {0} 补丁数据库，但未能刷新列表。请重新打开补丁管理器。未应用任何补丁。
+
+:Patch database import failed: {0}
+补丁数据库导入失败：{0}
+
+:The existing patch database changed while confirmation was open.
+确认对话框打开期间，现有补丁数据库已发生变化。
+
+:The existing patch database directory changed before promotion.
+应用前，现有补丁数据库目录已发生变化。
+
+:ZIP import cannot replace a Git-owned patch database. Use its Git update operation instead.
+ZIP 导入无法替换由 Git 管理的补丁数据库。请改用 Git 更新操作。
+
+:The patch database has not been installed yet.\r\nChoose Import Patch Database ZIP, or use Check for Updates / Initialize Repository.
+尚未安装补丁数据库。\r\n请选择“导入补丁数据库 ZIP”，或使用“检查更新”/“初始化仓库”。
+
+:The patch database could not be refreshed: {0}
+无法刷新补丁数据库：{0}
+
+:Reopen Patch Manager.
+请重新打开补丁管理器。
+
+:Patch database updated — list refreshed. Restart recommended for all changes to take full effect.
+补丁数据库已更新，列表已刷新。建议重启以使所有更改完全生效。
+
+:Patch database updated, but the list was not refreshed. Reopen Patch Manager.
+补丁数据库已更新，但列表未刷新。请重新打开补丁管理器。
+
+:The installed database could not be refreshed: {0}
+无法刷新已安装的数据库：{0}
+
+:Patch database recovery needs attention: {0}
+补丁数据库恢复需要处理：{0}
+
+:Retained workspace: {0}
+保留的工作目录：{0}
+
+:The database is installed; recovery is required. Retained workspace: {0}\r\n{1}\r\n{2}
+数据库已安装，但需要恢复处理。保留的工作目录：{0}\r\n{1}\r\n{2}
+
+:Import cleanup requires recovery. Retained workspace: {0}\r\n{1}
+导入清理需要恢复处理。保留的工作目录：{0}\r\n{1}
+
+:The database was committed despite an interrupted commit response: {0}
+虽然提交响应中断，但数据库已提交：{0}
+
+:Import stopped without committing: {0}
+导入已停止，未提交数据库：{0}
+
+:Import recovery is required; the owned workspace was retained.\r\n{0}\r\nRecovery: {1}
+导入需要恢复处理，已保留自有工作目录。\r\n{0}\r\n恢复：{1}
+
+:The new database is installed, but owned backup cleanup is pending: {0}
+新数据库已安装，但自有备份尚待清理：{0}
+
+:Owned workspace cleanup is pending: {0}
+自有工作目录尚待清理：{0}
+
+:A patch database operation is already running. Try again when it finishes.
+补丁数据库操作正在进行中。请等待操作完成后重试。
+
+:No patch selected.
+未选择补丁。
+
+:The patch database changed. Refresh the list and select the patch again.
+补丁数据库已更改。请刷新列表并重新选择补丁。
+
+:The loaded ROM or selected patch changed. Uninstall was cancelled.
+加载的 ROM 或选中的补丁已更改。已取消卸载。
+
+:The loaded ROM changed before compilation started.
+加载的 ROM 在编译开始前已更改。
+
+:The loaded ROM changed while compilation was running.
+加载的 ROM 在编译过程中已更改。
+
+:Debug symbols could not be saved: {0}
+无法保存调试符号：{0}
+
+:The loaded ROM changed before uninstall started.
+加载的 ROM 在卸载开始前已更改。
+
+:The loaded ROM changed while uninstall was running.
+加载的 ROM 在卸载过程中已更改。
+
+:Error: ROM identity or undo history is unavailable.
+错误：ROM 标识或撤销历史记录不可用。
+
+:The script already matches the ROM.
+脚本已与 ROM 中的内容一致。
+
+:The file picker is unavailable on this platform.
+此平台不支持文件选择器。
+
+:No patch database is installed for the loaded ROM. Choose Import Patch Database ZIP. Git-based initialization/update is unavailable on Android; patch data is not bundled in the APK.
+尚未安装当前 ROM 对应的补丁数据库。请选择“导入补丁数据库 ZIP”。Android 不支持通过 Git 初始化或更新数据库，APK 中也未包含补丁数据。
+
+:Recovering patch database…
+正在恢复补丁数据库…
+
+:Startup failed. The application could not finish starting.\r\n{0}
+启动失败。应用程序未能完成启动。\r\n{0}
