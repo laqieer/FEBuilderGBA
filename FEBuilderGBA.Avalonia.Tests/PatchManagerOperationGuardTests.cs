@@ -463,7 +463,7 @@ public class PatchManagerOperationGuardTests
         Assert.False(ContentRepoGitService.IsRunning());
         if (outcome != "success")
         {
-            Assert.Contains(outcome == "missing" ? "not found" : "local absolute", result);
+            Assert.Contains(outcome == "missing" ? "not found" : "Could not install", result);
             Assert.Equal(0x11u, fixture.Rom.u8(0x200));
             Assert.Empty(CoreState.Undo.UndoBuffer);
         }
@@ -482,7 +482,7 @@ public class PatchManagerOperationGuardTests
             BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(view)!;
         var result = await new Services.ChapterNameTextPatchService().RecommendAsync(
             rom, Services.PatchDatabaseImportService.CaptureLoadedRom()!, vm.UndoService, () => Task.FromResult(true));
-        return result.Message;
+        return ToolTranslateROMView.FormatChapterNameTextResult(result);
     }
 
     [Theory]

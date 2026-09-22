@@ -89,7 +89,8 @@ public class ChapterNameTextPatchSafetyTests
                 return infos;
             });
         Assert.Equal(bytes, fixture.Rom.Data);
-        Assert.Null(result);
+        Assert.Same(identity, result);
+        Assert.True(result!.IsCurrent);
         Assert.Empty(CoreState.Undo.UndoBuffer);
         Assert.False(ContentRepoGitService.IsRunning());
     }
@@ -263,6 +264,35 @@ public class ChapterNameTextPatchSafetyTests
         Assert.False(ContentRepoGitService.IsRunning());
     }
 
+    [AvaloniaFact]
+    public async Task ApplyFailureIsStructuredAndKeepsCurrentTranslationContinuation()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.SeedTranslationPatch();
+        fixture.MakeManaged();
+        string descriptor = Path.Combine(fixture.Library, "PATCH_chapter.txt");
+        File.WriteAllText(descriptor,
+            "NAME=Convert Chapter Titles to Text\nTYPE=UNKNOWN\nBIN:0x200=test.bin");
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        var service = new ChapterNameTextPatchService();
+
+        var result = await service.RecommendAsync(fixture.Rom, identity,
+            new UiUndo(fixture.Root), () => Task.FromResult(true));
+
+        Assert.Null(result.Identity);
+        Assert.Equal(ChapterNameTextPatchService.FailureKind.ApplyFailed, result.Failure);
+        Assert.Equal("", result.Message);
+        Assert.True(identity.IsCurrent);
+        Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+
+        var continuation = await new ToolTranslateROMView().ShowChapterNameTextRecommendation(
+            fixture.Rom, identity, () => Task.FromResult(true));
+        Assert.Same(identity, continuation);
+        Assert.True(continuation!.IsCurrent);
+        Assert.Equal(0x11u, fixture.Rom.u8(0x200));
+        Assert.False(ContentRepoGitService.IsRunning());
+    }
+
     [AvaloniaTheory]
     [InlineData("ja", "ChapterNameToText パッチが C:\\patches に見つかりません。")]
     [InlineData("zh", "在 C:\\patches 中未找到 ChapterNameToText 补丁。")]
@@ -278,6 +308,27 @@ public class ChapterNameTextPatchSafetyTests
                 "config", "translate", language + ".txt"));
             var result = new ChapterNameTextPatchService.Result(null,
                 Failure: ChapterNameTextPatchService.FailureKind.PatchNotFound, Detail: @"C:\patches");
+
+            Assert.Equal(expected, ToolTranslateROMView.FormatChapterNameTextResult(result));
+        }
+        finally { translations.SetValue(null, previousTranslations); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("ja", "ChapterNameToText パッチをインストールできませんでした。")]
+    [InlineData("zh", "无法安装 ChapterNameToText 补丁。")]
+    public void ApplyFailureMessageUsesRuntimeTranslation(string language, string expected)
+    {
+        var translations = typeof(MyTranslateResource).GetField("Resource",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        object? previousTranslations = translations.GetValue(null);
+        try
+        {
+            translations.SetValue(null, new MyTranslateResourceLow());
+            MyTranslateResource.LoadResource(Path.Combine(PatchDatabaseImportServiceTests.FindRepoRoot(),
+                "config", "translate", language + ".txt"));
+            var result = new ChapterNameTextPatchService.Result(null,
+                Failure: ChapterNameTextPatchService.FailureKind.ApplyFailed);
 
             Assert.Equal(expected, ToolTranslateROMView.FormatChapterNameTextResult(result));
         }

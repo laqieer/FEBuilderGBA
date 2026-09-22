@@ -13,6 +13,7 @@ internal sealed class ChapterNameTextPatchService
     {
         None,
         PatchNotFound,
+        ApplyFailed,
         CommittedRomChanged,
     }
 
@@ -85,7 +86,8 @@ internal sealed class ChapterNameTextPatchService
                 if (!result.Success)
                 {
                     undo.Rollback();
-                    return new(null, result.Message);
+                    Log.ErrorF("ChapterNameTextPatchService.ApplyPatch: {0}", result.Message);
+                    return new(null, Failure: FailureKind.ApplyFailed);
                 }
                 resultMessage = result.Message;
                 undo.Commit();
@@ -108,8 +110,8 @@ internal sealed class ChapterNameTextPatchService
         }
         catch (Exception ex)
         {
-            Log.ErrorF("ChapterNameTextPatchService.Recommend: {0}", ex.Message);
-            return new(null, ex.Message);
+            Log.Error("ChapterNameTextPatchService.Recommend: " + ex);
+            return new(null, Failure: FailureKind.ApplyFailed);
         }
     }
 }

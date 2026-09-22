@@ -527,7 +527,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (result.Identity == null)
                 {
                     await ShowInfo(FormatChapterNameTextResult(result));
-                    return null;
+                    return !token.IsCancellationRequested && identity.IsCurrent ? identity : null;
                 }
                 if (!result.Identity.IsCurrent) return null;
                 if (result.Applied && !PatchDetection.SearchChapterNameToTextPatch(rom))
@@ -550,6 +550,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 ChapterNameTextPatchService.FailureKind.PatchNotFound =>
                     R._("ChapterNameToText patch not found in {0}", result.Detail),
+                ChapterNameTextPatchService.FailureKind.ApplyFailed =>
+                    R._("Could not install the ChapterNameToText patch."),
                 ChapterNameTextPatchService.FailureKind.CommittedRomChanged =>
                     R._("The loaded ROM changed while finalizing the ChapterNameToText patch."),
                 _ => result.Message,
