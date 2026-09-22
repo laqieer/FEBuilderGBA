@@ -224,7 +224,7 @@ function ProofEnvelope {
             return $record
         }
         function Git([string]$directory,[string[]]$arguments) {
-            $r=Run $proofConfiguration.machine.gitPath (@('-c','core.fsmonitor=false','-c',"core.hooksPath=$control\empty-hooks",'-c','submodule.recurse=false','-C',$directory)+$arguments) 15 $control
+            $r=Run $proofConfiguration.machine.gitPath (@('-c','core.fsmonitor=false','-c',"core.hooksPath=$control\empty-hooks",'-c','submodule.recurse=false','-c','core.longpaths=true','-C',$directory)+$arguments) 30 $control
             return [IO.File]::ReadAllText($r.stdout).TrimEnd([char[]]"`r`n")
         }
         function SourceState {

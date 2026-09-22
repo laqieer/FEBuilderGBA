@@ -1069,6 +1069,29 @@ foreach($name in @('Microsoft.PowerShell.Utility','Microsoft.PowerShell.Manageme
                         prepare.index("Budget; $report.passed=$true"))
         self.assertNotIn("exited-after-query-error", prepare)
 
+    def test_preparation_git_wrapper_pins_long_path_support(self):
+        prepare = (PACKAGE / "prepare.ps1").read_text(encoding="utf-8")
+        git = prepare[prepare.index("function Git("):prepare.index("function SourceState")]
+        required = "'-c','core.longpaths=true','-C',$directory"
+
+        def valid(candidate):
+            wrapper = candidate[candidate.index("function Git("):
+                                candidate.index("function SourceState")]
+            return (wrapper.count(required) == 1
+                    and wrapper.count("Run $proofConfiguration.machine.gitPath") == 1
+                    and wrapper.count(") 30 $control") == 1)
+
+        self.assertTrue(valid(prepare))
+        for invalid in (
+                prepare.replace(required, "'-C',$directory", 1),
+                prepare.replace(required, "'-c','core.longpaths=false','-C',$directory", 1),
+                prepare.replace(required, required + "," + required, 1),
+                prepare.replace(required, "'-C',$directory,'-c','core.longpaths=true'", 1),
+                prepare.replace(") 30 $control", ") 15 $control", 1),
+        ):
+            self.assertFalse(valid(invalid))
+        self.assertEqual(1, git.count("Run $proofConfiguration.machine.gitPath"))
+
     def test_complete_public_inventory(self):
         expected = {
             "Desktop.cs", "Policy.cs", "Policy.Tests.cs", "Readiness.cs",
