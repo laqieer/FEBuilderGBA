@@ -155,7 +155,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             ROM rom = CoreState.ROM;
-            var identity = PatchDatabaseImportService.CaptureLoadedRom();
+            var identity = PatchDatabaseImportService.CaptureCurrentRom();
             if (identity == null)
             {
                 _vm.StatusMessage = R._("Compilation failed.") + "\r\n" +
@@ -173,6 +173,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     (working, undo) => _vm.Import(
                         working, sourcePath, mode, undo, SymbolUtil.DebugSymbol.None),
                     result => result.Success, "Event Assembler");
+                if (!mutation.Applied && mutation.Value == null)
+                {
+                    _vm.StatusMessage = R._("Compilation failed.") + "\r\n" +
+                        R._("The loaded ROM changed while compilation was running.");
+                    return;
+                }
                 var result = mutation.Value;
 
                 if (result.Success)
@@ -307,7 +313,7 @@ namespace FEBuilderGBA.Avalonia.Views
             }
 
             ROM rom = CoreState.ROM;
-            var identity = PatchDatabaseImportService.CaptureLoadedRom();
+            var identity = PatchDatabaseImportService.CaptureCurrentRom();
             if (identity == null)
             {
                 _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
@@ -332,6 +338,12 @@ namespace FEBuilderGBA.Avalonia.Views
                     (working, undo) =>
                         EventAssemblerUninstallCore.Uninstall(working, sourcePath, cleanRom, undo),
                     result => result.Success, "Event Assembler Uninstall");
+                if (!mutation.Applied && mutation.Value == null)
+                {
+                    _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                        R._("The loaded ROM changed while uninstall was running.");
+                    return;
+                }
                 var result = mutation.Value;
 
                 if (result.Success)

@@ -49,13 +49,12 @@ namespace FEBuilderGBA.Avalonia.Services
             {
                 working = null;
                 if (!HasSameLoadedInstances) return false;
-                byte[] copy = (byte[])data.Clone();
+                ROM candidate = rom.Clone();
                 if (!HasSameLoadedInstances ||
-                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(copy)) ||
+                    !ReferenceEquals(candidate.RomInfo, info) ||
+                    !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(candidate.Data)) ||
                     !CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data)))
                     return false;
-                var candidate = new ROM();
-                if (!candidate.LoadFromBytes(rom.Filename, copy, out _)) return false;
                 working = candidate;
                 return true;
             }
@@ -75,6 +74,10 @@ namespace FEBuilderGBA.Avalonia.Services
             PatchDatabaseImportCore.IsSupportedVersion(CoreState.ROM.RomInfo.VersionToFilename);
 
         public static RomIdentity? CaptureLoadedRom() => CanImportLoadedRom ? new RomIdentity(CoreState.ROM) : null;
+        public static RomIdentity? CaptureCurrentRom() =>
+            CoreState.ROM?.RomInfo != null && CoreState.ROM.Data?.Length > 0
+                ? new RomIdentity(CoreState.ROM)
+                : null;
 
         public static string AvailabilityMessage =>
             CoreState.ROM?.RomInfo == null || CoreState.ROM.Data?.Length is not > 0

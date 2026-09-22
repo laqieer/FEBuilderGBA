@@ -464,7 +464,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             // explicitly to the Core helper" pattern).
             var undoService = new UndoService();
             Undo undoMgr = CoreState.Undo;
-            var identity = PatchDatabaseImportService.CaptureLoadedRom();
+            var identity = PatchDatabaseImportService.CaptureCurrentRom();
             if (undoMgr == null || identity == null)
             {
                 StatusText = "Error: ROM identity or undo history is unavailable.";

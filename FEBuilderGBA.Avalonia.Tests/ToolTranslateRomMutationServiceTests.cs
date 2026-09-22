@@ -202,6 +202,40 @@ public class ToolTranslateRomMutationServiceTests
         }
     }
 
+    [Fact]
+    public async Task ForcedVersionRomUsesCapturedRomInfoForWorkingCopy()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        byte[] bytes = (byte[])fixture.Rom.Data.Clone();
+        Array.Clear(bytes, 0xAC, 6);
+        Assert.True(fixture.Rom.LoadForceVersionFromBytes(
+            "forced-version.gba", bytes, "FE8U"));
+        var identity = PatchDatabaseImportService.CaptureCurrentRom()!;
+
+        var result = await ToolTranslateRomMutationService.ExecuteAsync(
+            fixture.Rom, identity, new UndoService(), (working, undo) =>
+            {
+                Assert.Same(fixture.Rom.RomInfo, working.RomInfo);
+                working.write_u8(0x300, 0x7A, undo);
+                return 1;
+            });
+
+        Assert.True(result.Applied);
+        Assert.Equal(0x7Au, fixture.Rom.u8(0x300));
+    }
+
+    [Fact]
+    public void CurrentRomIdentityDoesNotRequirePatchDatabaseSupport()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        byte[] bytes = (byte[])fixture.Rom.Data.Clone();
+        Assert.True(fixture.Rom.LoadForceVersionFromBytes(
+            "unknown-version.gba", bytes, "NAZO"));
+
+        Assert.Null(PatchDatabaseImportService.CaptureLoadedRom());
+        Assert.NotNull(PatchDatabaseImportService.CaptureCurrentRom());
+    }
+
     [Theory]
     [InlineData("replace")]
     [InlineData("reload")]
