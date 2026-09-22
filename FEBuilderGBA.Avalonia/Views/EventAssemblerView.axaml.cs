@@ -1,5 +1,6 @@
 ﻿using global::Avalonia;
 using System;
+using System.IO;
 using System.Threading.Tasks;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
@@ -140,8 +141,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            string sourcePath = Path.GetFullPath(_vm.SourcePath);
+            EventAssemblerCompileCore.FreeAreaMode mode = _vm.Mode;
+            SymbolUtil.DebugSymbol storeSymbol = _vm.StoreSymbol;
+            bool autoReCompile = _vm.AutoReCompile;
             string prefix = "";
-            if (_vm.AutoReCompile)
+            if (autoReCompile)
             {
                 // The asm rebuild engine (devkitARM) is WinForms-only; note it and
                 // continue with the EA assemble step (EA still resolves its own
@@ -149,39 +154,50 @@ namespace FEBuilderGBA.Avalonia.Views
                 prefix = R._("Auto re-compile of .s/.asm sources is not available in this build; running Event Assembler only.") + "\r\n";
             }
 
+            ROM rom = CoreState.ROM;
+            var identity = PatchDatabaseImportService.CaptureLoadedRom();
+            if (identity == null)
+            {
+                _vm.StatusMessage = R._("Compilation failed.") + "\r\n" +
+                    R._("The loaded ROM changed before compilation started.");
+                return;
+            }
+
             ImportButton.IsEnabled = false;
             _vm.StatusMessage = prefix + R._("Compiling...");
 
-            // Use an EXPLICIT UndoData passed through to the Core helper rather than
-            // the thread-local ambient ROM.BeginUndoScope: the compile+insert runs on
-            // a background thread (Task.Run), and the ambient scope is thread-local to
-            // the UI thread — so it would NOT capture the background writes AND could
-            // wrongly absorb an unrelated UI-thread ROM write. SwapNewROMData records
-            // diffs directly into this passed UndoData, so undo capture stays correct
-            // and thread-consistent. We push it (UI thread) only after a successful
-            // insert, via UndoService.CommitExternal which also refreshes the dirty bit.
-            ROM rom = CoreState.ROM;
-            Undo expectedUndo = CoreState.Undo ??= new Undo();
-            var undo = expectedUndo.NewUndoData("Event Assembler");
-
             try
             {
-                // The EA process can take several seconds — run off the UI thread.
-                var result = await Task.Run(() => _vm.Import(rom, undo));
+                var mutation = await ToolTranslateRomMutationService.ExecuteAsync(
+                    rom, identity, _undoService,
+                    (working, undo) => _vm.Import(
+                        working, sourcePath, mode, undo, SymbolUtil.DebugSymbol.None),
+                    result => result.Success, "Event Assembler");
+                var result = mutation.Value;
 
                 if (result.Success)
                 {
-                    bool mutated = undo.list.Count > 0 || undo.filesize != (uint)rom.Data.Length;
-                    if (mutated && !_undoService.CommitExternal(rom, expectedUndo, undo))
+                    if (!mutation.Applied)
                     {
-                        _undoService.RestoreExternal(rom, undo);
-                        throw new InvalidOperationException("Event Assembler undo history was not committed.");
+                        _vm.StatusMessage = R._("Compilation failed.") + "\r\n" +
+                            R._("The loaded ROM changed while compilation was running.");
+                        return;
                     }
-                    if (mutated)
+                    if (mutation.Mutated)
                         _vm.CanUndo = true;
                     _vm.HasResult = true;
 
                     string msg = R._("Compilation successful.");
+                    try
+                    {
+                        SymbolUtil.ProcessSymbolByComment(
+                            sourcePath, result.SymbolText, storeSymbol, 0);
+                    }
+                    catch (Exception symbolEx)
+                    {
+                        Log.Error("EventAssemblerView symbol storage failed: " + symbolEx.ToString());
+                        msg += "\r\n" + R._("Debug symbols could not be saved: {0}", symbolEx.Message);
+                    }
                     if (result.InsertedAddr != U.NOT_FOUND)
                         msg += "\r\n" + R._("Inserted at: {0}", U.To0xHexString(result.InsertedAddr));
                     if (result.SymbolCount > 0)
@@ -237,6 +253,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.StatusMessage = R._("No ROM is loaded.");
                 return;
             }
+            string sourcePath = Path.GetFullPath(_vm.SourcePath);
 
             // Prompt for the CLEAN ORIGINAL ROM (the ROM as it was before the patch).
             // Faithful to WF UnInstallPatch, which asks the user for a ROM that does
@@ -266,7 +283,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // large scripts/ROMs, so run it OFF the UI thread to keep the window
             // responsive. It is read-only here (only used to gate the confirm); the real
             // revert re-traces and writes inside the guarded Task.Run below.
-            var preTrace = await Task.Run(() => EventAssemblerUninstallCore.TraceEAFile(_vm.SourcePath));
+            var preTrace = await Task.Run(() => EventAssemblerUninstallCore.TraceEAFile(sourcePath));
             if (preTrace.UntracedCount > 0)
             {
                 int n = preTrace.UntracedCount;
@@ -289,6 +306,15 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
             }
 
+            ROM rom = CoreState.ROM;
+            var identity = PatchDatabaseImportService.CaptureLoadedRom();
+            if (identity == null)
+            {
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                    R._("The loaded ROM changed before uninstall started.");
+                return;
+            }
+
             UninstallButton.IsEnabled = false;
             ImportButton.IsEnabled = false;
             // Disable Undo during the revert — it may already be visible from a prior
@@ -299,29 +325,24 @@ namespace FEBuilderGBA.Avalonia.Views
             UndoButton.IsEnabled = false;
             _vm.StatusMessage = R._("Uninstalling...");
 
-            // Same explicit-UndoData discipline as Import: the trace+revert runs off
-            // the UI thread (Task.Run), so we pass an explicit Undo.UndoData rather
-            // than the thread-local ambient scope. write_u8(addr, o, undo) records each
-            // restored byte into it; we push it (UI thread) via CommitExternal only on
-            // success, and roll it back on failure so a partial revert never sticks.
-            ROM rom = CoreState.ROM;
-            Undo expectedUndo = CoreState.Undo ??= new Undo();
-            var undo = expectedUndo.NewUndoData("Event Assembler Uninstall");
-
             try
             {
-                var result = await Task.Run(() =>
-                    EventAssemblerUninstallCore.Uninstall(rom, _vm.SourcePath, cleanRom, undo));
+                var mutation = await ToolTranslateRomMutationService.ExecuteAsync(
+                    rom, identity, _undoService,
+                    (working, undo) =>
+                        EventAssemblerUninstallCore.Uninstall(working, sourcePath, cleanRom, undo),
+                    result => result.Success, "Event Assembler Uninstall");
+                var result = mutation.Value;
 
                 if (result.Success)
                 {
-                    bool mutated = undo.list.Count > 0 || undo.filesize != (uint)rom.Data.Length;
-                    if (mutated && !_undoService.CommitExternal(rom, expectedUndo, undo))
+                    if (!mutation.Applied)
                     {
-                        _undoService.RestoreExternal(rom, undo);
-                        throw new InvalidOperationException("Event Assembler uninstall undo history was not committed.");
+                        _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                            R._("The loaded ROM changed while uninstall was running.");
+                        return;
                     }
-                    if (mutated)
+                    if (mutation.Mutated)
                         _vm.CanUndo = true;
                     _vm.HasResult = true;
                     string msg = R._("Uninstall successful.") + "\r\n"
@@ -345,20 +366,11 @@ namespace FEBuilderGBA.Avalonia.Views
                 }
                 else
                 {
-                    // Trace/validation failed → nothing was applied; roll back the
-                    // (empty) undo scope so it does not linger, and surface the error.
-                    _undoService.RestoreExternal(rom, undo);
                     _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + result.ErrorMessage;
                 }
             }
             catch (Exception ex)
             {
-                // A mid-revert exception leaves a partial write — roll it back.
-                try { _undoService.RestoreExternal(rom, undo); }
-                catch (Exception rollbackEx)
-                {
-                    Log.Error("EventAssemblerView.Uninstall rollback failed: " + rollbackEx.ToString());
-                }
                 Log.Error("EventAssemblerView.Uninstall failed: " + ex.ToString());
                 _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + ex.ToString();
             }

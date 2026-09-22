@@ -23,7 +23,7 @@ namespace FEBuilderGBA.Avalonia.Views
     /// <c>ItemEffectivenessForm</c>, so writes go through the
     /// <c>ItemClassListCore.*Rework*</c> helpers with an explicit
     /// <see cref="Undo.UndoData"/> committed via
-    /// <see cref="UndoService.CommitExternal"/>.
+    /// <see cref="UndoService.CommitExternal(Undo.UndoData)"/>.
     /// </summary>
     public partial class ItemEffectivenessSkillSystemsReworkView : TranslatedUserControl, IEmbeddableEditor, IDataVerifiableView
     {

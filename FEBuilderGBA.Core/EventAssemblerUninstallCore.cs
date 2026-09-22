@@ -616,7 +616,8 @@ namespace FEBuilderGBA
                 for (int i = 0; i < map.length; i++)
                 {
                     uint addr = map.addr + (uint)i;
-                    CoreState.CommentCache?.Remove(addr);
+                    if (ReferenceEquals(CoreState.ROM, rom))
+                        CoreState.CommentCache?.Remove(addr);
                     if (addr >= current_rom_length)
                     {
                         continue;

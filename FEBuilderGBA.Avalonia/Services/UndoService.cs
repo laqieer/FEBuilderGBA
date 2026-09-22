@@ -97,14 +97,30 @@ namespace FEBuilderGBA.Avalonia.Services
 
         public virtual void RestoreExternal(ROM rom, Undo.UndoData undoData)
         {
+            RestoreExternal(rom, undoData, rom.Modified, null);
+        }
+
+        public void RestoreExternal(
+            ROM rom,
+            Undo.UndoData undoData,
+            bool modifiedBefore,
+            EtcCacheSnapshot? commentCacheBefore)
+        {
             ArgumentNullException.ThrowIfNull(rom);
             ArgumentNullException.ThrowIfNull(undoData);
             if ((uint)rom.Data.Length < undoData.filesize &&
                 !rom.write_resize_data(undoData.filesize))
                 throw new InvalidOperationException("The source ROM could not be restored.");
-            foreach (Undo.UndoPostion position in undoData.list)
+            for (int i = undoData.list.Count - 1; i >= 0; i--)
+            {
+                Undo.UndoPostion position = undoData.list[i];
                 Array.Copy(position.data, 0, rom.Data, position.addr, position.data.Length);
+            }
             ImageImportCore.RestoreExactRomLengthAfterUndo(rom, undoData.filesize);
+            rom.RestoreModifiedFlag(modifiedBefore);
+            if (commentCacheBefore != null &&
+                ReferenceEquals(CoreState.ROM, rom))
+                CoreState.CommentCache?.TryRestoreAll(commentCacheBefore);
         }
 
         public virtual void RollbackExternal(ROM rom, Undo.UndoData undoData)

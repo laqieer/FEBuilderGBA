@@ -628,7 +628,7 @@ public class ToolTranslateROMParityTests
         string mutationService = File.ReadAllText(Path.Combine(FindRepoRoot(), "FEBuilderGBA.Avalonia",
             "Services", "ToolTranslateRomMutationService.cs"));
         int translateUndo = mutationService.IndexOf(
-            "Undo.UndoData active = expectedUndo.NewUndoData(\"Translate ROM\")",
+            "Undo.UndoData active = expectedUndo.NewUndoData(undoName)",
             StringComparison.Ordinal);
         int identityGuard = mutationService.IndexOf("if (!identity.IsCurrent ||", StringComparison.Ordinal);
         Assert.True(identityGuard >= 0 && identityGuard < translateUndo);

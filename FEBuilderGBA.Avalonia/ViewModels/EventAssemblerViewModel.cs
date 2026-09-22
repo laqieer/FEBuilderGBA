@@ -72,14 +72,19 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public bool SourceExists => !string.IsNullOrEmpty(SourcePath) && File.Exists(SourcePath);
 
         /// <summary>
-        /// Compile and insert <see cref="SourcePath"/> using the shared Core helper.
+        /// Compile and insert the captured source path using the shared Core helper.
         /// The caller owns the undo scope (Begin/Commit) and passes its active
         /// <c>Undo.UndoData</c>.
         /// </summary>
-        public EventAssemblerCompileCore.CompileResult Import(ROM rom, Undo.UndoData undo)
+        public EventAssemblerCompileCore.CompileResult Import(
+            ROM rom,
+            string sourcePath,
+            EventAssemblerCompileCore.FreeAreaMode mode,
+            Undo.UndoData undo,
+            SymbolUtil.DebugSymbol storeSymbol)
         {
             return EventAssemblerCompileCore.CompileAndInsert(
-                rom, SourcePath, Mode, undo, StoreSymbol);
+                rom, sourcePath, mode, undo, storeSymbol);
         }
 
         /// <summary>

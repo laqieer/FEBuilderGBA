@@ -14928,6 +14928,21 @@ Gitで管理されているパッチデータベースをZIPインポートで�
 :The loaded ROM or selected patch changed. Uninstall was cancelled.
 読み込まれたROMまたは選択されたパッチが変更されたため、アンインストールをキャンセルしました。
 
+:The loaded ROM changed before compilation started.
+コンパイル開始前に読み込まれたROMが変更されました。
+
+:The loaded ROM changed while compilation was running.
+コンパイル中に読み込まれたROMが変更されました。
+
+:Debug symbols could not be saved: {0}
+デバッグシンボルを保存できませんでした: {0}
+
+:The loaded ROM changed before uninstall started.
+アンインストール開始前に読み込まれたROMが変更されました。
+
+:The loaded ROM changed while uninstall was running.
+アンインストール中に読み込まれたROMが変更されました。
+
 :The file picker is unavailable on this platform.
 このプラットフォームではファイル選択機能を利用できません。
 

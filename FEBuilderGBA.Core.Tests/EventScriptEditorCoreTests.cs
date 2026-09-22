@@ -479,6 +479,30 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(0x00, rom.Data[baseOff + 11]);
         }
 
+        [Fact]
+        public void WriteAll_UnchangedScript_IsNoOpAndRecordsNoUndo()
+        {
+            var es = StdEs();
+            var rom = MakeRom(es);
+            uint baseOff = 0x1000;
+            WriteBytes(rom, baseOff, new byte[]
+            {
+                0x01, 0x00, 0x01, 0x00,
+                0x0A, 0x00, 0x00, 0x00,
+            });
+            rom.ClearModifiedFlag();
+            var ed = new EventScriptEditorCore(es);
+            ed.BuildFromRom(rom, baseOff);
+            var undo = new Undo.UndoData { list = new List<Undo.UndoPostion>() };
+
+            var result = ed.WriteAll(rom, baseOff, false, false, undo, out uint newAddr);
+
+            Assert.Equal(EventScriptEditorCore.WriteResult.NoOp, result);
+            Assert.Equal(baseOff, newAddr);
+            Assert.Empty(undo.list);
+            Assert.False(rom.Modified);
+        }
+
         // ── WriteAll: relocate + repoint round-trip ────────────────────
 
         [Fact]
@@ -798,7 +822,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(outer.list.Count > outerBefore);
             }
             Assert.Null(ROM.GetAmbientUndoData()); // fully unwound
-            Assert.True(inner.list.Count > 0);      // WriteAll recorded into its own buffer
+            Assert.Empty(inner.list);               // unchanged serialization is a no-op
         }
 
         // ── round-trip: export → import ────────────────────────────────

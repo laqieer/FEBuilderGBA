@@ -19,6 +19,13 @@ public class ToolTranslateRomMutationServiceTests
             CoreState.Undo = ReplacementUndo;
             return base.CommitExternal(rom, expectedUndo, undoData);
         }
+
+    }
+
+    sealed class RejectCommit : UndoService
+    {
+        public override bool CommitExternal(ROM rom, Undo expectedUndo, Undo.UndoData undoData) =>
+            false;
     }
 
     [Fact]
@@ -68,6 +75,45 @@ public class ToolTranslateRomMutationServiceTests
     }
 
     [Fact]
+    public async Task NoOpWorkerDoesNotDirtyRomOrCreateUndo()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        fixture.Rom.ClearModifiedFlag();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+
+        var result = await ToolTranslateRomMutationService.ExecuteAsync(
+            fixture.Rom, identity, new UndoService(), (_, _) => 7);
+
+        Assert.True(result.Applied);
+        Assert.Equal(7, result.Total);
+        Assert.False(fixture.Rom.Modified);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+    }
+
+    [Fact]
+    public async Task RejectedWorkerResultDiscardsPrivateMutation()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        byte[] before = (byte[])fixture.Rom.Data.Clone();
+
+        var result = await ToolTranslateRomMutationService.ExecuteAsync(
+            fixture.Rom, identity, new UndoService(),
+            (working, undo) =>
+            {
+                working.write_u8(0x300, 0x7A, undo);
+                return false;
+            },
+            accepted => accepted, "Rejected mutation");
+
+        Assert.False(result.Applied);
+        Assert.False(result.Mutated);
+        Assert.False(result.Value);
+        Assert.Equal(before, fixture.Rom.Data);
+        Assert.Empty(CoreState.Undo.UndoBuffer);
+    }
+
+    [Fact]
     public async Task StateReplacementAtCommitRestoresOnlySourceRom()
     {
         using var fixture = new PatchManagerOperationGuardTests.Fixture();
@@ -88,6 +134,72 @@ public class ToolTranslateRomMutationServiceTests
         Assert.Equal(0x200, undoService.ReplacementRom.Data.Length);
         Assert.NotNull(undoService.ReplacementUndo);
         Assert.Empty(undoService.ReplacementUndo.UndoBuffer);
+    }
+
+    [Fact]
+    public async Task RejectedCommitRestoresBytesCommentsAndModifiedFlag()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        IEtcCache? savedCache = CoreState.CommentCache;
+        try
+        {
+            var cache = new EtcCache("comment");
+            cache.Update(0x300, "preserved");
+            CoreState.CommentCache = cache;
+            fixture.Rom.ClearModifiedFlag();
+            var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                ToolTranslateRomMutationService.ExecuteAsync(
+                    fixture.Rom, identity, new RejectCommit(), (working, undo) =>
+                    {
+                        working.write_u8(0x300, 0x7A, undo);
+                        return 1;
+                    }));
+
+            Assert.Equal(0u, fixture.Rom.u8(0x300));
+            Assert.Equal("preserved", cache.At(0x300));
+            Assert.False(fixture.Rom.Modified);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        finally
+        {
+            CoreState.CommentCache = savedCache;
+        }
+    }
+
+    [Fact]
+    public async Task FailedSwapRestoresCommentCacheAndModifiedFlag()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        IEtcCache? savedCache = CoreState.CommentCache;
+        try
+        {
+            var cache = new EtcCache("comment");
+            cache.Update(0x300, "preserved");
+            CoreState.CommentCache = cache;
+            fixture.Rom.ClearModifiedFlag();
+            var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+
+            await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                ToolTranslateRomMutationService.ExecuteAsync(
+                    fixture.Rom, identity, new UndoService(), (working, undo) =>
+                    {
+                        byte[] oversized = new byte[0x02000001];
+                        oversized[0x300] = 0x7A;
+                        working.SwapNewROMDataDirect(oversized);
+                        return 1;
+                    }));
+
+            Assert.Equal(0u, fixture.Rom.u8(0x300));
+            Assert.Equal("preserved", cache.At(0x300));
+            Assert.False(fixture.Rom.Modified);
+            Assert.Empty(CoreState.Undo.UndoBuffer);
+        }
+        finally
+        {
+            CoreState.CommentCache = savedCache;
+        }
     }
 
     [Theory]

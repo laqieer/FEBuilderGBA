@@ -659,6 +659,26 @@ namespace FEBuilderGBA
             uint remaining = (uint)rom.Data.Length - offset;
             if (originalSize > remaining) originalSize = remaining;
 
+            bool unchanged = databyte.Length <= originalSize;
+            if (unchanged)
+            {
+                for (int i = 0; i < databyte.Length; i++)
+                {
+                    if (rom.Data[offset + (uint)i] != databyte[i])
+                    {
+                        unchanged = false;
+                        break;
+                    }
+                }
+                for (uint i = (uint)databyte.Length; unchanged && i < originalSize; i++)
+                {
+                    if (rom.Data[offset + i] != 0)
+                        unchanged = false;
+                }
+            }
+            if (unchanged)
+                return WriteResult.NoOp;
+
             int undoCountBefore = undo.list.Count;
             // Nest-safe ambient undo (Copilot PR review #1510 — ROM.BeginUndoScope is
             // thread-static and NOT stacked: Dispose() clears the ambient to null rather

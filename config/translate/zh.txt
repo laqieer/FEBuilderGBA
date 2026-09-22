@@ -28758,6 +28758,21 @@ ZIP 导入无法替换由 Git 管理的补丁数据库。请改用 Git 更新操
 :The loaded ROM or selected patch changed. Uninstall was cancelled.
 加载的 ROM 或选中的补丁已更改。已取消卸载。
 
+:The loaded ROM changed before compilation started.
+加载的 ROM 在编译开始前已更改。
+
+:The loaded ROM changed while compilation was running.
+加载的 ROM 在编译过程中已更改。
+
+:Debug symbols could not be saved: {0}
+无法保存调试符号：{0}
+
+:The loaded ROM changed before uninstall started.
+加载的 ROM 在卸载开始前已更改。
+
+:The loaded ROM changed while uninstall was running.
+加载的 ROM 在卸载过程中已更改。
+
 :The file picker is unavailable on this platform.
 此平台不支持文件选择器。
 

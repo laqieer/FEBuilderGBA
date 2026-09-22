@@ -913,7 +913,8 @@ namespace FEBuilderGBA
                 CoreState.Services.ShowError(string.Format("32MB(0x02000000)より大きな領域を割り当てることはできません。\r\n要求サイズ:{0}", U.ToHexString(resize)));
                 return false;
             }
-            if (trimCommentCache && CoreState.CommentCache != null)
+            if (trimCommentCache && ReferenceEquals(CoreState.ROM, this) &&
+                CoreState.CommentCache != null)
             {
                 CoreState.CommentCache.RemoveOverRange(resize);
             }
@@ -1202,7 +1203,8 @@ namespace FEBuilderGBA
                 //checkpoint ～ i の間を相違点として記録.
                 undodata.list.Add(new Undo.UndoPostion(this, (uint)checkpoint , size ));
                 //この範囲にコメントがある場合は再定義するので消す
-                CoreState.CommentCache?.RemoveRange((uint)checkpoint, (uint)checkpoint + size);
+                if (ReferenceEquals(CoreState.ROM, this))
+                    CoreState.CommentCache?.RemoveRange((uint)checkpoint, (uint)checkpoint + size);
             }
 
             if (newROMData.Length != this.Data.Length)

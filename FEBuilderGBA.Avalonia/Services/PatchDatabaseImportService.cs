@@ -26,14 +26,24 @@ namespace FEBuilderGBA.Avalonia.Services
                 Version = info.VersionToFilename;
             }
 
-            internal bool HasSameLoadedInstances => ReferenceEquals(CoreState.ROM, rom) &&
+            internal bool HasSameSourceInstances =>
                 ReferenceEquals(rom.Data, data) && ReferenceEquals(rom.RomInfo, info) &&
                 rom.RomInfo.VersionToFilename == Version;
+            internal bool HasSameLoadedInstances =>
+                ReferenceEquals(CoreState.ROM, rom) && HasSameSourceInstances;
+            internal bool CanRestoreOwnedMutation =>
+                ReferenceEquals(CoreState.ROM, rom) &&
+                ReferenceEquals(rom.RomInfo, info) &&
+                rom.RomInfo.VersionToFilename == Version;
+            internal bool IsSourceCurrent => HasSameSourceInstances &&
+                CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data));
 
             public bool IsCurrent => HasSameLoadedInstances &&
                 CryptographicOperations.FixedTimeEquals(fingerprint, SHA256.HashData(data));
 
-            internal RomIdentity? RefreshAfterOwnedMutation() => HasSameLoadedInstances ? new RomIdentity(rom) : null;
+            internal RomIdentity? RefreshAfterOwnedMutation() =>
+                ReferenceEquals(CoreState.ROM, rom) && ReferenceEquals(rom.RomInfo, info) &&
+                rom.RomInfo.VersionToFilename == Version ? new RomIdentity(rom) : null;
 
             internal bool TryCreateWorkingCopy(out ROM? working)
             {
