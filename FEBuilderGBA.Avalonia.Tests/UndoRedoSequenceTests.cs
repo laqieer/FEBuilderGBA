@@ -166,7 +166,7 @@ namespace FEBuilderGBA.Avalonia.Tests
             int originalLength = CoreState.ROM.Data.Length;
             Assert.True(CoreState.ROM.write_resize_data((uint)(originalLength + 4)));
 
-            Assert.True(svc.CommitExternal(lengthOnly));
+            Assert.True(svc.CommitExternal(CoreState.ROM, CoreState.Undo, lengthOnly));
             Assert.Single(CoreState.Undo.UndoBuffer);
             CoreState.Undo.RunUndo();
             Assert.Equal(originalLength, CoreState.ROM.Data.Length);

@@ -1,6 +1,7 @@
 using System.IO.Compression;
 using System.Diagnostics;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 
@@ -9,6 +10,50 @@ namespace FEBuilderGBA.Core.Tests;
 [Collection("ContentRepoGitGuard")]
 public class PatchDatabaseImportCoreTests
 {
+    [SkippableFact]
+    public void RecoveryRefusesNonRegularJournal()
+    {
+        Skip.IfNot(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS());
+        using var fixture = new Fixture();
+        using (PatchDatabaseOperationLeaseCore.Acquire(fixture.Root)) { }
+        string operation = Path.Combine(fixture.Root, ".patch2-import", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(operation);
+        string journal = Path.Combine(operation, "state.json");
+        if (CreateFifoUnix(journal, 0x180) != 0)
+            Skip.If(true, "mkfifo failed with native error " + Marshal.GetLastWin32Error());
+
+        Assert.False(PatchDatabaseImportCore.RecoverPendingForTest(fixture.Root, _ => false).Success);
+        Assert.True(File.Exists(journal));
+    }
+
+    [SkippableFact]
+    public async Task PrepareRefusesNonRegularOwnershipMarker()
+    {
+        Skip.IfNot(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS());
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        string marker = Path.Combine(fixture.Target, PatchDatabaseZipReaderCore.OwnershipFileName);
+        if (CreateFifoUnix(marker, 0x180) != 0)
+            Skip.If(true, "mkfifo failed with native error " + Marshal.GetLastWin32Error());
+        using var zip = Fixture.Zip("New");
+
+        await Assert.ThrowsAsync<IOException>(() => fixture.Prepare(zip));
+    }
+
+    [SkippableFact]
+    public async Task PrepareRefusesNonRegularSnapshotFile()
+    {
+        Skip.IfNot(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS());
+        using var fixture = new Fixture();
+        fixture.SeedOld();
+        File.Delete(fixture.OldFile);
+        if (CreateFifoUnix(fixture.OldFile, 0x180) != 0)
+            Skip.If(true, "mkfifo failed with native error " + Marshal.GetLastWin32Error());
+        using var zip = Fixture.Zip("New");
+
+        await Assert.ThrowsAsync<IOException>(() => fixture.Prepare(zip));
+    }
+
     [Theory]
     [InlineData("BeforeTemporaryCreation")]
     [InlineData("TemporaryCreated")]
@@ -1241,6 +1286,11 @@ public class PatchDatabaseImportCoreTests
         _ = stderr.Result;
     }
 
+    [DllImport("libc", EntryPoint = "mkfifo", SetLastError = true)]
+    static extern int CreateFifoUnix(
+        [MarshalAs(UnmanagedType.LPUTF8Str)] string path,
+        uint mode);
+
     sealed class NonSeekableSource : Stream
     {
         readonly Stream source;
@@ -1257,6 +1307,7 @@ public class PatchDatabaseImportCoreTests
             ReadBytes += read;
             return read;
         }
+
         public override async ValueTask<int> ReadAsync(Memory<byte> buffer, CancellationToken cancellationToken = default)
         {
             int read = await source.ReadAsync(buffer, cancellationToken);

@@ -171,6 +171,29 @@ namespace FEBuilderGBA.Core.Tests
             finally { TryDelete(eaFile); CoreState.Undo = null!; }
         }
 
+        [Fact]
+        public void Uninstall_ExplicitRom_IgnoresReplacementGlobalState()
+        {
+            var source = CreateFE8Rom();
+            byte[] clean = (byte[])source.Data.Clone();
+            uint patchAddr = 0x800000;
+            source.write_u8(patchAddr, 0xDE);
+            var replacement = CreateFE8Rom();
+            byte[] replacementBefore = (byte[])replacement.Data.Clone();
+            CoreState.ROM = replacement;
+            var undo = NewUndo(source);
+            string eaFile = WriteTinyOrgEvent(patchAddr, null!);
+            try
+            {
+                var result = EventAssemblerUninstallCore.Uninstall(source, eaFile, clean, undo);
+
+                Assert.True(result.Success, result.ErrorMessage);
+                Assert.Equal(clean[patchAddr], (byte)source.u8(patchAddr));
+                Assert.Equal(replacementBefore, replacement.Data);
+            }
+            finally { TryDelete(eaFile); CoreState.Undo = null!; }
+        }
+
         // ---- Untraceable blocks are SIGNALLED, never silently dropped --------------
         //
         // An .event with a traceable ORG range AND an un-hinted inline `#incext Png2Dmp`

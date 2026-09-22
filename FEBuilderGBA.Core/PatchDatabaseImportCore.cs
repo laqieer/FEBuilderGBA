@@ -690,7 +690,7 @@ namespace FEBuilderGBA
         {
             string path = Path.Combine(operation, RecordName);
             PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(path, allowFileLeaf: true);
-            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = ProjectionFileSystemSafety.OpenRegularFileForRead(path);
             if (stream.Length > MaxRecordBytes) throw new IOException("Oversized import recovery record.");
             byte[] bytes = new byte[(int)stream.Length];
             stream.ReadExactly(bytes);
@@ -775,7 +775,7 @@ namespace FEBuilderGBA
             string marker = Path.Combine(target, PatchDatabaseZipReaderCore.OwnershipFileName);
             PatchDatabaseOperationLeaseCore.EnsureSafeAncestry(marker, allowFileLeaf: true);
             if (!File.Exists(marker)) return null;
-            using var stream = new FileStream(marker, FileMode.Open, FileAccess.Read, FileShare.Read);
+            using var stream = ProjectionFileSystemSafety.OpenRegularFileForRead(marker);
             int expectedLength = Owner.Length + 1 + 32 + 1 + version.Length + 1;
             if (stream.Length != expectedLength) throw new IOException("Unrecognized database ownership marker.");
             byte[] actual = new byte[expectedLength];
@@ -871,7 +871,7 @@ namespace FEBuilderGBA
                 hash.AppendData(Encoding.UTF8.GetBytes(item));
                 if (!directory)
                 {
-                    using var input = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+                    using var input = ProjectionFileSystemSafety.OpenRegularFileForRead(path);
                     byte[] buffer = new byte[64 * 1024];
                     int read;
                     while ((read = input.Read(buffer, 0, buffer.Length)) != 0)

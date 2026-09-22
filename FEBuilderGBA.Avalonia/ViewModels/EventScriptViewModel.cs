@@ -477,7 +477,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 {
                     case EventScriptEditorCore.WriteResult.InPlace:
                     case EventScriptEditorCore.WriteResult.Relocated:
-                        undoService.CommitExternal(undo);
+                        undoService.CommitExternal(rom, undoMgr, undo);
                         CurrentAddr = newAddr;
                         AddressText = $"0x{U.toPointer(newAddr):X08}";
                         IsDirty = false;

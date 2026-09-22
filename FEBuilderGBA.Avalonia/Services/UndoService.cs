@@ -76,12 +76,35 @@ namespace FEBuilderGBA.Avalonia.Services
         public virtual bool CommitExternal(Undo.UndoData undoData)
         {
             if (undoData == null || CoreState.Undo == null) return false;
-            bool lengthChanged = CoreState.ROM != null &&
-                undoData.filesize != (uint)CoreState.ROM.Data.Length;
-            if (undoData.list.Count == 0 && !lengthChanged) return false;
+            if (undoData.list.Count == 0) return false;
             CoreState.Undo.Push(undoData);
             NotifyUnsavedChanges();
             return true;
+        }
+
+        public virtual bool CommitExternal(ROM rom, Undo expectedUndo, Undo.UndoData undoData)
+        {
+            if (rom == null || expectedUndo == null || undoData == null ||
+                !ReferenceEquals(CoreState.ROM, rom) ||
+                !ReferenceEquals(CoreState.Undo, expectedUndo))
+                return false;
+            if (undoData.list.Count == 0 && (uint)rom.Data.Length == undoData.filesize)
+                return false;
+            expectedUndo.Push(undoData);
+            NotifyUnsavedChanges();
+            return true;
+        }
+
+        public virtual void RestoreExternal(ROM rom, Undo.UndoData undoData)
+        {
+            ArgumentNullException.ThrowIfNull(rom);
+            ArgumentNullException.ThrowIfNull(undoData);
+            if ((uint)rom.Data.Length < undoData.filesize &&
+                !rom.write_resize_data(undoData.filesize))
+                throw new InvalidOperationException("The source ROM could not be restored.");
+            foreach (Undo.UndoPostion position in undoData.list)
+                Array.Copy(position.data, 0, rom.Data, position.addr, position.data.Length);
+            ImageImportCore.RestoreExactRomLengthAfterUndo(rom, undoData.filesize);
         }
 
         public virtual void RollbackExternal(ROM rom, Undo.UndoData undoData)

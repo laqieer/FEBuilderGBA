@@ -160,16 +160,24 @@ namespace FEBuilderGBA.Avalonia.Views
             // diffs directly into this passed UndoData, so undo capture stays correct
             // and thread-consistent. We push it (UI thread) only after a successful
             // insert, via UndoService.CommitExternal which also refreshes the dirty bit.
-            var undo = (CoreState.Undo ??= new Undo()).NewUndoData("Event Assembler");
+            ROM rom = CoreState.ROM;
+            Undo expectedUndo = CoreState.Undo ??= new Undo();
+            var undo = expectedUndo.NewUndoData("Event Assembler");
 
             try
             {
                 // The EA process can take several seconds — run off the UI thread.
-                var result = await Task.Run(() => _vm.Import(undo));
+                var result = await Task.Run(() => _vm.Import(rom, undo));
 
                 if (result.Success)
                 {
-                    if (_undoService.CommitExternal(undo))
+                    bool mutated = undo.list.Count > 0 || undo.filesize != (uint)rom.Data.Length;
+                    if (mutated && !_undoService.CommitExternal(rom, expectedUndo, undo))
+                    {
+                        _undoService.RestoreExternal(rom, undo);
+                        throw new InvalidOperationException("Event Assembler undo history was not committed.");
+                    }
+                    if (mutated)
                         _vm.CanUndo = true;
                     _vm.HasResult = true;
 
@@ -296,16 +304,24 @@ namespace FEBuilderGBA.Avalonia.Views
             // than the thread-local ambient scope. write_u8(addr, o, undo) records each
             // restored byte into it; we push it (UI thread) via CommitExternal only on
             // success, and roll it back on failure so a partial revert never sticks.
-            var undo = (CoreState.Undo ??= new Undo()).NewUndoData("Event Assembler Uninstall");
+            ROM rom = CoreState.ROM;
+            Undo expectedUndo = CoreState.Undo ??= new Undo();
+            var undo = expectedUndo.NewUndoData("Event Assembler Uninstall");
 
             try
             {
                 var result = await Task.Run(() =>
-                    EventAssemblerUninstallCore.Uninstall(_vm.SourcePath, cleanRom, undo));
+                    EventAssemblerUninstallCore.Uninstall(rom, _vm.SourcePath, cleanRom, undo));
 
                 if (result.Success)
                 {
-                    if (_undoService.CommitExternal(undo))
+                    bool mutated = undo.list.Count > 0 || undo.filesize != (uint)rom.Data.Length;
+                    if (mutated && !_undoService.CommitExternal(rom, expectedUndo, undo))
+                    {
+                        _undoService.RestoreExternal(rom, undo);
+                        throw new InvalidOperationException("Event Assembler uninstall undo history was not committed.");
+                    }
+                    if (mutated)
                         _vm.CanUndo = true;
                     _vm.HasResult = true;
                     string msg = R._("Uninstall successful.") + "\r\n"
@@ -331,14 +347,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     // Trace/validation failed → nothing was applied; roll back the
                     // (empty) undo scope so it does not linger, and surface the error.
-                    CoreState.Undo.Rollback(undo);
+                    _undoService.RestoreExternal(rom, undo);
                     _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + result.ErrorMessage;
                 }
             }
             catch (Exception ex)
             {
                 // A mid-revert exception leaves a partial write — roll it back.
-                try { CoreState.Undo?.Rollback(undo); }
+                try { _undoService.RestoreExternal(rom, undo); }
                 catch (Exception rollbackEx)
                 {
                     Log.Error("EventAssemblerView.Uninstall rollback failed: " + rollbackEx.ToString());

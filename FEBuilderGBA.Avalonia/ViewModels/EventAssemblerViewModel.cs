@@ -76,9 +76,8 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// The caller owns the undo scope (Begin/Commit) and passes its active
         /// <c>Undo.UndoData</c>.
         /// </summary>
-        public EventAssemblerCompileCore.CompileResult Import(Undo.UndoData undo)
+        public EventAssemblerCompileCore.CompileResult Import(ROM rom, Undo.UndoData undo)
         {
-            ROM rom = CoreState.ROM;
             return EventAssemblerCompileCore.CompileAndInsert(
                 rom, SourcePath, Mode, undo, StoreSymbol);
         }

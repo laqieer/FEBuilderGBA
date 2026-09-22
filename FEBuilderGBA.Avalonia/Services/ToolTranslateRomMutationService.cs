@@ -20,29 +20,30 @@ namespace FEBuilderGBA.Avalonia.Services
 
             if (!identity.TryCreateWorkingCopy(out ROM? working) || working == null)
                 return new Result(false, 0);
-            if (CoreState.Undo == null)
+            Undo? expectedUndo = CoreState.Undo;
+            if (expectedUndo == null)
                 throw new InvalidOperationException("Undo history is unavailable.");
 
-            Undo.UndoData scratch = CoreState.Undo.NewUndoData("Translate ROM staging");
+            Undo.UndoData scratch = expectedUndo.NewUndoData("Translate ROM staging");
             int total = await Task.Run(() => worker(working, scratch));
-            if (!identity.IsCurrent)
+            if (!identity.IsCurrent || !ReferenceEquals(CoreState.Undo, expectedUndo))
                 return new Result(false, 0);
 
-            Undo.UndoData active = CoreState.Undo.NewUndoData("Translate ROM");
+            Undo.UndoData active = expectedUndo.NewUndoData("Translate ROM");
             try
             {
-                if (!identity.IsCurrent)
+                if (!identity.IsCurrent || !ReferenceEquals(CoreState.Undo, expectedUndo))
                     return new Result(false, 0);
                 if (!rom.SwapNewROMData(working.Data, "Translate ROM", active, confirmHeaderChange: false))
                     throw new InvalidOperationException("Translate ROM changes were not applied.");
                 bool mutated = active.list.Count > 0 || active.filesize != (uint)rom.Data.Length;
-                if (mutated && !undoService.CommitExternal(active))
+                if (mutated && !undoService.CommitExternal(rom, expectedUndo, active))
                     throw new InvalidOperationException("Translate ROM undo history was not committed.");
                 return new Result(true, total);
             }
             catch
             {
-                undoService.RollbackExternal(rom, active);
+                undoService.RestoreExternal(rom, active);
                 throw;
             }
         }

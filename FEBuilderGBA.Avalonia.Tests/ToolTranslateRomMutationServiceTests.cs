@@ -5,6 +5,22 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class ToolTranslateRomMutationServiceTests
 {
+    sealed class ReplaceStateOnCommit : UndoService
+    {
+        internal ROM? ReplacementRom { get; private set; }
+        internal Undo? ReplacementUndo { get; private set; }
+
+        public override bool CommitExternal(ROM rom, Undo expectedUndo, Undo.UndoData undoData)
+        {
+            ReplacementRom = new ROM();
+            ReplacementRom.SwapNewROMDataDirect(new byte[0x200]);
+            ReplacementUndo = new Undo();
+            CoreState.ROM = ReplacementRom;
+            CoreState.Undo = ReplacementUndo;
+            return base.CommitExternal(rom, expectedUndo, undoData);
+        }
+    }
+
     [Fact]
     public async Task SuccessfulWorkerCommitsCloneAsOneUndoableMutation()
     {
@@ -49,6 +65,29 @@ public class ToolTranslateRomMutationServiceTests
 
         CoreState.Undo.RunUndo();
         Assert.Equal(originalLength, fixture.Rom.Data.Length);
+    }
+
+    [Fact]
+    public async Task StateReplacementAtCommitRestoresOnlySourceRom()
+    {
+        using var fixture = new PatchManagerOperationGuardTests.Fixture();
+        var identity = PatchDatabaseImportService.CaptureLoadedRom()!;
+        int originalLength = fixture.Rom.Data.Length;
+        var undoService = new ReplaceStateOnCommit();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            ToolTranslateRomMutationService.ExecuteAsync(
+                fixture.Rom, identity, undoService, (working, undo) =>
+                {
+                    Assert.True(working.write_resize_data((uint)(working.Data.Length + 4)));
+                    return 4;
+                }));
+
+        Assert.Equal(originalLength, fixture.Rom.Data.Length);
+        Assert.NotNull(undoService.ReplacementRom);
+        Assert.Equal(0x200, undoService.ReplacementRom.Data.Length);
+        Assert.NotNull(undoService.ReplacementUndo);
+        Assert.Empty(undoService.ReplacementUndo.UndoBuffer);
     }
 
     [Theory]
