@@ -29,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.Services
             internal bool HasSameSourceInstances =>
                 ReferenceEquals(rom.Data, data) && ReferenceEquals(rom.RomInfo, info) &&
                 rom.RomInfo.VersionToFilename == Version;
+            internal ROM SourceRom => rom;
             internal bool HasSameLoadedInstances =>
                 ReferenceEquals(CoreState.ROM, rom) && HasSameSourceInstances;
             internal bool CanRestoreOwnedMutation =>

@@ -28773,6 +28773,12 @@ ZIP 导入无法替换由 Git 管理的补丁数据库。请改用 Git 更新操
 :The loaded ROM changed while uninstall was running.
 加载的 ROM 在卸载过程中已更改。
 
+:Error: ROM identity or undo history is unavailable.
+错误：ROM 标识或撤销历史记录不可用。
+
+:The script already matches the ROM.
+脚本已与 ROM 中的内容一致。
+
 :The file picker is unavailable on this platform.
 此平台不支持文件选择器。
 

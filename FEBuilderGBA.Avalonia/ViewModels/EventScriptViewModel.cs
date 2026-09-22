@@ -467,7 +467,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             var identity = PatchDatabaseImportService.CaptureCurrentRom();
             if (undoMgr == null || identity == null)
             {
-                StatusText = "Error: ROM identity or undo history is unavailable.";
+                StatusText = R._("Error: ROM identity or undo history is unavailable.");
                 return false;
             }
             Undo.UndoData undo = undoMgr.NewUndoData("Event Script Write All");
@@ -529,7 +529,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
                     case EventScriptEditorCore.WriteResult.NoOp:
                         IsDirty = false;
-                        StatusText = "The script already matches the ROM.";
+                        StatusText = R._("The script already matches the ROM.");
                         return true;
 
                     case EventScriptEditorCore.WriteResult.UnsafeAddress:

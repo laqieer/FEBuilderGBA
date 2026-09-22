@@ -126,7 +126,11 @@ namespace FEBuilderGBA
         public static TraceResult TraceEAFile(string eaFilePath)
             => TraceEAFile(CoreState.ROM, eaFilePath);
 
-        static TraceResult TraceEAFile(ROM rom, string eaFilePath)
+        /// <summary>
+        /// Trace against an explicitly captured ROM so dialog awaits cannot retarget
+        /// an uninstall to a subsequently loaded ROM.
+        /// </summary>
+        public static TraceResult TraceEAFile(ROM rom, string eaFilePath)
         {
             var result = new TraceResult();
             List<BinMapping> binMappings = result.Mappings;

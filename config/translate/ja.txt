@@ -14943,6 +14943,12 @@ Gitで管理されているパッチデータベースをZIPインポートで�
 :The loaded ROM changed while uninstall was running.
 アンインストール中に読み込まれたROMが変更されました。
 
+:Error: ROM identity or undo history is unavailable.
+エラー: ROMの識別情報または元に戻す履歴を利用できません。
+
+:The script already matches the ROM.
+スクリプトは既にROMと一致しています。
+
 :The file picker is unavailable on this platform.
 このプラットフォームではファイル選択機能を利用できません。
 

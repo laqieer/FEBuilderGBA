@@ -260,6 +260,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
             string sourcePath = Path.GetFullPath(_vm.SourcePath);
+            var identity = PatchDatabaseImportService.CaptureCurrentRom();
+            if (identity == null)
+            {
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                    R._("The loaded ROM changed before uninstall started.");
+                return;
+            }
+            ROM rom = identity.SourceRom;
 
             // Prompt for the CLEAN ORIGINAL ROM (the ROM as it was before the patch).
             // Faithful to WF UnInstallPatch, which asks the user for a ROM that does
@@ -267,6 +275,12 @@ namespace FEBuilderGBA.Avalonia.Views
             string? cleanRomPath = await FileDialogHelper.OpenRomFile(TopLevel.GetTopLevel(this));
             if (string.IsNullOrEmpty(cleanRomPath))
                 return; // cancelled
+            if (!identity.IsCurrent)
+            {
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                    R._("The loaded ROM changed before uninstall started.");
+                return;
+            }
 
             byte[] cleanRom;
             try
@@ -281,6 +295,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" + ex.ToString();
                 return;
             }
+            if (!identity.IsCurrent)
+            {
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                    R._("The loaded ROM changed before uninstall started.");
+                return;
+            }
 
             // Review-BEFORE-revert (closest to the WF binmap dialog): trace first and,
             // if any write-bearing block can't be traced, ask the user to confirm a
@@ -289,7 +309,13 @@ namespace FEBuilderGBA.Avalonia.Views
             // large scripts/ROMs, so run it OFF the UI thread to keep the window
             // responsive. It is read-only here (only used to gate the confirm); the real
             // revert re-traces and writes inside the guarded Task.Run below.
-            var preTrace = await Task.Run(() => EventAssemblerUninstallCore.TraceEAFile(sourcePath));
+            var preTrace = await Task.Run(() => EventAssemblerUninstallCore.TraceEAFile(rom, sourcePath));
+            if (!identity.IsCurrent)
+            {
+                _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                    R._("The loaded ROM changed before uninstall started.");
+                return;
+            }
             if (preTrace.UntracedCount > 0)
             {
                 int n = preTrace.UntracedCount;
@@ -310,11 +336,15 @@ namespace FEBuilderGBA.Avalonia.Views
                     _vm.StatusMessage = R._("Uninstall cancelled.");
                     return;
                 }
+                if (!identity.IsCurrent)
+                {
+                    _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
+                        R._("The loaded ROM changed before uninstall started.");
+                    return;
+                }
             }
 
-            ROM rom = CoreState.ROM;
-            var identity = PatchDatabaseImportService.CaptureCurrentRom();
-            if (identity == null)
+            if (!identity.IsCurrent)
             {
                 _vm.StatusMessage = R._("Uninstall failed.") + "\r\n" +
                     R._("The loaded ROM changed before uninstall started.");

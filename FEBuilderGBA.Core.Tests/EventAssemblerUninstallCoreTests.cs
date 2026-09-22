@@ -322,6 +322,40 @@ namespace FEBuilderGBA.Core.Tests
             finally { try { Directory.Delete(eaDir, true); } catch { } }
         }
 
+        [Fact]
+        public void TraceEAFile_ExplicitRom_DoesNotFollowGlobalRomReplacement()
+        {
+            ROM capturedRom = CreateFE8Rom();
+            const uint tracedAddress = 0x12340;
+            capturedRom.write_u32(tracedAddress, 0x44332211);
+
+            var replacementRom = new ROM();
+            replacementRom.LoadLow("replacement.gba", new byte[0x1000000], "BE8E01");
+            replacementRom.write_u32(tracedAddress, 0x88776655);
+            CoreState.ROM = replacementRom;
+
+            string eaDir = Path.Combine(Path.GetTempPath(), "ea-explicit-rom-" + Path.GetRandomFileName());
+            Directory.CreateDirectory(eaDir);
+            File.WriteAllBytes(Path.Combine(eaDir, "explicit.bin"),
+                new byte[] { 0x11, 0x22, 0x33, 0x44 });
+            string eaFile = Path.Combine(eaDir, "explicit.event");
+            File.WriteAllText(eaFile,
+                "ORG 0x" + tracedAddress.ToString("X") + "\r\n" +
+                "#incbin \"explicit.bin\" // HINT=BIN\r\n");
+            try
+            {
+                var trace = EventAssemblerUninstallCore.TraceEAFile(capturedRom, eaFile);
+
+                Assert.True(trace.FullyTraced);
+                Assert.Empty(trace.Untraceable);
+                var mapping = trace.Mappings.Find(item =>
+                    item.addr == tracedAddress && item.length == 4);
+                Assert.NotNull(mapping);
+                Assert.Equal(new byte[] { 0x11, 0x22, 0x33, 0x44 }, mapping.bin);
+            }
+            finally { try { Directory.Delete(eaDir, true); } catch { } }
+        }
+
         // ---- Malformed / non-matching clean ROM: clean error, NO partial write -----
         //
         // The revert math must (a) restore byte-for-byte from the clean ROM where the
