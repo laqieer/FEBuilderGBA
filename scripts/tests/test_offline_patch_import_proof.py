@@ -542,7 +542,7 @@ internal sealed class DesktopStartupAcquisition {
             self.assertIn("[DesktopPolicyTests]::RunStartupAcquisitionTests()", runner)
             self.assertIn("[DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()", runner)
             self.assertRegex(runner, r"startupAcquisitionCases -ne 115")
-            for count in (159, 75, 40, 534):
+            for count in (159, 75, 40, 539):
                 self.assertIn(f"-ne {count}", runner)
 
     def test_empty_startup_discovery_is_discarded_before_capture(self):
@@ -600,11 +600,33 @@ internal sealed class DesktopStartupAcquisition {
         self.assertIn("if (traceImport) RecordEditorProbe(EditorProbe.ImportSearchCompleted);", window)
         self.assertLess(window.index("ImportCatalogStarted"), window.index("var tree = NewTree();"))
         self.assertLess(window.index("var tree = NewTree();"), window.index("ImportCatalogCompleted"))
-        self.assertIn("if (traceImport)\n                RecordEditorProbe(owned.Handle == Key(mainHandle)", window)
+        self.assertRegex(window,
+                         r"if \(traceImport\)\s+RecordEditorProbe\(owned\.Handle == Key\(mainHandle\)")
         self.assertIn("EditorProbe.ImportMainSearchStarted : EditorProbe.ImportOtherSearchStarted", window)
         self.assertIn("traceImport ? owned.Handle == Key(mainHandle) : (bool?)null", window)
         self.assertNotIn("ImportMainNotFound", window)
         self.assertNotIn("ImportOtherNotFound", window)
+
+    def test_confirmation_topology_retry_is_single_use_and_fail_closed(self):
+        policy = (PACKAGE / "Policy.cs").read_text(encoding="utf-8")
+        retry = _cs_body(policy, r"\bpublic static bool RetryConfirmationTopology\([^{}]*\)\s*\{")
+        for contract in (
+            "priorRetries == 0",
+            'failure.Stage == "valid-confirmation-import"',
+            "failure.Selector == DesktopSelector.ConfirmationYes.ToString()",
+            'failure.Predicate == "query-topology-changed"',
+            "failure.ExpectedOwnedRoot != failure.PreviouslyOwnedHandle",
+            "failure.AliveBefore == true && failure.AliveAfter == true",
+            "failure.OwnPidBefore == true && failure.OwnPidAfter == true",
+            "failure.RootMatchesBefore == false",
+            "failure.RootMatchesAfter == false",
+            "failure.Windows > 1 && failure.Windows <= 8",
+        ):
+            self.assertIn(contract, retry)
+        desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")
+        self.assertIn("confirmationTopologyRetries++", desktop)
+        self.assertIn('Record("observation", "confirmation-topology-reacquire")', desktop)
+        self.assertIn("catch (ReacquireTopology) { return null; }", desktop)
 
     def test_editor_control_markers_preserve_matches_and_state_read_order(self):
         desktop = (PACKAGE / "Desktop.cs").read_text(encoding="utf-8")

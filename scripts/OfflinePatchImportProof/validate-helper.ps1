@@ -82,7 +82,7 @@ function ProofEnvelope {
                 $preparationExitReportingCases=@(Invoke-PreparationExitReportingTests)
                 Assert-PreparationExitCaseNames $preparationExitReportingCases 72 'f6028266a57578cd815a9458c04c7a46fa85878a5f184dba41ea854e838aab42'
                 $report.cases=[DesktopPolicyTests]::Run()
-                if ($report.cases -ne 534) { throw 'Original pure case inventory changed.' }
+                if ($report.cases -ne 539) { throw 'Original pure case inventory changed.' }
                 $report.installedSnapshotCases=[DesktopPolicyTests]::RunSnapshotTests($owned)
                 if($report.installedSnapshotCases -ne 26) { throw 'Incomplete installed snapshot cases.' }
                 $report.startupObservationCases=[DesktopPolicyTests]::RunStartupTests()

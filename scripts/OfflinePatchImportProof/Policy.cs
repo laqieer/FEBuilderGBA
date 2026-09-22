@@ -50,6 +50,24 @@ public static class DesktopPolicy
             main != 0 && main != loading && loadingGone && mainReady;
     }
 
+    public static bool RetryConfirmationTopology(DesktopQueryFailure failure, int priorRetries)
+    {
+        return priorRetries == 0 && failure != null &&
+        failure.Stage == "valid-confirmation-import" &&
+        failure.Selector == DesktopSelector.ConfirmationYes.ToString() &&
+        failure.Predicate == "query-topology-changed" &&
+        failure.ExpectedOwnedRoot != 0 &&
+        failure.PreviouslyOwnedHandle != 0 &&
+        failure.ExpectedOwnedRoot != failure.PreviouslyOwnedHandle &&
+        failure.OwnedRootBefore == failure.PreviouslyOwnedHandle &&
+        failure.OwnedRootAfter == failure.PreviouslyOwnedHandle &&
+        failure.AliveBefore == true && failure.AliveAfter == true &&
+        failure.OwnPidBefore == true && failure.OwnPidAfter == true &&
+        failure.RootMatchesBefore == false &&
+        failure.RootMatchesAfter == false &&
+        failure.Windows > 1 && failure.Windows <= 8;
+    }
+
     // ROM, valid ZIP, invalid ZIP, installed database; row is a separate UI observation.
     public static bool Preserved(string[] before, string[] after, string rowBefore, string rowAfter, bool rejected)
     {

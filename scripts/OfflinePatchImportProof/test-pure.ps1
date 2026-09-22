@@ -166,7 +166,7 @@ function ProofEnvelope {
         Assert-Proof ($queryDiagnosticSerializationNames.Count -eq 51 -and $queryDiagnosticSerializationDigest -ceq
             '9ac69bee98244df7a57d34bab907750b663d40e630130d95f8d554aaf92989db') 'Query diagnostic serialization inventory changed.'
         [DesktopPolicyTests]::AssertQueryDiagnosticCaseInventory()
-        if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 534) { throw 'Incomplete original pure case inventory.' }
+        if($imageCases -ne 10 -or $bindingCases -ne 22 -or $policyCases -ne 539) { throw 'Incomplete original pure case inventory.' }
         $startupAcquisitionCases=[DesktopPolicyTests]::RunStartupAcquisitionTests()
         if($startupAcquisitionCases -ne 115){throw 'Startup acquisition case inventory changed.'}
         [DesktopPolicyTests]::AssertStartupAcquisitionCaseInventory()

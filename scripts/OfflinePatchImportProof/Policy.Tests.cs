@@ -3925,6 +3925,34 @@ public static class DesktopPolicyTests
         Check(!DesktopPolicy.Handoff(true, 5, 10, 100, 200, false, true));
         Check(!DesktopPolicy.Handoff(true, 5, 10, 100, 200, true, false));
 
+        var confirmationTransition = new DesktopQueryFailure
+        {
+            Stage = "valid-confirmation-import",
+            Selector = DesktopSelector.ConfirmationYes.ToString(),
+            Predicate = "query-topology-changed",
+            ExpectedOwnedRoot = 300,
+            PreviouslyOwnedHandle = 100,
+            OwnedRootBefore = 100,
+            OwnedRootAfter = 100,
+            AliveBefore = true,
+            AliveAfter = true,
+            OwnPidBefore = true,
+            OwnPidAfter = true,
+            RootMatchesBefore = false,
+            RootMatchesAfter = false,
+            Windows = 3,
+        };
+        Check(DesktopPolicy.RetryConfirmationTopology(confirmationTransition, 0));
+        Check(!DesktopPolicy.RetryConfirmationTopology(confirmationTransition, 1));
+        confirmationTransition.Stage = "invalid-rejection-preservation";
+        Check(!DesktopPolicy.RetryConfirmationTopology(confirmationTransition, 0));
+        confirmationTransition.Stage = "valid-confirmation-import";
+        confirmationTransition.Selector = DesktopSelector.ConfirmationMessage.ToString();
+        Check(!DesktopPolicy.RetryConfirmationTopology(confirmationTransition, 0));
+        confirmationTransition.Selector = DesktopSelector.ConfirmationYes.ToString();
+        confirmationTransition.OwnPidAfter = false;
+        Check(!DesktopPolicy.RetryConfirmationTopology(confirmationTransition, 0));
+
         string hash = new string('a', 64);
         string other = new string('b', 64);
         string[] before = { hash, hash, hash, hash };

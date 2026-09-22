@@ -742,7 +742,7 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
     $validationRoot=Join-Path $b ('validate-'+$prior)
     $validationRows=@(foreach($name in @('Pure.json','Compile.json','Policy.compile-only.dll','Desktop.compile-only.dll','a.dat','b.dat','c.dat','d.dat','e.dat','f.dat','g.dat')){
         $value=switch($name){
-            'Pure.json' {@{passed=$true;cases=534;bindingCases=22;nativeCalls=$false;appLaunched=$false}}
+            'Pure.json' {@{passed=$true;cases=539;bindingCases=22;nativeCalls=$false;appLaunched=$false}}
             'Compile.json' {@{passed=$true;nativeCalls=$false;appLaunched=$false;runtimeBindings=@(1..7|ForEach-Object {@{accepted=$true;actualSha256=('6'*64);expectedSha256=('6'*64);actualIdentity='synthetic';expectedIdentity='synthetic'}})}}
             default {@{synthetic=$true}}
         }
@@ -787,7 +787,7 @@ function New-ProofRestageFixture([string]$Root,[ValidateSet('None','PurePassed',
         $outer.timedOut=$false;$outer.killAttempts=0;$outer.exitCode=0;$outer.exe=$hostPin.path;$outer.image=$hostPin.path
         $outer.hostSha256=$hostPin.sha256;$outer.pid=1;$outer.startTicks=1L;$outer.stageReceiptPath=$historyEvidence[$label].path
         $outer.stageReceiptSha256=$historyEvidence[$label].sha256;$outer.authorizationSha256=$auth.sha256
-        if($stage -ceq 'Validate'){$outer.bindingCases=22;$outer.pureCases=534;$outer.runtimeBindingsAccepted=7;$outer.outputOnlyDlls=2}
+        if($stage -ceq 'Validate'){$outer.bindingCases=22;$outer.pureCases=539;$outer.runtimeBindingsAccepted=7;$outer.outputOnlyDlls=2}
         $outerPin=Write-ProofTestJson (Join-Path $r ($label+'-outer.json')) $outer
         $stages.Add(@{stage=$stage;receiptPath=$historyEvidence[$label].path;receiptSha256=$historyEvidence[$label].sha256;
             authorizationReference=$grant;authorizationPath=$auth.path;authorizationSha256=$auth.sha256;

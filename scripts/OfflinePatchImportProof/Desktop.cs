@@ -180,7 +180,9 @@ public sealed class BoundedDesktopSmoke
     }
 
     sealed class Refusal : Exception { public Refusal(string code) : base(code) { } }
+    sealed class ReacquireTopology : Exception { }
     static void Require(bool condition, string code) { if (!condition) throw new Refusal(code); }
+    int confirmationTopologyRetries;
 
     void Record(string kind, string code, IntPtr handle = default(IntPtr))
     {
@@ -442,6 +444,26 @@ public sealed class BoundedDesktopSmoke
         }
     }
 
+    TValue ConfirmationTreeCall<TValue>(Func<TValue> operation)
+    {
+        try
+        {
+            return operation();
+        }
+        catch (DesktopTreeException ex)
+        {
+            if (DesktopPolicy.RetryConfirmationTopology(
+                ex.Failure, confirmationTopologyRetries))
+            {
+                confirmationTopologyRetries++;
+                Record("observation", "confirmation-topology-reacquire");
+                throw new ReacquireTopology();
+            }
+            lock (sync) { if (result.QueryFailure == null) result.QueryFailure = ex.Failure; }
+            throw new Refusal(ex.Message);
+        }
+    }
+
     DesktopOwnedTree<AutomationElement> NewTree(AutomationElement seed = null)
     {
         Identity();
@@ -470,9 +492,13 @@ public sealed class BoundedDesktopSmoke
     }
 
     List<AutomationElement> Find(AutomationElement window, DesktopSelector selector, int max = 16,
-        AutomationElement subtree = null, DesktopOwnedTree<AutomationElement> tree = null)
+        AutomationElement subtree = null, DesktopOwnedTree<AutomationElement> tree = null,
+        bool allowConfirmationTopologyRetry = false)
     {
         tree = tree ?? NewTree(window);
+        if (allowConfirmationTopologyRetry)
+            return ConfirmationTreeCall(
+                () => tree.Find(tree.WindowKey(window, selector), subtree, selector, max));
         return TreeCall(() => tree.Find(tree.WindowKey(window, selector), subtree, selector, max));
     }
 
@@ -496,12 +522,14 @@ public sealed class BoundedDesktopSmoke
     }
 
     AutomationElement Control(AutomationElement window, string id, ControlType type, bool active = true,
-        DesktopOwnedTree<AutomationElement> tree = null, bool? importMainRoot = null)
+        DesktopOwnedTree<AutomationElement> tree = null, bool? importMainRoot = null,
+        bool allowConfirmationTopologyRetry = false)
     {
         bool traceImport = id == ImportButton && stage == "open-editor";
         tree = tree ?? NewTree(window);
         var selector = Selector(id);
-        var found = Find(window, selector, tree: tree);
+        var found = Find(window, selector, tree: tree,
+            allowConfirmationTopologyRetry: allowConfirmationTopologyRetry);
         Require(found.Count <= 1, "ambiguous-control");
         if (found.Count == 0)
         {
@@ -528,24 +556,33 @@ public sealed class BoundedDesktopSmoke
     AutomationElement WindowFor(string id, ControlType type, bool active = true)
     {
         bool traceImport = id == ImportButton && stage == "open-editor";
+        bool confirmationTransition =
+            id == "MessageBoxContent_Yes_Button" &&
+            stage == "valid-confirmation-import";
         AutomationElement result = null;
         if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogStarted);
         var tree = NewTree();
         if (traceImport) RecordEditorProbe(EditorProbe.ImportCatalogCompleted);
-        for (int i = 0; i < tree.Windows.Count; i++)
+        try
         {
-            var owned = tree.Windows[i];
-            if (!TreeCall(() => tree.Visible(owned)) ||
-                owned.Class == "#32770" || owned.Class == "ComboLBox") continue;
-            var window = owned.Element;
-            if (traceImport)
-                RecordEditorProbe(owned.Handle == Key(mainHandle)
-                    ? EditorProbe.ImportMainSearchStarted : EditorProbe.ImportOtherSearchStarted);
-            if (Control(window, id, type, active, tree,
-                traceImport ? owned.Handle == Key(mainHandle) : (bool?)null) == null) continue;
-            Require(result == null, "ambiguous-window");
-            result = window;
+            for (int i = 0; i < tree.Windows.Count; i++)
+            {
+                var owned = tree.Windows[i];
+                if (!TreeCall(() => tree.Visible(owned)) ||
+                    owned.Class == "#32770" || owned.Class == "ComboLBox") continue;
+                var window = owned.Element;
+                if (traceImport)
+                    RecordEditorProbe(owned.Handle == Key(mainHandle)
+                        ? EditorProbe.ImportMainSearchStarted : EditorProbe.ImportOtherSearchStarted);
+                var control = Control(window, id, type, active, tree,
+                    traceImport ? owned.Handle == Key(mainHandle) : (bool?)null,
+                    confirmationTransition);
+                if (control == null) continue;
+                Require(result == null, "ambiguous-window");
+                result = window;
+            }
         }
+        catch (ReacquireTopology) { return null; }
         if (traceImport) RecordEditorProbe(EditorProbe.ImportSearchCompleted);
         return result;
     }
