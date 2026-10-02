@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Drawing;
 using FEBuilderGBA.E2ETests.Helpers;
 
 namespace FEBuilderGBA.E2ETests.Tests;
@@ -235,8 +236,8 @@ public class DesktopReadinessTests
         using var process = new Process();
         var native = new CaptureNative { Failure = "print-false" };
         Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
-        Assert.Equal(new uint[] { 2, 0 }, native.Flags);
-        Assert.Equal(2, native.Surfaces.Count);
+        Assert.Equal(new uint[] { 2, 0, 2, 0, 2, 0 }, native.Flags);
+        Assert.Equal(6, native.Surfaces.Count);
         Assert.All(native.Surfaces, surface =>
         {
             Assert.Equal(1, surface.Releases);
@@ -282,11 +283,316 @@ public class DesktopReadinessTests
     {
         using var process = new Process();
         var native = new CaptureNative { Failure = failure };
-        Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        var delays = new List<int>();
+        Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready, delays.Add));
         var surface = Assert.Single(native.Surfaces);
         Assert.Equal(releases, surface.Releases);
         Assert.Equal(1, surface.Disposals);
+        Assert.Empty(delays);
     }
+
+    [Theory]
+    [InlineData("print-false", "100x100", 6)]
+    [InlineData("empty-content", "100x100", 6)]
+    [InlineData("empty-bounds", "0x100", 0)]
+    public void Capture_TransientFailureBudgetAndDiagnosticsAreExact(
+        string failure, string dimensions, int prints)
+    {
+        using var process = new Process();
+        var native = new CaptureNative { Failure = failure };
+        var delays = new List<int>();
+
+        var rejected = Assert.Throws<WindowCaptureException>(() =>
+            Capture(process, native, Ready, delays.Add));
+
+        Assert.Contains("test", rejected.Message);
+        Assert.Contains("HWND=0xC", rejected.Message);
+        Assert.Contains("PID=42", rejected.Message);
+        Assert.Contains(dimensions, rejected.Message);
+        Assert.Contains("attempt 3/3", rejected.Message);
+        Assert.Equal(new[] { 100, 100 }, delays);
+        Assert.Equal(3, native.BoundsQueries);
+        Assert.Equal(prints, native.Prints);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Releases);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_GeometryRetryRechecksAdmissionBeforeBounds(bool revokeDesktop)
+    {
+        using var process = new Process();
+        var native = new CaptureNative { BoundsResults = new(new[] { (0, 100), (100, 100) }) };
+        bool revoked = false;
+        Action<int> wait = _ =>
+        {
+            revoked = true;
+            if (!revokeDesktop) native.Failure = "exited";
+        };
+
+        if (revokeDesktop)
+            Assert.Throws<DesktopUnavailableException>(() =>
+                Capture(process, native, () => revoked ? Rejected(false) : Ready(), wait));
+        else
+            Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready, wait));
+        Assert.Equal(1, native.BoundsQueries);
+        Assert.Equal(0, native.Prints);
+        Assert.Empty(native.Surfaces);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_RetriesTransientRenderingUntilContentAppears(bool emptyContent)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        if (emptyContent)
+            native.ContentResults = new(new[] { false, false, true });
+        else
+            native.PrintResults = new(new[] { false, false, true });
+
+        Assert.EndsWith("test.png", Capture(process, native, Ready));
+        Assert.Equal(new uint[] { 2, 0, 2 }, native.Flags);
+        Assert.Equal(2, native.BoundsQueries);
+        Assert.Equal(3, native.Surfaces.Count);
+        Assert.Equal(new[] { 0, 0, 1 }, native.Surfaces.Select(surface => surface.Saves));
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(1, surface.Releases);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Theory]
+    [InlineData(0, 100)]
+    [InlineData(-1, 100)]
+    [InlineData(100, 0)]
+    [InlineData(100, -1)]
+    public void Capture_RetriesOnlyNonpositiveGeometryUntilSized(int width, int height)
+    {
+        using var process = new Process();
+        var native = new CaptureNative
+        {
+            BoundsResults = new(new[] { (width, height), (100, 100) })
+        };
+
+        Assert.EndsWith("test.png", Capture(process, native, Ready));
+        Assert.Equal(2, native.BoundsQueries);
+        var surface = Assert.Single(native.Surfaces);
+        Assert.Equal(1, surface.Saves);
+        Assert.Equal(1, surface.Releases);
+        Assert.Equal(1, surface.Disposals);
+    }
+
+    [Theory]
+    [InlineData("bounds")]
+    [InlineData("surface")]
+    [InlineData("hdc")]
+    public void Capture_RechecksOwnershipImmediatelyBeforePrint(string revokeAt)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        Action revoke = () => native.Failure = "foreign";
+        if (revokeAt == "bounds") native.OnBounds = revoke;
+        if (revokeAt == "surface") native.OnCreateSurface = revoke;
+        if (revokeAt == "hdc") native.OnGetHdc = revoke;
+
+        var failure = Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        Assert.Contains("different process", failure.Message);
+        Assert.Equal(0, native.Prints);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Theory]
+    [InlineData("surface")]
+    [InlineData("hdc")]
+    [InlineData("fallback")]
+    public void Capture_RechecksReadinessImmediatelyBeforeEachPrint(string revokeAt)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        bool blocked = false;
+        Action revoke = () => blocked = true;
+        if (revokeAt == "surface") native.OnCreateSurface = revoke;
+        if (revokeAt == "hdc") native.OnGetHdc = revoke;
+        if (revokeAt == "fallback")
+        {
+            native.PrintResults = new(new[] { false });
+            native.OnPrint = revoke;
+        }
+
+        Assert.Throws<DesktopUnavailableException>(() =>
+            Capture(process, native, () => blocked ? Rejected(false) : Ready()));
+        Assert.Equal(revokeAt == "fallback" ? 1 : 0, native.Prints);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Fact]
+    public void Capture_RevokedOwnershipPreventsTargetFallback()
+    {
+        using var process = new Process();
+        var native = new CaptureNative { PrintResults = new(new[] { false }) };
+        native.OnPrint = () => native.Failure = "foreign";
+
+        var failure = Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        Assert.Contains("different process", failure.Message);
+        Assert.Equal(new uint[] { 2 }, native.Flags);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Theory]
+    [InlineData("foreign")]
+    [InlineData("exited")]
+    [InlineData("reused-pid")]
+    public void Capture_RevokedOwnershipStopsRetry(string failure)
+    {
+        using var process = new Process();
+        var native = new CaptureNative { PrintResults = new(new[] { false, false }) };
+        native.OnPrint = () =>
+        {
+            if (native.Prints == 2) native.Failure = failure;
+        };
+
+        var rejected = Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        Assert.Contains(failure == "foreign" ? "different process" : "identity", rejected.Message);
+        Assert.Equal(2, native.Prints);
+        Assert.Equal(1, native.BoundsQueries);
+        Assert.All(native.Surfaces, surface => Assert.Equal(0, surface.Saves));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_RevokedDesktopStopsRetry(bool unknown)
+    {
+        using var process = new Process();
+        var native = new CaptureNative { PrintResults = new(new[] { false, false }) };
+        bool revoked = false;
+        native.OnPrint = () =>
+        {
+            if (native.Prints == 2) revoked = true;
+        };
+
+        var failure = Assert.Throws<DesktopUnavailableException>(() =>
+            Capture(process, native, () => revoked ? Rejected(unknown) : Ready()));
+        Assert.Equal(Rejected(unknown), failure.Readiness);
+        Assert.Equal(2, native.Prints);
+        Assert.Equal(1, native.BoundsQueries);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_RechecksAdmissionBeforeSaving(bool revokeDesktop)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        bool blocked = false;
+        native.OnContent = () =>
+        {
+            if (revokeDesktop) blocked = true;
+            else native.Failure = "foreign";
+        };
+
+        if (revokeDesktop)
+            Assert.Throws<DesktopUnavailableException>(() =>
+                Capture(process, native, () => blocked ? Rejected(false) : Ready()));
+        else
+            Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        var surface = Assert.Single(native.Surfaces);
+        Assert.Equal(0, surface.Saves);
+        Assert.Equal(1, surface.Releases);
+        Assert.Equal(1, surface.Disposals);
+    }
+
+    [Theory]
+    [InlineData(11, 9, 2, 3)]
+    [InlineData(11, 9, 9, 7)]
+    [InlineData(1, 5, 0, 1)]
+    [InlineData(5, 1, 1, 0)]
+    public void BitmapContent_DetectsSparseInteriorRgbVariation(int width, int height, int x, int y)
+    {
+        using var bitmap = new Bitmap(width, height);
+        using (var graphics = Graphics.FromImage(bitmap))
+            graphics.Clear(Color.Black);
+        bitmap.SetPixel(x, y, Color.White);
+
+        Assert.True(BitmapHasContent(bitmap));
+        Assert.Equal(Color.White.ToArgb(), bitmap.GetPixel(x, y).ToArgb());
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0)]
+    [InlineData(255, 255, 255)]
+    [InlineData(12, 34, 56)]
+    public void BitmapContent_RejectsUniformRgb(int red, int green, int blue)
+    {
+        using var bitmap = new Bitmap(11, 9);
+        using (var graphics = Graphics.FromImage(bitmap))
+            graphics.Clear(Color.FromArgb(red, green, blue));
+
+        Assert.False(BitmapHasContent(bitmap));
+    }
+
+    [Fact]
+    public void BitmapContent_RejectsAlphaOnlyVariation()
+    {
+        using var bitmap = new Bitmap(11, 9);
+        using (var graphics = Graphics.FromImage(bitmap))
+            graphics.Clear(Color.FromArgb(12, 34, 56));
+        bitmap.SetPixel(10, 8, Color.FromArgb(1, 12, 34, 56));
+
+        Assert.False(BitmapHasContent(bitmap));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_UniformOrAlphaOnlyBitmapNeverSaves(bool alphaVariation)
+    {
+        using var bitmap = new Bitmap(11, 9);
+        using (var graphics = Graphics.FromImage(bitmap))
+            graphics.Clear(Color.FromArgb(12, 34, 56));
+        if (alphaVariation)
+            bitmap.SetPixel(10, 8, Color.FromArgb(1, 12, 34, 56));
+        using var process = new Process();
+        var native = new CaptureNative { ContentProbe = () => BitmapHasContent(bitmap) };
+
+        Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
+        Assert.Equal(6, native.Surfaces.Count);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.ContentChecks);
+            Assert.Equal(1, surface.Releases);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
+    private static bool BitmapHasContent(Bitmap bitmap) => ScreenshotHelper.HasContent(bitmap);
 
     [Fact]
     public void Workflow_DirectDiagnosticsAreCliOnly()
@@ -309,8 +615,9 @@ public class DesktopReadinessTests
     }
 
     private static string Capture(Process process, CaptureNative native,
-        Func<DesktopReadinessResult> probe) =>
-        ScreenshotHelper.CaptureWindow(process, new IntPtr(12), "test", ".", false, probe, native);
+        Func<DesktopReadinessResult> probe, Action<int>? wait = null) =>
+        ScreenshotHelper.CaptureWindow(process, new IntPtr(12), "test", ".", false, probe, native,
+            wait ?? (_ => { }));
 
     private static DesktopReadinessResult Rejected(bool unknown) =>
         DesktopReadiness.Evaluate(unknown
@@ -369,6 +676,11 @@ public class DesktopReadinessTests
         public Process? Process;
         public List<uint> Flags = new();
         public List<CaptureSurface> Surfaces = new();
+        public Queue<(int Width, int Height)> BoundsResults = new();
+        public Queue<bool> PrintResults = new();
+        public Queue<bool> ContentResults = new();
+        public Action? OnBounds, OnCreateSurface, OnGetHdc, OnPrint, OnContent;
+        public Func<bool>? ContentProbe;
 
         public CaptureProcessIdentity GetProcessIdentity(Process process)
         {
@@ -387,20 +699,32 @@ public class DesktopReadinessTests
         public (int Width, int Height) GetWindowSize(IntPtr window)
         {
             BoundsQueries++;
+            OnBounds?.Invoke();
             if (Failure == "bounds") throw new InvalidOperationException();
+            if (BoundsResults.Count > 0) return BoundsResults.Dequeue();
             return (Failure == "empty-bounds" ? 0 : 100, 100);
         }
         public IWindowCaptureSurface CreateSurface(int width, int height)
         {
-            var surface = new CaptureSurface { Failure = Failure };
+            var surface = new CaptureSurface
+            {
+                Failure = Failure,
+                ContentResults = ContentResults,
+                OnGetHdc = OnGetHdc,
+                OnContent = OnContent,
+                ContentProbe = ContentProbe
+            };
             Surfaces.Add(surface);
+            OnCreateSurface?.Invoke();
             return surface;
         }
         public bool PrintWindow(IntPtr window, IntPtr hdc, uint flags)
         {
             Prints++;
             Flags.Add(flags);
+            OnPrint?.Invoke();
             if (Failure == "print-throws") throw new InvalidOperationException();
+            if (PrintResults.Count > 0) return PrintResults.Dequeue();
             return Failure != "print-false" && !(Failure == "first-print-false" && Prints == 1);
         }
     }
@@ -409,8 +733,12 @@ public class DesktopReadinessTests
     {
         public string Failure = "";
         public int Releases, Disposals, Saves, ContentChecks;
+        public Queue<bool> ContentResults = new();
+        public Action? OnGetHdc, OnContent;
+        public Func<bool>? ContentProbe;
         public IntPtr GetHdc()
         {
+            OnGetHdc?.Invoke();
             if (Failure == "get-hdc") throw new InvalidOperationException();
             return Failure == "zero-hdc" ? IntPtr.Zero : new(30);
         }
@@ -423,7 +751,10 @@ public class DesktopReadinessTests
         public bool HasContent()
         {
             ContentChecks++;
+            OnContent?.Invoke();
             if (Failure == "content-throws") throw new InvalidOperationException();
+            if (ContentProbe != null) return ContentProbe();
+            if (ContentResults.Count > 0) return ContentResults.Dequeue();
             return Failure != "empty-content";
         }
         public void Save(string path)

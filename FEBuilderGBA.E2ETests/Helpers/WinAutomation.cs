@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
@@ -17,7 +18,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
         // ------------------------------------------------------------------ P/Invoke
         private delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
 
-        [DllImport("user32.dll")]
+        [DllImport("user32.dll", SetLastError = true)]
         private static extern bool EnumWindows(EnumWindowsProc lpEnumFunc, IntPtr lParam);
 
         [DllImport("user32.dll")]
@@ -77,14 +78,55 @@ namespace FEBuilderGBA.E2ETests.Helpers
         public static List<IntPtr> GetProcessWindows(int processId)
         {
             var result = new List<IntPtr>();
-            EnumWindows((hWnd, _) =>
+            if (!EnumWindows((hWnd, _) =>
             {
                 GetWindowThreadProcessId(hWnd, out uint pid);
                 if ((int)pid == processId) result.Add(hWnd);
                 return true;
-            }, IntPtr.Zero);
+            }, IntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(),
+                    $"Cannot enumerate top-level windows for PID={processId}.");
             return result;
         }
+
+        /// <summary>
+        /// Returns visible, positive-sized top-level windows owned by the process for capture.
+        /// Lifecycle and closure checks must use GetProcessWindows instead.
+        /// </summary>
+        public static List<IntPtr> GetCaptureWindows(int processId) =>
+            GetCaptureWindows(processId, new WindowDiscoveryNative());
+
+        internal static List<IntPtr> GetCaptureWindows(int processId, IWindowDiscoveryNative native)
+        {
+            ArgumentOutOfRangeException.ThrowIfLessThan(processId, 1);
+            ArgumentNullException.ThrowIfNull(native);
+
+            var result = new List<IntPtr>();
+            foreach (IntPtr window in native.GetProcessWindows(processId))
+            {
+                if (window == IntPtr.Zero || native.GetWindowOwner(window) != (uint)processId ||
+                    !native.IsVisible(window))
+                    continue;
+
+                var (width, height) = native.GetWindowSize(window);
+                if (width > 0 && height > 0 &&
+                    native.GetWindowOwner(window) == (uint)processId && native.IsVisible(window))
+                    result.Add(window);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// Waits for a stable set of newly capturable owned windows. The baseline must
+        /// also come from GetCaptureWindows so a previously hidden form can be discovered.
+        /// </summary>
+        public static List<IntPtr> WaitForNewCaptureWindows(
+            int processId,
+            IReadOnlySet<IntPtr> baselineWindows,
+            int timeoutMs = 5_000,
+            int pollMs = 100) =>
+            WaitForNewWindows(() => GetCaptureWindows(processId), baselineWindows,
+                timeoutMs, pollMs, stablePollCount: 5);
 
         /// <summary>
         /// Waits for top-level process windows that are not present in
@@ -222,82 +264,64 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
         /// <summary>
         /// Wait up to <paramref name="timeoutMs"/> ms for a top-level window belonging to
-        /// <paramref name="process"/> whose title (from Process.MainWindowTitle or
-        /// Win32 GetWindowText) contains <paramref name="titleSubstring"/>.
-        ///
-        /// Uses Process.MainWindowTitle for the primary check because it correctly
-        /// returns Unicode titles even on ANSI-locale machines.
-        /// Supplements with Win32 EnumWindows for secondary windows.
+        /// <paramref name="process"/> whose Unicode title contains
+        /// <paramref name="titleSubstring"/> and whose window is visible and positive-sized.
         ///
         /// Returns the hWnd, or IntPtr.Zero on timeout.
         /// </summary>
         public static IntPtr WaitForWindow(Process process, string titleSubstring,
                                            int timeoutMs = 20_000, int pollMs = 200)
         {
-            var sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < timeoutMs)
-            {
-                if (process.HasExited) return IntPtr.Zero;
-
-                // Primary: check MainWindowTitle (correct Unicode support)
-                try
-                {
-                    process.Refresh();
-                    if (!string.IsNullOrEmpty(process.MainWindowTitle) &&
-                        process.MainWindowTitle.Contains(titleSubstring,
-                            StringComparison.OrdinalIgnoreCase) &&
-                        process.MainWindowHandle != IntPtr.Zero)
-                    {
-                        return process.MainWindowHandle;
-                    }
-                }
-                catch { }
-
-                // Secondary: enumerate all top-level windows for the process
-                foreach (IntPtr hWnd in GetProcessWindows(process.Id))
-                {
-                    string t = GetTitle(hWnd);
-                    if (t.Contains(titleSubstring, StringComparison.OrdinalIgnoreCase))
-                        return hWnd;
-                }
-
-                Thread.Sleep(pollMs);
-            }
-            return IntPtr.Zero;
+            ArgumentNullException.ThrowIfNull(process);
+            ArgumentNullException.ThrowIfNull(titleSubstring);
+            return WaitForMatchingWindow(
+                () => GetCaptureWindows(process.Id),
+                window => GetTitle(window).Contains(titleSubstring, StringComparison.OrdinalIgnoreCase),
+                () => process.HasExited, timeoutMs, pollMs);
         }
 
         /// <summary>
         /// Wait for the process's main window to appear (any WinForms top-level window).
-        /// Returns the hWnd of the first WinForms-class window, or IntPtr.Zero on timeout.
+        /// Returns the first visible, positive-sized WinForms-class window, or IntPtr.Zero on timeout.
         /// </summary>
         public static IntPtr WaitForAnyAppWindow(Process process,
                                                   int timeoutMs = 20_000, int pollMs = 200)
         {
+            ArgumentNullException.ThrowIfNull(process);
+            return WaitForMatchingWindow(
+                () => GetCaptureWindows(process.Id),
+                window => GetClass(window).StartsWith("WindowsForms10.Window",
+                    StringComparison.OrdinalIgnoreCase),
+                () => process.HasExited, timeoutMs, pollMs);
+        }
+
+        internal static IntPtr WaitForMatchingWindow(
+            Func<IReadOnlyCollection<IntPtr>> windowProbe,
+            Func<IntPtr, bool> matches,
+            Func<bool> hasExited,
+            int timeoutMs,
+            int pollMs)
+        {
+            ArgumentNullException.ThrowIfNull(windowProbe);
+            ArgumentNullException.ThrowIfNull(matches);
+            ArgumentNullException.ThrowIfNull(hasExited);
+            ArgumentOutOfRangeException.ThrowIfNegative(timeoutMs);
+            ArgumentOutOfRangeException.ThrowIfNegative(pollMs);
+
             var sw = Stopwatch.StartNew();
-            while (sw.ElapsedMilliseconds < timeoutMs)
+            while (true)
             {
-                if (process.HasExited) return IntPtr.Zero;
-
-                // Check MainWindowHandle directly
-                try
+                if (hasExited()) return IntPtr.Zero;
+                foreach (IntPtr window in windowProbe())
                 {
-                    process.Refresh();
-                    if (process.MainWindowHandle != IntPtr.Zero)
-                        return process.MainWindowHandle;
-                }
-                catch { }
-
-                // Look for any WinForms class window
-                foreach (IntPtr hWnd in GetProcessWindows(process.Id))
-                {
-                    string cls = GetClass(hWnd);
-                    if (cls.StartsWith("WindowsForms10.Window", StringComparison.OrdinalIgnoreCase))
-                        return hWnd;
+                    if (matches(window))
+                        return window;
                 }
 
-                Thread.Sleep(pollMs);
+                if (sw.ElapsedMilliseconds >= timeoutMs)
+                    return IntPtr.Zero;
+                WaitForNextPoll(sw, timeoutMs, pollMs);
             }
-            return IntPtr.Zero;
         }
 
         /// <summary>
@@ -363,5 +387,32 @@ namespace FEBuilderGBA.E2ETests.Helpers
                     PostMessage(w, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
             }
         }
+
+        private sealed class WindowDiscoveryNative : IWindowDiscoveryNative
+        {
+            public IReadOnlyCollection<IntPtr> GetProcessWindows(int processId) =>
+                WinAutomation.GetProcessWindows(processId);
+
+            public uint GetWindowOwner(IntPtr window) =>
+                GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+
+            public bool IsVisible(IntPtr window) => IsWindowVisible(window);
+
+            public (int Width, int Height) GetWindowSize(IntPtr window)
+            {
+                if (!GetWindowRect(window, out RECT rect))
+                    throw new Win32Exception(Marshal.GetLastWin32Error(),
+                        $"Cannot query capture dimensions for HWND=0x{window:X}.");
+                return (checked(rect.Right - rect.Left), checked(rect.Bottom - rect.Top));
+            }
+        }
+    }
+
+    internal interface IWindowDiscoveryNative
+    {
+        IReadOnlyCollection<IntPtr> GetProcessWindows(int processId);
+        uint GetWindowOwner(IntPtr window);
+        bool IsVisible(IntPtr window);
+        (int Width, int Height) GetWindowSize(IntPtr window);
     }
 }

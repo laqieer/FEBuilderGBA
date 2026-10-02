@@ -81,7 +81,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             do
             {
                 Thread.Sleep(500);
-                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process.Id))
+                foreach (IntPtr w in WinAutomation.GetCaptureWindows(_process.Id))
                 {
                     var candidates = WinAutomation.GetChildWindows(w)
                         .Where(c => WinAutomation.GetClass(c.hWnd)
@@ -109,12 +109,12 @@ namespace FEBuilderGBA.E2ETests.Tests
                 }
 
                 // Snapshot of top-level windows before the click
-                var before = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
+                var before = new HashSet<IntPtr>(WinAutomation.GetCaptureWindows(_process.Id));
 
                 WinAutomation.ClickButton(btnHWnd);
                 int remainingMs = Math.Max(
                     0, ButtonLoopTimeoutMs - (int)loopSw.ElapsedMilliseconds);
-                var newWindows = WinAutomation.WaitForNewProcessWindows(
+                var newWindows = WinAutomation.WaitForNewCaptureWindows(
                     _process.Id,
                     before,
                     timeoutMs: Math.Min(WindowOpenTimeoutMs, remainingMs));
