@@ -39,30 +39,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             ROM rom = CoreState.ROM;
             if (rom?.RomInfo == null) return new List<AddrResult>();
 
-            uint ptr = rom.RomInfo.unit_move_icon_pointer;
-            if (ptr == 0) return new List<AddrResult>();
-
-            uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
-
-            var result = new List<AddrResult>();
-            for (uint i = 0; i < 0x100; i++)
-            {
-                uint addr = (uint)(baseAddr + i * SIZE);
-                if (addr + SIZE > (uint)rom.Data.Length) break;
-
-                uint imgPtr = rom.u32(addr + 0);
-                if (!U.isPointer(imgPtr)) break;
-
-                // #1177: append the owning class name (WF
-                // GetClassNameWhereNo(i) = GetClassName(i+1) — move-icon row i
-                // maps directly to class id i+1). Lockstep with
-                // ListParityHelper.BuildImageUnitMoveIconList.
-                string className = NameResolver.GetClassName(i + 1) ?? string.Empty;
-                string name = U.ToHexString(i) + U.SA(className) + " MoveIcon";
-                result.Add(new AddrResult(addr, name, i));
-            }
-            return result;
+            return ListParityHelper.BuildImageUnitMoveIconList(rom);
         }
 
         public void LoadEntry(uint addr)
