@@ -127,7 +127,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
             }
             catch (WindowCaptureException ex)
             {
-                throw new WindowCaptureException($"{TargetDescription()} {ex.Message}", ex);
+                throw new WindowCaptureException($"{TargetDescription()} {ex.Message}", ex.InnerException);
             }
             catch (Exception ex) when (ex is not DesktopUnavailableException &&
                 ex is InvalidOperationException or ExternalException or IOException or

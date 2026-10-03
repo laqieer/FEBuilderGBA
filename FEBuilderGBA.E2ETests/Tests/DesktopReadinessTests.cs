@@ -310,6 +310,7 @@ public class DesktopReadinessTests
         Assert.Contains("PID=42", rejected.Message);
         Assert.Contains(dimensions, rejected.Message);
         Assert.Contains("attempt 3/3", rejected.Message);
+        Assert.Null(rejected.InnerException);
         Assert.Equal(new[] { 100, 100 }, delays);
         Assert.Equal(3, native.BoundsQueries);
         Assert.Equal(prints, native.Prints);
@@ -319,6 +320,105 @@ public class DesktopReadinessTests
             Assert.Equal(1, surface.Releases);
             Assert.Equal(1, surface.Disposals);
         });
+    }
+
+    [Theory]
+    [InlineData("empty-bounds")]
+    [InlineData("empty-content")]
+    [InlineData("print-false")]
+    public void Capture_DirectRefusalIsReportedAndNextDiagnosticStillCaptures(string failure)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        var windows = new List<IntPtr>();
+        var reports = new List<string>();
+        var waits = new List<int>();
+        int kills = 0;
+        var cleanup = new OwnedProcessCleanup(() => false, () => kills++,
+            timeout => { waits.Add(timeout); return true; });
+
+        Assert.True(StartupCloseDiagnostics.CaptureAndCleanup(
+            () => [new IntPtr(12), new IntPtr(13)],
+            window =>
+            {
+                windows.Add(window);
+                native.Failure = window == new IntPtr(12) ? failure : "";
+                ScreenshotHelper.CaptureWindow(process, window, "diagnostic", ".", false,
+                    Ready, native, _ => { });
+            },
+            reports.Add, cleanup));
+
+        Assert.Equal(new[] { new IntPtr(12), new IntPtr(13) }, windows);
+        string report = Assert.Single(reports);
+        Assert.Contains("Optional diagnostic capture refused; no screenshot evidence", report);
+        Assert.Contains("HWND=0xC", report);
+        Assert.Contains("attempt 3/3", report);
+        Assert.Equal(1, native.Surfaces.Sum(surface => surface.Saves));
+        Assert.All(native.Surfaces, surface => Assert.Equal(1, surface.Disposals));
+        Assert.Equal(1, kills);
+        Assert.Equal(new[] { 5_000 }, waits);
+    }
+
+    [Theory]
+    [InlineData("identity-query")]
+    [InlineData("bounds")]
+    [InlineData("get-hdc")]
+    [InlineData("print-throws")]
+    [InlineData("content-throws")]
+    [InlineData("save-throws")]
+    [InlineData("release-throws")]
+    public void Capture_NativeFaultStillPropagatesThroughDiagnosticAfterCleanup(string failure)
+    {
+        using var process = new Process();
+        var native = new CaptureNative { Failure = failure };
+        int captures = 0, reports = 0, kills = 0;
+        var waits = new List<int>();
+        var cleanup = new OwnedProcessCleanup(() => false, () => kills++,
+            timeout => { waits.Add(timeout); return true; });
+
+        var rejected = Assert.Throws<WindowCaptureException>(() =>
+            StartupCloseDiagnostics.CaptureAndCleanup(
+                () => [new IntPtr(12), new IntPtr(13)],
+                window =>
+                {
+                    captures++;
+                    ScreenshotHelper.CaptureWindow(process, window, "diagnostic", ".", false,
+                        Ready, native, _ => { });
+                },
+                _ => reports++, cleanup));
+
+        Assert.IsType(failure == "save-throws" ? typeof(IOException) : typeof(InvalidOperationException),
+            rejected.InnerException);
+        Assert.Contains("HWND=0xC", rejected.Message);
+        Assert.Equal(1, captures);
+        Assert.Equal(0, reports);
+        Assert.Equal(1, kills);
+        Assert.Equal(new[] { 5_000 }, waits);
+        Assert.All(native.Surfaces, surface => Assert.Equal(1, surface.Disposals));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Capture_ReadinessRejectionStillPropagatesThroughDiagnosticAfterCleanup(bool unknown)
+    {
+        using var process = new Process();
+        var native = new CaptureNative();
+        int reports = 0, kills = 0;
+        var cleanup = new OwnedProcessCleanup(() => false, () => kills++, _ => true);
+
+        var rejected = Assert.Throws<DesktopUnavailableException>(() =>
+            StartupCloseDiagnostics.CaptureAndCleanup(
+                () => [new IntPtr(12)],
+                window => ScreenshotHelper.CaptureWindow(process, window, "diagnostic", ".", false,
+                    () => Rejected(unknown), native, _ => { }),
+                _ => reports++, cleanup));
+
+        Assert.Equal(Rejected(unknown), rejected.Readiness);
+        Assert.Equal(0, native.IdentityQueries);
+        Assert.Empty(native.Surfaces);
+        Assert.Equal(0, reports);
+        Assert.Equal(1, kills);
     }
 
     [Theory]

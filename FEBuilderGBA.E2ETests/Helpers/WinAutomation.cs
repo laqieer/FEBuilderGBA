@@ -376,15 +376,28 @@ namespace FEBuilderGBA.E2ETests.Helpers
         /// that are NOT in the <paramref name="keepWindows"/> set.
         /// This is useful for dismissing unexpected modal dialogs
         /// (e.g., file browser dialogs) that may block the main form.
+        /// The keep set must include all preexisting handles, even hidden or unsized ones.
         /// </summary>
-        public static void CloseUnexpectedWindows(int processId, HashSet<IntPtr>? keepWindows = null)
+        public static void CloseUnexpectedWindows(int processId, HashSet<IntPtr>? keepWindows = null) =>
+            CloseUnexpectedWindows(() => GetProcessWindows(processId),
+                IsWindowVisible, CloseWindow, keepWindows);
+
+        internal static void CloseUnexpectedWindows(
+            Func<IReadOnlyCollection<IntPtr>> windowProbe,
+            Func<IntPtr, bool> isVisible,
+            Action<IntPtr> closeWindow,
+            IReadOnlySet<IntPtr>? keepWindows)
         {
-            foreach (IntPtr w in GetProcessWindows(processId))
+            ArgumentNullException.ThrowIfNull(windowProbe);
+            ArgumentNullException.ThrowIfNull(isVisible);
+            ArgumentNullException.ThrowIfNull(closeWindow);
+
+            foreach (IntPtr window in windowProbe())
             {
-                if (keepWindows != null && keepWindows.Contains(w))
+                if (keepWindows != null && keepWindows.Contains(window))
                     continue;
-                if (IsWindowVisible(w))
-                    PostMessage(w, WM_CLOSE, IntPtr.Zero, IntPtr.Zero);
+                if (isVisible(window))
+                    closeWindow(window);
             }
         }
 

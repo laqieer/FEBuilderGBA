@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA.Tests.Unit
 {
@@ -69,6 +70,39 @@ namespace FEBuilderGBA.Tests.Unit
                 .Replace("OutputDirectory, false,", "OutputDirectory, true,", StringComparison.Ordinal);
 
             Assert.Throws<Xunit.Sdk.ContainsException>(() => AssertDeterministicCaptureContract(source));
+        }
+
+        [Theory]
+        [InlineData("FormSmokeTests.cs")]
+        [InlineData("WinFormsScreenshotAllTests.cs")]
+        public void ToolbarCapture_KeepsIndependentAllHandleLifecycleBaseline(string fileName)
+        {
+            string source = File.ReadAllText(Path.Combine(
+                SolutionDir, "FEBuilderGBA.E2ETests", "Tests", fileName));
+            string loop = ToolInitWizardDownloadRouteTests.ExtractMethodBody(
+                source, "foreach (var (btnHWnd, btnText) in buttons)");
+            Match capture = Regex.Match(loop,
+                @"WaitForNewCaptureWindows\(\s*_process\.Id,\s*(?<baseline>\w+)\s*,");
+            Match cleanup = Regex.Match(loop,
+                @"CloseUnexpectedWindows\(\s*_process\.Id,\s*(?<baseline>\w+)\s*\)");
+
+            Assert.True(capture.Success, "Capture discovery baseline not found.");
+            Assert.True(cleanup.Success, "Lifecycle cleanup baseline not found.");
+            string captureSet = capture.Groups["baseline"].Value;
+            string lifecycleSet = cleanup.Groups["baseline"].Value;
+            Assert.NotEqual(captureSet, lifecycleSet);
+
+            MatchCollection snapshots = Regex.Matches(loop,
+                @"var\s+(?<name>\w+)\s*=\s*new\s+HashSet<IntPtr>\(WinAutomation\." +
+                @"(?<probe>GetCaptureWindows|GetProcessWindows)\(_process\.Id\)\);");
+            Match captureSnapshot = Assert.Single(
+                snapshots.Where(snapshot => snapshot.Groups["name"].Value == captureSet));
+            Match lifecycleSnapshot = Assert.Single(
+                snapshots.Where(snapshot => snapshot.Groups["name"].Value == lifecycleSet));
+            Assert.Equal("GetCaptureWindows", captureSnapshot.Groups["probe"].Value);
+            Assert.Equal("GetProcessWindows", lifecycleSnapshot.Groups["probe"].Value);
+            Assert.True(lifecycleSnapshot.Index < loop.IndexOf(
+                "WinAutomation.ClickButton(", StringComparison.Ordinal));
         }
 
         private static void AssertDeterministicCaptureContract(string source)

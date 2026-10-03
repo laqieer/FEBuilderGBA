@@ -106,14 +106,15 @@ namespace FEBuilderGBA.E2ETests.Tests
                     break;
                 }
 
-                var before = new HashSet<IntPtr>(WinAutomation.GetCaptureWindows(_process.Id));
+                var beforeCapture = new HashSet<IntPtr>(WinAutomation.GetCaptureWindows(_process.Id));
+                var keepLifecycle = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));
 
                 WinAutomation.ClickButton(btnHWnd);
                 int remainingMs = Math.Max(
                     0, ButtonLoopTimeoutMs - (int)loopSw.ElapsedMilliseconds);
                 var newWindows = WinAutomation.WaitForNewCaptureWindows(
                     _process.Id,
-                    before,
+                    beforeCapture,
                     timeoutMs: Math.Min(WindowOpenTimeoutMs, remainingMs));
 
                 if (newWindows.Count > 0)
@@ -145,7 +146,7 @@ namespace FEBuilderGBA.E2ETests.Tests
                         $"{Math.Min(WindowOpenTimeoutMs, remainingMs)}ms");
                 }
 
-                WinAutomation.CloseUnexpectedWindows(_process.Id, before);
+                WinAutomation.CloseUnexpectedWindows(_process.Id, keepLifecycle);
             }
 
             _output.WriteLine($"{romName}: total screenshots captured: {screenshotCount}");

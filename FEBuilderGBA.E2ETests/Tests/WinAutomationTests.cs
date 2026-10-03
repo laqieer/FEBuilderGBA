@@ -177,6 +177,37 @@ namespace FEBuilderGBA.E2ETests.Tests
                 timeoutMs: 0, pollMs: 0));
         }
 
+        [Theory]
+        [InlineData(0, 100, true)]
+        [InlineData(100, 0, true)]
+        [InlineData(100, 100, false)]
+        public void LifecycleCleanup_ProtectsPreexistingNoncapturableHandle(
+            int width, int height, bool visible)
+        {
+            var main = new Window(new(1), 42, true, 100, 100);
+            var existing = new Window(new(2), 42, visible, width, height);
+            var unexpected = new Window(new(3), 42, true, 100, 100);
+            var hiddenUnexpected = new Window(new(4), 42, false, 100, 100);
+            var native = new DiscoveryNative(
+                new[] { main, existing },
+                new[] { main, existing },
+                new[] { main, existing with { Visible = true }, unexpected, hiddenUnexpected });
+            var captureBaseline = new HashSet<IntPtr>(WinAutomation.GetCaptureWindows(42, native));
+            var keepLifecycle = new HashSet<IntPtr>(native.GetProcessWindows(42));
+            var closed = new List<IntPtr>();
+
+            Assert.DoesNotContain(existing.Handle, captureBaseline);
+            Assert.Contains(existing.Handle, keepLifecycle);
+            WinAutomation.CloseUnexpectedWindows(
+                () => native.GetProcessWindows(42), native.IsVisible, closed.Add, keepLifecycle);
+            Assert.Equal(new[] { unexpected.Handle }, closed);
+
+            closed.Clear();
+            WinAutomation.CloseUnexpectedWindows(
+                () => native.GetProcessWindows(42), native.IsVisible, closed.Add, captureBaseline);
+            Assert.Equal(new[] { existing.Handle, unexpected.Handle }, closed);
+        }
+
         [Fact]
         public void WaitForNewWindows_WaitsForStableNewSet()
         {
