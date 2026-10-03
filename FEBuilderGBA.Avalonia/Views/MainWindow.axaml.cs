@@ -283,6 +283,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (RunProgram3MenuItem != null) RunProgram3MenuItem.Header = R._("Run Program _3...");
             if (OptionsMenuItem != null) OptionsMenuItem.Header = R._("_Options...");
             if (ContentRepoSetupMenuItem != null) ContentRepoSetupMenuItem.Header = R._("Content Repositories…");
+            if (VersionMenuItem != null) VersionMenuItem.Header = ViewTranslationHelper.TranslateTitle("_Version Information");
 
             // Help sub-items
             if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");

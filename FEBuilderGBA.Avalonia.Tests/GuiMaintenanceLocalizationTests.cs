@@ -1,0 +1,385 @@
+using System.Reflection;
+using Avalonia.Controls;
+using Avalonia.Headless.XUnit;
+using Avalonia.Threading;
+using FEBuilderGBA.Avalonia.Services;
+using FEBuilderGBA.Avalonia.ViewModels;
+using FEBuilderGBA.Avalonia.Views;
+
+namespace FEBuilderGBA.Avalonia.Tests;
+
+[Collection("SharedState")]
+public class HostedEditorLocalizationTests
+{
+    [AvaloniaTheory]
+    [InlineData("ja", "Options", "\u30aa\u30d7\u30b7\u30e7\u30f3")]
+    [InlineData("zh", "Options", "\u8bbe\u7f6e")]
+    [InlineData("ja", "Version Information", "\u30d0\u30fc\u30b8\u30e7\u30f3 \u60c5\u5831")]
+    [InlineData("zh", "Version Information", "\u7248\u672c \u4fe1\u606f")]
+    public void Initial_title_uses_shipped_catalog_without_changing_descriptor(
+        string language, string key, string expected)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage(language);
+        IEmbeddableEditor editor = key == "Options" ? new OptionsView() : new VersionView();
+        var host = new EditorHostWindow(editor);
+        try
+        {
+            Assert.NotEqual(key, expected);
+            Assert.Equal(expected, host.Title);
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(expected, host.Title);
+            Assert.Equal(key, editor.Descriptor.Title);
+            Assert.Equal(key, editor.ViewTitle);
+            Assert.Same(editor, host.Content);
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaTheory]
+    [InlineData("Options", "\u8bbe\u7f6e")]
+    [InlineData("Version Information", "\u7248\u672c \u4fe1\u606f")]
+    public void Language_round_trip_retains_original_title_key(string key, string translated)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var editor = new CatalogTitleEditor(key);
+        var host = new EditorHostWindow(editor);
+        try
+        {
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(key, host.Title);
+
+            state.ApplyLanguage("zh");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(translated, host.Title);
+            Assert.Equal(key, editor.Descriptor.Title);
+
+            state.ApplyLanguage("en");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(key, host.Title);
+            Assert.Equal(key, editor.ViewTitle);
+            Assert.Same(editor, host.Content);
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Opening_refreshes_title_if_language_changed_after_construction()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var host = new EditorHostWindow(new CatalogTitleEditor("Options"));
+        try
+        {
+            Assert.Equal(0, GuiLocalizationState.SubscriberCount(host));
+            state.ApplyLanguage("zh");
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u8bbe\u7f6e", host.Title);
+            Assert.Equal(1, GuiLocalizationState.SubscriberCount(host));
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Worker_language_notification_dispatches_entire_title_update()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var host = new EditorHostWindow(new CatalogTitleEditor("Options"));
+        try
+        {
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            int titleUpdates = 0;
+            host.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != Window.TitleProperty) return;
+                Assert.True(Dispatcher.UIThread.CheckAccess());
+                titleUpdates++;
+            };
+
+            Task.Run(() => state.ApplyLanguage("zh")).GetAwaiter().GetResult();
+            Assert.Equal("Options", host.Title);
+            Assert.Equal(0, titleUpdates);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u8bbe\u7f6e", host.Title);
+            Assert.Equal(1, titleUpdates);
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Host_does_not_rescan_already_translated_child_controls()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+        var editor = new CatalogTitleEditor("Options");
+        var host = new EditorHostWindow(editor);
+        try
+        {
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u8bbe\u7f6e", editor.Label.Text);
+
+            state.ApplyLanguage("en");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Options", editor.Label.Text);
+            Assert.Equal("Options", host.Title);
+
+            state.ApplyLanguage("ja");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u30aa\u30d7\u30b7\u30e7\u30f3", editor.Label.Text);
+            Assert.Equal("\u30aa\u30d7\u30b7\u30e7\u30f3", host.Title);
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Close_unsubscribes_and_discards_already_posted_title_update()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var host = new EditorHostWindow(new CatalogTitleEditor("Options"));
+        try
+        {
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, GuiLocalizationState.SubscriberCount(host));
+            Task.Run(() => state.ApplyLanguage("zh")).GetAwaiter().GetResult();
+            Assert.Equal("Options", host.Title);
+
+            host.Close();
+            Assert.Equal(0, GuiLocalizationState.SubscriberCount(host));
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Options", host.Title);
+
+            host.Title = "Closed title";
+            state.ApplyLanguage("ja");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("Closed title", host.Title);
+            Assert.Equal(0, GuiLocalizationState.SubscriberCount(host));
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Immediate_close_cannot_leave_a_deferred_subscription()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+        var host = new EditorHostWindow(new CatalogTitleEditor("Options"));
+        host.Show();
+        host.Close();
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal(0, GuiLocalizationState.SubscriberCount(host));
+
+        host.Title = "Closed title";
+        state.ApplyLanguage("en");
+        Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Closed title", host.Title);
+    }
+
+    [AvaloniaFact]
+    public void Hide_and_show_does_not_duplicate_language_subscription()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var host = new EditorHostWindow(new CatalogTitleEditor("Options"));
+        try
+        {
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            host.Hide();
+            host.Show();
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(1, GuiLocalizationState.SubscriberCount(host));
+            state.ApplyLanguage("zh");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u8bbe\u7f6e", host.Title);
+        }
+        finally { host.Close(); }
+        Assert.Equal(0, GuiLocalizationState.SubscriberCount(host));
+    }
+}
+
+[Collection("SharedState")]
+public class MainWindowMaintenanceLocalizationTests
+{
+    [AvaloniaTheory]
+    [InlineData("ja", "\u30d0\u30fc\u30b8\u30e7\u30f3 \u60c5\u5831(_V)")]
+    [InlineData("zh", "\u7248\u672c \u4fe1\u606f(_V)")]
+    public void Initial_version_menu_header_uses_shipped_catalog(string language, string expected)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage(language);
+        var window = new MainWindow();
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var item = window.FindControl<MenuItem>("VersionMenuItem");
+            Assert.NotNull(item);
+            Assert.Equal(expected, item.Header);
+            Assert.NotEqual("_Version Information", item.Header);
+            Assert.True(item.IsEnabled);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Version_menu_worker_language_round_trip_keeps_control_and_mnemonic()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var window = new MainWindow();
+        try
+        {
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+            var item = window.FindControl<MenuItem>("VersionMenuItem")!;
+            Assert.Equal("_Version Information", item.Header);
+            int headerUpdates = 0;
+            item.PropertyChanged += (_, e) =>
+            {
+                if (e.Property != MenuItem.HeaderProperty) return;
+                Assert.True(Dispatcher.UIThread.CheckAccess());
+                headerUpdates++;
+            };
+
+            Task.Run(() => state.ApplyLanguage("zh")).GetAwaiter().GetResult();
+            Assert.Equal("_Version Information", item.Header);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("\u7248\u672c \u4fe1\u606f(_V)", item.Header);
+
+            state.ApplyLanguage("en");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("_Version Information", item.Header);
+            Assert.Equal(2, headerUpdates);
+            Assert.Same(item, window.FindControl<MenuItem>("VersionMenuItem"));
+        }
+        finally { window.Close(); }
+    }
+}
+
+[Collection("WindowManagerSerial")]
+public class SingleViewTitleLocalizationTests
+{
+    [AvaloniaTheory]
+    [InlineData("Options", "\u8bbe\u7f6e")]
+    [InlineData("Version Information", "\u7248\u672c \u4fe1\u606f")]
+    public void Single_view_translates_presentation_without_changing_navigation_keys(
+        string key, string translated)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("en");
+        var previousService = WindowManager.Instance.Service;
+        var navigation = new AndroidNavigationService();
+        Window? window = null;
+        try
+        {
+            WindowManager.Instance.SetService(navigation);
+            var shell = new MainView();
+            window = new Window { Content = shell };
+            window.Show();
+            IEmbeddableEditor editor = key == "Options"
+                ? navigation.Open<OptionsView>()
+                : navigation.Open<VersionView>();
+            Dispatcher.UIThread.RunJobs();
+            var title = shell.FindControl<TextBlock>("TitleText")!;
+            Assert.Equal(key, title.Text);
+
+            state.ApplyLanguage("zh");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(translated, title.Text);
+            Assert.Equal(key, navigation.CurrentTitle);
+            Assert.Equal(key, editor.Descriptor.Title);
+            Assert.Same(editor, navigation.CurrentContent);
+            Assert.True(navigation.CanGoBack);
+
+            state.ApplyLanguage("en");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal(key, title.Text);
+            Assert.Same(editor, navigation.CurrentContent);
+            Assert.True(navigation.GoBack());
+            Assert.False(navigation.CanGoBack);
+            Assert.Equal("FEBuilderGBA", title.Text);
+        }
+        finally
+        {
+            navigation.CloseAll();
+            window?.Close();
+            WindowManager.Instance.SetService(previousService);
+        }
+    }
+}
+
+sealed class CatalogTitleEditor : TranslatedUserControl, IEmbeddableEditor
+{
+    public TextBlock Label { get; } = new() { Text = "Options" };
+    public EditorDescriptor Descriptor { get; }
+    public string ViewTitle => Descriptor.Title;
+    public new bool IsLoaded => true;
+    public event EventHandler? CloseRequested;
+
+    public CatalogTitleEditor(string title)
+    {
+        Descriptor = new(title, 320, 200);
+        Content = Label;
+    }
+
+    public void NavigateTo(uint address) { }
+    public void RequestClose() => CloseRequested?.Invoke(this, EventArgs.Empty);
+}
+
+sealed class GuiLocalizationState : IDisposable
+{
+    static readonly FieldInfo TranslationField = typeof(MyTranslateResource).GetField(
+        "Resource", BindingFlags.Static | BindingFlags.NonPublic)!;
+    static readonly FieldInfo LanguageEventField = typeof(CoreState).GetField(
+        "LanguageChanged", BindingFlags.Static | BindingFlags.NonPublic)!;
+    readonly object? previousTranslations = TranslationField.GetValue(null);
+    readonly string? previousLanguage = CoreState.Language;
+    readonly string? previousBaseDirectory = CoreState.BaseDirectory;
+    readonly Config? previousConfig = CoreState.Config;
+    readonly ROM? previousRom = CoreState.ROM;
+    readonly bool previousSmokeTestMode = App.SmokeTestMode;
+    readonly string? previousStartupRom = App.StartupRomPath;
+    readonly string? previousStartupProject = App.StartupProjectDir;
+    readonly Window? previousMainWindow = WindowManager.Instance.MainWindow;
+
+    public GuiLocalizationState()
+    {
+        TranslationField.SetValue(null, new MyTranslateResourceLow());
+        CoreState.BaseDirectory = PatchDatabaseImportServiceTests.FindRepoRoot();
+        CoreStateTestState.RestoreConfig(null);
+        CoreStateTestState.RestoreRom(null);
+        App.SmokeTestMode = true;
+        App.StartupRomPath = null;
+        App.StartupProjectDir = null;
+    }
+
+    public void ApplyLanguage(string language)
+        => OptionsViewModel.ApplyLanguage(language, persist: false);
+
+    public static int SubscriberCount(object target)
+        => ((Delegate?)LanguageEventField.GetValue(null))?.GetInvocationList()
+            .Count(handler => ReferenceEquals(handler.Target, target)) ?? 0;
+
+    public void Dispose()
+    {
+        Dispatcher.UIThread.RunJobs();
+        TranslationField.SetValue(null, previousTranslations);
+        CoreStateTestState.RestoreLanguage(previousLanguage);
+        CoreStateTestState.RestoreBaseDirectory(previousBaseDirectory);
+        CoreStateTestState.RestoreConfig(previousConfig);
+        CoreStateTestState.RestoreRom(previousRom);
+        App.SmokeTestMode = previousSmokeTestMode;
+        App.StartupRomPath = previousStartupRom;
+        App.StartupProjectDir = previousStartupProject;
+        WindowManager.Instance.MainWindow = previousMainWindow;
+    }
+}

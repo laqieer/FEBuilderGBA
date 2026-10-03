@@ -5,6 +5,7 @@ using Xunit;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
+[Collection("SharedState")]
 public class EditorHostWindowTests
 {
     [AvaloniaFact]
