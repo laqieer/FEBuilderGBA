@@ -1,0 +1,127 @@
+name: "Linux X11 Hosted"
+
+on:
+  workflow_call:
+    inputs:
+      route:
+        description: "Hosted issue #2160 route"
+        required: true
+        type: string
+      candidate_sha:
+        description: "Immutable reviewed candidate SHA"
+        required: false
+        type: string
+        default: ""
+      receipt_stem:
+        description: "Private receipt stem"
+        required: true
+        type: string
+      grant_lookup_key:
+        description: "Lookup-only grant key"
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+  actions: read
+  issues: read
+
+jobs:
+  prepare:
+    name: issue2160 hosted preflight
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    env:
+      ISSUE2160_ROUTE: ${{ inputs.route }}
+      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha != '' && inputs.candidate_sha || github.sha }}
+      ISSUE2160_RECEIPT_STEM: ${{ inputs.receipt_stem }}
+      ISSUE2160_GRANT_LOOKUP_KEY: ${{ inputs.grant_lookup_key }}
+      GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Gather hosted preflight evidence
+        run: >-
+          /usr/bin/python3 -B scripts/linux_x11_hosted.py prepare
+          --output TestResults/issue2160-hosted/preflight.json
+
+      - name: Upload hosted preflight evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue2160-hosted-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestResults/issue2160-hosted/preflight.json
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 7
+
+  native:
+    if: ${{ inputs.route == 'issue2160-reserve-native' }}
+    name: issue2160 hosted native
+    needs: prepare
+    runs-on: ubuntu-24.04
+    environment:
+      name: issue2160-native
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    concurrency:
+      group: issue2160-native-${{ github.run_id }}
+      cancel-in-progress: false
+    env:
+      ISSUE2160_ROUTE: ${{ inputs.route }}
+      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha != '' && inputs.candidate_sha || github.sha }}
+      ISSUE2160_RECEIPT_STEM: ${{ inputs.receipt_stem }}
+      ISSUE2160_GRANT_LOOKUP_KEY: ${{ inputs.grant_lookup_key }}
+      GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+    steps:
+      - name: Checkout immutable candidate
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Download hosted preflight evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: issue2160-hosted-preflight-${{ github.run_id }}-${{ github.run_attempt }}
+          path: TestResults/issue2160-hosted
+
+      - name: Reverify run binding and read coordinator grant
+        run: >-
+          /usr/bin/python3 -B scripts/linux_x11_hosted.py authorize-native
+          --preflight TestResults/issue2160-hosted/preflight.json
+          --output TestResults/issue2160-hosted/grant.json
+
+      - name: Run bounded native X11 smoke
+        run: >-
+          /usr/bin/python3 -B -m scripts.tests.linux_x11_native_smoke
+          --allow-native-smoke
+          --timeout 20
+          --receipt-dir linux-x11-smoke-${{ inputs.receipt_stem }}
+
+      - name: Validate bounded native X11 receipt
+        run: >-
+          /usr/bin/python3 -B scripts/linux_x11_hosted.py validate-receipt
+          --preflight TestResults/issue2160-hosted/preflight.json
+          --receipt linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json
+
+      - name: Upload hosted native receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: issue2160-hosted-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            TestResults/issue2160-hosted/preflight.json
+            TestResults/issue2160-hosted/grant.json
+            linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json
+          if-no-files-found: error
+          include-hidden-files: false
+          retention-days: 7

@@ -1,0 +1,482 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""Bounded GitHub-hosted orchestration for issue #2160 native X11 review."""
+
+from __future__ import annotations
+
+import argparse
+from datetime import datetime, timezone
+import hashlib
+import json
+import os
+from pathlib import Path
+import re
+import shutil
+import stat
+import subprocess
+import urllib.request
+
+from scripts.tests import linux_x11_native_smoke as native_smoke
+
+
+REPOSITORY = "laqieer/FEBuilderGBA"
+ISSUE_NUMBER = 2160
+CALLER_WORKFLOW_PATH = ".github/workflows/e2e-norom.yml"
+HOSTED_WORKFLOW_PATH = ".github/workflows/linux-x11-hosted.yml"
+GRANT_SCHEMA = "issue2160-native-grant-v1"
+OPERATION = "issue2160-linux-x11-hosted-v1"
+PREPARE_ROUTE = "issue2160-prepare"
+RESERVE_ROUTE = "issue2160-reserve-native"
+ALLOWED_ROUTES = frozenset({PREPARE_ROUTE, RESERVE_ROUTE})
+TIMEOUT_TOTAL = 20
+TIMEOUT_WORK = 18
+TIMEOUT_CLEANUP = 2
+QUERY_LIMIT = 16384
+JSON_LIMIT = 32768
+HTTP_LIMIT = 1048576
+HTTP_PAGES = 5
+LOOKUP_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,79}\Z")
+RECEIPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
+SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+RUN_ID_RE = re.compile(r"[1-9][0-9]{0,19}\Z")
+SOURCE_FILES = (
+    ".github/workflows/e2e-norom.yml",
+    ".github/workflows/linux-x11-hosted.yml",
+    "scripts/linux_x11.py",
+    "scripts/linux_x11_hosted.py",
+    "scripts/tests/linux_x11_native_smoke.py",
+)
+LIBX11_CANDIDATES = (
+    "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+    "/lib/x86_64-linux-gnu/libX11.so.6",
+)
+
+
+class HostedWorkflowError(RuntimeError):
+    """Fail-closed hosted workflow contract error."""
+
+
+def _normalized_json(value):
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def _sha256_bytes(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _sha256_path(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while True:
+            chunk = stream.read(65536)
+            if not chunk:
+                return digest.hexdigest()
+            digest.update(chunk)
+
+
+def _bounded_json(path, value):
+    data = (_normalized_json(value) + "\n").encode("utf-8")
+    if len(data) > JSON_LIMIT:
+        raise HostedWorkflowError("Bounded JSON output exceeded the reviewed limit")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("x", encoding="utf-8") as stream:
+        stream.write(data.decode("utf-8"))
+
+
+def _read_json(path):
+    data = path.read_bytes()
+    if len(data) > JSON_LIMIT:
+        raise HostedWorkflowError("JSON input exceeded the reviewed limit")
+    return json.loads(data)
+
+
+def _require_match(name, value, pattern):
+    if not isinstance(value, str) or pattern.fullmatch(value) is None:
+        raise HostedWorkflowError(f"Invalid {name}")
+    return value
+
+
+def _require_route(route):
+    if route not in ALLOWED_ROUTES:
+        raise HostedWorkflowError("Hosted route must be issue2160-prepare or issue2160-reserve-native")
+    return route
+
+
+def _query(command, *, cwd=None, timeout=10):
+    result = subprocess.run(
+        command,
+        cwd=cwd,
+        check=False,
+        capture_output=True,
+        timeout=timeout,
+    )
+    if len(result.stdout) > QUERY_LIMIT or len(result.stderr) > QUERY_LIMIT:
+        raise HostedWorkflowError("Bounded command output exceeded the reviewed limit")
+    if result.returncode != 0:
+        raise HostedWorkflowError(
+            f"Command failed: {' '.join(command)}: {result.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    stderr = result.stderr.decode("utf-8", "replace").strip()
+    if stderr:
+        raise HostedWorkflowError(f"Unexpected stderr from {' '.join(command)}: {stderr}")
+    return result.stdout.decode("utf-8", "replace").strip()
+
+
+def _fetch_json(url, token, *, timeout=10):
+    if not token:
+        raise HostedWorkflowError("GITHUB_TOKEN is required for hosted readback")
+    request = urllib.request.Request(
+        url,
+        headers={
+            "Accept": "application/vnd.github+json",
+            "Authorization": f"Bearer {token}",
+            "User-Agent": "FEBuilderGBA-issue2160-hosted",
+            "X-GitHub-Api-Version": "2022-11-28",
+        },
+    )
+    with urllib.request.urlopen(request, timeout=timeout) as response:
+        chunks = []
+        total = 0
+        while True:
+            chunk = response.read(65536)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > HTTP_LIMIT:
+                raise HostedWorkflowError("GitHub API response exceeded the reviewed limit")
+            chunks.append(chunk)
+    return json.loads(b"".join(chunks))
+
+
+def _package_record(path, query):
+    owner = query(("dpkg-query", "-S", str(path)))
+    package = owner.split(": ", 1)[0]
+    version_info = query(("dpkg-query", "-W", "-f=${Package}\t${Version}\t${Architecture}", package))
+    pieces = version_info.split("\t")
+    if len(pieces) != 3 or pieces[0] != package:
+        raise HostedWorkflowError(f"Unexpected package metadata for {path}")
+    target = path.resolve(strict=True)
+    return {
+        "path": str(path),
+        "resolved_path": str(target),
+        "mode": stat.S_IMODE(path.stat().st_mode),
+        "sha256": _sha256_path(target),
+        "package": {
+            "name": pieces[0],
+            "version": pieces[1],
+            "architecture": pieces[2],
+        },
+    }
+
+
+def _tool_constraints(query, which):
+    python_path = which("python3")
+    xvfb_path = which("Xvfb")
+    if python_path != "/usr/bin/python3":
+        raise HostedWorkflowError("Already-installed /usr/bin/python3 is required")
+    if xvfb_path != "/usr/bin/Xvfb":
+        raise HostedWorkflowError("Already-installed /usr/bin/Xvfb is required")
+    libx11 = next((Path(path) for path in LIBX11_CANDIDATES if Path(path).is_file()), None)
+    if libx11 is None:
+        raise HostedWorkflowError("Already-installed libX11.so.6 is required")
+    return {
+        "python3": _package_record(Path(python_path), query),
+        "xvfb": _package_record(Path(xvfb_path), query),
+        "libx11": _package_record(libx11, query),
+    }
+
+
+def _source_hashes(root):
+    data = {}
+    for relative in SOURCE_FILES:
+        path = root / relative
+        if not path.is_file():
+            raise HostedWorkflowError(f"Reviewed source file is missing: {relative}")
+        data[relative] = _sha256_path(path)
+    return data
+
+
+def _issue_comments(api_base, token, fetch_json):
+    comments = []
+    for page in range(1, HTTP_PAGES + 1):
+        batch = fetch_json(
+            f"{api_base}/repos/{REPOSITORY}/issues/{ISSUE_NUMBER}/comments?per_page=100&page={page}",
+            token,
+        )
+        if not isinstance(batch, list):
+            raise HostedWorkflowError("Issue comment readback returned an unexpected payload")
+        comments.extend(batch)
+        if len(batch) < 100:
+            return comments
+    raise HostedWorkflowError("Issue comment pagination exceeded the reviewed limit")
+
+
+def _run_binding(environment, token, fetch_json):
+    api_base = environment.get("GITHUB_API_URL", "https://api.github.com")
+    run_id = _require_match("GITHUB_RUN_ID", environment.get("GITHUB_RUN_ID", ""), RUN_ID_RE)
+    run_attempt = int(_require_match("GITHUB_RUN_ATTEMPT", environment.get("GITHUB_RUN_ATTEMPT", ""), re.compile(r"[1-9][0-9]*\Z")))
+    payload = fetch_json(f"{api_base}/repos/{REPOSITORY}/actions/runs/{run_id}", token)
+    if payload.get("head_repository", {}).get("full_name", REPOSITORY) != REPOSITORY:
+        raise HostedWorkflowError("Hosted readback must stay on the fork")
+    if payload.get("head_sha") != environment["GITHUB_SHA"]:
+        raise HostedWorkflowError("GitHub API run head SHA mismatched the current workflow SHA")
+    if int(payload.get("run_attempt", 0)) != run_attempt:
+        raise HostedWorkflowError("GitHub API run attempt mismatched the current workflow attempt")
+    caller_path = str(payload.get("path", "")).split("@", 1)[0]
+    if caller_path != CALLER_WORKFLOW_PATH:
+        raise HostedWorkflowError("Hosted run must originate from e2e-norom.yml")
+    referenced = payload.get("referenced_workflows")
+    if not isinstance(referenced, list):
+        raise HostedWorkflowError("GitHub API run lacked referenced_workflows evidence")
+    hosted = [
+        item for item in referenced
+        if item.get("path") == HOSTED_WORKFLOW_PATH and item.get("sha") == environment["GITHUB_SHA"]
+    ]
+    if len(hosted) != 1:
+        raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
+    return {
+        "run_id": run_id,
+        "run_attempt": run_attempt,
+        "caller_workflow_path": CALLER_WORKFLOW_PATH,
+        "caller_workflow_sha": environment["GITHUB_SHA"],
+        "hosted_workflow_path": HOSTED_WORKFLOW_PATH,
+        "hosted_workflow_sha": environment["GITHUB_SHA"],
+    }
+
+
+def prepare_payload(root, environment=None, *, query=_query, fetch_json=_fetch_json, which=shutil.which):
+    environment = dict(os.environ if environment is None else environment)
+    if environment.get("GITHUB_REPOSITORY") != REPOSITORY:
+        raise HostedWorkflowError("Hosted workflow must target only laqieer/FEBuilderGBA")
+    route = _require_route(environment.get("ISSUE2160_ROUTE"))
+    candidate_sha = _require_match(
+        "candidate SHA",
+        environment.get("ISSUE2160_CANDIDATE_SHA") or environment.get("GITHUB_SHA", ""),
+        SHA_RE,
+    )
+    github_sha = _require_match("GITHUB_SHA", environment.get("GITHUB_SHA", ""), SHA_RE)
+    workflow_sha = _require_match(
+        "GITHUB_WORKFLOW_SHA",
+        environment.get("GITHUB_WORKFLOW_SHA", ""),
+        SHA_RE,
+    )
+    if candidate_sha != github_sha or candidate_sha != workflow_sha:
+        raise HostedWorkflowError("candidate_sha, github.sha, and github.workflow_sha must match exactly")
+    receipt_stem = _require_match("receipt stem", environment.get("ISSUE2160_RECEIPT_STEM", ""), RECEIPT_RE)
+    lookup_key = environment.get("ISSUE2160_GRANT_LOOKUP_KEY", "")
+    if lookup_key:
+        _require_match("grant lookup key", lookup_key, LOOKUP_RE)
+    if os.geteuid() == 0 or os.getuid() == 0:
+        raise HostedWorkflowError("Fresh hosted review must run as non-root")
+    head = query(("git", "rev-parse", "HEAD"), cwd=root)
+    if head != candidate_sha:
+        raise HostedWorkflowError("Checked-out HEAD mismatched the immutable candidate SHA")
+    token = environment.get("GITHUB_TOKEN", "")
+    tools = _tool_constraints(query, which)
+    tool_constraints_digest = _sha256_bytes(_normalized_json(tools).encode("utf-8"))
+    sources = _source_hashes(root)
+    run_binding = _run_binding(environment, token, fetch_json)
+    runner = {
+        "os": environment.get("RUNNER_OS"),
+        "arch": environment.get("RUNNER_ARCH"),
+        "name": environment.get("RUNNER_NAME"),
+        "image_os": environment.get("ImageOS"),
+        "image_version": environment.get("ImageVersion"),
+    }
+    payload = {
+        "schema": OPERATION,
+        "route": route,
+        "candidate_sha": candidate_sha,
+        "receipt_stem": receipt_stem,
+        "grant_lookup_key": lookup_key,
+        "repository": REPOSITORY,
+        "run_binding": run_binding,
+        "runner": runner,
+        "identity": {
+            "uid": os.getuid(),
+            "gid": os.getgid(),
+            "euid": os.geteuid(),
+            "egid": os.getegid(),
+        },
+        "source_hashes": sources,
+        "tools": tools,
+        "tool_constraints_digest": tool_constraints_digest,
+    }
+    payload["preflight_digest"] = _sha256_bytes(_normalized_json(payload).encode("utf-8"))
+    return payload
+
+
+def _parse_grant_body(body):
+    lines = body.splitlines()
+    if not lines or lines[0] != GRANT_SCHEMA or any(not line or line.startswith((">", "`")) for line in lines[1:]):
+        raise HostedWorkflowError("Grant comment was not strict unquoted grant data")
+    data = {}
+    for line in lines[1:]:
+        match = re.fullmatch(r"([a-z_]+)=(.+)", line)
+        if match is None or match.group(1) in data:
+            raise HostedWorkflowError("Grant comment had malformed key/value data")
+        data[match.group(1)] = match.group(2)
+    required = {
+        "lookup_key", "run_id", "run_attempt", "candidate_sha",
+        "caller_workflow_path", "caller_workflow_sha",
+        "hosted_workflow_path", "hosted_workflow_sha",
+        "preflight_digest", "tool_constraints_digest", "receipt_stem",
+        "operation", "invocations", "timeout_total",
+        "timeout_work", "timeout_cleanup", "valid_after", "valid_before",
+    }
+    if set(data) != required:
+        raise HostedWorkflowError("Grant comment fields were incomplete or unexpected")
+    return data
+
+
+def _parse_instant(value):
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError as error:
+        raise HostedWorkflowError("Grant comment time window was malformed") from error
+
+
+def find_matching_grant(comments, preflight, *, now=None):
+    expected = {
+        "lookup_key": preflight["grant_lookup_key"],
+        "run_id": preflight["run_binding"]["run_id"],
+        "run_attempt": str(preflight["run_binding"]["run_attempt"]),
+        "candidate_sha": preflight["candidate_sha"],
+        "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
+        "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
+        "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
+        "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
+        "preflight_digest": preflight["preflight_digest"],
+        "tool_constraints_digest": preflight["tool_constraints_digest"],
+        "receipt_stem": preflight["receipt_stem"],
+        "operation": OPERATION,
+        "invocations": "1",
+        "timeout_total": str(TIMEOUT_TOTAL),
+        "timeout_work": str(TIMEOUT_WORK),
+        "timeout_cleanup": str(TIMEOUT_CLEANUP),
+    }
+    now = datetime.now(timezone.utc) if now is None else now
+    matches = []
+    for comment in comments:
+        if comment.get("user", {}).get("login") != "laqieer":
+            continue
+        if comment.get("author_association") != "OWNER":
+            continue
+        try:
+            grant = _parse_grant_body(comment.get("body", ""))
+        except HostedWorkflowError:
+            continue
+        if any(grant[key] != value for key, value in expected.items()):
+            continue
+        valid_after = _parse_instant(grant["valid_after"])
+        valid_before = _parse_instant(grant["valid_before"])
+        if not valid_after <= now <= valid_before:
+            continue
+        matches.append({"id": comment.get("id"), "grant": grant})
+    if len(matches) != 1:
+        raise HostedWorkflowError("Exact one-use coordinator grant match is required")
+    return matches[0]
+
+
+def authorize_native(root, preflight, environment=None, *, query=_query, fetch_json=_fetch_json, which=shutil.which, now=None):
+    environment = dict(os.environ if environment is None else environment)
+    if environment.get("GITHUB_RUN_ATTEMPT") != "1":
+        raise HostedWorkflowError("Native reservation must refuse reruns before any grant readback")
+    current = prepare_payload(root, environment, query=query, fetch_json=fetch_json, which=which)
+    if current["route"] != RESERVE_ROUTE:
+        raise HostedWorkflowError("Native authorization is only valid for the reserve-native route")
+    for key in ("candidate_sha", "preflight_digest", "tool_constraints_digest", "receipt_stem", "source_hashes", "tools", "run_binding"):
+        if current[key] != preflight[key]:
+            raise HostedWorkflowError(f"Fresh hosted runner evidence drifted for {key}")
+    comments = _issue_comments(environment.get("GITHUB_API_URL", "https://api.github.com"), environment.get("GITHUB_TOKEN", ""), fetch_json)
+    match = find_matching_grant(comments, current, now=now)
+    return {
+        "schema": OPERATION,
+        "preflight_digest": current["preflight_digest"],
+        "grant_comment_id": match["id"],
+        "grant": match["grant"],
+    }
+
+
+def validate_native_receipt(receipt, preflight):
+    if receipt.get("status") != "passed":
+        raise HostedWorkflowError("Native receipt was not passed")
+    if receipt.get("timeout_seconds") != TIMEOUT_TOTAL:
+        raise HostedWorkflowError("Native receipt timeout must remain exactly 20 seconds")
+    if receipt.get("phase") != "validation":
+        raise HostedWorkflowError("Native receipt did not reach validation")
+    if receipt.get("failure") or receipt.get("capture_failure") or receipt.get("cleanup_failures"):
+        raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
+    if receipt.get("deadline_exceeded"):
+        raise HostedWorkflowError("Native receipt exceeded the reviewed outer deadline")
+    if receipt.get("elapsed_seconds", TIMEOUT_TOTAL + 1) > TIMEOUT_TOTAL:
+        raise HostedWorkflowError("Native receipt elapsed time exceeded the reviewed outer deadline")
+    if receipt.get("sources") != preflight["source_hashes"]:
+        raise HostedWorkflowError("Supervisor source hashes mismatched the reviewed source")
+    try:
+        diagnostic = native_smoke.validate_pass_report(receipt.get("diagnostic"))
+    except ValueError as error:
+        raise HostedWorkflowError(str(error)) from error
+    if diagnostic["sources"] != preflight["source_hashes"]:
+        raise HostedWorkflowError("Worker source hashes mismatched the reviewed source")
+    worker = receipt.get("worker", {})
+    if diagnostic["worker"] != {key: worker.get(key) for key in ("pid", "start_ticks")}:
+        raise HostedWorkflowError("Worker identity mismatched the supervised child")
+    if receipt.get("worker_exit_code") != 0:
+        raise HostedWorkflowError("Native worker did not exit cleanly")
+    if receipt.get("xvfb_observed_exit_code") is not None:
+        raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
+    if receipt.get("xvfb", {}).get("command", [None])[0] != preflight["tools"]["xvfb"]["path"]:
+        raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")
+    if receipt.get("worker", {}).get("command") != [
+        preflight["tools"]["python3"]["path"],
+        "-B",
+        "-m",
+        "scripts.tests.linux_x11_native_smoke",
+        "--allow-native-smoke",
+        "--worker",
+    ]:
+        raise HostedWorkflowError("Native receipt used an unexpected worker command")
+    io_state = receipt.get("io", {})
+    for name in ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr"):
+        entry = io_state.get(name)
+        if not isinstance(entry, dict) or entry.get("truncated") or entry.get("error"):
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
+    return {
+        "schema": OPERATION,
+        "preflight_digest": preflight["preflight_digest"],
+        "receipt": receipt.get("diagnostic"),
+    }
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    subcommands = parser.add_subparsers(dest="command", required=True)
+
+    prepare = subcommands.add_parser("prepare")
+    prepare.add_argument("--output", required=True)
+
+    authorize = subcommands.add_parser("authorize-native")
+    authorize.add_argument("--preflight", required=True)
+    authorize.add_argument("--output", required=True)
+
+    validate = subcommands.add_parser("validate-receipt")
+    validate.add_argument("--preflight", required=True)
+    validate.add_argument("--receipt", required=True)
+
+    args = parser.parse_args(argv)
+    root = Path(__file__).resolve().parents[1]
+    if args.command == "prepare":
+        payload = prepare_payload(root)
+        _bounded_json(Path(args.output), payload)
+        return 0
+    if args.command == "authorize-native":
+        result = authorize_native(root, _read_json(Path(args.preflight)))
+        _bounded_json(Path(args.output), result)
+        return 0
+    result = validate_native_receipt(_read_json(Path(args.receipt)), _read_json(Path(args.preflight)))
+    print(_normalized_json(result))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
