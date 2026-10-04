@@ -155,7 +155,7 @@ namespace FEBuilderGBA
         /// detected magic system. Returns the table address (the
         /// resolved p32 pointer) and the pointer slot itself
         /// (<paramref name="outPointer"/>). A complete slot with a
-        /// zero-resolving target retains the slot but returns
+        /// raw zero target retains the slot but returns
         /// <c>U.NOT_FOUND</c> for the unallocated table. Both are
         /// <c>U.NOT_FOUND</c> on a non-match or unsafe nonzero target.
         ///
@@ -184,8 +184,9 @@ namespace FEBuilderGBA
                 uint csaSpellTablePointer = hit + (uint)sig.data.Length;
                 if (csaSpellTablePointer + 4 > rom.Data.Length) continue;
 
+                uint rawTarget = rom.u32(csaSpellTablePointer);
                 uint csaSpellTable = rom.p32(csaSpellTablePointer);
-                if (csaSpellTable != 0 && !U.isSafetyOffset(csaSpellTable, rom)) continue;
+                if (rawTarget != 0 && !U.isSafetyOffset(csaSpellTable, rom)) continue;
 
                 outPointer = csaSpellTablePointer;
                 return csaSpellTable == 0 ? U.NOT_FOUND : csaSpellTable;

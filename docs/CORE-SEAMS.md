@@ -13,10 +13,11 @@ points here; this file is the exhaustive reference. New seam entries belong
 ## #2176 Magic Extends installed-versus-allocated state
 
 `ImageUtilMagicCore` recognizes a known engine only with its matching complete
-CSA pointer slot. A zero-resolving slot means installed but not yet allocated:
+CSA pointer slot. A raw zero slot means installed but not yet allocated:
 the slot is retained, while the table address is `U.NOT_FOUND`. Absent or
-truncated slots, wrong-version signatures, and unsafe nonzero targets do not
-identify an installed engine. `MagicCSACore` forwards these distinct outputs
+truncated slots, wrong-version signatures, and unsafe nonzero targets
+(including `0x08000000`, which decodes to offset zero) do not identify an
+installed engine. `MagicCSACore` forwards these distinct outputs
 to the WinForms cache and Avalonia consumers. WinForms retains its existing
 first-allocation prompt; `MagicListExpandCore` is only a relocator of allocated
 tables and rejects an unallocated CSA target before either table is written.
