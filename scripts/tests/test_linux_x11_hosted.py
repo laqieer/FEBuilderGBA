@@ -237,8 +237,8 @@ class HostedWorkflowContracts(unittest.TestCase):
             ]},
             "worker_exit_code": 0,
             "xvfb": {"pid": 102, "start_ticks": 204, "command": [
-                "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24",
-                "-nolisten", "tcp", "-auth", "/tmp/linux-x11-smoke/authority",
+                "/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24",
+                "-nolisten", "tcp", "-auth", "/tmp/linux-x11-smoke/authority", "-noreset",
             ]},
             "xvfb_observed_exit_code": None,
             "xvfb_exit_code": 0,
@@ -341,6 +341,42 @@ class HostedWorkflowContracts(unittest.TestCase):
             self.assertNotIn(self.CANARY_KEY, bundle_text)
             if canary_text is not None:
                 self.assertNotIn(canary_text, bundle_text)
+
+    def assert_stage_artifacts_summary(self, receipt):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-summary-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        old_cwd = Path.cwd()
+        os.chdir(root)
+        self.addCleanup(lambda: os.chdir(old_cwd))
+        bundle = root / "upload"
+        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        grant = {"grant": {"receipt_stem": "receipt-stem"}}
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+        grant_path.write_text(json.dumps(grant), encoding="utf-8")
+        receipt_dir = root / "linux-x11-smoke-receipt-stem"
+        receipt_dir.mkdir()
+        with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        self.hosted.main([
+            "stage-artifacts",
+            "--preflight", str(preflight_path),
+            "--grant", str(grant_path),
+            "--output-dir", str(bundle),
+        ])
+        return json.loads((bundle / "receipt-summary.json").read_text(encoding="utf-8"))
+
+    def safe_xvfb_command(self, executable="/usr/bin/Xvfb"):
+        return [
+            executable,
+            "-displayfd", "11",
+            "-screen", "0", "320x240x24",
+            "-nolisten", "tcp",
+            "-noreset",
+        ]
 
     def test_prepare_payload_is_metadata_only_and_bound(self):
         payload = self.hosted.prepare_payload(
@@ -802,9 +838,28 @@ class HostedWorkflowContracts(unittest.TestCase):
             summary["worker"],
         )
         self.assertEqual(receipt["supervisor"], summary["supervisor"])
-        self.assertNotIn("-auth", summary["xvfb"]["command"])
+        self.assertEqual(self.safe_xvfb_command(receipt["xvfb"]["command"][0]), summary["xvfb"]["command"])
         self.assertNotIn("text", summary["io"]["worker_stdout"])
         self.assertNotIn("text", summary["io"]["worker_stderr"])
+
+    def test_summary_and_stage_project_only_known_safe_xvfb_arguments(self):
+        receipt = self.pass_receipt()
+        receipt["worker"]["command"] += ["--token=secret-worker"]
+        receipt["supervisor"] = receipt["supervisor"] | {"command": ["/bin/secret-supervisor"]}
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual(self.safe_xvfb_command(), summary["xvfb"]["command"])
+        self.assertEqual({key: receipt["worker"][key] for key in ("pid", "start_ticks")}, summary["worker"])
+        self.assertNotIn("command", summary["worker"])
+        self.assertNotIn("command", summary["supervisor"])
+        self.assertNotIn("/tmp/linux-x11-smoke/authority", json.dumps(summary))
+        self.assertNotIn("--token=secret-worker", json.dumps(summary))
+        staged = self.assert_stage_artifacts_summary(receipt)
+        self.assertEqual(self.safe_xvfb_command(), staged["xvfb"]["command"])
+        self.assertNotIn("command", staged["worker"])
+        self.assertNotIn("command", staged["supervisor"])
+        staged_text = json.dumps(staged)
+        self.assertNotIn("/tmp/linux-x11-smoke/authority", staged_text)
+        self.assertNotIn("--token=secret-worker", staged_text)
 
     def test_summarize_native_receipt_for_upload_allows_missing_setup_supervisor_and_partial_failure_io(self):
         receipt = self.actual_smoke_receipt(
@@ -905,6 +960,46 @@ class HostedWorkflowContracts(unittest.TestCase):
         summary = json.loads((bundle / "receipt-summary.json").read_text(encoding="utf-8"))
         self.assertEqual(self.pass_report(), summary["diagnostic"])
         self.assert_recursive_canary_absent(summary["diagnostic"])
+
+    def test_summary_and_stage_reject_unknown_or_malformed_xvfb_commands(self):
+        failed_outer = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        pass_cases = (
+            ("unknown flag", self.pass_receipt(), ["/usr/bin/Xvfb", ":7", "--token=secret"]),
+            ("wrong executable", self.pass_receipt(), ["/tmp/Xvfb", ":7"]),
+            ("missing displayfd value", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd"]),
+            ("nonnumeric displayfd", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd", "pipe"]),
+            ("wrong screen tuple", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "bad"]),
+            ("wrong nolisten", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "udp", "-auth", "/tmp/auth", "-noreset"]),
+            ("missing auth value", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth"]),
+            ("extra trailing arg", self.pass_receipt(), ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth", "/tmp/auth", "-noreset", "--token=secret"]),
+            ("failed outer unknown flag", failed_outer, ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth", "/tmp/auth", "-noreset", "--token=secret"]),
+        )
+        for label, receipt, command in pass_cases:
+            with self.subTest(label=label):
+                broken = self.mutate_path(receipt, ("xvfb", "command"), command)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(
+                    broken,
+                    canary_text="secret",
+                )
+
+    def test_validate_native_receipt_rejects_unknown_or_malformed_commands(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("xvfb token", ("xvfb", "command"), ["/usr/bin/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth", "/tmp/auth", "-noreset", "--token=secret"]),
+            ("xvfb wrong exe", ("xvfb", "command"), ["/tmp/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth", "/tmp/auth", "-noreset"]),
+            ("worker extra arg", ("worker", "command"), self.pass_receipt()["worker"]["command"] + ["--token=secret-worker"]),
+            ("worker wrong exe", ("worker", "command"), ["/tmp/python3"] + self.pass_receipt()["worker"]["command"][1:]),
+            ("worker missing xlib flag", ("worker", "command"), self.pass_receipt()["worker"]["command"][:-2]),
+        )
+        for label, path, replacement in cases:
+            with self.subTest(label=label):
+                broken = self.mutate_path(self.pass_receipt(), path, replacement)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
 
     def test_failed_outer_summary_strips_recursive_passed_worker_diagnostic_canaries(self):
         receipt = self.actual_smoke_receipt(

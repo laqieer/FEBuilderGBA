@@ -39,6 +39,8 @@ LOOKUP_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,79}\Z")
 RECEIPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
 SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
+ABS_PATH_RE = re.compile(r"(?:/[^\0]+|[A-Za-z]:\\[^\0]+)\Z")
+DISPLAYFD_RE = re.compile(r"[1-9][0-9]{0,9}\Z")
 RUN_ID_RE = re.compile(r"[1-9][0-9]{0,19}\Z")
 RUN_ATTEMPT_RE = re.compile(r"[1-9][0-9]*\Z")
 DPKG_OWNER_RE = re.compile(r"(?P<package>[A-Za-z0-9.+-]+(?::[A-Za-z0-9.+-]+)?): (?P<path>.+)\Z")
@@ -796,20 +798,34 @@ def _sanitize_pass_diagnostic(diagnostic):
 
 
 def _sanitize_xvfb_command(command):
-    if not isinstance(command, list) or not command or not all(isinstance(item, str) for item in command):
+    if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
         raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
-    sanitized = []
-    index = 0
-    while index < len(command):
-        item = command[index]
-        if item == "-auth":
-            if index + 1 >= len(command):
-                raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
-            index += 2
-            continue
-        sanitized.append(item)
-        index += 1
-    return sanitized
+    if len(command) != 11:
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    executable = command[0]
+    if ABS_PATH_RE.fullmatch(executable) is None or Path(executable).name != "Xvfb":
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if command[1] != "-displayfd" or DISPLAYFD_RE.fullmatch(command[2]) is None:
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if command[3:6] != ["-screen", "0", "320x240x24"]:
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if command[6:8] != ["-nolisten", "tcp"]:
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if command[8] != "-auth" or ABS_PATH_RE.fullmatch(command[9]) is None:
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if command[10] != "-noreset":
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    return [
+        executable,
+        "-displayfd",
+        command[2],
+        "-screen",
+        "0",
+        "320x240x24",
+        "-nolisten",
+        "tcp",
+        "-noreset",
+    ]
 
 
 def _sanitize_stream_entry(name, entry):
@@ -986,7 +1002,11 @@ def validate_native_receipt(receipt, preflight):
         raise HostedWorkflowError("Native worker did not exit cleanly")
     if summary["xvfb_observed_exit_code"] is not None:
         raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
-    if receipt.get("xvfb", {}).get("command", [None])[0] != preflight["tools"]["xvfb"]["path"]:
+    xvfb = receipt.get("xvfb")
+    if not isinstance(xvfb, dict):
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
+    sanitized_xvfb_command = _sanitize_xvfb_command(xvfb.get("command"))
+    if sanitized_xvfb_command[0] != preflight["tools"]["xvfb"]["path"]:
         raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")
     expected_libx11 = {
         key: preflight["tools"]["libx11"][key]
