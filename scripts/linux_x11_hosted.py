@@ -915,10 +915,17 @@ def _sanitize_io_entries(io_entries, *, require_all, require_pass_complete):
         if name in io_entries:
             sanitized[name] = _sanitize_stream_entry(name, io_entries[name])
     if require_pass_complete:
-        for name in ("worker_stdout", "worker_stderr"):
-            if not sanitized[name]["eof"]:
-                raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
+        _require_pass_stream_success(sanitized)
     return sanitized
+
+
+def _require_pass_stream_success(io_entries):
+    for name, entry in io_entries.items():
+        if entry["truncated"] or entry["error"] is not None:
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
+    for name in ("worker_stdout", "worker_stderr"):
+        if not io_entries[name]["eof"]:
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
 
 
 def summarize_native_receipt_for_upload(receipt, preflight=None):
@@ -1110,11 +1117,6 @@ def validate_native_receipt(receipt, preflight):
         preflight["tools"]["libx11"]["path"],
     ]:
         raise HostedWorkflowError("Native receipt used an unexpected worker command")
-    io_state = receipt.get("io", {})
-    for name in ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr"):
-        entry = io_state.get(name)
-        if not isinstance(entry, dict) or entry.get("truncated") or entry.get("error"):
-            raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
     return {
         "schema": OPERATION,
         "preflight_digest": preflight["preflight_digest"],

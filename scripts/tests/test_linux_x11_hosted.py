@@ -1341,14 +1341,20 @@ class HostedWorkflowContracts(unittest.TestCase):
 
     def test_public_paths_reject_non_producer_stream_shapes(self):
         preflight = self.valid_preflight()
-        cases = (
-            ("wrong limit", ("io", "worker_stdout"), {"limit_bytes": 1}),
-            ("count mismatch", ("io", "worker_stdout"), {"observed_bytes": 999, "retained_bytes": 998}),
-            ("worker eof missing", ("io", "worker_stdout"), {"eof": False}),
-            ("truncated pass stream", ("io", "worker_stdout"), {"truncated": True, "observed_bytes": 16385, "retained_bytes": 16384}),
-            ("oversized error", ("io", "worker_stderr"), {"error": "e" * 1001}),
-        )
-        for label, path, updates in cases:
+        pass_cases = []
+        for stream_name, limit in self.hosted.native_smoke.IO_LIMITS.items():
+            pass_cases.extend((
+                (f"{stream_name} wrong limit", ("io", stream_name), {"limit_bytes": limit - 1}),
+                (f"{stream_name} count mismatch", ("io", stream_name), {"observed_bytes": 999, "retained_bytes": 998}),
+                (f"{stream_name} truncated", ("io", stream_name), {"truncated": True, "observed_bytes": limit + 1, "retained_bytes": limit}),
+                (f"{stream_name} error", ("io", stream_name), {"error": "e"}),
+                (f"{stream_name} oversized error", ("io", stream_name), {"error": "e" * 1001}),
+            ))
+        pass_cases.extend((
+            ("worker_stdout eof missing", ("io", "worker_stdout"), {"eof": False}),
+            ("worker_stderr eof missing", ("io", "worker_stderr"), {"eof": False}),
+        ))
+        for label, path, updates in pass_cases:
             with self.subTest(label=label):
                 broken = self.pass_receipt()
                 target = broken
@@ -1368,6 +1374,31 @@ class HostedWorkflowContracts(unittest.TestCase):
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.summarize_native_receipt_for_upload(failed)
         self.assert_stage_artifacts_rejects_without_publishing_summary(failed)
+
+    def test_failed_stream_error_cap_accepts_1000_and_rejects_1001(self):
+        cleanup_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        preflight = self.preflight_for_receipt(cleanup_failure)
+        for stream_name in self.hosted.native_smoke.IO_LIMITS:
+            with self.subTest(stream_name=stream_name, error_length=1000):
+                accepted = json.loads(json.dumps(cleanup_failure))
+                accepted["io"][stream_name]["error"] = "e" * 1000
+                accepted["io"][stream_name]["eof"] = False
+                summary = self.hosted.summarize_native_receipt_for_upload(accepted, preflight)
+                self.assertEqual("e" * 1000, summary["io"][stream_name]["error"])
+                staged = self.assert_stage_artifacts_summary(accepted, preflight=preflight)
+                self.assertEqual("e" * 1000, staged["io"][stream_name]["error"])
+            with self.subTest(stream_name=stream_name, error_length=1001):
+                rejected = json.loads(json.dumps(cleanup_failure))
+                rejected["io"][stream_name]["error"] = "e" * 1001
+                rejected["io"][stream_name]["eof"] = False
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(rejected, preflight)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(
+                    rejected,
+                    preflight=preflight,
+                )
 
     def test_passed_public_paths_require_complete_pass_evidence(self):
         preflight = self.valid_preflight()
