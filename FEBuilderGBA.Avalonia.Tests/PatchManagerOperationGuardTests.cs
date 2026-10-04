@@ -362,9 +362,123 @@ public class PatchManagerOperationGuardTests
     internal sealed class NativeLeaseProcess : IDisposable
     {
         readonly string root;
-        readonly System.Diagnostics.Process process;
-        readonly Task<string> stdout;
-        readonly Task<string> stderr;
+        readonly Dependencies dependencies;
+        readonly DateTimeOffset launch = DateTimeOffset.UtcNow;
+        readonly List<Exception> cleanupErrors = new();
+        IChild? process;
+        OutputCapture? stdout, stderr;
+        DateTimeOffset? exit;
+        bool disposed;
+        const string Filter = "--Tests:FEBuilderGBA.Avalonia.Tests.PatchManagerOperationGuardTests.NativeActionLeaseProbe";
+
+        internal sealed class Failure(Exception primary, string message) : Exception(message)
+        {
+            // Keep the original object/stack without exposing unredacted InnerException text to TRX.
+            internal Exception Primary { get; } = primary;
+        }
+
+        internal interface IChild : IDisposable
+        {
+            int Id { get; }
+            bool HasExited { get; }
+            int ExitCode { get; }
+            DateTimeOffset ExitTime { get; }
+            TextReader StandardOutput { get; }
+            TextReader StandardError { get; }
+            bool WaitForExit(int milliseconds);
+            void Kill();
+        }
+
+        sealed class Child(System.Diagnostics.Process process) : IChild
+        {
+            public int Id => process.Id;
+            public bool HasExited => process.HasExited;
+            public int ExitCode => process.ExitCode;
+            public DateTimeOffset ExitTime => process.ExitTime.ToUniversalTime();
+            public TextReader StandardOutput => process.StandardOutput;
+            public TextReader StandardError => process.StandardError;
+            public bool WaitForExit(int milliseconds) => process.WaitForExit(milliseconds);
+            public void Kill() => process.Kill(true);
+            public void Dispose() => process.Dispose();
+        }
+
+        internal class Dependencies
+        {
+            internal virtual int OutputWaitMilliseconds => 1_000;
+            internal virtual IChild Start(System.Diagnostics.ProcessStartInfo start) =>
+                new Child(System.Diagnostics.Process.Start(start) ??
+                    throw new InvalidOperationException("Native probe did not start."));
+            internal virtual void Delete(string path) => File.Delete(path);
+            internal virtual bool Exists(string path) => File.Exists(path);
+            internal virtual string Read(string path) => File.ReadAllText(path);
+            internal virtual void Release(string path) => File.WriteAllText(path, "release");
+            internal virtual bool WaitUntil(Func<bool> predicate, int milliseconds) =>
+                SpinWait.SpinUntil(predicate, milliseconds);
+            internal virtual string Marker(string path)
+            {
+                try
+                {
+                    _ = File.GetAttributes(path);
+                    return $"exists; modified={File.GetLastWriteTimeUtc(path):O}";
+                }
+                catch (FileNotFoundException) { return "absent"; }
+                catch (DirectoryNotFoundException) { return "absent"; }
+            }
+        }
+
+        sealed class OutputCapture
+        {
+            const int Limit = 8_192;
+            readonly TextReader reader;
+            readonly CancellationTokenSource cancellation = new();
+            readonly System.Text.StringBuilder text = new();
+            readonly object sync = new();
+            bool truncated;
+            Exception? error;
+            internal Task Completion { get; }
+            internal OutputCapture(TextReader reader)
+            {
+                this.reader = reader;
+                Completion = Task.Run(async () =>
+                {
+                    var buffer = new char[1_024];
+                    try
+                    {
+                        while (true)
+                        {
+                            int count = await reader.ReadAsync(buffer.AsMemory(), cancellation.Token);
+                            if (count == 0) break;
+                            lock (sync)
+                            {
+                                int retained = Math.Min(count, Limit - text.Length);
+                                text.Append(buffer, 0, retained);
+                                truncated |= retained < count;
+                            }
+                        }
+                    }
+                    catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+                    catch (Exception ex) { lock (sync) error = ex; }
+                });
+            }
+            internal string Snapshot()
+            {
+                lock (sync)
+                    return text.ToString() + (truncated ? "\n[truncated]" : "") +
+                        (error == null ? "" : "\n[read error: " + error.Message + "]");
+            }
+            internal Exception? ReadError { get { lock (sync) return error; } }
+            internal void Close()
+            {
+                cancellation.Cancel();
+                reader.Dispose();
+                // An uncooperative reader can outlive the bound; dispose its token source only after completion.
+                _ = Completion.ContinueWith(_ => cancellation.Dispose(), TaskScheduler.Default);
+            }
+        }
+
+        string PathFor(string name) => Path.Combine(root, name);
+        internal Task OutputCompletion => Task.WhenAll(
+            stdout?.Completion ?? Task.CompletedTask, stderr?.Completion ?? Task.CompletedTask);
         internal string Result
         {
             get
@@ -372,21 +486,27 @@ public class PatchManagerOperationGuardTests
                 var elapsed = System.Diagnostics.Stopwatch.StartNew();
                 while (true)
                 {
-                    try { return File.ReadAllText(Path.Combine(root, "native-action-result")); }
+                    try { return dependencies.Read(PathFor("native-action-result")); }
                     // A renamed IPC file can become visible before Windows closes the rename handle.
                     catch (IOException ex) when (PatchDatabaseOperationLeaseCore.IsLeaseContention(ex.HResult) &&
                         elapsed.Elapsed < TimeSpan.FromSeconds(10))
                     {
                         Thread.Sleep(10);
                     }
+                    catch (Exception primary)
+                    {
+                        Cleanup();
+                        throw Describe(primary);
+                    }
                 }
             }
         }
-        internal NativeLeaseProcess(string root, bool hold)
+        internal NativeLeaseProcess(string root, bool hold) : this(root, hold, new Dependencies()) { }
+
+        internal NativeLeaseProcess(string root, bool hold, Dependencies dependencies)
         {
             this.root = root;
-            File.Delete(Path.Combine(root, "native-action-result"));
-            File.Delete(Path.Combine(root, "native-action-release"));
+            this.dependencies = dependencies;
             var start = new System.Diagnostics.ProcessStartInfo("dotnet")
             {
                 UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true,
@@ -394,34 +514,134 @@ public class PatchManagerOperationGuardTests
             };
             start.ArgumentList.Add("vstest");
             start.ArgumentList.Add(typeof(PatchManagerOperationGuardTests).Assembly.Location);
-            start.ArgumentList.Add("--Tests:FEBuilderGBA.Avalonia.Tests.PatchManagerOperationGuardTests.NativeActionLeaseProbe");
+            start.ArgumentList.Add(Filter);
             start.Environment["FEBUILDER_ACTION_LEASE_ROOT"] = root;
             start.Environment["FEBUILDER_ACTION_LEASE_HOLD"] = hold ? "1" : "0";
-            process = System.Diagnostics.Process.Start(start)!;
-            stdout = process.StandardOutput.ReadToEndAsync();
-            stderr = process.StandardError.ReadToEndAsync();
             try
             {
-                Assert.True(SpinWait.SpinUntil(() => File.Exists(Path.Combine(root, "native-action-result")) || process.HasExited, 60_000));
-                Assert.True(File.Exists(Path.Combine(root, "native-action-result")), stdout.IsCompleted ? stdout.Result + stderr.Result : "No native result");
+                dependencies.Delete(PathFor("native-action-result"));
+                dependencies.Delete(PathFor("native-action-release"));
+                process = dependencies.Start(start);
+                stdout = new OutputCapture(process.StandardOutput);
+                stderr = new OutputCapture(process.StandardError);
+                if (!dependencies.WaitUntil(() => dependencies.Exists(PathFor("native-action-result")) || process.HasExited, 60_000))
+                    throw new TimeoutException("Native result wait timed out.");
+                if (!dependencies.Exists(PathFor("native-action-result")))
+                    throw new IOException("No native result.");
+                if (process.HasExited && process.ExitCode != 0)
+                    throw new IOException("Native probe exited with nonzero status.");
                 if (hold) Assert.Equal("acquired", Result);
             }
-            catch { Dispose(); throw; }
+            catch (Failure) { throw; }
+            catch (Exception primary)
+            {
+                Cleanup();
+                throw Describe(primary);
+            }
         }
         public void Dispose()
         {
+            if (disposed) return;
+            Cleanup();
+            if (cleanupErrors.Count != 0) throw Describe(cleanupErrors[0]);
+        }
+
+        void Attempt(Action action)
+        {
+            try { action(); }
+            catch (Exception ex) { cleanupErrors.Add(ex); }
+        }
+
+        void Cleanup()
+        {
+            if (disposed) return;
+            disposed = true;
+            if (process == null) return;
+            Attempt(() => dependencies.Release(PathFor("native-action-release")));
+            bool exited = false;
+            Attempt(() => exited = process.WaitForExit(60_000));
+            if (!exited)
+            {
+                cleanupErrors.Add(new TimeoutException("Owned native action probe timed out."));
+                Attempt(process.Kill);
+                Attempt(() =>
+                {
+                    exited = process.WaitForExit(5_000);
+                    if (!exited) throw new TimeoutException("Owned native probe reap timed out.");
+                });
+            }
+            var captures = new[] { stdout, stderr }.OfType<OutputCapture>().ToArray();
+            Attempt(() =>
+            {
+                if (!OutputCompletion.Wait(dependencies.OutputWaitMilliseconds))
+                    throw new TimeoutException("Native output completion timed out.");
+            });
+            foreach (var capture in captures)
+            {
+                if (capture.ReadError is { } readError) cleanupErrors.Add(readError);
+                Attempt(capture.Close);
+            }
+            // Cache process metadata before disposing the handle.
+            processStatus = ProcessStatus();
+            Attempt(() =>
+            {
+                if (processExitCode is { } code && code != 0)
+                    throw new IOException("Native probe exited with nonzero status.");
+            });
+            Attempt(process.Dispose);
+        }
+
+        string? processStatus;
+        int? processExitCode;
+        internal string ProcessStatus()
+        {
+            if (process == null) return "not-started";
             try
             {
-                File.WriteAllText(Path.Combine(root, "native-action-release"), "release");
-                if (!process.WaitForExit(60_000))
-                {
-                    process.Kill(true);
-                    process.WaitForExit();
-                    throw new TimeoutException("Owned native action probe timed out.");
-                }
-                Assert.True(process.ExitCode == 0, stdout.Result + stderr.Result);
+                bool hasExited = process.HasExited;
+                processExitCode = hasExited ? process.ExitCode : null;
+                exit = hasExited ? process.ExitTime : null;
+                return $"pid={process.Id}; status={(hasExited ? "exited" : "running")}; " +
+                    $"exit-code={processExitCode?.ToString() ?? "unavailable"}";
             }
-            finally { process.Dispose(); }
+            catch (Exception ex)
+            {
+                cleanupErrors.Add(ex);
+                return "process metadata error: " + ex.Message;
+            }
+        }
+
+        string Redact(string text, int limit = 40_000)
+        {
+            foreach (string path in new[] { root, typeof(PatchManagerOperationGuardTests).Assembly.Location,
+                AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar),
+                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) })
+            {
+                if (path.Length == 0) continue;
+                text = text.Replace(path, "<owned-path>", StringComparison.OrdinalIgnoreCase)
+                    .Replace(path.Replace('\\', '/'), "<owned-path>", StringComparison.OrdinalIgnoreCase);
+            }
+            return text.Length <= limit ? text : text[..limit] + "\n[diagnostics truncated]";
+        }
+
+        Failure Describe(Exception primary)
+        {
+            var report = new System.Text.StringBuilder();
+            report.AppendLine("Native lease probe failed: " + Redact(primary.ToString(), 2_048));
+            report.AppendLine($"command=dotnet vstest <test-assembly> {Filter}; root=<owned-root>");
+            report.AppendLine($"{processStatus ?? ProcessStatus()}; launch={launch:O}; exit={exit?.ToString("O") ?? "unobserved"}");
+            foreach (string marker in new[] { "native-action-result", "native-action-result.pending", "native-action-release" })
+            {
+                string state;
+                try { state = dependencies.Marker(PathFor(marker)); }
+                catch (Exception ex) { state = "metadata error: " + ex.Message; }
+                report.AppendLine(marker + ": " + Redact(state, 512));
+            }
+            foreach (var error in cleanupErrors)
+                report.AppendLine("cleanup error: " + Redact(error.ToString(), 1_024));
+            report.AppendLine("stdout:\n" + Redact(stdout?.Snapshot() ?? "<not-started>", 9_216));
+            report.AppendLine("stderr:\n" + Redact(stderr?.Snapshot() ?? "<not-started>", 9_216));
+            return new Failure(primary, Redact(report.ToString()));
         }
     }
 
