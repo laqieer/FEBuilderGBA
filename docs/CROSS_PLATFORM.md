@@ -254,8 +254,13 @@ The full, evidence-backed feasibility assessment lives in **[docs/ANDROID.md](AN
 
 A native iOS/iPadOS build of the Avalonia GUI, added in [#1859](https://github.com/laqieer/FEBuilderGBA/issues/1859) — the iOS counterpart of the Android epic. It reuses the **same** platform-agnostic seams the Android port introduced (single-view lifetime, first-run `config/` extraction via `FEBuilderGBA.Core/AndroidConfigExtractorCore`, stream-based ROM I/O), so it is a close mirror. `FEBuilderGBA.Avalonia` conditionally multi-targets `net10.0;net10.0-ios` via the opt-in `EnableIosTarget` property (default **OFF**), and the head at [`FEBuilderGBA.iOS/`](../FEBuilderGBA.iOS/README.md) builds an iOS `.app` / **unsigned `.ipa`** on macOS:
 
+Select preinstalled Xcode 26.6 and install .NET SDK 10.0.401 first
+(`dotnet --version` must print `10.0.401`). Use the matching pinned workload
+set rather than an unpinned install, which may require a different Xcode version:
+
 ```bash
-dotnet workload install ios
+sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+dotnet workload install ios --version 10.0.401
 dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
 ```
 
