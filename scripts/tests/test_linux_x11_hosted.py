@@ -175,6 +175,15 @@ class HostedWorkflowContracts(unittest.TestCase):
             "preflight_digest": "digest",
         }
 
+    def preflight_for_receipt(self, receipt):
+        preflight = json.loads(json.dumps(self.valid_preflight()))
+        xvfb = receipt.get("xvfb")
+        if isinstance(xvfb, dict):
+            command = xvfb.get("command")
+            if isinstance(command, list) and command and isinstance(command[0], str):
+                preflight["tools"]["xvfb"]["path"] = command[0]
+        return preflight
+
     def pass_report(self):
         native_sources = self.native_sources()
         return {
@@ -305,7 +314,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         target[path[-1]] = replacement
         return cloned
 
-    def assert_stage_artifacts_rejects_without_publishing_summary(self, receipt, *, canary_text=None):
+    def assert_stage_artifacts_rejects_without_publishing_summary(self, receipt, *, canary_text=None, preflight=None):
         temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-invalid-summary-")
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
@@ -313,7 +322,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         os.chdir(root)
         self.addCleanup(lambda: os.chdir(old_cwd))
         bundle = root / "upload"
-        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        preflight = ((self.preflight_for_receipt(receipt) if preflight is None else preflight) | {"receipt_stem": "receipt-stem"})
         grant = {"grant": {"receipt_stem": "receipt-stem"}}
         preflight_path = root / "preflight.json"
         grant_path = root / "grant.json"
@@ -342,7 +351,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             if canary_text is not None:
                 self.assertNotIn(canary_text, bundle_text)
 
-    def assert_stage_artifacts_summary(self, receipt):
+    def assert_stage_artifacts_summary(self, receipt, *, preflight=None):
         temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-summary-")
         self.addCleanup(temporary.cleanup)
         root = Path(temporary.name)
@@ -350,7 +359,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         os.chdir(root)
         self.addCleanup(lambda: os.chdir(old_cwd))
         bundle = root / "upload"
-        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        preflight = ((self.preflight_for_receipt(receipt) if preflight is None else preflight) | {"receipt_stem": "receipt-stem"})
         grant = {"grant": {"receipt_stem": "receipt-stem"}}
         preflight_path = root / "preflight.json"
         grant_path = root / "grant.json"
@@ -800,6 +809,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         root = Path(temporary.name)
         raw_path = root / "receipt.json"
         summary_path = root / "summary.json"
+        preflight_path = root / "preflight.json"
         receipt = self.pass_receipt()
         io_limits = self.hosted.native_smoke.IO_LIMITS
         six_byte = "\x00"
@@ -811,9 +821,11 @@ class HostedWorkflowContracts(unittest.TestCase):
         with raw_path.open("x", encoding="utf-8") as stream:
             json.dump(receipt, stream, indent=2, sort_keys=True)
             stream.write("\n")
+        preflight_path.write_text(json.dumps(self.valid_preflight()), encoding="utf-8")
         self.assertGreater(raw_path.stat().st_size, self.hosted.JSON_LIMIT)
         self.hosted.main([
             "summarize-receipt",
+            "--preflight", str(preflight_path),
             "--receipt", str(raw_path),
             "--output", str(summary_path),
         ])
@@ -825,7 +837,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         receipt = self.actual_smoke_receipt(
             mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
         )
-        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.preflight_for_receipt(receipt))
         self.assertEqual("failed", summary["status"])
         self.assertEqual("passed", summary["diagnostic"]["status"])
         self.assertEqual(receipt["diagnostic"]["owned_destroyed"], summary["diagnostic"]["owned_destroyed"])
@@ -846,7 +858,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         receipt = self.pass_receipt()
         receipt["worker"]["command"] += ["--token=secret-worker"]
         receipt["supervisor"] = receipt["supervisor"] | {"command": ["/bin/secret-supervisor"]}
-        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.valid_preflight())
         self.assertEqual(self.safe_xvfb_command(), summary["xvfb"]["command"])
         self.assertEqual({key: receipt["worker"][key] for key in ("pid", "start_ticks")}, summary["worker"])
         self.assertNotIn("command", summary["worker"])
@@ -865,7 +877,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         receipt = self.actual_smoke_receipt(
             mutate=lambda case: setattr(case.identity_mock, "side_effect", OSError("injected identity failure")),
         )
-        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.valid_preflight())
         self.assertEqual("failed", summary["status"])
         self.assertNotIn("supervisor", summary)
         self.assertEqual({}, summary["io"])
@@ -888,7 +900,10 @@ class HostedWorkflowContracts(unittest.TestCase):
         os.chdir(root)
         self.addCleanup(lambda: os.chdir(old_cwd))
         bundle = root / "upload"
-        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        preflight = self.preflight_for_receipt(receipt) | {"receipt_stem": "receipt-stem"}
         grant = {"grant": {"receipt_stem": "receipt-stem"}}
         preflight_path = root / "preflight.json"
         grant_path = root / "grant.json"
@@ -896,9 +911,6 @@ class HostedWorkflowContracts(unittest.TestCase):
         grant_path.write_text(json.dumps(grant), encoding="utf-8")
         receipt_dir = root / "linux-x11-smoke-receipt-stem"
         receipt_dir.mkdir()
-        receipt = self.actual_smoke_receipt(
-            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
-        )
         with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
             json.dump(receipt, stream, indent=2, sort_keys=True)
             stream.write("\n")
@@ -917,7 +929,7 @@ class HostedWorkflowContracts(unittest.TestCase):
     def test_summarize_native_receipt_for_upload_strips_recursive_pass_diagnostic_canaries(self):
         receipt = self.pass_receipt()
         receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
-        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.valid_preflight())
         self.assertEqual(self.pass_report(), summary["diagnostic"])
         self.assert_recursive_canary_absent(summary["diagnostic"])
 
@@ -965,6 +977,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         failed_outer = self.actual_smoke_receipt(
             mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
         )
+        preflight = self.valid_preflight()
         pass_cases = (
             ("unknown flag", self.pass_receipt(), ["/usr/bin/Xvfb", ":7", "--token=secret"]),
             ("wrong executable", self.pass_receipt(), ["/tmp/Xvfb", ":7"]),
@@ -980,7 +993,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             with self.subTest(label=label):
                 broken = self.mutate_path(receipt, ("xvfb", "command"), command)
                 with self.assertRaises(self.hosted.HostedWorkflowError):
-                    self.hosted.summarize_native_receipt_for_upload(broken)
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight)
                 self.assert_stage_artifacts_rejects_without_publishing_summary(
                     broken,
                     canary_text="secret",
@@ -1001,12 +1014,73 @@ class HostedWorkflowContracts(unittest.TestCase):
                 with self.assertRaises(self.hosted.HostedWorkflowError):
                     self.hosted.validate_native_receipt(broken, preflight)
 
+    def test_unbound_failed_summary_strips_observed_xvfb_path_without_admission(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        receipt["xvfb"]["command"][0] = "/secret-canary/Xvfb"
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual(self.safe_xvfb_command("Xvfb"), summary["xvfb"]["command"])
+        self.assertNotIn("/secret-canary/Xvfb", json.dumps(summary))
+
+    def test_passed_summary_and_cli_require_preflight_bound_xvfb_path(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-summary-preflight-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        raw_path = root / "receipt.json"
+        summary_path = root / "summary.json"
+        receipt = self.pass_receipt()
+        with raw_path.open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(receipt)
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.main([
+                "summarize-receipt",
+                "--receipt", str(raw_path),
+                "--output", str(summary_path),
+            ])
+        self.assertFalse(summary_path.exists())
+
+    def test_summary_stage_and_validation_reject_path_mismatched_passed_xvfb_command(self):
+        preflight = self.valid_preflight()
+        broken = self.mutate_path(
+            self.pass_receipt(),
+            ("xvfb", "command"),
+            ["/secret-canary/Xvfb", "-displayfd", "11", "-screen", "0", "320x240x24", "-nolisten", "tcp", "-auth", "/tmp/auth", "-noreset"],
+        )
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken, preflight)
+        self.assert_stage_artifacts_rejects_without_publishing_summary(
+            broken,
+            canary_text="/secret-canary/Xvfb",
+            preflight=preflight,
+        )
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.validate_native_receipt(broken, preflight)
+
+    def test_passed_summary_stage_and_validation_require_owned_worker_and_xvfb_identities(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("missing worker", ("worker",), None),
+            ("missing xvfb", ("xvfb",), None),
+        )
+        for label, path, replacement in cases:
+            with self.subTest(label=label):
+                broken = self.mutate_path(self.pass_receipt(), path, replacement)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(broken)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
+
     def test_failed_outer_summary_strips_recursive_passed_worker_diagnostic_canaries(self):
         receipt = self.actual_smoke_receipt(
             mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
         )
         receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
-        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.preflight_for_receipt(receipt))
         self.assertEqual("failed", summary["status"])
         self.assertEqual("passed", summary["diagnostic"]["status"])
         self.assert_recursive_canary_absent(summary["diagnostic"])
@@ -1025,7 +1099,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                     target = target[segment]
                 target[path[-1]] = "secret:nested"
                 with self.assertRaises(self.hosted.HostedWorkflowError):
-                    self.hosted.summarize_native_receipt_for_upload(receipt)
+                    self.hosted.summarize_native_receipt_for_upload(receipt, preflight)
                 with self.assertRaises(self.hosted.HostedWorkflowError):
                     self.hosted.validate_native_receipt(receipt, preflight)
 
@@ -1093,25 +1167,27 @@ class HostedWorkflowContracts(unittest.TestCase):
             self.assertNotIn("secret canary", bundle_text)
 
     def test_summarize_native_receipt_for_upload_rejects_unknown_or_malformed_failure_stream_shapes(self):
+        preflight = self.valid_preflight()
         receipt = self.actual_smoke_receipt()
         broken = json.loads(json.dumps(receipt))
         broken["cleanup_failures"] = ["worker_wait"]
         with self.assertRaises(self.hosted.HostedWorkflowError):
-            self.hosted.summarize_native_receipt_for_upload(broken)
+            self.hosted.summarize_native_receipt_for_upload(broken, preflight)
         broken = json.loads(json.dumps(receipt))
         broken["sources"]["authority_cookie"] = "0" * 64
         with self.assertRaises(self.hosted.HostedWorkflowError):
-            self.hosted.summarize_native_receipt_for_upload(broken)
+            self.hosted.summarize_native_receipt_for_upload(broken, preflight)
         broken = json.loads(json.dumps(receipt))
         del broken["io"]["worker_stdout"]["text"]
         with self.assertRaises(self.hosted.HostedWorkflowError):
-            self.hosted.summarize_native_receipt_for_upload(broken)
+            self.hosted.summarize_native_receipt_for_upload(broken, preflight)
         broken = json.loads(json.dumps(receipt))
         broken["io"]["mystery"] = {"text": "oops"}
         with self.assertRaises(self.hosted.HostedWorkflowError):
-            self.hosted.summarize_native_receipt_for_upload(broken)
+            self.hosted.summarize_native_receipt_for_upload(broken, preflight)
 
     def test_summarize_and_stage_artifacts_reject_malformed_outer_scalar_slots(self):
+        preflight = self.valid_preflight()
         cleanup_failure = self.actual_smoke_receipt(
             mutate=lambda case: setattr(case.server, "kill_error", OSError("known cleanup failure")),
         )
@@ -1155,7 +1231,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             with self.subTest(label=label):
                 broken = self.mutate_path(receipt, path, replacement)
                 with self.assertRaises(self.hosted.HostedWorkflowError):
-                    self.hosted.summarize_native_receipt_for_upload(broken)
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight if broken.get("status") == "passed" else None)
                 self.assert_stage_artifacts_rejects_without_publishing_summary(
                     broken,
                     canary_text=canary_text,

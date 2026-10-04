@@ -797,7 +797,22 @@ def _sanitize_pass_diagnostic(diagnostic):
     return sanitized
 
 
-def _sanitize_xvfb_command(command):
+def _bound_tool_path(preflight, tool_name):
+    if not isinstance(preflight, dict):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    tools = preflight.get("tools")
+    if not isinstance(tools, dict):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    tool = tools.get(tool_name)
+    if not isinstance(tool, dict):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    path = tool.get("path")
+    if not isinstance(path, str):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    return path
+
+
+def _sanitize_xvfb_command(command, *, admitted_executable=None):
     if not isinstance(command, list) or not all(isinstance(item, str) for item in command):
         raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
     if len(command) != 11:
@@ -815,8 +830,10 @@ def _sanitize_xvfb_command(command):
         raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
     if command[10] != "-noreset":
         raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    if admitted_executable is not None and executable != admitted_executable:
+        raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")
     return [
-        executable,
+        Path(executable).name if admitted_executable is None else admitted_executable,
         "-displayfd",
         command[2],
         "-screen",
@@ -869,11 +886,12 @@ def _sanitize_io_entries(io_entries, *, require_all):
     return sanitized
 
 
-def summarize_native_receipt_for_upload(receipt):
+def summarize_native_receipt_for_upload(receipt, preflight=None):
     if not isinstance(receipt, dict):
         raise HostedWorkflowError("Native receipt payload was malformed")
     status = _sanitize_receipt_status(receipt.get("status"))
     summary = _sanitize_summary_payload(receipt, status=status)
+    admitted_xvfb_path = None if preflight is None else _bound_tool_path(preflight, "xvfb")
     supervisor = receipt.get("supervisor")
     if supervisor is not None:
         summary["supervisor"] = _sanitize_identity(supervisor, required=("pid", "start_ticks"))
@@ -885,11 +903,20 @@ def summarize_native_receipt_for_upload(receipt):
     worker = receipt.get("worker")
     if worker is not None:
         summary["worker"] = _sanitize_identity(worker, required=("pid", "start_ticks"))
+    elif status == "passed":
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
     xvfb = receipt.get("xvfb")
     if xvfb is not None:
         sanitized_xvfb = _sanitize_identity(xvfb, required=("pid", "start_ticks"))
-        sanitized_xvfb["command"] = _sanitize_xvfb_command(xvfb.get("command"))
+        if status == "passed" and admitted_xvfb_path is None:
+            raise HostedWorkflowError("Passed native receipt requires admitted hosted Xvfb evidence")
+        sanitized_xvfb["command"] = _sanitize_xvfb_command(
+            xvfb.get("command"),
+            admitted_executable=admitted_xvfb_path,
+        )
         summary["xvfb"] = sanitized_xvfb
+    elif status == "passed":
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
     diagnostic = receipt.get("diagnostic")
     if diagnostic is not None:
         summary["diagnostic"] = _sanitize_diagnostic(diagnostic)
@@ -916,16 +943,23 @@ def stage_artifacts(preflight_path, grant_path, receipt_stem, output_dir):
     if bundle.exists():
         raise HostedWorkflowError("Hosted upload bundle must be a fresh directory")
     bundle.mkdir(parents=True)
+    preflight_json = None
     for source_path, output_name in (
             (Path(preflight_path), "preflight.json"),
             (Path(grant_path), "grant.json")):
         if source_path.is_file():
-            _bounded_json(bundle / output_name, _read_json(source_path))
+            payload = _read_json(source_path)
+            if output_name == "preflight.json":
+                preflight_json = payload
+            _bounded_json(bundle / output_name, payload)
     receipt_path = _receipt_path(receipt_stem)
     if receipt_path.is_file():
         _bounded_json(
             bundle / "receipt-summary.json",
-            summarize_native_receipt_for_upload(_read_native_receipt_json(receipt_path)),
+            summarize_native_receipt_for_upload(
+                _read_native_receipt_json(receipt_path),
+                preflight_json,
+            ),
         )
 
 
@@ -979,7 +1013,7 @@ def _validate_native_source_hashes(observed, preflight, label):
 
 
 def validate_native_receipt(receipt, preflight):
-    summary = _sanitize_summary_payload(receipt, status=_sanitize_receipt_status(receipt.get("status")))
+    summary = summarize_native_receipt_for_upload(receipt, preflight)
     if summary["status"] != "passed":
         raise HostedWorkflowError("Native receipt was not passed")
     if summary["timeout_seconds"] != TIMEOUT_TOTAL:
@@ -995,19 +1029,12 @@ def validate_native_receipt(receipt, preflight):
     _validate_native_source_hashes(summary["sources"], preflight, "Supervisor")
     diagnostic = _sanitize_pass_diagnostic(receipt.get("diagnostic"))
     _validate_native_source_hashes(diagnostic["sources"], preflight, "Worker")
-    worker = receipt.get("worker", {})
-    if diagnostic["worker"] != {key: worker.get(key) for key in ("pid", "start_ticks")}:
+    if diagnostic["worker"] != summary["worker"]:
         raise HostedWorkflowError("Worker identity mismatched the supervised child")
     if summary["worker_exit_code"] != 0:
         raise HostedWorkflowError("Native worker did not exit cleanly")
     if summary["xvfb_observed_exit_code"] is not None:
         raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
-    xvfb = receipt.get("xvfb")
-    if not isinstance(xvfb, dict):
-        raise HostedWorkflowError("Native receipt identity payload was malformed")
-    sanitized_xvfb_command = _sanitize_xvfb_command(xvfb.get("command"))
-    if sanitized_xvfb_command[0] != preflight["tools"]["xvfb"]["path"]:
-        raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")
     expected_libx11 = {
         key: preflight["tools"]["libx11"][key]
         for key in ("path", "resolved_path", "sha256")
@@ -1061,6 +1088,7 @@ def main(argv=None):
     stage.add_argument("--output-dir", required=True)
 
     summarize = subcommands.add_parser("summarize-receipt")
+    summarize.add_argument("--preflight")
     summarize.add_argument("--receipt", required=True)
     summarize.add_argument("--output", required=True)
 
@@ -1100,9 +1128,10 @@ def main(argv=None):
         )
         return 0
     if args.command == "summarize-receipt":
+        preflight = None if args.preflight is None else _read_json(Path(args.preflight))
         _bounded_json(
             Path(args.output),
-            summarize_native_receipt_for_upload(_read_native_receipt_json(Path(args.receipt))),
+            summarize_native_receipt_for_upload(_read_native_receipt_json(Path(args.receipt)), preflight),
         )
         return 0
     preflight = _read_json(Path(args.preflight))
