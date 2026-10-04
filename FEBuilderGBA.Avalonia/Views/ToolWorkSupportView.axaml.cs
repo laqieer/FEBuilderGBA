@@ -64,7 +64,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     var go = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         R._("Warning: unsaved changes are not stored in the ROM. Update anyway?"),
-                        R._("Work Support"), MessageBoxMode.YesNo);
+                        "Work Support", MessageBoxMode.YesNo, titleIsKey: true);
                     if (go != MessageBoxResult.Yes) return;
                 }
 
@@ -178,7 +178,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     R._("The UPS patch produced CRC warnings:") + "\r\n" +
                     string.Join("\r\n", prepared.Warnings) + "\r\n\r\n" +
                     R._("Save the patched ROM anyway?"),
-                    R._("Work Support"), MessageBoxMode.YesNo);
+                    "Work Support", MessageBoxMode.YesNo, titleIsKey: true);
                 if (cont != MessageBoxResult.Yes)
                 {
                     _vm.AutoFeedbackStatus = R._("Update cancelled (CRC warning declined). No ROM written.");

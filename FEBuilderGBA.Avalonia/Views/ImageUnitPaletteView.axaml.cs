@@ -779,10 +779,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the unit-palette list (current: {0}, max: 512).",
                         currentCount),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     currentCount,
-                    512);
+                    512, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
                 if (newCount == currentCount)

@@ -455,7 +455,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 : installerUrl;
 
             bool ok = await ConfirmDownloadAsync(
-                FEBuilderGBA.R._("Download and install Git"),
+                "Download and install Git",
                 FEBuilderGBA.R._(
                     "This will download the official Git for Windows installer from:\n{0}\n\nIt will RUN the installer, which may request administrator (UAC) elevation.\n\nContinue?",
                     source));
@@ -669,9 +669,9 @@ namespace FEBuilderGBA.Avalonia.Views
         /// Show a Yes/No confirmation before any download/run/place. Returns
         /// true if the user confirmed.
         /// </summary>
-        async Task<bool> ConfirmDownloadAsync(string title, string message)
+        async Task<bool> ConfirmDownloadAsync(string titleKey, string message)
         {
-            var result = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, message, title, MessageBoxMode.YesNo);
+            var result = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, message, titleKey, MessageBoxMode.YesNo, titleIsKey: true);
             return result == MessageBoxResult.Yes;
         }
 
@@ -707,7 +707,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             var spec = DownloadInstallCore.GetSpec(id);
             bool ok = await ConfirmDownloadAsync(
-                FEBuilderGBA.R._("Download"), SingleConsentMessage(spec));
+                "Download", SingleConsentMessage(spec));
             if (!ok)
                 return null;
 
@@ -788,7 +788,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 "The downloaded programs will be placed under the app folder.\n\nContinue?"));
 
             bool ok = await ConfirmDownloadAsync(
-                FEBuilderGBA.R._("Download"), sb.ToString());
+                "Download", sb.ToString());
             if (!ok)
                 return null;
 

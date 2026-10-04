@@ -124,7 +124,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     var answer = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                         R._("The UPS patch applied with a warning:") + "\r\n" + warning + "\r\n\r\n"
                             + R._("Apply it anyway?"),
-                        R._("UPS Patch Applier"), MessageBoxMode.YesNo);
+                        "UPS Patch Applier", MessageBoxMode.YesNo, titleIsKey: true);
                     if (answer != MessageBoxResult.Yes)
                     {
                         StatusText.Text = R._("Cancelled.");

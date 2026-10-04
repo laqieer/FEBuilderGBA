@@ -8,6 +8,8 @@ namespace FEBuilderGBA.Avalonia.Services
     public interface IEditorView
     {
         string ViewTitle { get; }
+        /// <summary>Invariant catalog key for title chrome; null preserves a literal title.</summary>
+        string? TitleKey => ViewTitle;
         bool IsLoaded { get; }
         void NavigateTo(uint address);
 

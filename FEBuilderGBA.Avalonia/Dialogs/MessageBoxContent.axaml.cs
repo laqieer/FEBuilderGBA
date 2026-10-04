@@ -10,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     public partial class MessageBoxContent : UserControl, IEmbeddableEditor
     {
         public string ViewTitle { get; private set; } = "FEBuilderGBA";
+        public string? TitleKey { get; private set; }
         public new bool IsLoaded => true;
         public EditorDescriptor Descriptor => new(
             ViewTitle,
@@ -33,14 +34,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             InitializeComponent();
         }
 
-        public MessageBoxContent(string message, string title, MessageBoxMode mode) : this()
+        public MessageBoxContent(string message, string title, MessageBoxMode mode, bool titleIsKey = false) : this()
         {
-            Configure(message, title, mode);
+            Configure(message, title, mode, titleIsKey: titleIsKey);
         }
 
-        public void Configure(string message, string title, MessageBoxMode mode, bool selectable = false)
+        /// <param name="titleIsKey">Retain an untranslated catalog key; otherwise preserve title literally.</param>
+        public void Configure(string message, string title, MessageBoxMode mode, bool selectable = false, bool titleIsKey = false)
         {
             ViewTitle = title;
+            TitleKey = titleIsKey ? title : null;
             _message = message ?? "";
             MessageText.Text = _message;
             SelectableMessageText.Text = _message;

@@ -258,10 +258,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new spell-list entry count for this unit (current: {0}, max: {1}).",
                         currentCount, maxCount),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     1,
-                    maxCount);
+                    maxCount, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
 

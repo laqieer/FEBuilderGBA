@@ -129,10 +129,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the sound room list (current: {0}, max: {1}).",
                         _vm.ReadCount, cap),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     _vm.ReadCount,
-                    cap);
+                    cap, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
                 if (newCount == _vm.ReadCount)
