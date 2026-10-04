@@ -173,7 +173,8 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
 
         command = (
             "python -B -m unittest scripts.tests.test_linux_x11 "
-            "scripts.tests.test_linux_x11_metadata"
+            "scripts.tests.test_linux_x11_metadata "
+            "scripts.tests.test_linux_x11_hosted"
         )
         suite_step = dict(build_steps)[suite_name]
         self.assertEqual(command, run_command(suite_step))
@@ -489,6 +490,31 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(native_smoke)
         self.assertNotIn("GITHUB_TOKEN", native_smoke.group("body"))
+
+    def test_hosted_reusable_workflow_always_uploads_safe_json_only_after_native_outcomes(self):
+        workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assertIn("id: checkout_candidate", workflow)
+        self.assertIn("id: native_smoke", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Prepare hosted native artifact bundle.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",
+        )
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted summarize-receipt", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Upload hosted native receipt.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",
+        )
+        upload_step = re.search(
+            r"(?ms)- name: Upload hosted native receipt.*?path: \|\n"
+            r"\s+TestResults/issue2160-hosted/upload/preflight\.json\n"
+            r"\s+TestResults/issue2160-hosted/upload/grant\.json\n"
+            r"\s+TestResults/issue2160-hosted/upload/receipt-summary\.json\n"
+            r"\s+if-no-files-found: ignore",
+            workflow,
+        )
+        self.assertIsNotNone(upload_step)
+        self.assertNotIn("linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json", upload_step.group(0))
+        self.assertNotIn("path: TestResults/issue2160-hosted/upload", workflow)
 
 
 class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):

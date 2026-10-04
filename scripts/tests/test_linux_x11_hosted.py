@@ -53,6 +53,7 @@ class HostedSourceTests(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("authorize-native", result.stdout)
+        self.assertIn("summarize-receipt", result.stdout)
         self.assertIn("validate-receipt", result.stdout)
 
 
@@ -191,6 +192,10 @@ class HostedWorkflowContracts(unittest.TestCase):
         binding = self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE))
         self.assertEqual(self.hosted.HOSTED_WORKFLOW_PATH, binding["hosted_workflow_path"])
         bad_payloads = [
+            dict(RUN_PAYLOAD_FIXTURE, head_repository=None),
+            dict(RUN_PAYLOAD_FIXTURE, head_repository={}),
+            dict(RUN_PAYLOAD_FIXTURE, head_repository={"full_name": None}),
+            dict(RUN_PAYLOAD_FIXTURE, head_repository={"full_name": "FEBuilderGBA/FEBuilderGBA"}),
             dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[]),
             dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
                 "path": "other/repo/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
@@ -331,12 +336,22 @@ class HostedWorkflowContracts(unittest.TestCase):
             "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
         }
 
-        def comment(body, *, author="laqieer", association="OWNER", comment_id=1):
+        def comment(
+            body,
+            *,
+            author="laqieer",
+            association="OWNER",
+            comment_id=1,
+            created_at="2026-10-02T00:00:00Z",
+            updated_at="2026-10-02T00:00:00Z",
+        ):
             return {
                 "id": comment_id,
                 "body": body,
                 "user": {"login": author},
                 "author_association": association,
+                "created_at": created_at,
+                "updated_at": updated_at,
             }
 
         body = "\n".join([self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in base.items()])
@@ -349,6 +364,11 @@ class HostedWorkflowContracts(unittest.TestCase):
             [comment(body, association="MEMBER")],
             [comment(body.replace("run_id=12345", "run_id=99999", 1))],
             [comment(body.replace(base["valid_before"], (now - timedelta(minutes=2)).isoformat().replace("+00:00", "Z"), 1))],
+            [comment(body, created_at=None)],
+            [comment(body, updated_at=None)],
+            [comment(body, created_at="not-a-timestamp")],
+            [comment(body, updated_at="not-a-timestamp")],
+            [comment(body, created_at="2026-10-02T00:00:02Z", updated_at="2026-10-02T00:00:01Z")],
             [],
         )
         for comments in bad_cases:
@@ -409,6 +429,101 @@ class HostedWorkflowContracts(unittest.TestCase):
                 frozen,
                 now=now,
             )
+
+    def test_grant_freeze_rejects_malformed_frozen_timestamps_even_when_second_readback_matches(self):
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        preflight = {
+            "preflight_digest": "digest",
+        }
+        body = "\n".join([
+            self.hosted.GRANT_SCHEMA,
+            "lookup_key=grant-key",
+            "run_id=12345",
+            "run_attempt=1",
+            "candidate_sha=" + ("a" * 40),
+            "caller_workflow_path=.github/workflows/e2e-norom.yml",
+            "caller_workflow_sha=" + ("a" * 40),
+            "hosted_workflow_path=.github/workflows/linux-x11-hosted.yml",
+            "hosted_workflow_sha=" + ("a" * 40),
+            "preflight_digest=digest",
+            "tool_constraints_digest=fixed",
+            "receipt_stem=receipt-stem",
+            "operation=" + self.hosted.OPERATION,
+            "invocations=1",
+            "timeout_total=20",
+            "timeout_work=18",
+            "timeout_cleanup=2",
+            "valid_after=2026-10-01T23:59:00Z",
+            "valid_before=2026-10-02T00:01:00Z",
+        ])
+        grant = self.hosted._parse_grant_body(body)
+        frozen = {
+            "grant": grant,
+            "grant_freeze": {
+                "comment_id": 77,
+                "normalized_body_sha256": self.hosted._grant_body_sha256(body),
+                "author_login": "laqieer",
+                "author_association": "OWNER",
+                "created_at": "not-a-timestamp",
+                "updated_at": "not-a-timestamp",
+            },
+            "preflight_digest": "digest",
+        }
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.confirm_grant_freeze(
+                {
+                    "id": 77,
+                    "body": body,
+                    "user": {"login": "laqieer"},
+                    "author_association": "OWNER",
+                    "created_at": "not-a-timestamp",
+                    "updated_at": "not-a-timestamp",
+                },
+                frozen,
+                now=now,
+            )
+
+    def test_summarize_native_receipt_for_upload_strips_raw_stream_text_but_keeps_failed_status(self):
+        native_sources = self.hosted.native_smoke.source_hashes()
+        receipt = {
+            "status": "failed",
+            "timeout_seconds": 20,
+            "phase": "worker",
+            "elapsed_seconds": 18.0,
+            "failure": "worker exited 1",
+            "capture_failure": None,
+            "cleanup_failures": ["owned worker still alive"],
+            "deadline_exceeded": False,
+            "sources": native_sources,
+            "diagnostic": {"status": "failed", "failure": "worker exited 1"},
+            "worker_stderr": "raw stderr should not be uploaded",
+            "io": {
+                "worker_stdout": {
+                    "text": "raw stdout",
+                    "limit_bytes": 16384,
+                    "observed_bytes": 16,
+                    "retained_bytes": 10,
+                    "truncated": True,
+                    "error": None,
+                },
+                "worker_stderr": {
+                    "text": "raw stderr",
+                    "limit_bytes": 4096,
+                    "observed_bytes": 32,
+                    "retained_bytes": 16,
+                    "truncated": True,
+                    "error": "truncated",
+                },
+            },
+        }
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual("failed", summary["status"])
+        self.assertEqual("worker exited 1", summary["failure"])
+        self.assertNotIn("worker_stderr", summary)
+        self.assertEqual(["owned worker still alive"], summary["cleanup_failures"])
+        self.assertEqual(16, summary["io"]["worker_stderr"]["retained_bytes"])
+        self.assertNotIn("text", summary["io"]["worker_stdout"])
+        self.assertNotIn("text", summary["io"]["worker_stderr"])
 
     def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
         preflight = {

@@ -252,7 +252,10 @@ def _run_binding(environment, token, fetch_json):
     run_id = _require_match("GITHUB_RUN_ID", environment.get("GITHUB_RUN_ID", ""), RUN_ID_RE)
     run_attempt = int(_require_match("GITHUB_RUN_ATTEMPT", environment.get("GITHUB_RUN_ATTEMPT", ""), RUN_ATTEMPT_RE))
     payload = fetch_json(f"{api_base}/repos/{REPOSITORY}/actions/runs/{run_id}", token)
-    if payload.get("head_repository", {}).get("full_name", REPOSITORY) != REPOSITORY:
+    if not isinstance(payload, dict):
+        raise HostedWorkflowError("GitHub API run readback returned an unexpected payload")
+    head_repository = payload.get("head_repository")
+    if not isinstance(head_repository, dict) or head_repository.get("full_name") != REPOSITORY:
         raise HostedWorkflowError("Hosted readback must stay on the fork")
     if payload.get("head_sha") != environment["GITHUB_SHA"]:
         raise HostedWorkflowError("GitHub API run head SHA mismatched the current workflow SHA")
@@ -390,10 +393,23 @@ def _grant_body_sha256(body):
 
 
 def _parse_instant(value):
+    if not isinstance(value, str):
+        raise HostedWorkflowError("Grant comment time window was malformed")
     try:
         return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
     except ValueError as error:
         raise HostedWorkflowError("Grant comment time window was malformed") from error
+
+
+def _grant_comment_timestamps(comment):
+    created_at = _parse_instant(comment.get("created_at"))
+    updated_at = _parse_instant(comment.get("updated_at"))
+    if updated_at < created_at:
+        raise HostedWorkflowError("Grant comment timestamps were malformed")
+    return {
+        "created_at": comment["created_at"],
+        "updated_at": comment["updated_at"],
+    }
 
 
 def find_matching_grant(comments, preflight, *, now=None):
@@ -438,6 +454,7 @@ def find_matching_grant(comments, preflight, *, now=None):
         body = comment.get("body", "")
         if len(body.encode("utf-8")) > JSON_LIMIT:
             raise HostedWorkflowError("Grant comment body exceeded the reviewed limit")
+        timestamps = _grant_comment_timestamps(comment)
         matches.append({
             "id": comment_id,
             "grant": grant,
@@ -445,8 +462,8 @@ def find_matching_grant(comments, preflight, *, now=None):
                 "comment_id": comment_id,
                 "author_login": comment["user"]["login"],
                 "author_association": comment["author_association"],
-                "created_at": comment.get("created_at"),
-                "updated_at": comment.get("updated_at"),
+                "created_at": timestamps["created_at"],
+                "updated_at": timestamps["updated_at"],
                 "normalized_body_sha256": _grant_body_sha256(body),
             },
         })
@@ -463,7 +480,8 @@ def confirm_grant_freeze(comment, authorized, *, now=None):
         raise HostedWorkflowError("Grant author changed after authorization")
     if comment.get("author_association") != freeze["author_association"]:
         raise HostedWorkflowError("Grant author association changed after authorization")
-    if comment.get("created_at") != freeze["created_at"] or comment.get("updated_at") != freeze["updated_at"]:
+    timestamps = _grant_comment_timestamps(comment)
+    if timestamps["created_at"] != freeze["created_at"] or timestamps["updated_at"] != freeze["updated_at"]:
         raise HostedWorkflowError("Grant comment timestamps changed after authorization")
     body = comment.get("body", "")
     if _grant_body_sha256(body) != freeze["normalized_body_sha256"]:
@@ -481,6 +499,45 @@ def confirm_grant_freeze(comment, authorized, *, now=None):
         "grant_comment_id": freeze["comment_id"],
         "preflight_digest": authorized["preflight_digest"],
     }
+
+
+def summarize_native_receipt_for_upload(receipt):
+    if not isinstance(receipt, dict):
+        raise HostedWorkflowError("Native receipt payload was malformed")
+
+    summary = {}
+    for key in (
+        "status",
+        "timeout_seconds",
+        "phase",
+        "elapsed_seconds",
+        "failure",
+        "capture_failure",
+        "cleanup_failures",
+        "deadline_exceeded",
+        "sources",
+        "diagnostic",
+        "worker_exit_code",
+        "xvfb_observed_exit_code",
+    ):
+        if key in receipt:
+            summary[key] = receipt[key]
+
+    io_summary = {}
+    io_entries = receipt.get("io")
+    if io_entries is not None:
+        if not isinstance(io_entries, dict):
+            raise HostedWorkflowError("Native receipt io payload was malformed")
+        for name, entry in io_entries.items():
+            if not isinstance(entry, dict):
+                raise HostedWorkflowError("Native receipt io payload was malformed")
+            io_summary[name] = {
+                key: value
+                for key, value in entry.items()
+                if key != "text"
+            }
+        summary["io"] = io_summary
+    return summary
 
 
 def authorize_native(root, preflight, environment=None, *, query=_query, fetch_json=_fetch_json, which=shutil.which, now=None):
@@ -595,6 +652,10 @@ def main(argv=None):
     confirm = subcommands.add_parser("confirm-grant")
     confirm.add_argument("--grant", required=True)
 
+    summarize = subcommands.add_parser("summarize-receipt")
+    summarize.add_argument("--receipt", required=True)
+    summarize.add_argument("--output", required=True)
+
     validate = subcommands.add_parser("validate-receipt")
     validate.add_argument("--preflight", required=True)
     validate.add_argument("--receipt", required=True)
@@ -618,6 +679,12 @@ def main(argv=None):
             _fetch_json,
         )
         print(_normalized_json(confirm_grant_freeze(comment, authorization)))
+        return 0
+    if args.command == "summarize-receipt":
+        _bounded_json(
+            Path(args.output),
+            summarize_native_receipt_for_upload(_read_json(Path(args.receipt))),
+        )
         return 0
     result = validate_native_receipt(_read_json(Path(args.receipt)), _read_json(Path(args.preflight)))
     print(_normalized_json(result))

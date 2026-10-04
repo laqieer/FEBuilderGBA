@@ -75,7 +75,7 @@ jobs:
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
     - name: Run Linux X11 pure contract tests (issue #2160)
-      run: python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata
+      run: python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata scripts.tests.test_linux_x11_hosted
 
     - name: Run Windows Linux metadata supervisor pure contracts (issue #2160)
       if: runner.os == 'Windows'

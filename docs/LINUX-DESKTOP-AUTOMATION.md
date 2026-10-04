@@ -80,7 +80,7 @@ not authorize creating/running that machine-specific copy.
 From the repository root, using the existing standard-library test runner:
 
 ```powershell
-python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata
+python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata scripts.tests.test_linux_x11_hosted
 ```
 
 Tests use Python fakes and ctypes storage only, not Xlib, C callbacks, displays,
@@ -91,11 +91,11 @@ bounds/cleanup, root confirmation, and inert smoke-source validation.
 Host-layout tests are not a substitute for a Linux native ABI smoke.
 
 The required Cross-Platform Build workflow's existing `build` matrix is configured
-to run `python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata`
-after Python setup on Ubuntu, macOS, and Windows, without a condition or failure suppression. Verify the
-exact current-head CI run and results before treating that coverage as observed.
-This pure CI step does not run the native smoke or establish native/application
-acceptance.
+to run `python -B -m unittest scripts.tests.test_linux_x11 scripts.tests.test_linux_x11_metadata scripts.tests.test_linux_x11_hosted`
+after Python setup on Ubuntu, macOS, and Windows, without a condition or failure
+suppression. Verify the exact current-head CI run and results before treating that
+coverage as observed. This pure CI step does not run the native smoke or establish
+native/application acceptance.
 
 ## Separately gated native primitive
 
@@ -196,11 +196,18 @@ it recomputes the same stable hosted constraints on a fresh runner, requires
 grant comment by `laqieer`/OWNER on issue #2160 matching the original run ID,
 candidate SHA, workflow binding, digests, receipt stem, operation marker, and
 the fixed timeout split `20 = 18 work + 2 cleanup`. The exact comment ID, body
-digest, author/association, and timestamps are frozen, then re-read by comment
-ID immediately before native smoke so edits or replacement fail closed.
+digest, author/association, and well-formed immutable `created_at`/`updated_at`
+timestamps are frozen, then re-read by comment ID immediately before native
+smoke so edits, replacement, malformed timestamps, or drift fail closed.
 Ephemeral runner name/image/uid observations are captured but not used as the
 grant authority. Retries, stale grants, edited grants, or stable-constraint
 drift fail closed before native execution.
+
+Hosted artifact upload is failure-safe but still bounded: after checkout, the
+native job stages only reviewed JSON evidence (`preflight.json`, `grant.json`,
+and a sanitized `receipt-summary.json`) and uploads that bundle under `always()`.
+The raw native `receipt.json`, private cookie material, raw stdout/stderr text,
+environment dumps, binaries, and whole directories are not uploaded.
 
 ## Separately gated current metadata
 
