@@ -25,7 +25,34 @@ import time
 from scripts import linux_x11 as x11
 
 
-def validate_options(allowed, timeout, directory):
+DISPLAYFD_LIMIT = 32
+XVFB_STDERR_LIMIT = 4096
+WORKER_STDOUT_LIMIT = 16384
+WORKER_STDERR_LIMIT = 4096
+IO_LIMITS = {
+    "displayfd": DISPLAYFD_LIMIT,
+    "xvfb_stderr": XVFB_STDERR_LIMIT,
+    "worker_stdout": WORKER_STDOUT_LIMIT,
+    "worker_stderr": WORKER_STDERR_LIMIT,
+}
+FAILURE_TEXT_LIMIT = 1000
+CLEANUP_FAILURE_TEXT_LIMIT = 1000
+CLEANUP_FAILURE_KEYS = (
+    "displayfd_read_close",
+    "displayfd_write_close",
+    "worker_kill",
+    "worker_wait",
+    "xvfb_kill",
+    "xvfb_wait",
+    "worker_stdout_close",
+    "worker_stderr_close",
+    "xvfb_stdout_close",
+    "xvfb_stderr_close",
+    "authority_remove",
+)
+
+
+def validate_options(allowed, timeout, directory, xlib_path=None):
     if allowed is not True:
         raise ValueError("Separate native grant and --allow-native-smoke are required")
     if type(timeout) is not int or not 10 <= timeout <= 60:
@@ -33,6 +60,9 @@ def validate_options(allowed, timeout, directory):
     if not isinstance(directory, str) or not re.fullmatch(
             r"linux-x11-smoke-[A-Za-z0-9][A-Za-z0-9._-]{0,79}", directory):
         raise ValueError("Receipt directory must be a fresh linux-x11-smoke-<name> in cwd")
+    if xlib_path is not None:
+        if not isinstance(xlib_path, str) or not re.fullmatch(r"/[^\0\\]+", xlib_path):
+            raise ValueError("xlib_path must be an absolute reviewed POSIX path")
 
 
 def authority_bytes(cookie):
@@ -127,6 +157,14 @@ def validate_pass_report(report):
     if not isinstance(worker, dict) or not all(type(worker.get(key)) is int and worker[key] > 0
                                                for key in ("pid", "start_ticks")):
         raise ValueError("Worker identity is required")
+    if "libx11" in report:
+        libx11 = report["libx11"]
+        if not isinstance(libx11, dict) or not all(
+                isinstance(libx11.get(key), str) and libx11[key]
+                for key in ("path", "resolved_path", "sha256")):
+            raise ValueError("Loaded libX11 evidence is required")
+        if not libx11["path"].startswith("/") or not libx11["resolved_path"].startswith("/") or len(libx11["sha256"]) != 64:
+            raise ValueError("Loaded libX11 evidence is required")
     return report
 
 
@@ -256,7 +294,7 @@ def wait_for_worker(worker, pump, deadline):
             return pump.data("worker_stdout"), pump.data("worker_stderr")
 
 
-def primitive():
+def primitive(xlib_path=None):
     display = os.environ["DISPLAY"]
     if not re.fullmatch(r":[0-9]+", display):
         raise ValueError("Only the supervisor's fresh local display is permitted")
@@ -265,10 +303,17 @@ def primitive():
     connections = []
     expected_cleanup_errors = None
     try:
-        owner = x11.open_display(display)
+        owner = x11.open_display(display, xlib_path=xlib_path)
         connections.append(owner)
-        observer = x11.open_display(display)
+        observer = x11.open_display(display, xlib_path=xlib_path)
         connections.append(observer)
+        if xlib_path is not None:
+            resolved = str(Path(xlib_path).resolve(strict=True))
+            report["libx11"] = {
+                "path": xlib_path,
+                "resolved_path": resolved,
+                "sha256": hashlib.sha256(Path(resolved).read_bytes()).hexdigest(),
+            }
         with owner.checked() as (native, handle):
             native.XCreateSimpleWindow.argtypes = [
                 C.c_void_p, C.c_ulong, C.c_int, C.c_int, C.c_uint,
@@ -357,7 +402,7 @@ def primitive():
     return validate_pass_report(report)
 
 
-def supervise(timeout, directory):
+def supervise(timeout, directory, xlib_path=None):
     if sys.platform != "linux" or os.geteuid() == 0:
         raise RuntimeError("Smoke requires non-root Linux; no installation or elevation")
     executable = shutil.which("Xvfb")
@@ -391,7 +436,7 @@ def supervise(timeout, directory):
             "XAUTHORITY": str(authority), "PYTHONDONTWRITEBYTECODE": "1",
         }
         read_fd, write_fd = os.pipe()
-        pump.add("displayfd", read_fd, 32)
+        pump.add("displayfd", read_fd, DISPLAYFD_LIMIT)
         server_command = [
             executable, "-displayfd", str(write_fd), "-screen", "0", "320x240x24",
             "-nolisten", "tcp", "-auth", str(authority), "-noreset",
@@ -400,7 +445,7 @@ def supervise(timeout, directory):
             server_command, pass_fds=(write_fd,), env=environment,
             stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
             stderr=subprocess.PIPE, start_new_session=True)
-        pump.add("xvfb_stderr", server.stderr.fileno(), 4096)
+        pump.add("xvfb_stderr", server.stderr.fileno(), XVFB_STDERR_LIMIT)
         descriptor, write_fd = write_fd, None
         os.close(descriptor)
         receipt["xvfb"] = {**process_identity(server.pid), "command": server_command}
@@ -411,6 +456,8 @@ def supervise(timeout, directory):
             sys.executable, "-B", "-m", "scripts.tests.linux_x11_native_smoke",
             "--allow-native-smoke", "--worker",
         ]
+        if xlib_path is not None:
+            worker_command.extend(["--xlib-path", xlib_path])
         remaining(deadline)
         receipt["phase"] = "worker"
         worker = subprocess.Popen(
@@ -418,8 +465,8 @@ def supervise(timeout, directory):
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, start_new_session=True)
         setup_error = None
         for name, stream, limit in (
-                ("worker_stdout", worker.stdout, 16384),
-                ("worker_stderr", worker.stderr, 4096)):
+                ("worker_stdout", worker.stdout, WORKER_STDOUT_LIMIT),
+                ("worker_stderr", worker.stderr, WORKER_STDERR_LIMIT)):
             try:
                 pump.add(name, stream.fileno(), limit)
             except RuntimeError as error:
@@ -446,7 +493,7 @@ def supervise(timeout, directory):
         receipt["status"] = "passed"
         exit_code = 0
     except BaseException as error:
-        receipt["failure"] = f"{type(error).__name__}: {error}"[:1000]
+        receipt["failure"] = f"{type(error).__name__}: {error}"[:FAILURE_TEXT_LIMIT]
     finally:
         cleanup_failures = {}
 
@@ -455,7 +502,7 @@ def supervise(timeout, directory):
                 pump.drain_available()
                 pump.check()
             except BaseException as error:
-                receipt["capture_failure"] = f"{type(error).__name__}: {error}"[:1000]
+                receipt["capture_failure"] = f"{type(error).__name__}: {error}"[:FAILURE_TEXT_LIMIT]
 
         drain_diagnostics()
         pump.stop("displayfd")
@@ -464,18 +511,18 @@ def supervise(timeout, directory):
                 try:
                     os.close(descriptor)
                 except BaseException as error:
-                    cleanup_failures[name + "_close"] = str(error)[:1000]
+                    cleanup_failures[name + "_close"] = str(error)[:CLEANUP_FAILURE_TEXT_LIMIT]
         for name, process in (("worker", worker), ("xvfb", server)):
             if process is not None:
                 try:
                     if process.poll() is None:
                         process.kill()
                 except BaseException as error:
-                    cleanup_failures[name + "_kill"] = str(error)[:1000]
+                    cleanup_failures[name + "_kill"] = str(error)[:CLEANUP_FAILURE_TEXT_LIMIT]
                 try:
                     receipt[name + "_exit_code"] = process.wait(timeout=1)
                 except BaseException as error:
-                    cleanup_failures[name + "_wait"] = str(error)[:1000]
+                    cleanup_failures[name + "_wait"] = str(error)[:CLEANUP_FAILURE_TEXT_LIMIT]
         drain_diagnostics()
         for name, process in (("worker", worker), ("xvfb", server)):
             if process is not None:
@@ -485,11 +532,11 @@ def supervise(timeout, directory):
                         try:
                             stream.close()
                         except BaseException as error:
-                            cleanup_failures[name + "_" + pipe_name + "_close"] = str(error)[:1000]
+                            cleanup_failures[name + "_" + pipe_name + "_close"] = str(error)[:CLEANUP_FAILURE_TEXT_LIMIT]
         try:
             authority.unlink(missing_ok=True)
         except BaseException as error:
-            cleanup_failures["authority_remove"] = str(error)[:1000]
+            cleanup_failures["authority_remove"] = str(error)[:CLEANUP_FAILURE_TEXT_LIMIT]
         receipt["io"] = pump.snapshot()
         if cleanup_failures:
             receipt["cleanup_failures"] = cleanup_failures
@@ -514,20 +561,21 @@ def main(argv=None):
     parser.add_argument("--allow-native-smoke", action="store_true")
     parser.add_argument("--timeout", type=int, default=20)
     parser.add_argument("--receipt-dir")
+    parser.add_argument("--xlib-path")
     parser.add_argument("--worker", action="store_true", help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
     if args.worker:
         if not args.allow_native_smoke or os.environ.get("FEBUILDER_X11_SMOKE_PARENT") != str(os.getppid()):
             raise ValueError("Worker must be launched by the bounded supervisor")
         try:
-            result = primitive()
+            result = primitive(args.xlib_path)
         except BaseException as error:
-            print(json.dumps({"status": "failed", "failure": f"{type(error).__name__}: {error}"[:1000]}))
+            print(json.dumps({"status": "failed", "failure": f"{type(error).__name__}: {error}"[:FAILURE_TEXT_LIMIT]}))
             return 1
         print(json.dumps(result, sort_keys=True))
         return 0
-    validate_options(args.allow_native_smoke, args.timeout, args.receipt_dir)
-    return supervise(args.timeout, args.receipt_dir)
+    validate_options(args.allow_native_smoke, args.timeout, args.receipt_dir, args.xlib_path)
+    return supervise(args.timeout, args.receipt_dir, args.xlib_path)
 
 
 if __name__ == "__main__":

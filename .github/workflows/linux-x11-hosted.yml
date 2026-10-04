@@ -60,7 +60,7 @@ jobs:
         id: checkout_candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Gather hosted preflight evidence
@@ -119,7 +119,7 @@ jobs:
         id: checkout_candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ inputs.candidate_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
 
       - name: Download hosted preflight evidence
@@ -148,37 +148,23 @@ jobs:
       - name: Run bounded native X11 smoke
         id: native_smoke
         run: >-
-          /usr/bin/python3 -B -m scripts.tests.linux_x11_native_smoke
-          --allow-native-smoke
-          --timeout 20
-          --receipt-dir linux-x11-smoke-${{ inputs.receipt_stem }}
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted run-native-smoke
+          --preflight TestResults/issue2160-hosted/preflight.json
 
       - name: Validate bounded native X11 receipt
         id: validate_receipt
         run: >-
           /usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt
           --preflight TestResults/issue2160-hosted/preflight.json
-          --receipt linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json
 
       - name: Prepare hosted native artifact bundle
-        id: prepare_native_artifacts
+        id: stage_artifacts
         if: ${{ always() && steps.checkout_candidate.outcome == 'success' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bundle='TestResults/issue2160-hosted/upload'
-          mkdir -p "$bundle"
-          for file in TestResults/issue2160-hosted/preflight.json TestResults/issue2160-hosted/grant.json; do
-            if [[ -f "$file" ]]; then
-              cp "$file" "$bundle/$(basename "$file")"
-            fi
-          done
-          receipt="linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json"
-          if [[ -f "$receipt" ]]; then
-            /usr/bin/python3 -B -m scripts.linux_x11_hosted summarize-receipt \
-              --receipt "$receipt" \
-              --output "$bundle/receipt-summary.json"
-          fi
+        run: >-
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted stage-artifacts
+          --preflight TestResults/issue2160-hosted/preflight.json
+          --grant TestResults/issue2160-hosted/grant.json
+          --output-dir TestResults/issue2160-hosted/upload
 
       - name: Upload hosted native receipt
         if: ${{ always() && steps.checkout_candidate.outcome == 'success' }}

@@ -2,7 +2,7 @@ name: "E2E: No ROM"
 run-name: >-
   E2E: No ROM / ${{
     github.event_name == 'workflow_dispatch'
-    && format('{0} / {1} / run-{2}', inputs.route, inputs.receipt_stem, github.run_id)
+    && format('{0} / {1} / run-{2}', inputs.route != '' && inputs.route || 'default-e2e', inputs.receipt_stem, github.run_id)
     || format('{0} / default-e2e / schedule / run-{1}', github.event_name, github.run_id)
   }}
 
@@ -43,7 +43,7 @@ permissions:
 
 jobs:
   e2e:
-    if: ${{ github.event_name != 'workflow_dispatch' || inputs.route == 'default-e2e' }}
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.route == '' || inputs.route == 'default-e2e' }}
     uses: ./.github/workflows/e2e-run.yml
     with:
       rom-name: none

@@ -337,10 +337,13 @@ class PropertyConnection:
 
 
 class _NativeRuntime:
-    def __init__(self):
+    def __init__(self, xlib_path=None):
         if sys.platform != "linux":
             raise RuntimeError("Native X11 binding is Linux-only")
-        self.x = C.CDLL("libX11.so.6")
+        if xlib_path is not None and (not isinstance(xlib_path, str) or not xlib_path.startswith("/")):
+            raise ValueError("Explicit Xlib path must be an absolute POSIX path")
+        self.library_path = "libX11.so.6" if xlib_path is None else xlib_path
+        self.x = C.CDLL(self.library_path)
         self.x.XInitThreads.argtypes = []
         self.x.XInitThreads.restype = C.c_int
         if not self.x.XInitThreads():
@@ -374,13 +377,15 @@ class _NativeRuntime:
         self.x.XSetErrorHandler(self.callback)
 
 
-def open_display(name):
+def open_display(name, xlib_path=None):
     """Explicit native opt-in; caller must own the named display and process."""
     encoded = _name_bytes(name)
     global _runtime
     with _TRANSACTIONS:
         if _runtime is None:
-            _runtime = _NativeRuntime()
+            _runtime = _NativeRuntime(xlib_path=xlib_path)
+        elif xlib_path is not None and _runtime.library_path != xlib_path:
+            raise ValueError("Native runtime already loaded a different explicit Xlib path")
         _runtime.collector.require_empty()
         display = _runtime.x.XOpenDisplay(encoded)
         if not display:

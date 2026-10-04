@@ -53,6 +53,7 @@ class HostedSourceTests(unittest.TestCase):
         )
         self.assertEqual(0, result.returncode, result.stderr)
         self.assertIn("authorize-native", result.stdout)
+        self.assertIn("stage-artifacts", result.stdout)
         self.assertIn("summarize-receipt", result.stdout)
         self.assertIn("validate-receipt", result.stdout)
 
@@ -150,6 +151,99 @@ class HostedWorkflowContracts(unittest.TestCase):
         if "/issues/2160/comments" in url:
             return []
         raise AssertionError(url)
+
+    def native_sources(self):
+        return self.hosted.native_smoke.source_hashes()
+
+    def valid_preflight(self):
+        return {
+            "source_hashes": self.hosted._source_hashes(ROOT),
+            "tools": {
+                "python3": {"path": "/usr/bin/python3"},
+                "xvfb": {"path": "/usr/bin/Xvfb"},
+                "libx11": {
+                    "path": "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+                    "resolved_path": "/usr/lib/x86_64-linux-gnu/libX11.so.6.4.0",
+                    "sha256": "d" * 64,
+                },
+            },
+            "preflight_digest": "digest",
+        }
+
+    def pass_report(self):
+        native_sources = self.native_sources()
+        return {
+            "status": "passed",
+            "window": 9,
+            "owner_display": 10,
+            "observer_display": 11,
+            "present_before_destroy": [9],
+            "live_value": "owned smoke",
+            "missing_property_ok": True,
+            "owned_destroyed": {"display": 10, "window": 9},
+            "badwindow_request": {"display": 11, "serial": 7, "window": 9},
+            "badwindow_events": [{
+                "callback_display": 11,
+                "display": 11,
+                "serial": 7,
+                "resourceid": 9,
+                "error_code": 3,
+                "request_code": 20,
+                "minor_code": 0,
+                "type": 0,
+            }],
+            "fresh_children_display": 11,
+            "fresh_children_after_destroy": [],
+            "unrelated_rejected": [{
+                "callback_display": 11,
+                "display": 11,
+                "serial": 8,
+                "resourceid": 9,
+                "error_code": 3,
+                "request_code": 19,
+                "minor_code": 0,
+                "type": 0,
+            }],
+            "pending_error_rejected": True,
+            "sources": native_sources,
+            "worker": {"pid": 101, "start_ticks": 202},
+            "libx11": {
+                "path": "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+                "resolved_path": "/usr/lib/x86_64-linux-gnu/libX11.so.6.4.0",
+                "sha256": "d" * 64,
+            },
+        }
+
+    def pass_receipt(self):
+        native_sources = self.native_sources()
+        return {
+            "status": "passed",
+            "timeout_seconds": 20,
+            "phase": "validation",
+            "elapsed_seconds": 1.2,
+            "started_utc": "2026-10-02T00:00:00Z",
+            "supervisor": {"pid": 100, "start_ticks": 200},
+            "sources": native_sources,
+            "diagnostic": self.pass_report(),
+            "worker": {"pid": 101, "start_ticks": 202, "command": [
+                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
+                "--allow-native-smoke", "--worker",
+                "--xlib-path", "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+            ]},
+            "worker_exit_code": 0,
+            "xvfb": {"pid": 102, "start_ticks": 204, "command": [
+                "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24",
+                "-nolisten", "tcp", "-auth", "/tmp/linux-x11-smoke/authority",
+            ]},
+            "xvfb_observed_exit_code": None,
+            "xvfb_exit_code": 0,
+            "io": {
+                "displayfd": {"text": "7\n", "limit_bytes": 32, "observed_bytes": 2, "retained_bytes": 2, "eof": False, "truncated": False, "error": None},
+                "xvfb_stderr": {"text": "", "limit_bytes": 4096, "observed_bytes": 0, "retained_bytes": 0, "eof": False, "truncated": False, "error": None},
+                "worker_stdout": {"text": json.dumps(self.pass_report()), "limit_bytes": 16384, "observed_bytes": 32, "retained_bytes": 32, "eof": False, "truncated": False, "error": None},
+                "worker_stderr": {"text": "", "limit_bytes": 4096, "observed_bytes": 0, "retained_bytes": 0, "eof": False, "truncated": False, "error": None},
+            },
+        }
 
     def test_prepare_payload_is_metadata_only_and_bound(self):
         payload = self.hosted.prepare_payload(
@@ -483,26 +577,96 @@ class HostedWorkflowContracts(unittest.TestCase):
                 now=now,
             )
 
-    def test_summarize_native_receipt_for_upload_strips_raw_stream_text_but_keeps_failed_status(self):
-        native_sources = self.hosted.native_smoke.source_hashes()
+    def test_stage_artifacts_rejects_untrusted_receipt_stem_before_filesystem_access(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        output_dir = root / "bundle"
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps({"preflight_digest": "digest"}), encoding="utf-8")
+        grant_path.write_text(json.dumps({"grant": {"receipt_stem": "receipt-stem"}}), encoding="utf-8")
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.stage_artifacts(preflight_path, grant_path, "bad;stem", output_dir)
+        self.assertFalse(output_dir.exists())
+
+    def test_summarize_receipt_cli_accepts_bounded_worst_case_raw_receipt_larger_than_default_json_limit(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-summary-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        raw_path = root / "receipt.json"
+        summary_path = root / "summary.json"
+        receipt = self.pass_receipt()
+        io_limits = self.hosted.native_smoke.IO_LIMITS
+        six_byte = "\x00"
+        receipt["worker_stderr"] = six_byte * self.hosted.native_smoke.WORKER_STDERR_LIMIT
+        receipt["io"]["displayfd"]["text"] = six_byte * io_limits["displayfd"]
+        receipt["io"]["xvfb_stderr"]["text"] = six_byte * io_limits["xvfb_stderr"]
+        receipt["io"]["worker_stdout"]["text"] = six_byte * io_limits["worker_stdout"]
+        receipt["io"]["worker_stderr"]["text"] = six_byte * io_limits["worker_stderr"]
+        raw_path.write_text(json.dumps(receipt), encoding="utf-8")
+        self.assertGreater(raw_path.stat().st_size, self.hosted.JSON_LIMIT)
+        self.hosted.main([
+            "summarize-receipt",
+            "--receipt", str(raw_path),
+            "--output", str(summary_path),
+        ])
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        self.assertEqual("passed", summary["status"])
+        self.assertLessEqual(summary_path.stat().st_size, self.hosted.JSON_LIMIT)
+
+    def test_summarize_native_receipt_for_upload_preserves_safe_producer_facts_and_strips_raw_stream_text(self):
+        native_sources = self.native_sources()
         receipt = {
             "status": "failed",
             "timeout_seconds": 20,
             "phase": "worker",
+            "started_utc": "2026-10-02T00:00:00Z",
             "elapsed_seconds": 18.0,
             "failure": "worker exited 1",
             "capture_failure": None,
-            "cleanup_failures": ["owned worker still alive"],
+            "cleanup_failures": {"worker_wait": "owned worker still alive"},
             "deadline_exceeded": False,
             "sources": native_sources,
             "diagnostic": {"status": "failed", "failure": "worker exited 1"},
+            "supervisor": {"pid": 100, "start_ticks": 200},
+            "worker": {"pid": 101, "start_ticks": 202, "command": [
+                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
+                "--allow-native-smoke", "--worker",
+                "--xlib-path", "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+            ]},
+            "worker_exit_code": 1,
+            "xvfb": {"pid": 102, "start_ticks": 204, "command": [
+                "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24",
+                "-nolisten", "tcp", "-auth", "/tmp/linux-x11-smoke/authority",
+            ]},
+            "xvfb_exit_code": 1,
             "worker_stderr": "raw stderr should not be uploaded",
             "io": {
+                "displayfd": {
+                    "text": "7\n",
+                    "limit_bytes": 32,
+                    "observed_bytes": 2,
+                    "retained_bytes": 2,
+                    "eof": False,
+                    "truncated": False,
+                    "error": None,
+                },
+                "xvfb_stderr": {
+                    "text": "auth path /tmp/linux-x11-smoke/authority",
+                    "limit_bytes": 4096,
+                    "observed_bytes": 64,
+                    "retained_bytes": 39,
+                    "eof": False,
+                    "truncated": False,
+                    "error": None,
+                },
                 "worker_stdout": {
                     "text": "raw stdout",
                     "limit_bytes": 16384,
                     "observed_bytes": 16,
                     "retained_bytes": 10,
+                    "eof": False,
                     "truncated": True,
                     "error": None,
                 },
@@ -511,6 +675,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                     "limit_bytes": 4096,
                     "observed_bytes": 32,
                     "retained_bytes": 16,
+                    "eof": False,
                     "truncated": True,
                     "error": "truncated",
                 },
@@ -520,78 +685,33 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertEqual("failed", summary["status"])
         self.assertEqual("worker exited 1", summary["failure"])
         self.assertNotIn("worker_stderr", summary)
-        self.assertEqual(["owned worker still alive"], summary["cleanup_failures"])
+        self.assertEqual({"worker_wait": "owned worker still alive"}, summary["cleanup_failures"])
+        self.assertEqual({"pid": 100, "start_ticks": 200}, summary["supervisor"])
+        self.assertEqual({"pid": 101, "start_ticks": 202}, summary["worker"])
+        self.assertEqual({"pid": 102, "start_ticks": 204, "command": [
+            "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24", "-nolisten", "tcp",
+        ]}, summary["xvfb"])
+        self.assertEqual(1, summary["xvfb_exit_code"])
         self.assertEqual(16, summary["io"]["worker_stderr"]["retained_bytes"])
+        self.assertEqual(2, summary["io"]["displayfd"]["retained_bytes"])
         self.assertNotIn("text", summary["io"]["worker_stdout"])
         self.assertNotIn("text", summary["io"]["worker_stderr"])
+        self.assertNotIn("-auth", summary["xvfb"]["command"])
+
+    def test_summarize_native_receipt_for_upload_rejects_malformed_cleanup_and_stream_shapes(self):
+        receipt = self.pass_receipt()
+        broken = json.loads(json.dumps(receipt))
+        broken["cleanup_failures"] = ["worker_wait"]
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+        broken = json.loads(json.dumps(receipt))
+        del broken["io"]["worker_stdout"]["text"]
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
 
     def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
-        preflight = {
-            "source_hashes": self.hosted._source_hashes(ROOT),
-            "tools": {
-                "python3": {"path": "/usr/bin/python3"},
-                "xvfb": {"path": "/usr/bin/Xvfb"},
-            },
-            "preflight_digest": "digest",
-        }
-        native_sources = self.hosted.native_smoke.source_hashes()
-        report = {
-            "status": "passed",
-            "window": 9,
-            "owner_display": 10,
-            "observer_display": 11,
-            "present_before_destroy": [9],
-            "live_value": "owned smoke",
-            "missing_property_ok": True,
-            "owned_destroyed": {"display": 10, "window": 9},
-            "badwindow_request": {"display": 11, "serial": 7, "window": 9},
-            "badwindow_events": [{
-                "callback_display": 11,
-                "display": 11,
-                "serial": 7,
-                "resourceid": 9,
-                "error_code": 3,
-                "request_code": 20,
-                "minor_code": 0,
-                "type": 0,
-            }],
-            "fresh_children_display": 11,
-            "fresh_children_after_destroy": [],
-            "unrelated_rejected": [{
-                "callback_display": 11,
-                "display": 11,
-                "serial": 8,
-                "resourceid": 9,
-                "error_code": 3,
-                "request_code": 19,
-                "minor_code": 0,
-                "type": 0,
-            }],
-            "pending_error_rejected": True,
-            "sources": native_sources,
-            "worker": {"pid": 101, "start_ticks": 202},
-        }
-        receipt = {
-            "status": "passed",
-            "timeout_seconds": 20,
-            "phase": "validation",
-            "elapsed_seconds": 1.2,
-            "sources": native_sources,
-            "diagnostic": report,
-            "worker": {"pid": 101, "start_ticks": 202, "command": [
-                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
-                "--allow-native-smoke", "--worker",
-            ]},
-            "worker_exit_code": 0,
-            "xvfb": {"command": ["/usr/bin/Xvfb"]},
-            "xvfb_observed_exit_code": None,
-            "io": {
-                "displayfd": {"truncated": False, "error": None},
-                "xvfb_stderr": {"truncated": False, "error": None},
-                "worker_stdout": {"truncated": False, "error": None},
-                "worker_stderr": {"truncated": False, "error": None},
-            },
-        }
+        preflight = self.valid_preflight()
+        receipt = self.pass_receipt()
         self.assertEqual(
             "digest",
             self.hosted.validate_native_receipt(receipt, preflight)["preflight_digest"],
@@ -600,74 +720,14 @@ class HostedWorkflowContracts(unittest.TestCase):
         del broken["diagnostic"]["missing_property_ok"]
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.validate_native_receipt(broken, preflight)
+        broken = json.loads(json.dumps(receipt))
+        broken["diagnostic"]["libx11"]["sha256"] = "0" * 64
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.validate_native_receipt(broken, preflight)
 
     def test_validate_native_receipt_accepts_native_two_file_source_shape_and_rejects_tampering(self):
-        preflight = {
-            "source_hashes": self.hosted._source_hashes(ROOT),
-            "tools": {
-                "python3": {"path": "/usr/bin/python3"},
-                "xvfb": {"path": "/usr/bin/Xvfb"},
-            },
-            "preflight_digest": "digest",
-        }
-        native_sources = self.hosted.native_smoke.source_hashes()
-        report = {
-            "status": "passed",
-            "window": 9,
-            "owner_display": 10,
-            "observer_display": 11,
-            "present_before_destroy": [9],
-            "live_value": "owned smoke",
-            "missing_property_ok": True,
-            "owned_destroyed": {"display": 10, "window": 9},
-            "badwindow_request": {"display": 11, "serial": 7, "window": 9},
-            "badwindow_events": [{
-                "callback_display": 11,
-                "display": 11,
-                "serial": 7,
-                "resourceid": 9,
-                "error_code": 3,
-                "request_code": 20,
-                "minor_code": 0,
-                "type": 0,
-            }],
-            "fresh_children_display": 11,
-            "fresh_children_after_destroy": [],
-            "unrelated_rejected": [{
-                "callback_display": 11,
-                "display": 11,
-                "serial": 8,
-                "resourceid": 9,
-                "error_code": 3,
-                "request_code": 19,
-                "minor_code": 0,
-                "type": 0,
-            }],
-            "pending_error_rejected": True,
-            "sources": native_sources,
-            "worker": {"pid": 101, "start_ticks": 202},
-        }
-        receipt = {
-            "status": "passed",
-            "timeout_seconds": 20,
-            "phase": "validation",
-            "elapsed_seconds": 1.2,
-            "sources": native_sources,
-            "diagnostic": report,
-            "worker": {"pid": 101, "start_ticks": 202, "command": [
-                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
-                "--allow-native-smoke", "--worker",
-            ]},
-            "worker_exit_code": 0,
-            "xvfb": {"command": ["/usr/bin/Xvfb"]},
-            "xvfb_observed_exit_code": None,
-            "io": {
-                "displayfd": {"truncated": False, "error": None},
-                "xvfb_stderr": {"truncated": False, "error": None},
-                "worker_stdout": {"truncated": False, "error": None},
-                "worker_stderr": {"truncated": False, "error": None},
-            },
-        }
+        preflight = self.valid_preflight()
+        receipt = self.pass_receipt()
         self.assertEqual("digest", self.hosted.validate_native_receipt(receipt, preflight)["preflight_digest"])
         tampered = json.loads(json.dumps(receipt))
         tampered["sources"]["linux_x11.py"] = "0" * 64
@@ -677,6 +737,10 @@ class HostedWorkflowContracts(unittest.TestCase):
         extra["sources"]["extra.py"] = "1" * 64
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.validate_native_receipt(extra, preflight)
+        wrong_command = json.loads(json.dumps(receipt))
+        wrong_command["worker"]["command"][-1] = "/other/libX11.so.6"
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.validate_native_receipt(wrong_command, preflight)
 
 
 class HostedPackageRecordTests(unittest.TestCase):

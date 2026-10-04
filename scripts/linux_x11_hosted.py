@@ -58,6 +58,13 @@ LIBX11_CANDIDATES = (
     "/usr/lib/x86_64-linux-gnu/libX11.so.6",
     "/lib/x86_64-linux-gnu/libX11.so.6",
 )
+RAW_RECEIPT_JSON_LIMIT = (
+    JSON_LIMIT
+    + 6 * native_smoke.WORKER_STDERR_LIMIT
+    + 6 * sum(native_smoke.IO_LIMITS.values())
+    + 12 * native_smoke.FAILURE_TEXT_LIMIT
+    + 6 * len(native_smoke.CLEANUP_FAILURE_KEYS) * native_smoke.CLEANUP_FAILURE_TEXT_LIMIT
+)
 
 
 class HostedWorkflowError(RuntimeError):
@@ -91,11 +98,24 @@ def _bounded_json(path, value):
         stream.write(data.decode("utf-8"))
 
 
-def _read_json(path):
+def _read_json(path, *, limit=JSON_LIMIT):
     data = path.read_bytes()
-    if len(data) > JSON_LIMIT:
+    if len(data) > limit:
         raise HostedWorkflowError("JSON input exceeded the reviewed limit")
     return json.loads(data)
+
+
+def _read_native_receipt_json(path):
+    return _read_json(path, limit=RAW_RECEIPT_JSON_LIMIT)
+
+
+def _receipt_directory_name(receipt_stem):
+    stem = _require_match("receipt stem", receipt_stem, RECEIPT_RE)
+    return f"linux-x11-smoke-{stem}"
+
+
+def _receipt_path(receipt_stem):
+    return Path(_receipt_directory_name(receipt_stem)) / "receipt.json"
 
 
 def _require_match(name, value, pattern):
@@ -501,43 +521,163 @@ def confirm_grant_freeze(comment, authorized, *, now=None):
     }
 
 
+def _sanitize_failure_diagnostic(diagnostic):
+    if not isinstance(diagnostic, dict) or diagnostic.get("status") != "failed":
+        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+    failure = diagnostic.get("failure")
+    if not isinstance(failure, str):
+        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+    return {"status": "failed", "failure": failure}
+
+
+def _sanitize_cleanup_failures(cleanup_failures):
+    if cleanup_failures is None:
+        return None
+    if not isinstance(cleanup_failures, dict):
+        raise HostedWorkflowError("Native receipt cleanup evidence was malformed")
+    sanitized = {}
+    for key, value in cleanup_failures.items():
+        if not isinstance(key, str) or not isinstance(value, str):
+            raise HostedWorkflowError("Native receipt cleanup evidence was malformed")
+        sanitized[key] = value
+    return sanitized
+
+
+def _sanitize_identity(identity, *, required=()):
+    if not isinstance(identity, dict):
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
+    sanitized = {}
+    for key in required:
+        value = identity.get(key)
+        if type(value) is not int or value <= 0:
+            raise HostedWorkflowError("Native receipt identity payload was malformed")
+        sanitized[key] = value
+    return sanitized
+
+
+def _sanitize_xvfb_command(command):
+    if not isinstance(command, list) or not command or not all(isinstance(item, str) for item in command):
+        raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+    sanitized = []
+    index = 0
+    while index < len(command):
+        item = command[index]
+        if item == "-auth":
+            if index + 1 >= len(command):
+                raise HostedWorkflowError("Native receipt xvfb command payload was malformed")
+            index += 2
+            continue
+        sanitized.append(item)
+        index += 1
+    return sanitized
+
+
+def _sanitize_stream_entry(name, entry):
+    if not isinstance(entry, dict):
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    text = entry.get("text")
+    if not isinstance(text, str):
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    for key in ("limit_bytes", "observed_bytes", "retained_bytes"):
+        if type(entry.get(key)) is not int or entry[key] < 0:
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    for key in ("eof", "truncated"):
+        if type(entry.get(key)) is not bool:
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    error = entry.get("error")
+    if error is not None and not isinstance(error, str):
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    return {
+        "limit_bytes": entry["limit_bytes"],
+        "observed_bytes": entry["observed_bytes"],
+        "retained_bytes": entry["retained_bytes"],
+        "eof": entry["eof"],
+        "truncated": entry["truncated"],
+        "error": error,
+    }
+
+
 def summarize_native_receipt_for_upload(receipt):
     if not isinstance(receipt, dict):
         raise HostedWorkflowError("Native receipt payload was malformed")
-
-    summary = {}
-    for key in (
-        "status",
-        "timeout_seconds",
-        "phase",
-        "elapsed_seconds",
-        "failure",
-        "capture_failure",
-        "cleanup_failures",
-        "deadline_exceeded",
-        "sources",
-        "diagnostic",
-        "worker_exit_code",
-        "xvfb_observed_exit_code",
-    ):
-        if key in receipt:
-            summary[key] = receipt[key]
-
-    io_summary = {}
+    status = receipt.get("status")
+    if not isinstance(status, str):
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    summary = {
+        "status": status,
+        "timeout_seconds": receipt.get("timeout_seconds"),
+        "phase": receipt.get("phase"),
+        "started_utc": receipt.get("started_utc"),
+        "elapsed_seconds": receipt.get("elapsed_seconds"),
+        "failure": receipt.get("failure"),
+        "capture_failure": receipt.get("capture_failure"),
+        "deadline_exceeded": receipt.get("deadline_exceeded", False),
+        "sources": receipt.get("sources"),
+        "supervisor": _sanitize_identity(receipt.get("supervisor", {}), required=("pid", "start_ticks")),
+        "worker_exit_code": receipt.get("worker_exit_code"),
+        "xvfb_observed_exit_code": receipt.get("xvfb_observed_exit_code"),
+        "xvfb_exit_code": receipt.get("xvfb_exit_code"),
+    }
+    cleanup_failures = _sanitize_cleanup_failures(receipt.get("cleanup_failures"))
+    if cleanup_failures:
+        summary["cleanup_failures"] = cleanup_failures
+    worker = receipt.get("worker")
+    if worker is not None:
+        summary["worker"] = _sanitize_identity(worker, required=("pid", "start_ticks"))
+    xvfb = receipt.get("xvfb")
+    if xvfb is not None:
+        sanitized_xvfb = _sanitize_identity(xvfb, required=("pid", "start_ticks"))
+        sanitized_xvfb["command"] = _sanitize_xvfb_command(xvfb.get("command"))
+        summary["xvfb"] = sanitized_xvfb
+    diagnostic = receipt.get("diagnostic")
+    if diagnostic is not None:
+        if status == "passed":
+            try:
+                summary["diagnostic"] = native_smoke.validate_pass_report(diagnostic)
+            except ValueError as error:
+                raise HostedWorkflowError(str(error)) from error
+        else:
+            summary["diagnostic"] = _sanitize_failure_diagnostic(diagnostic)
     io_entries = receipt.get("io")
-    if io_entries is not None:
-        if not isinstance(io_entries, dict):
-            raise HostedWorkflowError("Native receipt io payload was malformed")
-        for name, entry in io_entries.items():
-            if not isinstance(entry, dict):
-                raise HostedWorkflowError("Native receipt io payload was malformed")
-            io_summary[name] = {
-                key: value
-                for key, value in entry.items()
-                if key != "text"
-            }
-        summary["io"] = io_summary
+    if not isinstance(io_entries, dict):
+        raise HostedWorkflowError("Native receipt io payload was malformed")
+    summary["io"] = {
+        name: _sanitize_stream_entry(name, io_entries.get(name))
+        for name in ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr")
+    }
     return summary
+
+
+def run_native_smoke(preflight):
+    receipt_stem = preflight.get("receipt_stem")
+    tools = preflight.get("tools")
+    if not isinstance(tools, dict) or not isinstance(tools.get("libx11"), dict):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    xlib_path = tools["libx11"].get("path")
+    if not isinstance(xlib_path, str):
+        raise HostedWorkflowError("Preflight tool evidence was malformed")
+    receipt_dir = _receipt_directory_name(receipt_stem)
+    native_smoke.validate_options(True, TIMEOUT_TOTAL, receipt_dir, xlib_path)
+    return native_smoke.supervise(TIMEOUT_TOTAL, receipt_dir, xlib_path=xlib_path)
+
+
+def stage_artifacts(preflight_path, grant_path, receipt_stem, output_dir):
+    _receipt_directory_name(receipt_stem)
+    bundle = Path(output_dir)
+    if bundle.exists():
+        raise HostedWorkflowError("Hosted upload bundle must be a fresh directory")
+    bundle.mkdir(parents=True)
+    for source_path, output_name in (
+            (Path(preflight_path), "preflight.json"),
+            (Path(grant_path), "grant.json")):
+        if source_path.is_file():
+            _bounded_json(bundle / output_name, _read_json(source_path))
+    receipt_path = _receipt_path(receipt_stem)
+    if receipt_path.is_file():
+        _bounded_json(
+            bundle / "receipt-summary.json",
+            summarize_native_receipt_for_upload(_read_native_receipt_json(receipt_path)),
+        )
 
 
 def authorize_native(root, preflight, environment=None, *, query=_query, fetch_json=_fetch_json, which=shutil.which, now=None):
@@ -617,6 +757,12 @@ def validate_native_receipt(receipt, preflight):
         raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
     if receipt.get("xvfb", {}).get("command", [None])[0] != preflight["tools"]["xvfb"]["path"]:
         raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")
+    expected_libx11 = {
+        key: preflight["tools"]["libx11"][key]
+        for key in ("path", "resolved_path", "sha256")
+    }
+    if diagnostic.get("libx11") != expected_libx11:
+        raise HostedWorkflowError("Native receipt loaded an unexpected libX11 object")
     if receipt.get("worker", {}).get("command") != [
         preflight["tools"]["python3"]["path"],
         "-B",
@@ -624,6 +770,8 @@ def validate_native_receipt(receipt, preflight):
         "scripts.tests.linux_x11_native_smoke",
         "--allow-native-smoke",
         "--worker",
+        "--xlib-path",
+        preflight["tools"]["libx11"]["path"],
     ]:
         raise HostedWorkflowError("Native receipt used an unexpected worker command")
     io_state = receipt.get("io", {})
@@ -652,13 +800,22 @@ def main(argv=None):
     confirm = subcommands.add_parser("confirm-grant")
     confirm.add_argument("--grant", required=True)
 
+    run_native = subcommands.add_parser("run-native-smoke")
+    run_native.add_argument("--preflight", required=True)
+
+    stage = subcommands.add_parser("stage-artifacts")
+    stage.add_argument("--preflight", required=True)
+    stage.add_argument("--grant", required=True)
+    stage.add_argument("--receipt-stem")
+    stage.add_argument("--output-dir", required=True)
+
     summarize = subcommands.add_parser("summarize-receipt")
     summarize.add_argument("--receipt", required=True)
     summarize.add_argument("--output", required=True)
 
     validate = subcommands.add_parser("validate-receipt")
     validate.add_argument("--preflight", required=True)
-    validate.add_argument("--receipt", required=True)
+    validate.add_argument("--receipt")
 
     args = parser.parse_args(argv)
     root = Path(__file__).resolve().parents[1]
@@ -680,13 +837,26 @@ def main(argv=None):
         )
         print(_normalized_json(confirm_grant_freeze(comment, authorization)))
         return 0
+    if args.command == "run-native-smoke":
+        return run_native_smoke(_read_json(Path(args.preflight)))
+    if args.command == "stage-artifacts":
+        preflight = _read_json(Path(args.preflight))
+        stage_artifacts(
+            Path(args.preflight),
+            Path(args.grant),
+            args.receipt_stem if args.receipt_stem is not None else preflight.get("receipt_stem"),
+            Path(args.output_dir),
+        )
+        return 0
     if args.command == "summarize-receipt":
         _bounded_json(
             Path(args.output),
-            summarize_native_receipt_for_upload(_read_json(Path(args.receipt))),
+            summarize_native_receipt_for_upload(_read_native_receipt_json(Path(args.receipt))),
         )
         return 0
-    result = validate_native_receipt(_read_json(Path(args.receipt)), _read_json(Path(args.preflight)))
+    preflight = _read_json(Path(args.preflight))
+    receipt_path = Path(args.receipt) if args.receipt else _receipt_path(preflight.get("receipt_stem"))
+    result = validate_native_receipt(_read_native_receipt_json(receipt_path), preflight)
     print(_normalized_json(result))
     return 0
 

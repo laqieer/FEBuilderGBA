@@ -407,7 +407,10 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         self.assertIn("default: default-e2e", workflow)
         self.assertIn("- issue2160-prepare", workflow)
         self.assertIn("- issue2160-reserve-native", workflow)
-        self.assertIn("github.event_name != 'workflow_dispatch' || inputs.route == 'default-e2e'", workflow)
+        self.assertIn("github.event_name != 'workflow_dispatch'", workflow)
+        self.assertIn("inputs.route == ''", workflow)
+        self.assertIn("inputs.route == 'default-e2e'", workflow)
+        self.assertIn("inputs.route != '' && inputs.route || 'default-e2e'", workflow)
         self.assertIn("uses: ./.github/workflows/e2e-run.yml", workflow)
         self.assertIn("secrets: inherit", workflow)
         self.assertIn("uses: ./.github/workflows/linux-x11-hosted.yml", workflow)
@@ -432,8 +435,7 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
-        self.assertIn("/usr/bin/python3 -B -m scripts.tests.linux_x11_native_smoke", workflow)
-        self.assertIn("--timeout 20", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted run-native-smoke", workflow)
         self.assertNotIn("actions/setup-python", workflow)
         self.assertNotIn("apt-get", workflow)
         self.assertNotIn("sudo", workflow)
@@ -466,11 +468,12 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         self.assertNotIn("|| github.sha", workflow)
         self.assertRegex(
             workflow,
-            r"(?ms)- name: Checkout immutable candidate.*?ref: \$\{\{ inputs\.candidate_sha \}\}.*?persist-credentials: false",
+            r"(?ms)- name: Checkout immutable candidate.*?ref: \$\{\{ github\.sha \}\}.*?persist-credentials: false",
         )
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted confirm-grant", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted run-native-smoke", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
         self.assertRegex(
             workflow,
@@ -495,11 +498,19 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
         self.assertIn("id: checkout_candidate", workflow)
         self.assertIn("id: native_smoke", workflow)
+        self.assertIn("id: stage_artifacts", workflow)
         self.assertRegex(
             workflow,
             r"(?ms)- name: Prepare hosted native artifact bundle.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",
         )
-        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted summarize-receipt", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted stage-artifacts", workflow)
+        stage_step = re.search(
+            r"(?ms)- name: Prepare hosted native artifact bundle(?P<body>.*?)(?:\n\s+- name:|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(stage_step)
+        self.assertNotIn("${{ inputs.receipt_stem }}", stage_step.group("body").split("run:", 1)[1])
+        self.assertNotIn("linux-x11-smoke-${{ inputs.receipt_stem }}", stage_step.group("body"))
         self.assertRegex(
             workflow,
             r"(?ms)- name: Upload hosted native receipt.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",

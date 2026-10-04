@@ -128,6 +128,7 @@ class ImportAndLayoutTests(unittest.TestCase):
 
     def test_runtime_installs_one_strongly_held_handler_for_all_connections(self):
         instances = []
+        loads = []
         class Function:
             def __init__(self, result):
                 self.result = result
@@ -148,11 +149,12 @@ class ImportAndLayoutTests(unittest.TestCase):
             return lambda handler: handler
         with patch.object(x11, "_runtime", None), \
                 patch.object(x11.sys, "platform", "linux"), \
-                patch.object(C, "CDLL", side_effect=lambda _: Library()), \
+                patch.object(C, "CDLL", side_effect=lambda path: loads.append(path) or Library()), \
                 patch.object(C, "CFUNCTYPE", side_effect=callback_type):
-            first = x11.open_display(":123")
-            second = x11.open_display(":124")
+            first = x11.open_display(":123", xlib_path="/opt/lib/libX11.so.6")
+            second = x11.open_display(":124", xlib_path="/opt/lib/libX11.so.6")
             self.assertEqual(len(instances), 1)
+            self.assertEqual(loads, ["/opt/lib/libX11.so.6"])
             runtime = x11._runtime
             self.assertIs(first.collector, second.collector)
             self.assertIs(runtime.x.XSetErrorHandler.calls[0][0], runtime.callback)
@@ -161,6 +163,33 @@ class ImportAndLayoutTests(unittest.TestCase):
             self.assertEqual(len(runtime.x.XSetErrorHandler.calls), 1)
             self.assertEqual(runtime.x.XNextRequest.restype, C.c_ulong)
             self.assertEqual(runtime.x.XGetWindowProperty.argtypes[-1], C.POINTER(C.c_void_p))
+
+    def test_runtime_rejects_changed_explicit_library_path(self):
+        class Function:
+            def __init__(self, result):
+                self.result = result
+                self.calls = []
+            def __call__(self, *args):
+                self.calls.append(args)
+                return self.result
+        class Library:
+            def __init__(self):
+                for name in ("XCloseDisplay", "XLockDisplay", "XUnlockDisplay",
+                             "XSync", "XNextRequest", "XInternAtom", "XDefaultRootWindow",
+                             "XGetWindowProperty", "XQueryTree", "XFree", "XSetErrorHandler"):
+                    setattr(self, name, Function(0))
+                self.XInitThreads = Function(1)
+                self.XOpenDisplay = Function(DISPLAY)
+        def callback_type(*args):
+            return lambda handler: handler
+        with patch.object(x11, "_runtime", None), \
+                patch.object(x11.sys, "platform", "linux"), \
+                patch.object(C, "CDLL", return_value=Library()), \
+                patch.object(C, "CFUNCTYPE", side_effect=callback_type):
+            display = x11.open_display(":123", xlib_path="/opt/lib/libX11.so.6")
+            self.addCleanup(display.close)
+            with self.assertRaises(ValueError):
+                x11.open_display(":124", xlib_path="/other/libX11.so.6")
 
     def test_xerror_event_uses_native_field_types_and_alignment(self):
         expected = [
@@ -545,14 +574,17 @@ class SmokeSourceTests(unittest.TestCase):
 
     def test_smoke_deadline_and_output_name_are_bounded(self):
         smoke = self.smoke_module()
-        smoke.validate_options(True, 20, "linux-x11-smoke-test")
+        smoke.validate_options(True, 20, "linux-x11-smoke-test", "/opt/lib/libX11.so.6")
         for timeout in (-1, 0, 9, 61, True):
             with self.subTest(timeout=timeout), self.assertRaises(ValueError):
-                smoke.validate_options(True, timeout, "linux-x11-smoke-test")
+                smoke.validate_options(True, timeout, "linux-x11-smoke-test", None)
         for directory in ("", ".", "..", "/tmp/run", "C:\\temp\\run",
                           "linux-x11-smoke-../a", "linux-x11-smoke-"):
             with self.subTest(directory=directory), self.assertRaises(ValueError):
-                smoke.validate_options(True, 20, directory)
+                smoke.validate_options(True, 20, directory, None)
+        for xlib_path in ("", "libX11.so.6", "../libX11.so.6", "C:\\temp\\libX11.so.6"):
+            with self.subTest(xlib_path=xlib_path), self.assertRaises(ValueError):
+                smoke.validate_options(True, 20, "linux-x11-smoke-test", xlib_path)
 
     def test_smoke_authority_is_cookie_only_not_access_control_disable(self):
         smoke = self.smoke_module()
@@ -612,13 +644,23 @@ class SmokeSourceTests(unittest.TestCase):
             "pending_error_rejected": True,
             "sources": {"linux_x11.py": "a" * 64},
             "worker": {"pid": 101, "start_ticks": 202},
+            "libx11": {
+                "path": "/usr/lib/x86_64-linux-gnu/libX11.so.6",
+                "resolved_path": "/usr/lib/x86_64-linux-gnu/libX11.so.6.4.0",
+                "sha256": "b" * 64,
+            },
         }
         self.assertIs(report, smoke.validate_pass_report(report))
         for field, value in (
                 ("missing_property_ok", False),
                 ("owned_destroyed", {"display": DISPLAY + 1, "window": WINDOW + 1}),
                 ("fresh_children_after_destroy", [WINDOW]),
-                ("pending_error_rejected", False)):
+                ("pending_error_rejected", False),
+                ("libx11", {
+                    "path": "libX11.so.6",
+                    "resolved_path": "/usr/lib/x86_64-linux-gnu/libX11.so.6.4.0",
+                    "sha256": "b" * 64,
+                })):
             with self.subTest(field=field):
                 broken = dict(report)
                 broken[field] = value
@@ -740,7 +782,7 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         pump.add("xvfb_stderr", 10, limit)
         return pump
 
-    def prepare_supervisor(self, events=None, server_code=None, spawn_error=None):
+    def prepare_supervisor(self, events=None, server_code=None, spawn_error=None, xlib_path="/opt/lib/libX11.so.6"):
         smoke = self.smoke
         self.server = FakeSmokeProcess(self.pipes, 101, stderr=12, code=server_code)
         self.worker = FakeSmokeProcess(self.pipes, 102, stdout=20, stderr=21, code=0)
@@ -784,6 +826,11 @@ class SmokeDiagnosticsTests(unittest.TestCase):
                 "type": 0,
             }],
             "pending_error_rejected": True,
+            "libx11": {
+                "path": xlib_path,
+                "resolved_path": xlib_path,
+                "sha256": "c" * 64,
+            },
         }
         self.pipes.events = {
             10: [b"7\n"], 12: [],
@@ -830,8 +877,8 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         self.spawn_mock = self.stack.enter_context(patch.object(smoke.subprocess, "Popen", side_effect=spawn))
         self.stack.enter_context(patch("builtins.print"))
 
-    def supervise(self):
-        code = self.smoke.supervise(20, "linux-x11-smoke-pure-test")
+    def supervise(self, xlib_path="/opt/lib/libX11.so.6"):
+        code = self.smoke.supervise(20, "linux-x11-smoke-pure-test", xlib_path=xlib_path)
         receipt = json.loads(self.receipt_file.saved)
         self.assertEqual(code == 0, receipt["status"] == "passed")
         self.unlink.assert_called_once_with(missing_ok=True)
@@ -1031,6 +1078,16 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(self.server.waits, [1])
         self.assertFalse(self.worker.killed)
         self.assertTrue(self.server.killed)
+
+    def test_worker_command_carries_admitted_libx11_path(self):
+        self.prepare_supervisor()
+        code, receipt = self.supervise("/opt/lib/libX11.so.6")
+        self.assertEqual(code, 0)
+        self.assertEqual(
+            receipt["worker"]["command"][-2:],
+            ["--xlib-path", "/opt/lib/libX11.so.6"],
+        )
+        self.assertEqual(receipt["diagnostic"]["libx11"]["path"], "/opt/lib/libX11.so.6")
 
     def test_malformed_and_oversized_displayfd_never_launch_worker(self):
         for response, expected in ((b":7\n", "Malformed"), (b"7" * 33, "bound"),

@@ -172,22 +172,25 @@ its discarded native event cannot be reconstructed from status 1.
 
 The reviewed hosted path is intentionally narrow. `.github/workflows/e2e-norom.yml`
 remains the only manual entry point and keeps the normal No ROM E2E route as its
-default. Hosted execution is an explicit manual opt-in through route
-`issue2160-prepare` or `issue2160-reserve-native`; `.github/workflows/linux-x11-hosted.yml`
-is `workflow_call` only and is not a separate manual dispatcher.
+default; an explicit empty manual `route` is treated the same as `default-e2e`.
+Hosted execution is an explicit manual opt-in through route `issue2160-prepare`
+or `issue2160-reserve-native`; `.github/workflows/linux-x11-hosted.yml` is
+`workflow_call` only and is not a separate manual dispatcher.
 
 Both hosted jobs are fixed to fresh `ubuntu-24.04` runners with read-only
 `contents/actions/issues` permissions, `persist-credentials: false`, and no
 secret inheritance. Before checkout or any repository helper runs, each job uses
 a trusted bash gate that requires an explicit full 40-hex `candidate_sha` and
-enforces `candidate_sha == github.sha == github.workflow_sha`. The Python helper
-is invoked only as `python -B -m scripts.linux_x11_hosted` from the repository
-root. The prepare phase uses only already-installed `/usr/bin/python3`,
-`/usr/bin/Xvfb`, and `libX11.so.6`; missing tools are a failure and there is no
-installation branch. Prepare-only mode records bounded source hashes, stable
-source/workflow/tool constraints, late-bound runner observations, run binding,
-tool/package metadata, and a preflight digest, then stops. It never starts Xvfb,
-loads Xlib, launches an application, or mints authority.
+enforces `candidate_sha == github.sha == github.workflow_sha`. Checkout then uses
+`ref: github.sha`, so the admitted reviewed source and the checked-out source stay
+identical even for hosted/manual routing. The Python helper is invoked only as
+`python -B -m scripts.linux_x11_hosted` from the repository root. The prepare
+phase uses only already-installed `/usr/bin/python3`, `/usr/bin/Xvfb`, and
+`libX11.so.6`; missing tools are a failure and there is no installation branch.
+Prepare-only mode records bounded source hashes, stable source/workflow/tool
+constraints, late-bound runner observations, run binding, tool/package metadata,
+and a preflight digest, then stops. It never starts Xvfb, loads Xlib, launches
+an application, or mints authority.
 
 The optional native job is separately protected by environment `issue2160-native`
 and still does not treat environment approval as a grant. Before any native call,
@@ -203,11 +206,16 @@ Ephemeral runner name/image/uid observations are captured but not used as the
 grant authority. Retries, stale grants, edited grants, or stable-constraint
 drift fail closed before native execution.
 
+If the native job proceeds, the hosted helper launches the worker with the exact
+preflight-reviewed absolute `libX11.so.6` path, and the receipt must prove the
+worker loaded that same object path/hash rather than merely naming the soname.
 Hosted artifact upload is failure-safe but still bounded: after checkout, the
-native job stages only reviewed JSON evidence (`preflight.json`, `grant.json`,
-and a sanitized `receipt-summary.json`) and uploads that bundle under `always()`.
-The raw native `receipt.json`, private cookie material, raw stdout/stderr text,
-environment dumps, binaries, and whole directories are not uploaded.
+helper stages only reviewed JSON evidence (`preflight.json`, `grant.json`, and a
+sanitized `receipt-summary.json`) and uploads that bundle under `always()`. The
+summary keeps typed worker/supervisor/Xvfb identity, timeout, cleanup, and
+source-hash facts while stripping raw `worker_stderr`, stream text, Xauthority
+arguments, private cookie material, environment dumps, binaries, and whole
+directories. The raw native `receipt.json` is never uploaded.
 
 ## Separately gated current metadata
 
