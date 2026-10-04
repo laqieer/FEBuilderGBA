@@ -397,8 +397,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
 
 
 class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
-    def test_e2e_norom_dispatch_route_preserves_default_e2e_and_manual_hosted_opt_in(self):
-        workflow = E2E_NOROM_WORKFLOW_PATH.read_text(encoding="utf-8")
+    def assert_e2e_norom_contract(self, workflow):
         self.assertIn("name: \"E2E: No ROM\"", workflow)
         self.assertIn("run-name:", workflow)
         self.assertIn("inputs.route", workflow)
@@ -412,6 +411,10 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         self.assertIn("inputs.route == 'default-e2e'", workflow)
         self.assertIn("inputs.route != '' && inputs.route || 'default-e2e'", workflow)
         self.assertIn("uses: ./.github/workflows/e2e-run.yml", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)e2e:.*?with:\n\s+rom-name: none\n\s+job-name: \"E2E No ROM\"\n\s+timeout: 10\n\s+caller-event: \$\{\{ github\.event_name \}\}",
+        )
         self.assertIn("secrets: inherit", workflow)
         self.assertIn("uses: ./.github/workflows/linux-x11-hosted.yml", workflow)
         self.assertRegex(
@@ -422,6 +425,25 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
             workflow,
             r"(?ms)linux-x11-hosted:.*?secrets:\s+inherit",
         )
+
+    def test_e2e_norom_dispatch_route_preserves_default_e2e_and_manual_hosted_opt_in(self):
+        workflow = E2E_NOROM_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assert_e2e_norom_contract(workflow)
+
+    def test_e2e_norom_dispatch_route_rejects_timeout_or_caller_event_mutations(self):
+        workflow = E2E_NOROM_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assert_e2e_norom_contract(workflow)
+        mutations = (
+            ("timeout drift", "      timeout: 10", "      timeout: 11"),
+            ("timeout missing", "      timeout: 10\n", ""),
+            ("caller-event drift", "      caller-event: ${{ github.event_name }}", "      caller-event: schedule"),
+            ("caller-event missing", "      caller-event: ${{ github.event_name }}\n", ""),
+        )
+        for label, before, after in mutations:
+            with self.subTest(label=label):
+                self.assertIn(before, workflow)
+                with self.assertRaises(AssertionError):
+                    self.assert_e2e_norom_contract(workflow.replace(before, after, 1))
 
     def test_hosted_reusable_workflow_is_workflow_call_only_and_keeps_native_manual(self):
         workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")

@@ -7,6 +7,7 @@ import argparse
 from datetime import datetime, timezone
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -55,6 +56,7 @@ NATIVE_SOURCE_PATHS = {
     "linux_x11.py": "scripts/linux_x11.py",
     "linux_x11_native_smoke.py": "scripts/tests/linux_x11_native_smoke.py",
 }
+RECEIPT_PHASES = frozenset({"setup", "readiness", "worker", "validation"})
 LIBX11_CANDIDATES = (
     "/usr/lib/x86_64-linux-gnu/libX11.so.6",
     "/lib/x86_64-linux-gnu/libX11.so.6",
@@ -413,16 +415,20 @@ def _grant_body_sha256(body):
     return _sha256_bytes("\n".join(body.splitlines()).encode("utf-8"))
 
 
-def _parse_instant(value):
+def _parse_aware_instant(value, *, error_message):
     if not isinstance(value, str):
-        raise HostedWorkflowError("Grant comment time window was malformed")
+        raise HostedWorkflowError(error_message)
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
-        raise HostedWorkflowError("Grant comment time window was malformed") from error
+        raise HostedWorkflowError(error_message) from error
     if parsed.tzinfo is None or parsed.utcoffset() is None:
-        raise HostedWorkflowError("Grant comment time window was malformed")
+        raise HostedWorkflowError(error_message)
     return parsed.astimezone(timezone.utc)
+
+
+def _parse_instant(value):
+    return _parse_aware_instant(value, error_message="Grant comment time window was malformed")
 
 
 def _grant_comment_timestamps(comment):
@@ -528,10 +534,14 @@ def confirm_grant_freeze(comment, authorized, *, now=None):
 def _sanitize_failure_diagnostic(diagnostic):
     if not isinstance(diagnostic, dict) or diagnostic.get("status") != "failed":
         raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
-    failure = diagnostic.get("failure")
-    if not isinstance(failure, str):
-        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
-    return {"status": "failed", "failure": failure}
+    return {
+        "status": "failed",
+        "failure": _sanitize_bounded_text(
+            "Native receipt diagnostic payload was malformed",
+            diagnostic.get("failure"),
+            limit=native_smoke.FAILURE_TEXT_LIMIT,
+        ),
+    }
 
 
 def _sanitize_diagnostic(diagnostic):
@@ -560,9 +570,116 @@ def _sanitize_cleanup_failures(cleanup_failures):
     return sanitized
 
 
+def _sanitize_bounded_text(error_message, value, *, limit):
+    if not isinstance(value, str) or len(value) > limit:
+        raise HostedWorkflowError(error_message)
+    return value
+
+
+def _sanitize_receipt_status(status):
+    if not isinstance(status, str) or status not in {"passed", "failed"}:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return status
+
+
+def _sanitize_receipt_timeout(timeout_seconds):
+    if type(timeout_seconds) is not int or not 10 <= timeout_seconds <= 60:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return timeout_seconds
+
+
+def _sanitize_receipt_phase(phase):
+    if not isinstance(phase, str) or phase not in RECEIPT_PHASES:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return phase
+
+
+def _sanitize_receipt_started_utc(started_utc):
+    _parse_aware_instant(started_utc, error_message="Native receipt payload was malformed")
+    return started_utc
+
+
+def _sanitize_receipt_elapsed_seconds(elapsed_seconds):
+    if type(elapsed_seconds) not in (int, float) or not math.isfinite(elapsed_seconds) or elapsed_seconds < 0:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return elapsed_seconds
+
+
+def _sanitize_receipt_bool(value):
+    if type(value) is not bool:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return value
+
+
+def _sanitize_receipt_exit_code(value, *, allow_none=False):
+    if value is None:
+        if allow_none:
+            return None
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    if type(value) is not int:
+        raise HostedWorkflowError("Native receipt payload was malformed")
+    return value
+
+
+def _sanitize_optional_summary_field(summary, payload, key, sanitizer):
+    if key in payload:
+        summary[key] = sanitizer(payload[key])
+
+
+def _sanitize_summary_payload(receipt, *, status):
+    summary = {
+        "status": status,
+        "timeout_seconds": _sanitize_receipt_timeout(receipt.get("timeout_seconds")),
+        "phase": _sanitize_receipt_phase(receipt.get("phase")),
+        "elapsed_seconds": _sanitize_receipt_elapsed_seconds(receipt.get("elapsed_seconds")),
+    }
+    _sanitize_optional_summary_field(summary, receipt, "started_utc", _sanitize_receipt_started_utc)
+    _sanitize_optional_summary_field(
+        summary,
+        receipt,
+        "failure",
+        lambda value: _sanitize_bounded_text(
+            "Native receipt payload was malformed",
+            value,
+            limit=native_smoke.FAILURE_TEXT_LIMIT,
+        ),
+    )
+    _sanitize_optional_summary_field(
+        summary,
+        receipt,
+        "capture_failure",
+        lambda value: _sanitize_bounded_text(
+            "Native receipt payload was malformed",
+            value,
+            limit=native_smoke.FAILURE_TEXT_LIMIT,
+        ),
+    )
+    _sanitize_optional_summary_field(summary, receipt, "deadline_exceeded", _sanitize_receipt_bool)
+    if "sources" in receipt:
+        summary["sources"] = _sanitize_source_hashes(receipt.get("sources"))
+    if "worker_exit_code" in receipt:
+        summary["worker_exit_code"] = _sanitize_receipt_exit_code(
+            receipt.get("worker_exit_code"),
+            allow_none=(status == "failed"),
+        )
+    if "xvfb_observed_exit_code" in receipt:
+        summary["xvfb_observed_exit_code"] = _sanitize_receipt_exit_code(
+            receipt.get("xvfb_observed_exit_code"),
+            allow_none=True,
+        )
+    if "xvfb_exit_code" in receipt:
+        summary["xvfb_exit_code"] = _sanitize_receipt_exit_code(
+            receipt.get("xvfb_exit_code"),
+            allow_none=(status == "failed"),
+        )
+    if status == "passed":
+        for key in ("started_utc", "sources", "worker_exit_code", "xvfb_observed_exit_code", "xvfb_exit_code"):
+            if key not in summary:
+                raise HostedWorkflowError("Native receipt payload was malformed")
+    return summary
+
+
 def _sanitize_source_hashes(sources):
-    if sources is None:
-        return None
     if not isinstance(sources, dict):
         raise HostedWorkflowError("Native receipt source hashes were malformed")
     expected = tuple(NATIVE_SOURCE_PATHS)
@@ -739,23 +856,8 @@ def _sanitize_io_entries(io_entries, *, require_all):
 def summarize_native_receipt_for_upload(receipt):
     if not isinstance(receipt, dict):
         raise HostedWorkflowError("Native receipt payload was malformed")
-    status = receipt.get("status")
-    if status not in {"passed", "failed"}:
-        raise HostedWorkflowError("Native receipt payload was malformed")
-    summary = {
-        "status": status,
-        "timeout_seconds": receipt.get("timeout_seconds"),
-        "phase": receipt.get("phase"),
-        "started_utc": receipt.get("started_utc"),
-        "elapsed_seconds": receipt.get("elapsed_seconds"),
-        "failure": receipt.get("failure"),
-        "capture_failure": receipt.get("capture_failure"),
-        "deadline_exceeded": receipt.get("deadline_exceeded", False),
-        "sources": _sanitize_source_hashes(receipt.get("sources")),
-        "worker_exit_code": receipt.get("worker_exit_code"),
-        "xvfb_observed_exit_code": receipt.get("xvfb_observed_exit_code"),
-        "xvfb_exit_code": receipt.get("xvfb_exit_code"),
-    }
+    status = _sanitize_receipt_status(receipt.get("status"))
+    summary = _sanitize_summary_payload(receipt, status=status)
     supervisor = receipt.get("supervisor")
     if supervisor is not None:
         summary["supervisor"] = _sanitize_identity(supervisor, required=("pid", "start_ticks"))
@@ -861,27 +963,28 @@ def _validate_native_source_hashes(observed, preflight, label):
 
 
 def validate_native_receipt(receipt, preflight):
-    if receipt.get("status") != "passed":
+    summary = _sanitize_summary_payload(receipt, status=_sanitize_receipt_status(receipt.get("status")))
+    if summary["status"] != "passed":
         raise HostedWorkflowError("Native receipt was not passed")
-    if receipt.get("timeout_seconds") != TIMEOUT_TOTAL:
+    if summary["timeout_seconds"] != TIMEOUT_TOTAL:
         raise HostedWorkflowError("Native receipt timeout must remain exactly 20 seconds")
-    if receipt.get("phase") != "validation":
+    if summary["phase"] != "validation":
         raise HostedWorkflowError("Native receipt did not reach validation")
-    if receipt.get("failure") or receipt.get("capture_failure") or receipt.get("cleanup_failures"):
+    if "failure" in summary or "capture_failure" in summary or receipt.get("cleanup_failures"):
         raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
-    if receipt.get("deadline_exceeded"):
+    if summary.get("deadline_exceeded"):
         raise HostedWorkflowError("Native receipt exceeded the reviewed outer deadline")
-    if receipt.get("elapsed_seconds", TIMEOUT_TOTAL + 1) > TIMEOUT_TOTAL:
+    if summary["elapsed_seconds"] > TIMEOUT_TOTAL:
         raise HostedWorkflowError("Native receipt elapsed time exceeded the reviewed outer deadline")
-    _validate_native_source_hashes(receipt.get("sources"), preflight, "Supervisor")
+    _validate_native_source_hashes(summary["sources"], preflight, "Supervisor")
     diagnostic = _sanitize_pass_diagnostic(receipt.get("diagnostic"))
     _validate_native_source_hashes(diagnostic["sources"], preflight, "Worker")
     worker = receipt.get("worker", {})
     if diagnostic["worker"] != {key: worker.get(key) for key in ("pid", "start_ticks")}:
         raise HostedWorkflowError("Worker identity mismatched the supervised child")
-    if receipt.get("worker_exit_code") != 0:
+    if summary["worker_exit_code"] != 0:
         raise HostedWorkflowError("Native worker did not exit cleanly")
-    if receipt.get("xvfb_observed_exit_code") is not None:
+    if summary["xvfb_observed_exit_code"] is not None:
         raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
     if receipt.get("xvfb", {}).get("command", [None])[0] != preflight["tools"]["xvfb"]["path"]:
         raise HostedWorkflowError("Native receipt used an unexpected Xvfb path")

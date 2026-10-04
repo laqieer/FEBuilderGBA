@@ -297,6 +297,51 @@ class HostedWorkflowContracts(unittest.TestCase):
         report["libx11"][self.CANARY_KEY] = "secret:diagnostic.libx11"
         return report
 
+    def mutate_path(self, value, path, replacement):
+        cloned = json.loads(json.dumps(value))
+        target = cloned
+        for segment in path[:-1]:
+            target = target[segment]
+        target[path[-1]] = replacement
+        return cloned
+
+    def assert_stage_artifacts_rejects_without_publishing_summary(self, receipt, *, canary_text=None):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-invalid-summary-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        old_cwd = Path.cwd()
+        os.chdir(root)
+        self.addCleanup(lambda: os.chdir(old_cwd))
+        bundle = root / "upload"
+        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        grant = {"grant": {"receipt_stem": "receipt-stem"}}
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+        grant_path.write_text(json.dumps(grant), encoding="utf-8")
+        receipt_dir = root / "linux-x11-smoke-receipt-stem"
+        receipt_dir.mkdir()
+        with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.main([
+                "stage-artifacts",
+                "--preflight", str(preflight_path),
+                "--grant", str(grant_path),
+                "--output-dir", str(bundle),
+            ])
+        summary_path = bundle / "receipt-summary.json"
+        self.assertFalse(summary_path.exists())
+        if bundle.exists():
+            bundle_text = "".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in bundle.glob("*.json")
+            )
+            self.assertNotIn(self.CANARY_KEY, bundle_text)
+            if canary_text is not None:
+                self.assertNotIn(canary_text, bundle_text)
+
     def test_prepare_payload_is_metadata_only_and_bound(self):
         payload = self.hosted.prepare_payload(
             self.root,
@@ -970,6 +1015,131 @@ class HostedWorkflowContracts(unittest.TestCase):
         broken["io"]["mystery"] = {"text": "oops"}
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.summarize_native_receipt_for_upload(broken)
+
+    def test_summarize_and_stage_artifacts_reject_malformed_outer_scalar_slots(self):
+        cleanup_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("known cleanup failure")),
+        )
+        deadline_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(
+                case.server,
+                "wait",
+                lambda timeout, original=case.server.wait: (setattr(case.pipes, "now", 20.1), original(timeout))[1],
+            ),
+        )
+        cases = (
+            ("status dict", self.pass_receipt(), ("status",), {self.CANARY_KEY: "secret:status"}, self.CANARY_KEY),
+            ("status list", self.pass_receipt(), ("status",), ["passed"], self.CANARY_KEY),
+            ("status wrong", self.pass_receipt(), ("status",), "unexpected", "unexpected"),
+            ("timeout dict", self.pass_receipt(), ("timeout_seconds",), {self.CANARY_KEY: "secret:timeout"}, self.CANARY_KEY),
+            ("timeout bool", self.pass_receipt(), ("timeout_seconds",), True, None),
+            ("timeout low", self.pass_receipt(), ("timeout_seconds",), 9, None),
+            ("phase dict", self.pass_receipt(), ("phase",), {self.CANARY_KEY: "secret:phase"}, self.CANARY_KEY),
+            ("phase wrong", self.pass_receipt(), ("phase",), "cleanup", "cleanup"),
+            ("started dict", self.pass_receipt(), ("started_utc",), {self.CANARY_KEY: "secret:started"}, self.CANARY_KEY),
+            ("started naive", self.pass_receipt(), ("started_utc",), "2026-10-02T00:00:00", "2026-10-02T00:00:00"),
+            ("elapsed dict", self.pass_receipt(), ("elapsed_seconds",), {self.CANARY_KEY: "secret:elapsed"}, self.CANARY_KEY),
+            ("elapsed bool", self.pass_receipt(), ("elapsed_seconds",), False, None),
+            ("elapsed inf", self.pass_receipt(), ("elapsed_seconds",), float("inf"), "Infinity"),
+            ("elapsed nan", self.pass_receipt(), ("elapsed_seconds",), float("nan"), "NaN"),
+            ("failure dict", cleanup_failure, ("failure",), {self.CANARY_KEY: "secret:failure"}, self.CANARY_KEY),
+            ("failure list", cleanup_failure, ("failure",), ["known cleanup failure"], self.CANARY_KEY),
+            ("failure long", cleanup_failure, ("failure",), "f" * 1001, "f" * 1001),
+            ("capture dict", cleanup_failure | {"capture_failure": "known capture failure"}, ("capture_failure",), {self.CANARY_KEY: "secret:capture"}, self.CANARY_KEY),
+            ("capture long", cleanup_failure | {"capture_failure": "c" * 1001}, ("capture_failure",), "c" * 1001, "c" * 1001),
+            ("deadline dict", deadline_failure, ("deadline_exceeded",), {self.CANARY_KEY: "secret:deadline"}, self.CANARY_KEY),
+            ("deadline int", deadline_failure, ("deadline_exceeded",), 1, None),
+            ("worker exit dict", cleanup_failure, ("worker_exit_code",), {self.CANARY_KEY: "secret:worker-exit"}, self.CANARY_KEY),
+            ("worker exit list", cleanup_failure, ("worker_exit_code",), [0], self.CANARY_KEY),
+            ("xvfb observed dict", cleanup_failure, ("xvfb_observed_exit_code",), {self.CANARY_KEY: "secret:xvfb-observed"}, self.CANARY_KEY),
+            ("xvfb observed list", cleanup_failure, ("xvfb_observed_exit_code",), [None], self.CANARY_KEY),
+            ("xvfb exit dict", cleanup_failure, ("xvfb_exit_code",), {self.CANARY_KEY: "secret:xvfb-exit"}, self.CANARY_KEY),
+            ("xvfb exit list", cleanup_failure, ("xvfb_exit_code",), [1], self.CANARY_KEY),
+        )
+        for label, receipt, path, replacement, canary_text in cases:
+            with self.subTest(label=label):
+                broken = self.mutate_path(receipt, path, replacement)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(
+                    broken,
+                    canary_text=canary_text,
+                )
+
+    def test_validate_native_receipt_rejects_malformed_outer_scalar_slots(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("status dict", ("status",), {self.CANARY_KEY: "secret:status"}),
+            ("timeout dict", ("timeout_seconds",), {self.CANARY_KEY: "secret:timeout"}),
+            ("timeout bool", ("timeout_seconds",), True),
+            ("phase dict", ("phase",), {self.CANARY_KEY: "secret:phase"}),
+            ("started dict", ("started_utc",), {self.CANARY_KEY: "secret:started"}),
+            ("started naive", ("started_utc",), "2026-10-02T00:00:00"),
+            ("elapsed dict", ("elapsed_seconds",), {self.CANARY_KEY: "secret:elapsed"}),
+            ("elapsed list", ("elapsed_seconds",), [1.2]),
+            ("elapsed inf", ("elapsed_seconds",), float("inf")),
+            ("elapsed nan", ("elapsed_seconds",), float("nan")),
+            ("failure dict", ("failure",), {self.CANARY_KEY: "secret:failure"}),
+            ("capture dict", ("capture_failure",), {self.CANARY_KEY: "secret:capture"}),
+            ("deadline dict", ("deadline_exceeded",), {self.CANARY_KEY: "secret:deadline"}),
+            ("worker exit dict", ("worker_exit_code",), {self.CANARY_KEY: "secret:worker-exit"}),
+            ("xvfb observed dict", ("xvfb_observed_exit_code",), {self.CANARY_KEY: "secret:xvfb-observed"}),
+            ("xvfb exit dict", ("xvfb_exit_code",), {self.CANARY_KEY: "secret:xvfb-exit"}),
+        )
+        for label, path, replacement in cases:
+            with self.subTest(label=label):
+                broken = self.mutate_path(self.pass_receipt(), path, replacement)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
+
+    def test_summarize_native_receipt_for_upload_accepts_actual_failure_phase_scalar_variants(self):
+        identity_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.identity_mock, "side_effect", OSError("injected identity failure")),
+        )
+        eof_failure = self.actual_smoke_receipt(
+            prepare_kwargs={"events": {10: [b""], 12: [b"known EOF diagnostic", b""]}},
+        )
+        cleanup_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        deadline_failure = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(
+                case.server,
+                "wait",
+                lambda timeout, original=case.server.wait: (setattr(case.pipes, "now", 20.1), original(timeout))[1],
+            ),
+        )
+        cases = (
+            ("setup-identity", identity_failure, {"started_utc"}, {"supervisor", "sources", "diagnostic"}),
+            ("readiness-eof", eof_failure, {"started_utc", "sources", "xvfb_observed_exit_code", "xvfb_exit_code"}, set()),
+            ("validation-cleanup", cleanup_failure, {"started_utc", "sources", "worker_exit_code", "xvfb_observed_exit_code", "xvfb_exit_code", "diagnostic"}, set()),
+            ("deadline", deadline_failure, {"started_utc", "sources", "worker_exit_code", "xvfb_observed_exit_code", "xvfb_exit_code", "diagnostic", "deadline_exceeded"}, set()),
+        )
+        for label, receipt, expected_present, expected_absent in cases:
+            with self.subTest(label=label):
+                summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+                self.assertEqual("failed", summary["status"])
+                self.assertEqual(receipt["timeout_seconds"], summary["timeout_seconds"])
+                self.assertEqual(receipt["phase"], summary["phase"])
+                self.assertEqual(receipt["elapsed_seconds"], summary["elapsed_seconds"])
+                for key in expected_present:
+                    self.assertIn(key, summary)
+                for key in expected_absent:
+                    self.assertNotIn(key, summary)
+                if "started_utc" in expected_present:
+                    self.assertEqual(receipt["started_utc"], summary["started_utc"])
+                if "sources" in expected_present:
+                    self.assertEqual(receipt["sources"], summary["sources"])
+                if "worker_exit_code" in expected_present:
+                    self.assertEqual(receipt["worker_exit_code"], summary["worker_exit_code"])
+                if "xvfb_observed_exit_code" in expected_present:
+                    self.assertEqual(receipt["xvfb_observed_exit_code"], summary["xvfb_observed_exit_code"])
+                if "xvfb_exit_code" in expected_present:
+                    self.assertEqual(receipt["xvfb_exit_code"], summary["xvfb_exit_code"])
+                if "deadline_exceeded" in expected_present:
+                    self.assertTrue(summary["deadline_exceeded"])
+                if "diagnostic" in expected_present:
+                    self.assertEqual(receipt["diagnostic"]["status"], summary["diagnostic"]["status"])
 
     def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
         preflight = self.valid_preflight()
