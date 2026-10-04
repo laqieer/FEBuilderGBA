@@ -848,8 +848,22 @@ def _sanitize_xvfb_command(command, *, admitted_executable=None):
 def _sanitize_stream_entry(name, entry):
     if not isinstance(entry, dict):
         raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    expected_keys = {
+        "text",
+        "limit_bytes",
+        "observed_bytes",
+        "retained_bytes",
+        "eof",
+        "truncated",
+        "error",
+    }
+    if set(entry) != expected_keys:
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
     text = entry.get("text")
     if not isinstance(text, str):
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    limit_bytes = entry.get("limit_bytes")
+    if type(limit_bytes) is not int or limit_bytes != native_smoke.IO_LIMITS[name]:
         raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
     for key in ("limit_bytes", "observed_bytes", "retained_bytes"):
         if type(entry.get(key)) is not int or entry[key] < 0:
@@ -857,20 +871,37 @@ def _sanitize_stream_entry(name, entry):
     for key in ("eof", "truncated"):
         if type(entry.get(key)) is not bool:
             raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    observed_bytes = entry["observed_bytes"]
+    retained_bytes = entry["retained_bytes"]
+    if observed_bytes < retained_bytes or retained_bytes > limit_bytes:
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
     error = entry.get("error")
-    if error is not None and not isinstance(error, str):
+    if error is not None and (
+            not isinstance(error, str)
+            or len(error) > native_smoke.FAILURE_TEXT_LIMIT):
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    if entry["truncated"]:
+        if (
+                error is not None
+                or entry["eof"]
+                or retained_bytes != limit_bytes
+                or observed_bytes != limit_bytes + 1):
+            raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    elif observed_bytes != retained_bytes:
+        raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
+    if error is not None and entry["eof"]:
         raise HostedWorkflowError(f"Native receipt {name} diagnostics were malformed")
     return {
-        "limit_bytes": entry["limit_bytes"],
-        "observed_bytes": entry["observed_bytes"],
-        "retained_bytes": entry["retained_bytes"],
+        "limit_bytes": limit_bytes,
+        "observed_bytes": observed_bytes,
+        "retained_bytes": retained_bytes,
         "eof": entry["eof"],
         "truncated": entry["truncated"],
         "error": error,
     }
 
 
-def _sanitize_io_entries(io_entries, *, require_all):
+def _sanitize_io_entries(io_entries, *, require_all, require_pass_complete):
     if not isinstance(io_entries, dict):
         raise HostedWorkflowError("Native receipt io payload was malformed")
     names = ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr")
@@ -883,6 +914,10 @@ def _sanitize_io_entries(io_entries, *, require_all):
     for name in names:
         if name in io_entries:
             sanitized[name] = _sanitize_stream_entry(name, io_entries[name])
+    if require_pass_complete:
+        for name in ("worker_stdout", "worker_stderr"):
+            if not sanitized[name]["eof"]:
+                raise HostedWorkflowError(f"Native receipt {name} diagnostics were incomplete or malformed")
     return sanitized
 
 
@@ -898,6 +933,8 @@ def summarize_native_receipt_for_upload(receipt, preflight=None):
     elif status == "passed":
         raise HostedWorkflowError("Native receipt identity payload was malformed")
     cleanup_failures = _sanitize_cleanup_failures(receipt.get("cleanup_failures"))
+    if status == "passed" and cleanup_failures is not None:
+        raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
     if cleanup_failures:
         summary["cleanup_failures"] = cleanup_failures
     worker = receipt.get("worker")
@@ -920,7 +957,28 @@ def summarize_native_receipt_for_upload(receipt, preflight=None):
     diagnostic = receipt.get("diagnostic")
     if diagnostic is not None:
         summary["diagnostic"] = _sanitize_diagnostic(diagnostic)
-    summary["io"] = _sanitize_io_entries(receipt.get("io"), require_all=(status == "passed"))
+    elif status == "passed":
+        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+    summary["io"] = _sanitize_io_entries(
+        receipt.get("io"),
+        require_all=(status == "passed"),
+        require_pass_complete=(status == "passed"),
+    )
+    if status == "passed":
+        if (
+                summary["timeout_seconds"] != TIMEOUT_TOTAL
+                or summary["phase"] != "validation"
+                or summary["elapsed_seconds"] > TIMEOUT_TOTAL
+                or "failure" in summary
+                or "capture_failure" in summary
+                or summary.get("deadline_exceeded")):
+            raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
+        if summary["diagnostic"].get("status") != "passed":
+            raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+        if summary["worker_exit_code"] != 0:
+            raise HostedWorkflowError("Native receipt payload was malformed")
+        if summary["xvfb_observed_exit_code"] is not None:
+            raise HostedWorkflowError("Native receipt payload was malformed")
     return summary
 
 

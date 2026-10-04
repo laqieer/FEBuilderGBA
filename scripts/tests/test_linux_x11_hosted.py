@@ -230,6 +230,8 @@ class HostedWorkflowContracts(unittest.TestCase):
 
     def pass_receipt(self):
         native_sources = self.native_sources()
+        worker_stdout = json.dumps(self.pass_report())
+        worker_stdout_bytes = len(worker_stdout.encode("utf-8"))
         return {
             "status": "passed",
             "timeout_seconds": 20,
@@ -254,8 +256,8 @@ class HostedWorkflowContracts(unittest.TestCase):
             "io": {
                 "displayfd": {"text": "7\n", "limit_bytes": 32, "observed_bytes": 2, "retained_bytes": 2, "eof": False, "truncated": False, "error": None},
                 "xvfb_stderr": {"text": "", "limit_bytes": 4096, "observed_bytes": 0, "retained_bytes": 0, "eof": False, "truncated": False, "error": None},
-                "worker_stdout": {"text": json.dumps(self.pass_report()), "limit_bytes": 16384, "observed_bytes": 32, "retained_bytes": 32, "eof": False, "truncated": False, "error": None},
-                "worker_stderr": {"text": "", "limit_bytes": 4096, "observed_bytes": 0, "retained_bytes": 0, "eof": False, "truncated": False, "error": None},
+                "worker_stdout": {"text": worker_stdout, "limit_bytes": 16384, "observed_bytes": worker_stdout_bytes, "retained_bytes": worker_stdout_bytes, "eof": True, "truncated": False, "error": None},
+                "worker_stderr": {"text": "", "limit_bytes": 4096, "observed_bytes": 0, "retained_bytes": 0, "eof": True, "truncated": False, "error": None},
             },
         }
 
@@ -1311,6 +1313,80 @@ class HostedWorkflowContracts(unittest.TestCase):
                     self.assertTrue(summary["deadline_exceeded"])
                 if "diagnostic" in expected_present:
                     self.assertEqual(receipt["diagnostic"]["status"], summary["diagnostic"]["status"])
+
+    def test_actual_producer_stream_shapes_survive_summary_stage_and_validation(self):
+        passed = self.actual_smoke_receipt()
+        preflight = self.preflight_for_receipt(passed)
+        for basename, relative in self.hosted.NATIVE_SOURCE_PATHS.items():
+            preflight["source_hashes"][relative] = passed["sources"][basename]
+        preflight["tools"]["python3"]["path"] = passed["worker"]["command"][0]
+        preflight["tools"]["libx11"] = dict(passed["diagnostic"]["libx11"])
+        summary = self.hosted.summarize_native_receipt_for_upload(passed, preflight)
+        self.assertEqual("passed", summary["status"])
+        self.assertTrue(summary["io"]["worker_stdout"]["eof"])
+        self.assertTrue(summary["io"]["worker_stderr"]["eof"])
+        self.assertFalse(summary["io"]["xvfb_stderr"]["eof"])
+        staged = self.assert_stage_artifacts_summary(passed, preflight=preflight)
+        self.assertEqual(summary, staged)
+        self.assertEqual("digest", self.hosted.validate_native_receipt(passed, preflight)["preflight_digest"])
+
+        failed = self.actual_smoke_receipt(
+            prepare_kwargs={"events": {10: [b""], 12: [b"known EOF diagnostic", b""]}},
+        )
+        failed_summary = self.hosted.summarize_native_receipt_for_upload(failed)
+        self.assertEqual("failed", failed_summary["status"])
+        self.assertEqual({"displayfd", "xvfb_stderr"}, set(failed_summary["io"]))
+        self.assertTrue(failed_summary["io"]["xvfb_stderr"]["eof"])
+        self.assert_stage_artifacts_summary(failed)
+
+    def test_public_paths_reject_non_producer_stream_shapes(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("wrong limit", ("io", "worker_stdout"), {"limit_bytes": 1}),
+            ("count mismatch", ("io", "worker_stdout"), {"observed_bytes": 999, "retained_bytes": 998}),
+            ("worker eof missing", ("io", "worker_stdout"), {"eof": False}),
+            ("truncated pass stream", ("io", "worker_stdout"), {"truncated": True, "observed_bytes": 16385, "retained_bytes": 16384}),
+            ("oversized error", ("io", "worker_stderr"), {"error": "e" * 1001}),
+        )
+        for label, path, updates in cases:
+            with self.subTest(label=label):
+                broken = self.pass_receipt()
+                target = broken
+                for segment in path:
+                    target = target[segment]
+                target.update(updates)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(broken, preflight=preflight)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
+
+        failed = self.actual_smoke_receipt(
+            prepare_kwargs={"events": {10: [b""], 12: [b"known EOF diagnostic", b""]}},
+        )
+        failed["io"]["xvfb_stderr"]["error"] = "e" * 1001
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(failed)
+        self.assert_stage_artifacts_rejects_without_publishing_summary(failed)
+
+    def test_passed_public_paths_require_complete_pass_evidence(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("missing diagnostic", lambda receipt: receipt.pop("diagnostic")),
+            ("cleanup failures", lambda receipt: receipt.__setitem__("cleanup_failures", {"xvfb_kill": "known failure"})),
+            ("capture failure", lambda receipt: receipt.__setitem__("capture_failure", "capture failed")),
+            ("failure text", lambda receipt: receipt.__setitem__("failure", "setup failed")),
+            ("deadline exceeded", lambda receipt: receipt.__setitem__("deadline_exceeded", True)),
+        )
+        for label, mutate in cases:
+            with self.subTest(label=label):
+                broken = self.pass_receipt()
+                mutate(broken)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(broken, preflight=preflight)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
 
     def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
         preflight = self.valid_preflight()
