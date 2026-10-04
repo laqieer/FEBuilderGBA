@@ -570,14 +570,6 @@ public class PatchManagerOperationGuardTests
                     if (!exited) throw new TimeoutException("Owned native probe reap timed out.");
                 });
             }
-            Attempt(() =>
-            {
-                if (process.HasExited)
-                {
-                    exit = process.ExitTime;
-                    if (process.ExitCode != 0) throw new IOException("Native probe exited with nonzero status.");
-                }
-            });
             var captures = new[] { stdout, stderr }.OfType<OutputCapture>().ToArray();
             Attempt(() =>
             {
@@ -591,19 +583,32 @@ public class PatchManagerOperationGuardTests
             }
             // Cache process metadata before disposing the handle.
             processStatus = ProcessStatus();
+            Attempt(() =>
+            {
+                if (processExitCode is { } code && code != 0)
+                    throw new IOException("Native probe exited with nonzero status.");
+            });
             Attempt(process.Dispose);
         }
 
         string? processStatus;
-        string ProcessStatus()
+        int? processExitCode;
+        internal string ProcessStatus()
         {
             if (process == null) return "not-started";
             try
             {
-                return $"pid={process.Id}; status={(process.HasExited ? "exited" : "running")}; " +
-                    $"exit-code={(process.HasExited ? process.ExitCode.ToString() : "unavailable")}";
+                bool hasExited = process.HasExited;
+                processExitCode = hasExited ? process.ExitCode : null;
+                exit = hasExited ? process.ExitTime : null;
+                return $"pid={process.Id}; status={(hasExited ? "exited" : "running")}; " +
+                    $"exit-code={processExitCode?.ToString() ?? "unavailable"}";
             }
-            catch (Exception ex) { return "process metadata error: " + ex.Message; }
+            catch (Exception ex)
+            {
+                cleanupErrors.Add(ex);
+                return "process metadata error: " + ex.Message;
+            }
         }
 
         string Redact(string text, int limit = 40_000)

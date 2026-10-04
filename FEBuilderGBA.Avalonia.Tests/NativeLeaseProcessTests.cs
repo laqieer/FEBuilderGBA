@@ -161,6 +161,98 @@ public class NativeLeaseProcessTests
     [Fact]
     public Task ConcurrentDrainWaitsForDeferredSecondStream() => AssertPressureDrain(true);
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ProcessStatusSamplesExitStateOnlyOnce(bool initiallyExited)
+    {
+        var dependencies = new FakeDependencies();
+        using var process = new NativeLeaseProcess(Root, false, dependencies);
+        int reads = 0;
+        dependencies.Child.Code = 17;
+        dependencies.Child.HasExitedValue = () => ++reads == 1 ? initiallyExited : !initiallyExited;
+        try
+        {
+            string status = process.ProcessStatus();
+            Assert.Equal(1, reads);
+            Assert.Contains(initiallyExited ? "status=exited; exit-code=17" : "status=running; exit-code=unavailable", status);
+            Assert.Equal(initiallyExited ? 1 : 0, dependencies.Child.ExitCodeReads);
+            Assert.Equal(initiallyExited ? 1 : 0, dependencies.Child.ExitTimeReads);
+        }
+        finally
+        {
+            dependencies.Child.Code = 0;
+            dependencies.Child.HasExitedValue = null;
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PressureTeardownPreservesPrimaryAndAlwaysDisposes(bool failTeardownAwait)
+    {
+        var dependencies = new FakeDependencies();
+        dependencies.Child.Code = 2;
+        var process = new NativeLeaseProcess(Root, false, dependencies);
+        var primary = new IOException("owned pressure assertion or await failure");
+        var failure = await Assert.ThrowsAsync<IOException>(() => ExecutePressureTest(process, dependencies.Child,
+            () => failTeardownAwait ? Task.CompletedTask : Task.FromException(primary),
+            () => failTeardownAwait ? Task.FromException(primary) : Task.CompletedTask));
+        Assert.Same(primary, failure);
+        Assert.True(dependencies.Child.Disposed);
+        Assert.Equal(1, dependencies.Child.DisposeCalls);
+    }
+
+    [Fact]
+    public async Task PressureTeardownSurfacesUnexpectedCleanupAlongsidePrimary()
+    {
+        var dependencies = new FakeDependencies();
+        dependencies.Child.Code = 2;
+        dependencies.Child.DisposeError = new IOException("unexpected dispose failure");
+        var process = new NativeLeaseProcess(Root, false, dependencies);
+        var primary = new IOException("original assertion failure");
+        var awaitFailure = new IOException("secondary await failure");
+        var failure = await Assert.ThrowsAsync<AggregateException>(() => ExecutePressureTest(process, dependencies.Child,
+            () => Task.FromException(primary), () => Task.FromException(awaitFailure)));
+        Assert.Same(primary, failure.InnerExceptions[0]);
+        Assert.Same(awaitFailure, failure.InnerExceptions[1]);
+        var cleanup = Assert.IsType<NativeLeaseProcess.Failure>(failure.InnerExceptions[2]);
+        Assert.Contains("unexpected dispose failure", cleanup.Message);
+        Assert.DoesNotContain("nonzero", cleanup.Message);
+        Assert.True(dependencies.Child.Disposed);
+        Assert.Equal(1, dependencies.Child.DisposeCalls);
+    }
+
+    static async Task ExecutePressureTest(NativeLeaseProcess process, FakeChild child,
+        Func<Task> body, Func<Task> finish)
+    {
+        var failures = new List<Exception>();
+        try
+        {
+            try { await body(); }
+            catch (Exception ex) { failures.Add(ex); }
+        }
+        finally
+        {
+            try
+            {
+                try { await finish(); }
+                catch (Exception ex) { failures.Add(ex); }
+            }
+            finally
+            {
+                // The body tests nonzero-exit diagnostics; teardown must not manufacture that failure again.
+                child.Code = 0;
+                try { process.Dispose(); }
+                catch (Exception ex) { failures.Add(ex); }
+            }
+        }
+        if (failures.Count == 1)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(failures[0]).Throw();
+        if (failures.Count > 1)
+            throw new AggregateException("Pressure test failed; secondary teardown failures follow.", failures);
+    }
+
     static async Task AssertPressureDrain(bool deferSecondStream)
     {
         var permission = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -174,7 +266,7 @@ public class NativeLeaseProcessTests
         dependencies.Child.Error = error;
         dependencies.Child.Code = 2;
         var process = new NativeLeaseProcess(Root, false, dependencies);
-        try
+        await ExecutePressureTest(process, dependencies.Child, async () =>
         {
             await Task.WhenAll(output.Started.Task, error.Started.Task).WaitAsync(TimeSpan.FromSeconds(10));
             if (deferSecondStream)
@@ -200,14 +292,12 @@ public class NativeLeaseProcessTests
             Assert.Contains("stdout:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
             Assert.Contains("stderr:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
             Assert.True(failure.Message.Length < 20_000);
-        }
-        finally
+        }, async () =>
         {
             permission.TrySetResult();
             await Task.WhenAll(output.Completed.Task, error.Completed.Task).WaitAsync(TimeSpan.FromSeconds(10));
             await process.OutputCompletion.WaitAsync(TimeSpan.FromSeconds(10));
-            process.Dispose();
-        }
+        });
     }
 
     [Fact]
@@ -282,15 +372,16 @@ public class NativeLeaseProcessTests
     sealed class FakeChild : NativeLeaseProcess.IChild
     {
         internal bool Exited, ExitOnWait = true, Disposed;
-        internal int Code, Kills, DisposeCalls;
+        internal int Code, Kills, DisposeCalls, ExitCodeReads, ExitTimeReads;
         internal Exception? DisposeError, KillError;
         internal List<int> Waits { get; } = new();
         internal TextReader Output = new StringReader("owned stdout");
         internal TextReader Error = new StringReader("owned stderr");
+        internal Func<bool>? HasExitedValue;
         public int Id => 123;
-        public bool HasExited => Exited;
-        public int ExitCode => Code;
-        public DateTimeOffset ExitTime => new(2026, 10, 4, 0, 0, 0, TimeSpan.Zero);
+        public bool HasExited => HasExitedValue?.Invoke() ?? Exited;
+        public int ExitCode { get { ExitCodeReads++; return Code; } }
+        public DateTimeOffset ExitTime { get { ExitTimeReads++; return new(2026, 10, 4, 0, 0, 0, TimeSpan.Zero); } }
         public TextReader StandardOutput => Output;
         public TextReader StandardError => Error;
         public bool WaitForExit(int milliseconds)
