@@ -54,6 +54,12 @@ def assert_ios_toolchain(workflow: str, job: str) -> None:
 
 
 class IosToolchainContractTests(unittest.TestCase):
+    def test_project_build_guide_uses_canonical_ios_setup(self) -> None:
+        project = (ROOT / "FEBuilderGBA.iOS" / "FEBuilderGBA.iOS.csproj").read_text(encoding="utf-8")
+        guide = project.split("<PropertyGroup>", 1)[0]
+        self.assertIn("docs/IOS.md", guide)
+        self.assertNotIn("dotnet workload install ios", guide)
+
     def test_both_ios_builds_use_supported_toolchain(self) -> None:
         for path, job in WORKFLOWS:
             with self.subTest(workflow=path.name):
