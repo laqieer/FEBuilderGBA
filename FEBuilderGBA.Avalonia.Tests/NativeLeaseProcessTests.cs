@@ -156,31 +156,62 @@ public class NativeLeaseProcessTests
     }
 
     [Fact]
-    public void ConcurrentDrainContinuesBeyondRetentionCap()
+    public Task ConcurrentDrainContinuesBeyondRetentionCap() => AssertPressureDrain(false);
+
+    [Fact]
+    public Task ConcurrentDrainWaitsForDeferredSecondStream() => AssertPressureDrain(true);
+
+    static async Task AssertPressureDrain(bool deferSecondStream)
     {
-        using var gate = new Barrier(2);
-        var output = new PressureReader(gate);
-        var error = new PressureReader(gate);
+        var permission = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var output = new PressureReader();
+        var error = new PressureReader();
+        output.PeerStarted = error.Started.Task;
+        error.PeerStarted = output.Started.Task;
+        if (deferSecondStream) error.Permission = permission.Task;
         var dependencies = new FakeDependencies();
         dependencies.Child.Output = output;
         dependencies.Child.Error = error;
         dependencies.Child.Code = 2;
         var process = new NativeLeaseProcess(Root, false, dependencies);
-        var failure = Assert.Throws<NativeLeaseProcess.Failure>(process.Dispose);
-        Assert.Equal(32_768, output.ReadCount);
-        Assert.Equal(32_768, error.ReadCount);
-        Assert.InRange(output.MaxBuffer, 1, 1_024);
-        Assert.InRange(error.MaxBuffer, 1, 1_024);
-        Assert.Contains("stdout", failure.Message);
-        Assert.Contains("stderr", failure.Message);
-        Assert.Contains("truncated", failure.Message);
-        Assert.Contains("stdout:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
-        Assert.Contains("stderr:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
-        Assert.True(failure.Message.Length < 20_000);
+        try
+        {
+            await Task.WhenAll(output.Started.Task, error.Started.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            if (deferSecondStream)
+            {
+                Assert.Equal(0, error.ReadCount);
+                Assert.False(error.Completed.Task.IsCompleted);
+            }
+            permission.TrySetResult();
+            // Drain/cap assertions concern completed finite streams, not the separate open-pipe timeout.
+            await Task.WhenAll(output.Completed.Task, error.Completed.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            await process.OutputCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+            var failure = Assert.Throws<NativeLeaseProcess.Failure>(process.Dispose);
+            Assert.Contains("exit-code=2", failure.Message);
+            Assert.DoesNotContain("output completion timed out", failure.Message);
+            Assert.DoesNotContain("read error", failure.Message);
+            Assert.Equal(32_768, output.ReadCount);
+            Assert.Equal(32_768, error.ReadCount);
+            Assert.InRange(output.MaxBuffer, 1, 1_024);
+            Assert.InRange(error.MaxBuffer, 1, 1_024);
+            Assert.Contains("stdout", failure.Message);
+            Assert.Contains("stderr", failure.Message);
+            Assert.Contains("truncated", failure.Message);
+            Assert.Contains("stdout:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
+            Assert.Contains("stderr:\n" + new string('x', 8_192) + "\n[truncated]", failure.Message);
+            Assert.True(failure.Message.Length < 20_000);
+        }
+        finally
+        {
+            permission.TrySetResult();
+            await Task.WhenAll(output.Completed.Task, error.Completed.Task).WaitAsync(TimeSpan.FromSeconds(10));
+            await process.OutputCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+            process.Dispose();
+        }
     }
 
     [Fact]
-    public void OpenPipesHaveBoundedCompletionAndCancellation()
+    public async Task OpenPipesHaveBoundedCompletionAndCancellation()
     {
         var output = new OpenReader();
         var error = new OpenReader();
@@ -188,6 +219,7 @@ public class NativeLeaseProcessTests
         dependencies.Child.Output = output;
         dependencies.Child.Error = error;
         var process = new NativeLeaseProcess(Root, false, dependencies);
+        await Task.WhenAll(output.Started.Task, error.Started.Task).WaitAsync(TimeSpan.FromSeconds(10));
         var elapsed = Stopwatch.StartNew();
         var failure = Assert.Throws<NativeLeaseProcess.Failure>(process.Dispose);
         Assert.True(elapsed.Elapsed < TimeSpan.FromSeconds(5));
@@ -280,31 +312,41 @@ public class NativeLeaseProcessTests
         }
     }
 
-    sealed class PressureReader(Barrier gate) : TextReader
+    sealed class PressureReader : TextReader
     {
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Completed { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal Task PeerStarted = Task.CompletedTask, Permission = Task.CompletedTask;
         internal int ReadCount, MaxBuffer;
         bool started;
-        public override ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default)
+        public override async ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default)
         {
             if (!started)
             {
                 started = true;
-                if (!gate.SignalAndWait(TimeSpan.FromSeconds(3))) throw new IOException("drains not concurrent");
+                Started.TrySetResult();
+                await Permission;
+                await PeerStarted;
             }
             MaxBuffer = Math.Max(MaxBuffer, buffer.Length);
             int count = Math.Min(buffer.Length, 32_768 - ReadCount);
             buffer.Span[..count].Fill('x');
             ReadCount += count;
-            return ValueTask.FromResult(count);
+            if (count == 0) Completed.TrySetResult();
+            return count;
         }
     }
 
     sealed class OpenReader : TextReader
     {
         readonly TaskCompletionSource<int> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Disposed;
-        public override ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default) =>
-            new(completion.Task);
+        public override ValueTask<int> ReadAsync(Memory<char> buffer, CancellationToken cancellationToken = default)
+        {
+            Started.TrySetResult();
+            return new(completion.Task);
+        }
         protected override void Dispose(bool disposing)
         {
             Disposed = true;

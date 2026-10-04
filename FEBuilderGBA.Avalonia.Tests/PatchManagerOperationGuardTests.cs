@@ -477,6 +477,8 @@ public class PatchManagerOperationGuardTests
         }
 
         string PathFor(string name) => Path.Combine(root, name);
+        internal Task OutputCompletion => Task.WhenAll(
+            stdout?.Completion ?? Task.CompletedTask, stderr?.Completion ?? Task.CompletedTask);
         internal string Result
         {
             get
@@ -579,7 +581,7 @@ public class PatchManagerOperationGuardTests
             var captures = new[] { stdout, stderr }.OfType<OutputCapture>().ToArray();
             Attempt(() =>
             {
-                if (!Task.WhenAll(captures.Select(c => c.Completion)).Wait(dependencies.OutputWaitMilliseconds))
+                if (!OutputCompletion.Wait(dependencies.OutputWaitMilliseconds))
                     throw new TimeoutException("Native output completion timed out.");
             });
             foreach (var capture in captures)
