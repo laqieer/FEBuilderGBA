@@ -6,6 +6,8 @@ from __future__ import annotations
 import importlib.util
 from datetime import datetime, timedelta, timezone
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +16,17 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "linux_x11_hosted.py"
+RUN_PAYLOAD_FIXTURE = {
+    "head_repository": {"full_name": "laqieer/FEBuilderGBA"},
+    "head_sha": "a" * 40,
+    "run_attempt": 1,
+    "path": ".github/workflows/e2e-norom.yml",
+    "referenced_workflows": [{
+        "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
+        "sha": "a" * 40,
+        "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+    }],
+}
 
 
 def load_module():
@@ -29,6 +42,18 @@ class HostedSourceTests(unittest.TestCase):
                 patch("urllib.request.urlopen", side_effect=AssertionError("network")):
             module = load_module()
         self.assertEqual("issue2160-linux-x11-hosted-v1", module.OPERATION)
+
+    def test_module_entry_help_runs_from_repository_root(self):
+        result = subprocess.run(
+            [sys.executable, "-B", "-m", "scripts.linux_x11_hosted", "--help"],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(0, result.returncode, result.stderr)
+        self.assertIn("authorize-native", result.stdout)
+        self.assertIn("validate-receipt", result.stdout)
 
 
 class HostedWorkflowContracts(unittest.TestCase):
@@ -120,16 +145,7 @@ class HostedWorkflowContracts(unittest.TestCase):
     def fetch(self, url, token, *, timeout=10):
         self.assertEqual("token", token)
         if "/actions/runs/" in url:
-            return {
-                "head_repository": {"full_name": self.hosted.REPOSITORY},
-                "head_sha": "a" * 40,
-                "run_attempt": 1,
-                "path": self.hosted.CALLER_WORKFLOW_PATH,
-                "referenced_workflows": [{
-                    "path": self.hosted.HOSTED_WORKFLOW_PATH,
-                    "sha": "a" * 40,
-                }],
-            }
+            return dict(RUN_PAYLOAD_FIXTURE)
         if "/issues/2160/comments" in url:
             return []
         raise AssertionError(url)
@@ -149,6 +165,7 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertEqual("/usr/bin/Xvfb", payload["tools"]["xvfb"]["path"])
         self.assertEqual("grant-key", payload["grant_lookup_key"])
         self.assertEqual(set(self.hosted.SOURCE_FILES), set(payload["source_hashes"]))
+        self.assertIn("stable_constraints_digest", payload)
 
     def test_prepare_payload_fails_closed_when_required_tool_is_missing(self):
         with self.assertRaises(self.hosted.HostedWorkflowError):
@@ -159,6 +176,38 @@ class HostedWorkflowContracts(unittest.TestCase):
                 fetch_json=self.fetch,
                 which=lambda name: None if name == "Xvfb" else f"/usr/bin/{name}",
             )
+
+    def test_prepare_payload_requires_explicit_candidate_sha_without_github_fallback(self):
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.prepare_payload(
+                self.root,
+                {key: value for key, value in self.env.items() if key != "ISSUE2160_CANDIDATE_SHA"},
+                query=self.query,
+                fetch_json=self.fetch,
+                which=lambda name: f"/usr/bin/{name}",
+            )
+
+    def test_run_binding_accepts_actual_referenced_workflow_shape_and_rejects_conflicts(self):
+        binding = self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE))
+        self.assertEqual(self.hosted.HOSTED_WORKFLOW_PATH, binding["hosted_workflow_path"])
+        bad_payloads = [
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "other/repo/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
+                "sha": "a" * 40,
+                "ref": "refs/heads/master",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("b" * 40),
+                "sha": "a" * 40,
+                "ref": "refs/heads/master",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=RUN_PAYLOAD_FIXTURE["referenced_workflows"] * 2),
+        ]
+        for payload in bad_payloads:
+            with self.subTest(payload=payload):
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10, payload=payload: payload)
 
     def test_authorize_native_rejects_reruns_before_grant_lookup(self):
         preflight = self.hosted.prepare_payload(
@@ -176,6 +225,80 @@ class HostedWorkflowContracts(unittest.TestCase):
                 query=self.query,
                 fetch_json=lambda *args, **kwargs: (_ for _ in ()).throw(AssertionError("grant lookup")),
                 which=lambda name: f"/usr/bin/{name}",
+            )
+
+    def test_authorize_native_accepts_fresh_runner_metadata_but_rejects_constraint_drift(self):
+        preflight = self.hosted.prepare_payload(
+            self.root,
+            {**self.env, "ISSUE2160_ROUTE": self.hosted.RESERVE_ROUTE},
+            query=self.query,
+            fetch_json=self.fetch,
+            which=lambda name: f"/usr/bin/{name}",
+        )
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        grant_fields = {
+            "lookup_key": preflight["grant_lookup_key"],
+            "run_id": preflight["run_binding"]["run_id"],
+            "run_attempt": "1",
+            "candidate_sha": preflight["candidate_sha"],
+            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
+            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
+            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
+            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
+            "preflight_digest": preflight["preflight_digest"],
+            "tool_constraints_digest": preflight["tool_constraints_digest"],
+            "receipt_stem": preflight["receipt_stem"],
+            "operation": self.hosted.OPERATION,
+            "invocations": "1",
+            "timeout_total": "20",
+            "timeout_work": "18",
+            "timeout_cleanup": "2",
+            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+        }
+        grant_body = "\n".join(
+            [self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in grant_fields.items()]
+        )
+        comments = [{
+            "id": 5,
+            "body": grant_body,
+            "user": {"login": "laqieer"},
+            "author_association": "OWNER",
+            "created_at": "2026-10-02T00:00:00Z",
+            "updated_at": "2026-10-02T00:00:00Z",
+        }]
+        fresher = {
+            **self.env,
+            "ISSUE2160_ROUTE": self.hosted.RESERVE_ROUTE,
+            "RUNNER_NAME": "Another Hosted Agent",
+            "ImageOS": "ubuntu24-other",
+            "ImageVersion": "20261002.2",
+        }
+        with patch.object(self.hosted.os, "getuid", return_value=2000, create=True), \
+                patch.object(self.hosted.os, "geteuid", return_value=2000, create=True), \
+                patch.object(self.hosted.os, "getgid", return_value=3000, create=True), \
+                patch.object(self.hosted.os, "getegid", return_value=3000, create=True):
+            grant = self.hosted.authorize_native(
+                self.root,
+                preflight,
+                fresher,
+                query=self.query,
+                fetch_json=lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE)
+                if "/actions/runs/" in url else comments,
+                which=lambda name: f"/usr/bin/{name}",
+                now=now,
+            )
+        self.assertEqual(5, grant["grant_freeze"]["comment_id"])
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.authorize_native(
+                self.root,
+                preflight,
+                {**fresher, "RUNNER_ARCH": "ARM64"},
+                query=self.query,
+                fetch_json=lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE)
+                if "/actions/runs/" in url else comments,
+                which=lambda name: f"/usr/bin/{name}",
+                now=now,
             )
 
     def test_grant_lookup_rejects_absent_mismatched_expired_and_wrong_author(self):
@@ -233,7 +356,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                 with self.assertRaises(self.hosted.HostedWorkflowError):
                     self.hosted.find_matching_grant(comments, preflight, now=now)
 
-    def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
+    def test_grant_freeze_rejects_second_readback_edit_or_timestamp_change(self):
         preflight = self.hosted.prepare_payload(
             self.root,
             {**self.env, "ISSUE2160_ROUTE": self.hosted.RESERVE_ROUTE},
@@ -241,6 +364,62 @@ class HostedWorkflowContracts(unittest.TestCase):
             fetch_json=self.fetch,
             which=lambda name: f"/usr/bin/{name}",
         )
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        grant_fields = {
+            "lookup_key": preflight["grant_lookup_key"],
+            "run_id": preflight["run_binding"]["run_id"],
+            "run_attempt": "1",
+            "candidate_sha": preflight["candidate_sha"],
+            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
+            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
+            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
+            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
+            "preflight_digest": preflight["preflight_digest"],
+            "tool_constraints_digest": preflight["tool_constraints_digest"],
+            "receipt_stem": preflight["receipt_stem"],
+            "operation": self.hosted.OPERATION,
+            "invocations": "1",
+            "timeout_total": "20",
+            "timeout_work": "18",
+            "timeout_cleanup": "2",
+            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+        }
+        base_body = "\n".join(
+            [self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in grant_fields.items()]
+        )
+        initial = {
+            "id": 55,
+            "body": base_body,
+            "user": {"login": "laqieer"},
+            "author_association": "OWNER",
+            "created_at": "2026-10-02T00:00:00Z",
+            "updated_at": "2026-10-02T00:00:00Z",
+        }
+        frozen = self.hosted.find_matching_grant([initial], preflight, now=now)
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.confirm_grant_freeze(
+                initial | {"body": base_body + "\n# edited"},
+                frozen,
+                now=now,
+            )
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.confirm_grant_freeze(
+                initial | {"updated_at": "2026-10-02T00:00:01Z"},
+                frozen,
+                now=now,
+            )
+
+    def test_validate_native_receipt_rejects_incomplete_positive_evidence(self):
+        preflight = {
+            "source_hashes": self.hosted._source_hashes(ROOT),
+            "tools": {
+                "python3": {"path": "/usr/bin/python3"},
+                "xvfb": {"path": "/usr/bin/Xvfb"},
+            },
+            "preflight_digest": "digest",
+        }
+        native_sources = self.hosted.native_smoke.source_hashes()
         report = {
             "status": "passed",
             "window": 9,
@@ -274,7 +453,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                 "type": 0,
             }],
             "pending_error_rejected": True,
-            "sources": preflight["source_hashes"],
+            "sources": native_sources,
             "worker": {"pid": 101, "start_ticks": 202},
         }
         receipt = {
@@ -282,7 +461,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             "timeout_seconds": 20,
             "phase": "validation",
             "elapsed_seconds": 1.2,
-            "sources": preflight["source_hashes"],
+            "sources": native_sources,
             "diagnostic": report,
             "worker": {"pid": 101, "start_ticks": 202, "command": [
                 "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
@@ -299,10 +478,117 @@ class HostedWorkflowContracts(unittest.TestCase):
             },
         }
         self.assertEqual(
-            preflight["preflight_digest"],
+            "digest",
             self.hosted.validate_native_receipt(receipt, preflight)["preflight_digest"],
         )
         broken = json.loads(json.dumps(receipt))
         del broken["diagnostic"]["missing_property_ok"]
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.validate_native_receipt(broken, preflight)
+
+    def test_validate_native_receipt_accepts_native_two_file_source_shape_and_rejects_tampering(self):
+        preflight = {
+            "source_hashes": self.hosted._source_hashes(ROOT),
+            "tools": {
+                "python3": {"path": "/usr/bin/python3"},
+                "xvfb": {"path": "/usr/bin/Xvfb"},
+            },
+            "preflight_digest": "digest",
+        }
+        native_sources = self.hosted.native_smoke.source_hashes()
+        report = {
+            "status": "passed",
+            "window": 9,
+            "owner_display": 10,
+            "observer_display": 11,
+            "present_before_destroy": [9],
+            "live_value": "owned smoke",
+            "missing_property_ok": True,
+            "owned_destroyed": {"display": 10, "window": 9},
+            "badwindow_request": {"display": 11, "serial": 7, "window": 9},
+            "badwindow_events": [{
+                "callback_display": 11,
+                "display": 11,
+                "serial": 7,
+                "resourceid": 9,
+                "error_code": 3,
+                "request_code": 20,
+                "minor_code": 0,
+                "type": 0,
+            }],
+            "fresh_children_display": 11,
+            "fresh_children_after_destroy": [],
+            "unrelated_rejected": [{
+                "callback_display": 11,
+                "display": 11,
+                "serial": 8,
+                "resourceid": 9,
+                "error_code": 3,
+                "request_code": 19,
+                "minor_code": 0,
+                "type": 0,
+            }],
+            "pending_error_rejected": True,
+            "sources": native_sources,
+            "worker": {"pid": 101, "start_ticks": 202},
+        }
+        receipt = {
+            "status": "passed",
+            "timeout_seconds": 20,
+            "phase": "validation",
+            "elapsed_seconds": 1.2,
+            "sources": native_sources,
+            "diagnostic": report,
+            "worker": {"pid": 101, "start_ticks": 202, "command": [
+                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
+                "--allow-native-smoke", "--worker",
+            ]},
+            "worker_exit_code": 0,
+            "xvfb": {"command": ["/usr/bin/Xvfb"]},
+            "xvfb_observed_exit_code": None,
+            "io": {
+                "displayfd": {"truncated": False, "error": None},
+                "xvfb_stderr": {"truncated": False, "error": None},
+                "worker_stdout": {"truncated": False, "error": None},
+                "worker_stderr": {"truncated": False, "error": None},
+            },
+        }
+        self.assertEqual("digest", self.hosted.validate_native_receipt(receipt, preflight)["preflight_digest"])
+        tampered = json.loads(json.dumps(receipt))
+        tampered["sources"]["linux_x11.py"] = "0" * 64
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.validate_native_receipt(tampered, preflight)
+        extra = json.loads(json.dumps(receipt))
+        extra["sources"]["extra.py"] = "1" * 64
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.validate_native_receipt(extra, preflight)
+
+
+class HostedPackageRecordTests(unittest.TestCase):
+    def test_package_record_uses_binary_package_metadata_for_arch_qualified_owner(self):
+        hosted = load_module()
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-package-")
+        self.addCleanup(temporary.cleanup)
+        path = Path(temporary.name) / "libX11.so.6"
+        path.write_text("lib", encoding="utf-8")
+
+        seen = []
+
+        def query(command, *, cwd=None, timeout=10):
+            seen.append(tuple(command))
+            mapping = {
+                ("dpkg-query", "-S", str(path)): f"libx11-6:amd64: {path}",
+                ("dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${Architecture}", "libx11-6:amd64"):
+                    "libx11-6:amd64\t2:1.8.7-1build1\tamd64",
+            }
+            return mapping[tuple(command)]
+
+        record = hosted._package_record(path, query)
+        self.assertEqual("libx11-6:amd64", record["package"]["name"])
+        self.assertEqual(
+            [
+                ("dpkg-query", "-S", str(path)),
+                ("dpkg-query", "-W", "-f=${binary:Package}\t${Version}\t${Architecture}", "libx11-6:amd64"),
+            ],
+            seen,
+        )

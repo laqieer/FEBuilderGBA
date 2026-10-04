@@ -428,14 +428,67 @@ class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
         self.assertIn("persist-credentials: false", workflow)
         self.assertIn("environment:\n      name: issue2160-native", workflow)
         self.assertIn("if: ${{ inputs.route == 'issue2160-reserve-native' }}", workflow)
-        self.assertIn("/usr/bin/python3 -B scripts/linux_x11_hosted.py prepare", workflow)
-        self.assertIn("/usr/bin/python3 -B scripts/linux_x11_hosted.py authorize-native", workflow)
-        self.assertIn("/usr/bin/python3 -B scripts/linux_x11_hosted.py validate-receipt", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
         self.assertIn("/usr/bin/python3 -B -m scripts.tests.linux_x11_native_smoke", workflow)
         self.assertIn("--timeout 20", workflow)
         self.assertNotIn("actions/setup-python", workflow)
         self.assertNotIn("apt-get", workflow)
         self.assertNotIn("sudo", workflow)
+
+    def test_hosted_reusable_workflow_precheckout_gate_module_entry_and_token_scoping(self):
+        workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
+        jobs = all_job_blocks(workflow)
+        for job_name in ("prepare", "native"):
+            with self.subTest(job=job_name):
+                steps = [
+                    (match.group("name").strip(), match.group("body"))
+                    for match in re.finditer(
+                        r"(?ms)^      - name: (?P<name>[^\n]+)\n(?P<body>.*?)(?=^      - name: |\Z)",
+                        jobs[job_name],
+                    )
+                ]
+                names = [name for name, _ in steps]
+                self.assertEqual("Verify immutable reviewed candidate before checkout", names[0])
+                self.assertEqual("Checkout immutable candidate", names[1])
+                gate = dict(steps)["Verify immutable reviewed candidate before checkout"]
+                self.assertRegex(gate, r"(?m)^        shell: bash$")
+                self.assertRegex(
+                    gate,
+                    r"(?m)^          ISSUE2160_CANDIDATE_SHA: \$\{\{ inputs\.candidate_sha \}\}$",
+                )
+                self.assertIn("^[0-9a-f]{40}$", gate)
+                self.assertNotIn("${{", gate.split("run:", 1)[1])
+                self.assertIn('[[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_SHA" ]]', gate)
+                self.assertIn('[[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_WORKFLOW_SHA" ]]', gate)
+        self.assertNotIn("|| github.sha", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Checkout immutable candidate.*?ref: \$\{\{ inputs\.candidate_sha \}\}.*?persist-credentials: false",
+        )
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted confirm-grant", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Gather hosted preflight evidence.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Reverify run binding and read coordinator grant.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Confirm grant freeze before native smoke.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        native_smoke = re.search(
+            r"(?ms)- name: Run bounded native X11 smoke(?P<body>.*?)(?:\n\s+- name:|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(native_smoke)
+        self.assertNotIn("GITHUB_TOKEN", native_smoke.group("body"))
 
 
 class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):

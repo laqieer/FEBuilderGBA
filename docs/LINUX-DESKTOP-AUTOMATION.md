@@ -178,20 +178,29 @@ is `workflow_call` only and is not a separate manual dispatcher.
 
 Both hosted jobs are fixed to fresh `ubuntu-24.04` runners with read-only
 `contents/actions/issues` permissions, `persist-credentials: false`, and no
-secret inheritance. The prepare phase uses only already-installed `/usr/bin/python3`,
+secret inheritance. Before checkout or any repository helper runs, each job uses
+a trusted bash gate that requires an explicit full 40-hex `candidate_sha` and
+enforces `candidate_sha == github.sha == github.workflow_sha`. The Python helper
+is invoked only as `python -B -m scripts.linux_x11_hosted` from the repository
+root. The prepare phase uses only already-installed `/usr/bin/python3`,
 `/usr/bin/Xvfb`, and `libX11.so.6`; missing tools are a failure and there is no
-installation branch. Prepare-only mode records bounded source hashes, runner
-identity, run binding, tool/package metadata, and a preflight digest, then stops.
-It never starts Xvfb, loads Xlib, launches an application, or mints authority.
+installation branch. Prepare-only mode records bounded source hashes, stable
+source/workflow/tool constraints, late-bound runner observations, run binding,
+tool/package metadata, and a preflight digest, then stops. It never starts Xvfb,
+loads Xlib, launches an application, or mints authority.
 
 The optional native job is separately protected by environment `issue2160-native`
 and still does not treat environment approval as a grant. Before any native call,
-it recomputes the same hosted constraints on a fresh runner, requires
+it recomputes the same stable hosted constraints on a fresh runner, requires
 `github.run_attempt == 1`, and reads exactly one strict unquoted coordinator
-grant comment by `laqieer`/OWNER on issue #2160 matching the current run ID,
+grant comment by `laqieer`/OWNER on issue #2160 matching the original run ID,
 candidate SHA, workflow binding, digests, receipt stem, operation marker, and
-the fixed timeout split `20 = 18 work + 2 cleanup`. Retries, stale grants, or
-constraint drift fail closed before native execution.
+the fixed timeout split `20 = 18 work + 2 cleanup`. The exact comment ID, body
+digest, author/association, and timestamps are frozen, then re-read by comment
+ID immediately before native smoke so edits or replacement fail closed.
+Ephemeral runner name/image/uid observations are captured but not used as the
+grant authority. Retries, stale grants, edited grants, or stable-constraint
+drift fail closed before native execution.
 
 ## Separately gated current metadata
 

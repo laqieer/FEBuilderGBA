@@ -9,9 +9,8 @@ on:
         type: string
       candidate_sha:
         description: "Immutable reviewed candidate SHA"
-        required: false
+        required: true
         type: string
-        default: ""
       receipt_stem:
         description: "Private receipt stem"
         required: true
@@ -37,20 +36,37 @@ jobs:
       issues: read
     env:
       ISSUE2160_ROUTE: ${{ inputs.route }}
-      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha != '' && inputs.candidate_sha || github.sha }}
+      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       ISSUE2160_RECEIPT_STEM: ${{ inputs.receipt_stem }}
       ISSUE2160_GRANT_LOOKUP_KEY: ${{ inputs.grant_lookup_key }}
       GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
     steps:
+      - name: Verify immutable reviewed candidate before checkout
+        shell: bash
+        env:
+          ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          for value_name in ISSUE2160_CANDIDATE_SHA GITHUB_SHA GITHUB_WORKFLOW_SHA; do
+            value="${!value_name}"
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || { echo "expected full reviewed SHA for ${value_name}" >&2; exit 1; }
+          done
+          [[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_SHA" ]]
+          [[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_WORKFLOW_SHA" ]]
+
       - name: Checkout immutable candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
 
       - name: Gather hosted preflight evidence
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
-          /usr/bin/python3 -B scripts/linux_x11_hosted.py prepare
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted prepare
           --output TestResults/issue2160-hosted/preflight.json
 
       - name: Upload hosted preflight evidence
@@ -78,15 +94,30 @@ jobs:
       cancel-in-progress: false
     env:
       ISSUE2160_ROUTE: ${{ inputs.route }}
-      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha != '' && inputs.candidate_sha || github.sha }}
+      ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
       ISSUE2160_RECEIPT_STEM: ${{ inputs.receipt_stem }}
       ISSUE2160_GRANT_LOOKUP_KEY: ${{ inputs.grant_lookup_key }}
       GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
     steps:
+      - name: Verify immutable reviewed candidate before checkout
+        shell: bash
+        env:
+          ISSUE2160_CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_WORKFLOW_SHA: ${{ github.workflow_sha }}
+        run: |
+          set -euo pipefail
+          for value_name in ISSUE2160_CANDIDATE_SHA GITHUB_SHA GITHUB_WORKFLOW_SHA; do
+            value="${!value_name}"
+            [[ "$value" =~ ^[0-9a-f]{40}$ ]] || { echo "expected full reviewed SHA for ${value_name}" >&2; exit 1; }
+          done
+          [[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_SHA" ]]
+          [[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_WORKFLOW_SHA" ]]
+
       - name: Checkout immutable candidate
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ inputs.candidate_sha }}
           persist-credentials: false
 
       - name: Download hosted preflight evidence
@@ -96,10 +127,19 @@ jobs:
           path: TestResults/issue2160-hosted
 
       - name: Reverify run binding and read coordinator grant
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: >-
-          /usr/bin/python3 -B scripts/linux_x11_hosted.py authorize-native
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native
           --preflight TestResults/issue2160-hosted/preflight.json
           --output TestResults/issue2160-hosted/grant.json
+
+      - name: Confirm grant freeze before native smoke
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted confirm-grant
+          --grant TestResults/issue2160-hosted/grant.json
 
       - name: Run bounded native X11 smoke
         run: >-
@@ -110,7 +150,7 @@ jobs:
 
       - name: Validate bounded native X11 receipt
         run: >-
-          /usr/bin/python3 -B scripts/linux_x11_hosted.py validate-receipt
+          /usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt
           --preflight TestResults/issue2160-hosted/preflight.json
           --receipt linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json
 
