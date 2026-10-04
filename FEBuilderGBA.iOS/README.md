@@ -20,8 +20,18 @@ standalone (on macOS) by the advisory `.github/workflows/ios.yml` workflow.
 
 ## Build (macOS only)
 
+Install Xcode 26.6 and .NET SDK 10.0.401 before running these commands.
+Set `XCODE_APP` if Xcode is not installed at `/Applications/Xcode.app`;
+verify `xcodebuild -version` prints `Xcode 26.6` and `dotnet --version`
+prints `10.0.401`. Use the matching pinned workload set; an unpinned iOS
+workload may require a different Xcode version.
+
 ```bash
-dotnet workload install ios          # one-time
+XCODE_APP="${XCODE_APP:-/Applications/Xcode.app}"
+sudo xcode-select --switch "$XCODE_APP/Contents/Developer"
+xcodebuild -version
+dotnet --version
+dotnet workload install ios --version 10.0.401
 dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
 ```
 

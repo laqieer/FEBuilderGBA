@@ -53,9 +53,8 @@ env:
 jobs:
   ios-build:
     name: iOS app (advisory)
-    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
-    # (26.5.10301) requires the preinstalled Xcode 26.6. Pin the runner and select
-    # that toolchain explicitly before installing the workload. (#1859)
+    # The .NET 10.0.401 iOS workload set (26.5.10318) requires Xcode 26.6.
+    # Pin the runner, Xcode, SDK and workload set together. (#2179)
     runs-on: macos-26
 
     steps:
@@ -75,7 +74,12 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
+
+      - name: Pin selected .NET SDK
+        run: |
+          printf '%s\n' '{"sdk":{"version":"10.0.401","rollForward":"disable"}}' > global.json
+          test "$(dotnet --version)" = "10.0.401"
 
       - name: Cache NuGet packages
         uses: actions/cache@v4
@@ -86,9 +90,8 @@ jobs:
             nuget-ios-${{ runner.os }}-
 
       - name: Install ios workload
-        # Installs the net10.0-ios TFM toolchain. macos-26 ships Xcode, which the workload
-        # build consumes for the native link/package step.
-        run: dotnet workload install ios
+        # Workload set 10.0.401 installs the Xcode 26.6-compatible iOS SDK.
+        run: dotnet workload install ios --version 10.0.401
 
       - name: Detect Apple signing secrets
         # `secrets.*` is NOT allowed in a step-level `if:`, so classify presence once here
