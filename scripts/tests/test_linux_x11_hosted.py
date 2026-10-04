@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import os
 import importlib.util
 from datetime import datetime, timedelta, timezone
 import json
@@ -12,6 +13,8 @@ import tempfile
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+
+from scripts.tests import test_linux_x11 as smoke_fixtures
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -245,6 +248,20 @@ class HostedWorkflowContracts(unittest.TestCase):
             },
         }
 
+    def actual_smoke_receipt(self, *, prepare_kwargs=None, mutate=None, xlib_path="/usr/lib/x86_64-linux-gnu/libX11.so.6"):
+        case = smoke_fixtures.SmokeDiagnosticsTests(methodName="runTest")
+        case.setUp()
+        try:
+            kwargs = {} if prepare_kwargs is None else dict(prepare_kwargs)
+            kwargs.setdefault("xlib_path", xlib_path)
+            case.prepare_supervisor(**kwargs)
+            if mutate is not None:
+                mutate(case)
+            _, receipt = case.supervise(xlib_path=xlib_path)
+            return receipt
+        finally:
+            case.doCleanups()
+
     def test_prepare_payload_is_metadata_only_and_bound(self):
         payload = self.hosted.prepare_payload(
             self.root,
@@ -281,6 +298,19 @@ class HostedWorkflowContracts(unittest.TestCase):
                 fetch_json=self.fetch,
                 which=lambda name: f"/usr/bin/{name}",
             )
+
+    def test_parse_instant_requires_explicit_aware_absolute_timestamp(self):
+        self.assertEqual(
+            datetime(2026, 10, 2, 0, 0, tzinfo=timezone.utc),
+            self.hosted._parse_instant("2026-10-02T08:00:00+08:00"),
+        )
+        self.assertEqual(
+            datetime(2026, 10, 2, 0, 0, tzinfo=timezone.utc),
+            self.hosted._parse_instant("2026-10-02T00:00:00Z"),
+        )
+        for value in ("2026-10-02T00:00:00", "2026-10-02", "not-a-timestamp"):
+            with self.subTest(value=value), self.assertRaises(self.hosted.HostedWorkflowError):
+                self.hosted._parse_instant(value)
 
     def test_run_binding_accepts_actual_referenced_workflow_shape_and_rejects_conflicts(self):
         binding = self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE))
@@ -577,6 +607,64 @@ class HostedWorkflowContracts(unittest.TestCase):
                 now=now,
             )
 
+    def test_find_matching_grant_rejects_naive_and_date_only_timestamps(self):
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        preflight = {
+            "grant_lookup_key": "grant-key",
+            "candidate_sha": "a" * 40,
+            "preflight_digest": "digest",
+            "tool_constraints_digest": "fixed",
+            "receipt_stem": "receipt-stem",
+            "run_binding": {
+                "run_id": "12345",
+                "run_attempt": 1,
+                "caller_workflow_path": ".github/workflows/e2e-norom.yml",
+                "caller_workflow_sha": "a" * 40,
+                "hosted_workflow_path": ".github/workflows/linux-x11-hosted.yml",
+                "hosted_workflow_sha": "a" * 40,
+            },
+        }
+        body = "\n".join([
+            self.hosted.GRANT_SCHEMA,
+            "lookup_key=grant-key",
+            "run_id=12345",
+            "run_attempt=1",
+            "candidate_sha=" + ("a" * 40),
+            "caller_workflow_path=.github/workflows/e2e-norom.yml",
+            "caller_workflow_sha=" + ("a" * 40),
+            "hosted_workflow_path=.github/workflows/linux-x11-hosted.yml",
+            "hosted_workflow_sha=" + ("a" * 40),
+            "preflight_digest=digest",
+            "tool_constraints_digest=fixed",
+            "receipt_stem=receipt-stem",
+            "operation=" + self.hosted.OPERATION,
+            "invocations=1",
+            "timeout_total=20",
+            "timeout_work=18",
+            "timeout_cleanup=2",
+            "valid_after=2026-10-01T23:59:00Z",
+            "valid_before=2026-10-02T00:01:00Z",
+        ])
+        for created_at, updated_at in (
+                ("2026-10-02T00:00:00", "2026-10-02T00:00:01Z"),
+                ("2026-10-02", "2026-10-02T00:00:01Z"),
+                ("2026-10-02T08:00:00+08:00", "2026-10-02T08:00:01+08:00")):
+            comment = {
+                "id": 77,
+                "body": body,
+                "user": {"login": "laqieer"},
+                "author_association": "OWNER",
+                "created_at": created_at,
+                "updated_at": updated_at,
+            }
+            with self.subTest(created_at=created_at, updated_at=updated_at):
+                if created_at.endswith("+08:00"):
+                    match = self.hosted.find_matching_grant([comment], preflight, now=now)
+                    self.assertEqual(77, match["id"])
+                else:
+                    with self.assertRaises(self.hosted.HostedWorkflowError):
+                        self.hosted.find_matching_grant([comment], preflight, now=now)
+
     def test_stage_artifacts_rejects_untrusted_receipt_stem_before_filesystem_access(self):
         temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-")
         self.addCleanup(temporary.cleanup)
@@ -604,7 +692,9 @@ class HostedWorkflowContracts(unittest.TestCase):
         receipt["io"]["xvfb_stderr"]["text"] = six_byte * io_limits["xvfb_stderr"]
         receipt["io"]["worker_stdout"]["text"] = six_byte * io_limits["worker_stdout"]
         receipt["io"]["worker_stderr"]["text"] = six_byte * io_limits["worker_stderr"]
-        raw_path.write_text(json.dumps(receipt), encoding="utf-8")
+        with raw_path.open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
         self.assertGreater(raw_path.stat().st_size, self.hosted.JSON_LIMIT)
         self.hosted.main([
             "summarize-receipt",
@@ -615,97 +705,92 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertEqual("passed", summary["status"])
         self.assertLessEqual(summary_path.stat().st_size, self.hosted.JSON_LIMIT)
 
-    def test_summarize_native_receipt_for_upload_preserves_safe_producer_facts_and_strips_raw_stream_text(self):
-        native_sources = self.native_sources()
-        receipt = {
-            "status": "failed",
-            "timeout_seconds": 20,
-            "phase": "worker",
-            "started_utc": "2026-10-02T00:00:00Z",
-            "elapsed_seconds": 18.0,
-            "failure": "worker exited 1",
-            "capture_failure": None,
-            "cleanup_failures": {"worker_wait": "owned worker still alive"},
-            "deadline_exceeded": False,
-            "sources": native_sources,
-            "diagnostic": {"status": "failed", "failure": "worker exited 1"},
-            "supervisor": {"pid": 100, "start_ticks": 200},
-            "worker": {"pid": 101, "start_ticks": 202, "command": [
-                "/usr/bin/python3", "-B", "-m", "scripts.tests.linux_x11_native_smoke",
-                "--allow-native-smoke", "--worker",
-                "--xlib-path", "/usr/lib/x86_64-linux-gnu/libX11.so.6",
-            ]},
-            "worker_exit_code": 1,
-            "xvfb": {"pid": 102, "start_ticks": 204, "command": [
-                "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24",
-                "-nolisten", "tcp", "-auth", "/tmp/linux-x11-smoke/authority",
-            ]},
-            "xvfb_exit_code": 1,
-            "worker_stderr": "raw stderr should not be uploaded",
-            "io": {
-                "displayfd": {
-                    "text": "7\n",
-                    "limit_bytes": 32,
-                    "observed_bytes": 2,
-                    "retained_bytes": 2,
-                    "eof": False,
-                    "truncated": False,
-                    "error": None,
-                },
-                "xvfb_stderr": {
-                    "text": "auth path /tmp/linux-x11-smoke/authority",
-                    "limit_bytes": 4096,
-                    "observed_bytes": 64,
-                    "retained_bytes": 39,
-                    "eof": False,
-                    "truncated": False,
-                    "error": None,
-                },
-                "worker_stdout": {
-                    "text": "raw stdout",
-                    "limit_bytes": 16384,
-                    "observed_bytes": 16,
-                    "retained_bytes": 10,
-                    "eof": False,
-                    "truncated": True,
-                    "error": None,
-                },
-                "worker_stderr": {
-                    "text": "raw stderr",
-                    "limit_bytes": 4096,
-                    "observed_bytes": 32,
-                    "retained_bytes": 16,
-                    "eof": False,
-                    "truncated": True,
-                    "error": "truncated",
-                },
-            },
-        }
+    def test_summarize_native_receipt_for_upload_preserves_failed_outer_status_and_passed_worker_diagnostic(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
         summary = self.hosted.summarize_native_receipt_for_upload(receipt)
         self.assertEqual("failed", summary["status"])
-        self.assertEqual("worker exited 1", summary["failure"])
+        self.assertEqual("passed", summary["diagnostic"]["status"])
+        self.assertEqual(receipt["diagnostic"]["owned_destroyed"], summary["diagnostic"]["owned_destroyed"])
+        self.assertEqual(receipt["diagnostic"]["libx11"], summary["diagnostic"]["libx11"])
+        self.assertIn("xvfb_kill", summary["cleanup_failures"])
+        self.assertEqual(receipt["xvfb_exit_code"], summary["xvfb_exit_code"])
         self.assertNotIn("worker_stderr", summary)
-        self.assertEqual({"worker_wait": "owned worker still alive"}, summary["cleanup_failures"])
-        self.assertEqual({"pid": 100, "start_ticks": 200}, summary["supervisor"])
-        self.assertEqual({"pid": 101, "start_ticks": 202}, summary["worker"])
-        self.assertEqual({"pid": 102, "start_ticks": 204, "command": [
-            "/usr/bin/Xvfb", ":7", "-screen", "0", "320x240x24", "-nolisten", "tcp",
-        ]}, summary["xvfb"])
-        self.assertEqual(1, summary["xvfb_exit_code"])
-        self.assertEqual(16, summary["io"]["worker_stderr"]["retained_bytes"])
-        self.assertEqual(2, summary["io"]["displayfd"]["retained_bytes"])
+        self.assertEqual(
+            {key: receipt["worker"][key] for key in ("pid", "start_ticks")},
+            summary["worker"],
+        )
+        self.assertEqual(receipt["supervisor"], summary["supervisor"])
+        self.assertNotIn("-auth", summary["xvfb"]["command"])
         self.assertNotIn("text", summary["io"]["worker_stdout"])
         self.assertNotIn("text", summary["io"]["worker_stderr"])
-        self.assertNotIn("-auth", summary["xvfb"]["command"])
 
-    def test_summarize_native_receipt_for_upload_rejects_malformed_cleanup_and_stream_shapes(self):
-        receipt = self.pass_receipt()
+    def test_summarize_native_receipt_for_upload_allows_missing_setup_supervisor_and_partial_failure_io(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.identity_mock, "side_effect", OSError("injected identity failure")),
+        )
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual("failed", summary["status"])
+        self.assertNotIn("supervisor", summary)
+        self.assertEqual({}, summary["io"])
+        self.assertNotIn("diagnostic", summary)
+        self.assertIn("identity failure", summary["failure"])
+
+        readiness = self.actual_smoke_receipt(prepare_kwargs={"events": {10: [b""], 12: [b"known EOF diagnostic", b""]}})
+        summary = self.hosted.summarize_native_receipt_for_upload(readiness)
+        self.assertEqual({"displayfd", "xvfb_stderr"}, set(summary["io"]))
+        self.assertNotIn("worker_stdout", summary["io"])
+        self.assertNotIn("worker_stderr", summary["io"])
+        self.assertEqual("known EOF diagnostic", readiness["io"]["xvfb_stderr"]["text"])
+        self.assertNotIn("text", summary["io"]["xvfb_stderr"])
+
+    def test_stage_artifacts_cli_summarizes_real_failed_receipt_without_upgrading_status(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-cli-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        old_cwd = Path.cwd()
+        os.chdir(root)
+        self.addCleanup(lambda: os.chdir(old_cwd))
+        bundle = root / "upload"
+        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        grant = {"grant": {"receipt_stem": "receipt-stem"}}
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+        grant_path.write_text(json.dumps(grant), encoding="utf-8")
+        receipt_dir = root / "linux-x11-smoke-receipt-stem"
+        receipt_dir.mkdir()
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        self.hosted.main([
+            "stage-artifacts",
+            "--preflight", str(preflight_path),
+            "--grant", str(grant_path),
+            "--output-dir", str(bundle),
+        ])
+        summary = json.loads((bundle / "receipt-summary.json").read_text(encoding="utf-8"))
+        self.assertEqual("failed", summary["status"])
+        self.assertEqual("passed", summary["diagnostic"]["status"])
+        self.assertIn("xvfb_kill", summary["cleanup_failures"])
+        self.assertLessEqual((bundle / "receipt-summary.json").stat().st_size, self.hosted.JSON_LIMIT)
+
+    def test_summarize_native_receipt_for_upload_rejects_unknown_or_malformed_failure_stream_shapes(self):
+        receipt = self.actual_smoke_receipt()
         broken = json.loads(json.dumps(receipt))
         broken["cleanup_failures"] = ["worker_wait"]
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.summarize_native_receipt_for_upload(broken)
         broken = json.loads(json.dumps(receipt))
         del broken["io"]["worker_stdout"]["text"]
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+        broken = json.loads(json.dumps(receipt))
+        broken["io"]["mystery"] = {"text": "oops"}
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.summarize_native_receipt_for_upload(broken)
 

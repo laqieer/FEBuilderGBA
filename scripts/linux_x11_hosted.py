@@ -416,9 +416,12 @@ def _parse_instant(value):
     if not isinstance(value, str):
         raise HostedWorkflowError("Grant comment time window was malformed")
     try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(timezone.utc)
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as error:
         raise HostedWorkflowError("Grant comment time window was malformed") from error
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise HostedWorkflowError("Grant comment time window was malformed")
+    return parsed.astimezone(timezone.utc)
 
 
 def _grant_comment_timestamps(comment):
@@ -530,6 +533,20 @@ def _sanitize_failure_diagnostic(diagnostic):
     return {"status": "failed", "failure": failure}
 
 
+def _sanitize_diagnostic(diagnostic):
+    if not isinstance(diagnostic, dict):
+        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+    status = diagnostic.get("status")
+    if status == "passed":
+        try:
+            return native_smoke.validate_pass_report(diagnostic)
+        except ValueError as error:
+            raise HostedWorkflowError(str(error)) from error
+    if status == "failed":
+        return _sanitize_failure_diagnostic(diagnostic)
+    raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
+
+
 def _sanitize_cleanup_failures(cleanup_failures):
     if cleanup_failures is None:
         return None
@@ -597,11 +614,27 @@ def _sanitize_stream_entry(name, entry):
     }
 
 
+def _sanitize_io_entries(io_entries, *, require_all):
+    if not isinstance(io_entries, dict):
+        raise HostedWorkflowError("Native receipt io payload was malformed")
+    names = ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr")
+    extra = set(io_entries) - set(names)
+    if extra:
+        raise HostedWorkflowError("Native receipt io payload was malformed")
+    if require_all and set(io_entries) != set(names):
+        raise HostedWorkflowError("Native receipt io payload was malformed")
+    sanitized = {}
+    for name in names:
+        if name in io_entries:
+            sanitized[name] = _sanitize_stream_entry(name, io_entries[name])
+    return sanitized
+
+
 def summarize_native_receipt_for_upload(receipt):
     if not isinstance(receipt, dict):
         raise HostedWorkflowError("Native receipt payload was malformed")
     status = receipt.get("status")
-    if not isinstance(status, str):
+    if status not in {"passed", "failed"}:
         raise HostedWorkflowError("Native receipt payload was malformed")
     summary = {
         "status": status,
@@ -613,11 +646,15 @@ def summarize_native_receipt_for_upload(receipt):
         "capture_failure": receipt.get("capture_failure"),
         "deadline_exceeded": receipt.get("deadline_exceeded", False),
         "sources": receipt.get("sources"),
-        "supervisor": _sanitize_identity(receipt.get("supervisor", {}), required=("pid", "start_ticks")),
         "worker_exit_code": receipt.get("worker_exit_code"),
         "xvfb_observed_exit_code": receipt.get("xvfb_observed_exit_code"),
         "xvfb_exit_code": receipt.get("xvfb_exit_code"),
     }
+    supervisor = receipt.get("supervisor")
+    if supervisor is not None:
+        summary["supervisor"] = _sanitize_identity(supervisor, required=("pid", "start_ticks"))
+    elif status == "passed":
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
     cleanup_failures = _sanitize_cleanup_failures(receipt.get("cleanup_failures"))
     if cleanup_failures:
         summary["cleanup_failures"] = cleanup_failures
@@ -631,20 +668,8 @@ def summarize_native_receipt_for_upload(receipt):
         summary["xvfb"] = sanitized_xvfb
     diagnostic = receipt.get("diagnostic")
     if diagnostic is not None:
-        if status == "passed":
-            try:
-                summary["diagnostic"] = native_smoke.validate_pass_report(diagnostic)
-            except ValueError as error:
-                raise HostedWorkflowError(str(error)) from error
-        else:
-            summary["diagnostic"] = _sanitize_failure_diagnostic(diagnostic)
-    io_entries = receipt.get("io")
-    if not isinstance(io_entries, dict):
-        raise HostedWorkflowError("Native receipt io payload was malformed")
-    summary["io"] = {
-        name: _sanitize_stream_entry(name, io_entries.get(name))
-        for name in ("displayfd", "xvfb_stderr", "worker_stdout", "worker_stderr")
-    }
+        summary["diagnostic"] = _sanitize_diagnostic(diagnostic)
+    summary["io"] = _sanitize_io_entries(receipt.get("io"), require_all=(status == "passed"))
     return summary
 
 

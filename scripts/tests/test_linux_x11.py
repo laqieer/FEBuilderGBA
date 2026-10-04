@@ -1288,6 +1288,36 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         self.assertTrue(receipt["deadline_exceeded"])
         self.assertCountEqual(self.pipes.closed, [10, 11, 12, 20, 21])
 
+    def test_cleanup_wait_budget_uses_exact_two_shared_seconds_after_work_boundary(self):
+        self.prepare_supervisor()
+        original_wait_for_worker = self.smoke.wait_for_worker
+        original_worker_wait = self.worker.wait
+        original_server_wait = self.server.wait
+
+        def finish_at_boundary(worker, pump, deadline):
+            output, errors = original_wait_for_worker(worker, pump, deadline)
+            self.pipes.now = 18.0
+            return output, errors
+
+        def timed_worker_wait(timeout):
+            self.pipes.now += timeout
+            return original_worker_wait(timeout)
+
+        def timed_server_wait(timeout):
+            self.pipes.now += timeout
+            return original_server_wait(timeout)
+
+        self.worker.returncode = 0
+        self.worker.wait = timed_worker_wait
+        self.server.wait = timed_server_wait
+        with patch.object(self.smoke, "wait_for_worker", side_effect=finish_at_boundary):
+            code, receipt = self.supervise()
+        self.assertEqual(code, 0)
+        self.assertEqual(self.worker.waits, [1])
+        self.assertEqual(self.server.waits, [1])
+        self.assertAlmostEqual(20.0, receipt["elapsed_seconds"])
+        self.assertEqual(20.0, self.pipes.now)
+
 
 if __name__ == "__main__":
     unittest.main()
