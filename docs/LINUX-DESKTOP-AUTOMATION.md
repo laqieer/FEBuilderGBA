@@ -215,7 +215,14 @@ sanitized `receipt-summary.json`) and uploads that bundle under `always()`. The
 summary keeps typed worker/supervisor/Xvfb identity, timeout, cleanup, and
 source-hash facts while stripping raw `worker_stderr`, stream text, Xauthority
 arguments, private cookie material, environment dumps, binaries, and whole
-directories. The raw native `receipt.json` is never uploaded.
+directories. For a passed receipt, public Xvfb command evidence is admitted only
+when the helper has reviewed `preflight.json`: it rebinds the exported executable
+path to the admitted hosted tool path, and `summarize-receipt` therefore needs
+`--preflight` for a passed public summary. Without admitted preflight evidence,
+passed summary publication fails closed. Failed summaries remain non-admitting:
+if Xvfb command evidence is present, only basename-safe command proof is
+published rather than the observed absolute path. The raw native `receipt.json`
+is never uploaded.
 
 ## Separately gated current metadata
 
