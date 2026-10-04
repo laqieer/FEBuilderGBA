@@ -12,9 +12,10 @@
     This project is INTENTIONALLY NOT part of FEBuilderGBA.sln. `check.yml` builds the
     whole solution on a windows-latest runner that does NOT have the `ios` .NET workload
     (and iOS builds require macOS + Xcode), so including this project in the .sln would
-    break the required `build` check. Build it standalone on macOS:
+    break the required `build` check. For Xcode 26.6 and the matching .NET SDK
+    and iOS workload set, follow docs/IOS.md or FEBuilderGBA.iOS/README.md,
+    then build it standalone on macOS:
 
-        dotnet workload install ios
         dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
 
     The `-p:EnableIosTarget=true` flag is REQUIRED as a GLOBAL property (mirrors the
