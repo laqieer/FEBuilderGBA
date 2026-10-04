@@ -152,7 +152,7 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
     def test_contract_job_gates_parallel_dotnet_jobs(self) -> None:
         contract_steps = dict(named_steps(self.jobs["workflow-contract"]))
         self.assertEqual(
-            "python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v",
+            "python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract scripts.tests.test_ios_toolchain_contract -v",
             run_command(contract_steps["Validate fail-closed .NET workflow steps"]),
         )
         self.assertRegex(self.jobs["build"], r"(?m)^    needs: workflow-contract$")
