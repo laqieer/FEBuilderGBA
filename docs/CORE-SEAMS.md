@@ -20,6 +20,8 @@ identify an installed engine. `MagicCSACore` forwards these distinct outputs
 to the WinForms cache and Avalonia consumers. WinForms retains its existing
 first-allocation prompt; `MagicListExpandCore` is only a relocator of allocated
 tables and rejects an unallocated CSA target before either table is written.
+Both Core magic import APIs and `MagicEffectRendererCore` still require an
+allocated CSA table; engine detection alone does not authorize those operations.
 
 ## #2034 Deterministic font-library builder
 

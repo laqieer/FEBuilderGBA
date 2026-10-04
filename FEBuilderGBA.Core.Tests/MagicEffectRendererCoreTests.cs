@@ -312,6 +312,31 @@ namespace FEBuilderGBA.Core.Tests
         // RenderMagicFrame
         // ---------------------------------------------------------------
 
+        [Fact]
+        public void RenderMagicFrame_UnallocatedTable_ReturnsNullBeforeReadingFrame()
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeFe8uRomWithMagic();
+                Array.Clear(rom.Data, 0x200010, 4);
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                byte[] before = (byte[])rom.Data.Clone();
+                int length = rom.Data.Length;
+
+                var image = MagicEffectRendererCore.RenderMagicFrame(
+                    rom, 0x400u, 0u, 0u, 0u, out string log);
+
+                Assert.Null(image);
+                Assert.Contains("allocated", log, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
         /// <summary>
         /// No magic system patch → RenderMagicFrame returns null.
         /// </summary>
