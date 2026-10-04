@@ -8,7 +8,7 @@ namespace FEBuilderGBA.Avalonia.Services
     /// <summary>
     /// Centralized icon loaders for AddressListControl.SetItemsWithIcons().
     /// Each method returns a Bitmap? for a given list item index.
-    /// IDs are extracted from item text via U.atoh() to match WinForms DrawXxxAndText behavior.
+    /// IDs are resolved from row identity, ROM fields, or display prefixes as appropriate.
     /// </summary>
     public static class ListIconLoaders
     {
@@ -418,8 +418,8 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>
-        /// Load move icon by parsing the list item text as a move icon index.
-        /// Move icon IDs are 1-based; the loader handles the conversion.
+        /// Load move icon from the entry's stable zero-based row tag.
+        /// The preview helper accepts the corresponding one-based move icon ID.
         /// For ImageUnitMoveIcon view.
         /// </summary>
         public static Bitmap? MoveIconLoader(List<AddrResult> items, int index)
@@ -427,9 +427,7 @@ namespace FEBuilderGBA.Avalonia.Services
             if (index < 0 || index >= items.Count) return null;
             try
             {
-                uint iconIndex = U.atoh(items[index].name);
-                // Move icon LoadMoveIcon expects 1-based ID and handles subtraction internally
-                // But list items are 0-based indices, so add 1
+                uint iconIndex = items[index].tag;
                 using var img = PreviewIconHelper.LoadMoveIcon(iconIndex + 1);
                 return ImageConversionHelper.ToAvaloniaBitmap(img);
             }

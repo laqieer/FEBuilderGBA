@@ -24,7 +24,7 @@ jobs:
         python-version: '3.12'
 
     - name: Validate fail-closed .NET workflow steps
-      run: python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract -v
+      run: python -m unittest scripts.tests.test_ci_core_test_watchdog scripts.tests.test_crossplatform_workflow scripts.tests.test_build_warning_contract scripts.tests.test_ios_toolchain_contract -v
 
   build:
     name: build (${{ matrix.check_name }})
