@@ -35,6 +35,10 @@ def assert_ios_toolchain(workflow: str, job: str) -> None:
     assert {"Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"} <= steps.keys(), (
         "Required toolchain step is missing"
     )
+    for name in ("Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"):
+        assert not re.search(r"(?m)^        (?:if|continue-on-error)\s*:", steps[name]), (
+            f"Required toolchain step must be unconditional: {name}"
+        )
     select = steps["Select Xcode 26.6"]
     assert re.search(
         rf"(?m)^          sudo xcode-select --switch {re.escape(XCODE_PATH)}$", select
@@ -79,6 +83,20 @@ class IosToolchainContractTests(unittest.TestCase):
                     self.assertIn(before, workflow)
                     with self.assertRaises(AssertionError):
                         assert_ios_toolchain(workflow.replace(before, after, 1), job)
+
+    def test_disabled_toolchain_steps_are_rejected(self) -> None:
+        for path, job in WORKFLOWS:
+            workflow = path.read_text(encoding="utf-8")
+            block = all_job_blocks(workflow)[job]
+            for step in ("Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"):
+                before = f"      - name: {step}\n"
+                self.assertIn(before, block)
+                for metadata in ("if: false", "continue-on-error: true"):
+                    with self.subTest(workflow=path.name, step=step, metadata=metadata):
+                        changed_block = block.replace(before, before + f"        {metadata}\n", 1)
+                        changed = workflow.replace(block, changed_block, 1)
+                        with self.assertRaises(AssertionError):
+                            assert_ios_toolchain(changed, job)
 
 
 if __name__ == "__main__":
