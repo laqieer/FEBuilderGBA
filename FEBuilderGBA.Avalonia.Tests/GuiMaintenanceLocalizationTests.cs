@@ -13,6 +13,42 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public class HostedEditorLocalizationTests
 {
     [AvaloniaTheory]
+    [InlineData("Item Editor")]
+    [InlineData("Unit Editor")]
+    [InlineData("Class Editor")]
+    [InlineData("Data Address Editor")]
+    public void Translated_editor_desktop_title_retains_descriptor_key(string key)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+        IEmbeddableEditor editor = key switch
+        {
+            "Item Editor" => new ItemEditorView(),
+            "Unit Editor" => new UnitEditorView(),
+            "Class Editor" => new ClassEditorView(),
+            "Data Address Editor" => new DumpStructSelectDialogView(),
+            _ => throw new ArgumentOutOfRangeException(nameof(key))
+        };
+        var host = new EditorHostWindow(editor);
+        try
+        {
+            host.Show();
+            foreach (string language in new[] { "zh", "en", "zh", "en" })
+            {
+                state.ApplyLanguage(language);
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(key, editor.TitleKey);
+                Assert.Equal(key, editor.Descriptor.Title);
+                Assert.Equal(R._(key), editor.ViewTitle);
+                Assert.Equal(R._(key), host.Title);
+                Assert.Same(editor, host.Content);
+                if (language == "zh") Assert.NotEqual(key, host.Title);
+            }
+        }
+        finally { host.Close(); }
+    }
+
+    [AvaloniaTheory]
     [InlineData(false)]
     [InlineData(true)]
     public void Desktop_modal_caption_round_trip_dispatches_and_unsubscribes(bool numeric)
@@ -331,6 +367,64 @@ public class MainWindowMaintenanceLocalizationTests
 [Collection("WindowManagerSerial")]
 public class SingleViewTitleLocalizationTests
 {
+    [AvaloniaTheory]
+    [InlineData("Item Editor")]
+    [InlineData("Unit Editor")]
+    [InlineData("Class Editor")]
+    [InlineData("Data Address Editor")]
+    public void Translated_editor_single_view_title_retains_descriptor_key(string key)
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+        var previousService = WindowManager.Instance.Service;
+        var navigation = new AndroidNavigationService();
+        Window? window = null;
+        try
+        {
+            WindowManager.Instance.SetService(navigation);
+            var shell = new MainView();
+            window = new Window { Content = shell };
+            window.Show();
+            IEmbeddableEditor OpenEditor() => key switch
+            {
+                "Item Editor" => navigation.Open<ItemEditorView>(),
+                "Unit Editor" => navigation.Open<UnitEditorView>(),
+                "Class Editor" => navigation.Open<ClassEditorView>(),
+                "Data Address Editor" => navigation.Open<DumpStructSelectDialogView>(),
+                _ => throw new ArgumentOutOfRangeException(nameof(key))
+            };
+            var editor = OpenEditor();
+            var title = shell.FindControl<TextBlock>("TitleText")!;
+            int stackChanges = 0;
+            navigation.StackChanged += () => stackChanges++;
+            foreach (string language in new[] { "zh", "en", "zh", "en" })
+            {
+                state.ApplyLanguage(language);
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(key, editor.TitleKey);
+                Assert.Equal(key, editor.Descriptor.Title);
+                Assert.Equal(R._(key), editor.ViewTitle);
+                Assert.Equal(R._(key), title.Text);
+                Assert.Equal(editor.ViewTitle, navigation.CurrentTitle);
+                Assert.Same(editor, navigation.CurrentContent);
+                Assert.True(navigation.CanGoBack);
+                Assert.Equal(0, stackChanges);
+                if (language == "zh") Assert.NotEqual(key, title.Text);
+            }
+            Assert.Same(editor, OpenEditor());
+            Assert.True(navigation.GoBack());
+            Assert.False(navigation.CanGoBack);
+            Assert.Null(navigation.CurrentTitle);
+            Assert.Equal("FEBuilderGBA", title.Text);
+        }
+        finally
+        {
+            navigation.CloseAll();
+            window?.Close();
+            WindowManager.Instance.SetService(previousService);
+        }
+    }
+
     [AvaloniaFact]
     public void Real_missing_recent_file_message_retains_error_key_across_language_change()
     {
@@ -397,11 +491,13 @@ public class SingleViewTitleLocalizationTests
             Dispatcher.UIThread.RunJobs();
             var content = Assert.IsAssignableFrom<IEmbeddableEditor>(navigation.CurrentContent);
             var title = shell.FindControl<TextBlock>("TitleText")!;
+            Assert.Null(content.TitleKey);
             Assert.Equal(literal, title.Text);
             state.ApplyLanguage("en");
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(literal, title.Text);
             Assert.Equal(literal, content.Descriptor.Title);
+            Assert.Null(content.TitleKey);
             Assert.True(navigation.GoBack());
             await modal;
         }
@@ -436,12 +532,14 @@ public class SingleViewTitleLocalizationTests
             Dispatcher.UIThread.RunJobs();
             var content = Assert.IsAssignableFrom<IEmbeddableEditor>(navigation.CurrentContent);
             var title = shell.FindControl<TextBlock>("TitleText")!;
+            Assert.Equal(key, content.TitleKey);
             Assert.NotEqual(key, R._(key));
             Assert.Equal(R._(key), title.Text);
             state.ApplyLanguage("en");
             Dispatcher.UIThread.RunJobs();
             Assert.Equal(key, title.Text);
             Assert.Equal(key, content.Descriptor.Title);
+            Assert.Equal(key, content.TitleKey);
             Assert.Equal(key, navigation.CurrentTitle);
             Assert.Same(content, navigation.CurrentContent);
             if (numeric)

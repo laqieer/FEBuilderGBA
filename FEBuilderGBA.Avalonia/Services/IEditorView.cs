@@ -9,7 +9,7 @@ namespace FEBuilderGBA.Avalonia.Services
     {
         string ViewTitle { get; }
         /// <summary>Invariant catalog key for title chrome; null preserves a literal title.</summary>
-        string? TitleKey => ViewTitle;
+        string? TitleKey => this is IEmbeddableEditor editor ? editor.Descriptor.Title : ViewTitle;
         bool IsLoaded { get; }
         void NavigateTo(uint address);
 
