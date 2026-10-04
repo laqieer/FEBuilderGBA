@@ -779,10 +779,77 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertIn("xvfb_kill", summary["cleanup_failures"])
         self.assertLessEqual((bundle / "receipt-summary.json").stat().st_size, self.hosted.JSON_LIMIT)
 
+    def test_summarize_native_receipt_for_upload_accepts_cleanup_failure_subset_at_limit(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("k" * 1000)),
+        )
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual("k" * 1000, summary["cleanup_failures"]["xvfb_kill"])
+
+    def test_summarize_native_receipt_for_upload_rejects_unknown_or_oversized_cleanup_failure_entries(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("known failure")),
+        )
+        broken = json.loads(json.dumps(receipt))
+        broken["cleanup_failures"]["authority_cookie"] = "should never publish"
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+        broken = json.loads(json.dumps(receipt))
+        broken["cleanup_failures"]["xvfb_kill"] = "k" * 1001
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+        broken = json.loads(json.dumps(receipt))
+        broken["cleanup_failures"]["xvfb_kill"] = 7
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+
+    def test_stage_artifacts_rejects_unknown_cleanup_failure_key_without_publishing_summary(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-cleanup-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        old_cwd = Path.cwd()
+        os.chdir(root)
+        self.addCleanup(lambda: os.chdir(old_cwd))
+        bundle = root / "upload"
+        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        grant = {"grant": {"receipt_stem": "receipt-stem"}}
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+        grant_path.write_text(json.dumps(grant), encoding="utf-8")
+        receipt_dir = root / "linux-x11-smoke-receipt-stem"
+        receipt_dir.mkdir()
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("known failure")),
+        )
+        receipt["cleanup_failures"]["authority_cookie"] = "secret canary"
+        with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.main([
+                "stage-artifacts",
+                "--preflight", str(preflight_path),
+                "--grant", str(grant_path),
+                "--output-dir", str(bundle),
+            ])
+        summary_path = bundle / "receipt-summary.json"
+        self.assertFalse(summary_path.exists())
+        if bundle.exists():
+            bundle_text = "".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in bundle.glob("*.json")
+            )
+            self.assertNotIn("secret canary", bundle_text)
+
     def test_summarize_native_receipt_for_upload_rejects_unknown_or_malformed_failure_stream_shapes(self):
         receipt = self.actual_smoke_receipt()
         broken = json.loads(json.dumps(receipt))
         broken["cleanup_failures"] = ["worker_wait"]
+        with self.assertRaises(self.hosted.HostedWorkflowError):
+            self.hosted.summarize_native_receipt_for_upload(broken)
+        broken = json.loads(json.dumps(receipt))
+        broken["sources"]["authority_cookie"] = "0" * 64
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.summarize_native_receipt_for_upload(broken)
         broken = json.loads(json.dumps(receipt))

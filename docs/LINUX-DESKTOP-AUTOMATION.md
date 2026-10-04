@@ -229,7 +229,8 @@ The Windows entry accepts only `-PacketPath` for an independently reviewed,
 data-only JSON object. Its five exact keys are `schema`, `expectedHead`,
 `sourceSha256`, `historicalSha256`, and `receiptStem`. No executable, command,
 code, callback, environment or observation-path overrides are accepted. The
-packet pins all ten PR source paths and the two unchanged historical receipts.
+packet pins the historical fixed ten-input profile and the two unchanged
+historical receipts.
 The supervisor invokes the tracked Python file with sixteen literal argument
 elements and cleared Windows/Linux environments; no inline `-c` payload, private
 wrapper or generated helper is used.

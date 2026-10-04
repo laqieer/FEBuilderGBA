@@ -1295,6 +1295,7 @@ class SmokeDiagnosticsTests(unittest.TestCase):
         original_server_wait = self.server.wait
 
         def finish_at_boundary(worker, pump, deadline):
+            self.assertEqual(18.0, deadline)
             output, errors = original_wait_for_worker(worker, pump, deadline)
             self.pipes.now = 18.0
             return output, errors

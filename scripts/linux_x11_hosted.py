@@ -37,6 +37,7 @@ HTTP_PAGES = 5
 LOOKUP_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]{0,79}\Z")
 RECEIPT_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,79}\Z")
 SHA_RE = re.compile(r"[0-9a-f]{40}\Z")
+SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 RUN_ID_RE = re.compile(r"[1-9][0-9]{0,19}\Z")
 RUN_ATTEMPT_RE = re.compile(r"[1-9][0-9]*\Z")
 DPKG_OWNER_RE = re.compile(r"(?P<package>[A-Za-z0-9.+-]+(?::[A-Za-z0-9.+-]+)?): (?P<path>.+)\Z")
@@ -554,9 +555,28 @@ def _sanitize_cleanup_failures(cleanup_failures):
         raise HostedWorkflowError("Native receipt cleanup evidence was malformed")
     sanitized = {}
     for key, value in cleanup_failures.items():
-        if not isinstance(key, str) or not isinstance(value, str):
+        if key not in native_smoke.CLEANUP_FAILURE_KEYS or not isinstance(value, str):
+            raise HostedWorkflowError("Native receipt cleanup evidence was malformed")
+        if len(value) > native_smoke.CLEANUP_FAILURE_TEXT_LIMIT:
             raise HostedWorkflowError("Native receipt cleanup evidence was malformed")
         sanitized[key] = value
+    return sanitized
+
+
+def _sanitize_source_hashes(sources):
+    if sources is None:
+        return None
+    if not isinstance(sources, dict):
+        raise HostedWorkflowError("Native receipt source hashes were malformed")
+    expected = tuple(NATIVE_SOURCE_PATHS)
+    if set(sources) != set(expected):
+        raise HostedWorkflowError("Native receipt source hashes were malformed")
+    sanitized = {}
+    for name in expected:
+        value = sources.get(name)
+        if not isinstance(value, str) or SHA256_RE.fullmatch(value) is None:
+            raise HostedWorkflowError("Native receipt source hashes were malformed")
+        sanitized[name] = value
     return sanitized
 
 
@@ -645,7 +665,7 @@ def summarize_native_receipt_for_upload(receipt):
         "failure": receipt.get("failure"),
         "capture_failure": receipt.get("capture_failure"),
         "deadline_exceeded": receipt.get("deadline_exceeded", False),
-        "sources": receipt.get("sources"),
+        "sources": _sanitize_source_hashes(receipt.get("sources")),
         "worker_exit_code": receipt.get("worker_exit_code"),
         "xvfb_observed_exit_code": receipt.get("xvfb_observed_exit_code"),
         "xvfb_exit_code": receipt.get("xvfb_exit_code"),
