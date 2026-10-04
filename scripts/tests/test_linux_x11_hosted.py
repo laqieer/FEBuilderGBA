@@ -858,7 +858,6 @@ class HostedWorkflowContracts(unittest.TestCase):
 
     def test_summary_and_stage_project_only_known_safe_xvfb_arguments(self):
         receipt = self.pass_receipt()
-        receipt["worker"]["command"] += ["--token=secret-worker"]
         receipt["supervisor"] = receipt["supervisor"] | {"command": ["/bin/secret-supervisor"]}
         summary = self.hosted.summarize_native_receipt_for_upload(receipt, self.valid_preflight())
         self.assertEqual(self.safe_xvfb_command(), summary["xvfb"]["command"])
@@ -866,14 +865,39 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertNotIn("command", summary["worker"])
         self.assertNotIn("command", summary["supervisor"])
         self.assertNotIn("/tmp/linux-x11-smoke/authority", json.dumps(summary))
-        self.assertNotIn("--token=secret-worker", json.dumps(summary))
         staged = self.assert_stage_artifacts_summary(receipt)
         self.assertEqual(self.safe_xvfb_command(), staged["xvfb"]["command"])
         self.assertNotIn("command", staged["worker"])
         self.assertNotIn("command", staged["supervisor"])
         staged_text = json.dumps(staged)
         self.assertNotIn("/tmp/linux-x11-smoke/authority", staged_text)
-        self.assertNotIn("--token=secret-worker", staged_text)
+
+    def test_passed_public_paths_require_admitted_sources_worker_and_libx11_bindings(self):
+        preflight = self.valid_preflight()
+        cases = (
+            ("supervisor source hash", lambda receipt: receipt["sources"].__setitem__("linux_x11.py", "0" * 64)),
+            ("worker source hash", lambda receipt: receipt["diagnostic"]["sources"].__setitem__("linux_x11.py", "0" * 64)),
+            ("libx11 path", lambda receipt: receipt["diagnostic"]["libx11"].__setitem__("path", "/other/libX11.so.6")),
+            ("libx11 sha256", lambda receipt: receipt["diagnostic"]["libx11"].__setitem__("sha256", "0" * 64)),
+            ("worker command executable", lambda receipt: receipt["worker"]["command"].__setitem__(0, "/tmp/python3")),
+            ("worker command xlib path", lambda receipt: receipt["worker"]["command"].__setitem__(-1, "/other/libX11.so.6")),
+            ("worker command extra arg", lambda receipt: receipt["worker"]["command"].append("--token=secret-worker")),
+            ("worker pid mismatch", lambda receipt: receipt["diagnostic"]["worker"].__setitem__("pid", 999)),
+            ("worker start_ticks mismatch", lambda receipt: receipt["diagnostic"]["worker"].__setitem__("start_ticks", 999)),
+        )
+        for label, mutate in cases:
+            with self.subTest(label=label):
+                broken = self.pass_receipt()
+                mutate(broken)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(broken, preflight)
+                self.assert_stage_artifacts_rejects_without_publishing_summary(
+                    broken,
+                    canary_text="secret-worker",
+                    preflight=preflight,
+                )
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(broken, preflight)
 
     def test_summarize_native_receipt_for_upload_allows_missing_setup_supervisor_and_partial_failure_io(self):
         receipt = self.actual_smoke_receipt(

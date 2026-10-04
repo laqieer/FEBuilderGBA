@@ -932,60 +932,36 @@ def summarize_native_receipt_for_upload(receipt, preflight=None):
     if not isinstance(receipt, dict):
         raise HostedWorkflowError("Native receipt payload was malformed")
     status = _sanitize_receipt_status(receipt.get("status"))
+    if status == "passed":
+        summary, _ = _project_validated_pass_receipt(receipt, preflight)
+        return summary
     summary = _sanitize_summary_payload(receipt, status=status)
     admitted_xvfb_path = None if preflight is None else _bound_tool_path(preflight, "xvfb")
     supervisor = receipt.get("supervisor")
     if supervisor is not None:
         summary["supervisor"] = _sanitize_identity(supervisor, required=("pid", "start_ticks"))
-    elif status == "passed":
-        raise HostedWorkflowError("Native receipt identity payload was malformed")
     cleanup_failures = _sanitize_cleanup_failures(receipt.get("cleanup_failures"))
-    if status == "passed" and cleanup_failures is not None:
-        raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
     if cleanup_failures:
         summary["cleanup_failures"] = cleanup_failures
     worker = receipt.get("worker")
     if worker is not None:
         summary["worker"] = _sanitize_identity(worker, required=("pid", "start_ticks"))
-    elif status == "passed":
-        raise HostedWorkflowError("Native receipt identity payload was malformed")
     xvfb = receipt.get("xvfb")
     if xvfb is not None:
         sanitized_xvfb = _sanitize_identity(xvfb, required=("pid", "start_ticks"))
-        if status == "passed" and admitted_xvfb_path is None:
-            raise HostedWorkflowError("Passed native receipt requires admitted hosted Xvfb evidence")
         sanitized_xvfb["command"] = _sanitize_xvfb_command(
             xvfb.get("command"),
             admitted_executable=admitted_xvfb_path,
         )
         summary["xvfb"] = sanitized_xvfb
-    elif status == "passed":
-        raise HostedWorkflowError("Native receipt identity payload was malformed")
     diagnostic = receipt.get("diagnostic")
     if diagnostic is not None:
         summary["diagnostic"] = _sanitize_diagnostic(diagnostic)
-    elif status == "passed":
-        raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
     summary["io"] = _sanitize_io_entries(
         receipt.get("io"),
-        require_all=(status == "passed"),
-        require_pass_complete=(status == "passed"),
+        require_all=False,
+        require_pass_complete=False,
     )
-    if status == "passed":
-        if (
-                summary["timeout_seconds"] != TIMEOUT_TOTAL
-                or summary["phase"] != "validation"
-                or summary["elapsed_seconds"] > TIMEOUT_TOTAL
-                or "failure" in summary
-                or "capture_failure" in summary
-                or summary.get("deadline_exceeded")):
-            raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
-        if summary["diagnostic"].get("status") != "passed":
-            raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
-        if summary["worker_exit_code"] != 0:
-            raise HostedWorkflowError("Native receipt payload was malformed")
-        if summary["xvfb_observed_exit_code"] is not None:
-            raise HostedWorkflowError("Native receipt payload was malformed")
     return summary
 
 
@@ -1077,22 +1053,61 @@ def _validate_native_source_hashes(observed, preflight, label):
         raise HostedWorkflowError(f"{label} source hashes mismatched the reviewed source")
 
 
-def validate_native_receipt(receipt, preflight):
-    summary = summarize_native_receipt_for_upload(receipt, preflight)
-    if summary["status"] != "passed":
+def _expected_pass_worker_command(preflight):
+    return [
+        _bound_tool_path(preflight, "python3"),
+        "-B",
+        "-m",
+        "scripts.tests.linux_x11_native_smoke",
+        "--allow-native-smoke",
+        "--worker",
+        "--xlib-path",
+        _sanitize_libx11(preflight.get("tools", {}).get("libx11"))["path"],
+    ]
+
+
+def _project_validated_pass_receipt(receipt, preflight):
+    if _sanitize_receipt_status(receipt.get("status")) != "passed":
         raise HostedWorkflowError("Native receipt was not passed")
-    if summary["timeout_seconds"] != TIMEOUT_TOTAL:
-        raise HostedWorkflowError("Native receipt timeout must remain exactly 20 seconds")
-    if summary["phase"] != "validation":
-        raise HostedWorkflowError("Native receipt did not reach validation")
-    if "failure" in summary or "capture_failure" in summary or receipt.get("cleanup_failures"):
+    summary = _sanitize_summary_payload(receipt, status="passed")
+    supervisor = receipt.get("supervisor")
+    if supervisor is None:
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
+    summary["supervisor"] = _sanitize_identity(supervisor, required=("pid", "start_ticks"))
+    cleanup_failures = _sanitize_cleanup_failures(receipt.get("cleanup_failures"))
+    if cleanup_failures is not None:
         raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
-    if summary.get("deadline_exceeded"):
-        raise HostedWorkflowError("Native receipt exceeded the reviewed outer deadline")
-    if summary["elapsed_seconds"] > TIMEOUT_TOTAL:
-        raise HostedWorkflowError("Native receipt elapsed time exceeded the reviewed outer deadline")
-    _validate_native_source_hashes(summary["sources"], preflight, "Supervisor")
+    worker = receipt.get("worker")
+    if worker is None:
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
+    summary["worker"] = _sanitize_identity(worker, required=("pid", "start_ticks"))
+    xvfb = receipt.get("xvfb")
+    if xvfb is None:
+        raise HostedWorkflowError("Native receipt identity payload was malformed")
+    admitted_xvfb_path = None if preflight is None else _bound_tool_path(preflight, "xvfb")
+    if admitted_xvfb_path is None:
+        raise HostedWorkflowError("Passed native receipt requires admitted hosted Xvfb evidence")
+    summary["xvfb"] = _sanitize_identity(xvfb, required=("pid", "start_ticks"))
+    summary["xvfb"]["command"] = _sanitize_xvfb_command(
+        xvfb.get("command"),
+        admitted_executable=admitted_xvfb_path,
+    )
     diagnostic = _sanitize_pass_diagnostic(receipt.get("diagnostic"))
+    summary["diagnostic"] = diagnostic
+    summary["io"] = _sanitize_io_entries(
+        receipt.get("io"),
+        require_all=True,
+        require_pass_complete=True,
+    )
+    if (
+            summary["timeout_seconds"] != TIMEOUT_TOTAL
+            or summary["phase"] != "validation"
+            or summary["elapsed_seconds"] > TIMEOUT_TOTAL
+            or "failure" in summary
+            or "capture_failure" in summary
+            or summary.get("deadline_exceeded")):
+        raise HostedWorkflowError("Native receipt recorded a failure-shaped cleanup or capture state")
+    _validate_native_source_hashes(summary["sources"], preflight, "Supervisor")
     _validate_native_source_hashes(diagnostic["sources"], preflight, "Worker")
     if diagnostic["worker"] != summary["worker"]:
         raise HostedWorkflowError("Worker identity mismatched the supervised child")
@@ -1100,23 +1115,15 @@ def validate_native_receipt(receipt, preflight):
         raise HostedWorkflowError("Native worker did not exit cleanly")
     if summary["xvfb_observed_exit_code"] is not None:
         raise HostedWorkflowError("Xvfb must remain live until owned cleanup")
-    expected_libx11 = {
-        key: preflight["tools"]["libx11"][key]
-        for key in ("path", "resolved_path", "sha256")
-    }
-    if diagnostic.get("libx11") != expected_libx11:
+    if diagnostic.get("libx11") != _sanitize_libx11(preflight.get("tools", {}).get("libx11")):
         raise HostedWorkflowError("Native receipt loaded an unexpected libX11 object")
-    if receipt.get("worker", {}).get("command") != [
-        preflight["tools"]["python3"]["path"],
-        "-B",
-        "-m",
-        "scripts.tests.linux_x11_native_smoke",
-        "--allow-native-smoke",
-        "--worker",
-        "--xlib-path",
-        preflight["tools"]["libx11"]["path"],
-    ]:
+    if receipt.get("worker", {}).get("command") != _expected_pass_worker_command(preflight):
         raise HostedWorkflowError("Native receipt used an unexpected worker command")
+    return summary, diagnostic
+
+
+def validate_native_receipt(receipt, preflight):
+    summary, diagnostic = _project_validated_pass_receipt(receipt, preflight)
     return {
         "schema": OPERATION,
         "preflight_digest": preflight["preflight_digest"],
