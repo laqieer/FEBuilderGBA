@@ -245,6 +245,34 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(undoBufferBefore, CoreState.Undo.UndoBuffer.Count);
         }
 
+        [Fact]
+        public void ExpandMagicLists_CompleteUnallocatedSlot_AbortsBeforeAnyWrite()
+        {
+            ROM rom = MakeRomWithCsa();
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            PlantMagicEffectRows(rom, 4);
+            WriteU32(rom, CsaPointerSlot, 0u);
+            byte[] before = (byte[])rom.Data.Clone();
+            int length = rom.Data.Length;
+            int undoCount = CoreState.Undo.UndoBuffer.Count;
+            var ud = CoreState.Undo.NewUndoData("Unallocated CSA table");
+            using (ROM.BeginUndoScope(ud))
+            {
+                var result = MagicListExpandCore.ExpandMagicLists(rom, 4, 0, ud);
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(result.Error));
+            }
+            Assert.Equal(CsaPointerSlot, MagicCSACore.GetCSASpellTablePointer(rom));
+            Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+            Assert.Equal(length, rom.Data.Length);
+            Assert.Equal(before, rom.Data);
+            Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
+            Assert.Equal(0u, rom.p32(CsaPointerSlot));
+            Assert.True(ud.list == null || ud.list.Count == 0);
+            Assert.Equal(undoCount, CoreState.Undo.UndoBuffer.Count);
+        }
+
         // ==================================================================
         // newCount(254) <= currentCount guard.
         // ==================================================================

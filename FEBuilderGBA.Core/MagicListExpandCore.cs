@@ -154,6 +154,8 @@ namespace FEBuilderGBA
             uint csaSpellTablePointer = MagicCSACore.GetCSASpellTablePointer(rom);
             if (csaSpellTablePointer == U.NOT_FOUND)
                 return Fail(R._("CSASpellTable Not Found."));
+            if (rom.p32(csaSpellTablePointer) == 0)
+                return Fail(R._("CSASpellTable is not allocated."));
 
             // --- Step 2: guard the fixed newCount against table-1's count ----
             // WF InputFormRef.ExpandsArea asserts/NOT_FOUNDs when newCount is

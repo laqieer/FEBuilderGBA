@@ -137,6 +137,92 @@ public class ImageUtilMagicCoreTests
         Assert.Equal(0x00100000u, addr);
     }
 
+    [Theory]
+    [InlineData(false, ImageUtilMagicCore.MagicSystem.FEditorAdv, 0x95D8EFu)]
+    [InlineData(true, ImageUtilMagicCore.MagicSystem.CsaCreator, 0x95d899u)]
+    public void UnallocatedCompleteSlot_DetectsInstalledEngineWithoutWrites(
+        bool csaCreator, ImageUtilMagicCore.MagicSystem expected, uint noDim)
+    {
+        var rom = csaCreator ? MakeFe8uWithSCACreatorSignature() : MakeFe8uWithFEditorSignature();
+        const uint slot = 0x00200010u;
+        Array.Clear(rom.Data, (int)slot, 4);
+        byte[] before = (byte[])rom.Data.Clone();
+        uint length = (uint)rom.Data.Length;
+
+        var system = ImageUtilMagicCore.SearchMagicSystem(rom,
+            out uint baseAddr, out uint dimAddr, out uint noDimAddr);
+        uint table = ImageUtilMagicCore.FindCSASpellTable(rom, system, out uint pointer);
+
+        Assert.Equal(expected, system);
+        Assert.Equal(0x95d780u, baseAddr);
+        Assert.Equal(0x95d7edu, dimAddr);
+        Assert.Equal(noDim, noDimAddr);
+        Assert.Equal(U.NOT_FOUND, table);
+        Assert.Equal(slot, pointer);
+        Assert.Equal(length, (uint)rom.Data.Length);
+        Assert.Equal(before, rom.Data);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void UnsafeNonzeroTarget_DoesNotExposeSlotOrEngine(bool csaCreator)
+    {
+        var rom = csaCreator ? MakeFe8uWithSCACreatorSignature() : MakeFe8uWithFEditorSignature();
+        BitConverter.GetBytes(0xDEADBEEFu).CopyTo(rom.Data, 0x00200010);
+
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(rom,
+            csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv,
+            out uint slot));
+        Assert.Equal(U.NOT_FOUND, slot);
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out uint b, out uint d, out uint n));
+        Assert.Equal(U.NOT_FOUND, b);
+        Assert.Equal(U.NOT_FOUND, d);
+        Assert.Equal(U.NOT_FOUND, n);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void SlotAtEndOfRom_RequiresAllFourBytes(bool csaCreator, bool complete)
+    {
+        var source = csaCreator ? MakeFe8uWithSCACreatorSignature() : MakeFe8uWithFEditorSignature();
+        const int signature = 0x1000000;
+        const uint slot = signature + 16;
+        var data = new byte[signature + (complete ? 20 : 19)];
+        Array.Copy(source.Data, data, data.Length);
+        Array.Clear(data, 0x200000, 20);
+        Array.Copy(source.Data, 0x200000, data, signature, 16);
+        var rom = new ROM();
+        rom.LoadLow("boundary.gba", data, "BE8E01");
+
+        uint table = ImageUtilMagicCore.FindCSASpellTable(rom,
+            csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv,
+            out uint pointer);
+        Assert.Equal(U.NOT_FOUND, table);
+        Assert.Equal(complete ? slot : U.NOT_FOUND, pointer);
+        var kind = ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _);
+        Assert.Equal(complete
+            ? (csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv)
+            : ImageUtilMagicCore.MagicSystem.No, kind);
+    }
+
+    [Fact]
+    public void FE8SignaturesOnFE7Rom_DoNotDetect()
+    {
+        var source = MakeFe8uWithFEditorSignature();
+        var rom = new ROM();
+        rom.LoadLow("wrong-version.gba", (byte[])source.Data.Clone(), "AE7E01");
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(rom,
+            ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(U.NOT_FOUND, pointer);
+    }
+
     // ---------------------------------------------------------------
     // GetSpellDataCount
     // ---------------------------------------------------------------

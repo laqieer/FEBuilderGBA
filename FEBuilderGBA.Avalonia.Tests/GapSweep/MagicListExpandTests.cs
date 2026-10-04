@@ -113,6 +113,14 @@ public class MagicListExpandTests : IDisposable
         Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FEditorVm_InstalledUnallocated_RejectsWithoutWrites(bool fEditor)
+    {
+        AssertUnallocatedVmRejects(fEditor, false);
+    }
+
     // ==================================================================
     // CSA Creator VM — same delegation + abort behavior.
     // ==================================================================
@@ -160,6 +168,41 @@ public class MagicListExpandTests : IDisposable
         Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void CsaVm_InstalledUnallocated_RejectsWithoutWrites(bool fEditor)
+    {
+        AssertUnallocatedVmRejects(fEditor, true);
+    }
+
+    static void AssertUnallocatedVmRejects(bool fEditor, bool csaVm)
+    {
+        ROM rom = MakeRomWithCsa(fEditor);
+        WriteU32(rom, CsaPointerSlot, 0u);
+        PlantMagicEffectRows(rom, 4);
+        CoreState.ROM = rom;
+        CoreState.Undo = new Undo();
+        byte[] before = (byte[])rom.Data.Clone();
+        int length = rom.Data.Length;
+        int undoCount = CoreState.Undo.UndoBuffer.Count;
+        var ud = CoreState.Undo.NewUndoData("Unallocated table VM");
+        string err;
+        using (ROM.BeginUndoScope(ud))
+        {
+            err = csaVm
+                ? new ImageMagicCSACreatorViewModel().ExpandMagicLists(ud)
+                : new ImageMagicFEditorViewModel().ExpandMagicLists(ud);
+        }
+        Assert.False(string.IsNullOrEmpty(err));
+        Assert.Equal(before, rom.Data);
+        Assert.Equal(length, rom.Data.Length);
+        Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
+        Assert.Equal(0u, rom.p32(CsaPointerSlot));
+        Assert.True(ud.list == null || ud.list.Count == 0);
+        Assert.Equal(undoCount, CoreState.Undo.UndoBuffer.Count);
+    }
+
     // ==================================================================
     // Helpers
     // ==================================================================
@@ -188,15 +231,21 @@ public class MagicListExpandTests : IDisposable
         return err;
     }
 
-    static ROM MakeRomWithCsa()
+    static ROM MakeRomWithCsa(bool fEditor = false)
     {
         var rom = new ROM();
         rom.LoadLow("synth.gba", new byte[0x1000000], "BE8E01");
 
         byte[] engineSig = { 0x01,0x00,0x00,0x00,0x90,0xD7,0x95,0x08,0x03,0x00,0x00,0x00,0xD9,0xD8,0x95,0x08 };
+        if (fEditor) { engineSig[12] = 0x39; engineSig[13] = 0xD9; }
         Buffer.BlockCopy(engineSig, 0, rom.Data, 0x95d780, engineSig.Length);
 
         byte[] tableSig = { 0x1C,0x58,0x05,0x08,0x00,0x01,0x00,0x80,0xED,0xD7,0x95,0x08,0x99,0xD8,0x95,0x08 };
+        if (fEditor)
+        {
+            tableSig = new byte[] { 0x01,0xB4,0x7D,0xE7,0x34,0xFF,0x03,0x02,
+                0x80,0xD7,0x95,0x08,0x1A,0xE1,0x03,0x02 };
+        }
         Buffer.BlockCopy(tableSig, 0, rom.Data, (int)TableSigAddr, tableSig.Length);
         WriteU32(rom, CsaPointerSlot, U.toPointer(CsaTableBase));
 

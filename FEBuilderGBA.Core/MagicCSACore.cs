@@ -103,6 +103,8 @@ namespace FEBuilderGBA
         /// <see cref="U.NOT_FOUND"/>. The returned <c>csaSpellTable</c> and
         /// <c>csaSpellTablePointer</c> reflect the CSA spell-table location
         /// (the table itself, and the pointer slot containing the table addr).
+        /// An installed engine with a complete zero-target slot retains that
+        /// slot while the not-yet-allocated table is <see cref="U.NOT_FOUND"/>.
         ///
         /// <para>
         /// Delegates to <see cref="ImageUtilMagicCore.SearchMagicSystem"/>
