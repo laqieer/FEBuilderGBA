@@ -18,6 +18,10 @@ WORKFLOWS = (
 SDK_VERSION = "10.0.401"
 WORKLOAD_COMMAND = f"dotnet workload install ios --version {SDK_VERSION}"
 XCODE_PATH = "/Applications/Xcode_26.6.app/Contents/Developer"
+PIN_SDK_COMMAND = (
+    f"""printf '%s\\n' '{{"sdk":{{"version":"{SDK_VERSION}","rollForward":"disable"}}}}' > global.json"""
+)
+VERIFY_SDK_COMMAND = f'test "$(dotnet --version)" = "{SDK_VERSION}"'
 
 
 def ios_steps(block: str) -> dict[str, str]:
@@ -32,10 +36,10 @@ def assert_ios_toolchain(workflow: str, job: str) -> None:
     block = all_job_blocks(workflow)[job]
     assert re.search(r"(?m)^    runs-on: macos-26$", block), "Expected macos-26 runner"
     steps = ios_steps(block)
-    assert {"Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"} <= steps.keys(), (
+    assert {"Select Xcode 26.6", "Setup .NET 10.0", "Pin selected .NET SDK", "Install ios workload"} <= steps.keys(), (
         "Required toolchain step is missing"
     )
-    for name in ("Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"):
+    for name in ("Select Xcode 26.6", "Setup .NET 10.0", "Pin selected .NET SDK", "Install ios workload"):
         assert not re.search(r"(?m)^        (?:if|continue-on-error)\s*:", steps[name]), (
             f"Required toolchain step must be unconditional: {name}"
         )
@@ -47,14 +51,17 @@ def assert_ios_toolchain(workflow: str, job: str) -> None:
     assert re.search(
         rf"(?m)^          dotnet-version: '{re.escape(SDK_VERSION)}'$", sdk
     ), "SDK must be pinned to the workload-set's release"
+    pin = steps["Pin selected .NET SDK"]
+    assert re.search(rf"(?m)^          {re.escape(PIN_SDK_COMMAND)}$", pin), "SDK selection must be exact"
+    assert re.search(rf"(?m)^          {re.escape(VERIFY_SDK_COMMAND)}$", pin), "Selected SDK must be verified"
     install = steps["Install ios workload"]
     assert re.search(
         rf"(?m)^        run: {re.escape(WORKLOAD_COMMAND)}$", install
     ), "iOS workload set must be pinned"
     names = list(steps)
     assert names.index("Select Xcode 26.6") < names.index("Setup .NET 10.0") < names.index(
-        "Install ios workload"
-    ), "Select Xcode and SDK before workload installation"
+        "Pin selected .NET SDK"
+    ) < names.index("Install ios workload"), "Select Xcode and pin the SDK before workload installation"
 
 
 class IosToolchainContractTests(unittest.TestCase):
@@ -88,7 +95,7 @@ class IosToolchainContractTests(unittest.TestCase):
         for path, job in WORKFLOWS:
             workflow = path.read_text(encoding="utf-8")
             block = all_job_blocks(workflow)[job]
-            for step in ("Select Xcode 26.6", "Setup .NET 10.0", "Install ios workload"):
+            for step in ("Select Xcode 26.6", "Setup .NET 10.0", "Pin selected .NET SDK", "Install ios workload"):
                 before = f"      - name: {step}\n"
                 self.assertIn(before, block)
                 for metadata in ("if: false", "continue-on-error: true"):
@@ -97,6 +104,23 @@ class IosToolchainContractTests(unittest.TestCase):
                         changed = workflow.replace(block, changed_block, 1)
                         with self.assertRaises(AssertionError):
                             assert_ios_toolchain(changed, job)
+
+    def test_sdk_selection_drift_is_rejected(self) -> None:
+        for path, job in WORKFLOWS:
+            workflow = path.read_text(encoding="utf-8")
+            block = all_job_blocks(workflow)[job]
+            mutations = {
+                "missing pin": (f"          {PIN_SDK_COMMAND}\n", ""),
+                "wrong version": (PIN_SDK_COMMAND, PIN_SDK_COMMAND.replace(SDK_VERSION, "10.0.402")),
+                "allow roll forward": (PIN_SDK_COMMAND, PIN_SDK_COMMAND.replace("disable", "latestFeature")),
+                "missing verification": (f"          {VERIFY_SDK_COMMAND}\n", ""),
+            }
+            for name, (before, after) in mutations.items():
+                with self.subTest(workflow=path.name, mutation=name):
+                    self.assertIn(before, block)
+                    changed = workflow.replace(block, block.replace(before, after, 1), 1)
+                    with self.assertRaises(AssertionError):
+                        assert_ios_toolchain(changed, job)
 
 
 if __name__ == "__main__":

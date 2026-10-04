@@ -308,6 +308,11 @@ jobs:
         with:
           dotnet-version: '10.0.401'
 
+      - name: Pin selected .NET SDK
+        run: |
+          printf '%s\n' '{"sdk":{"version":"10.0.401","rollForward":"disable"}}' > global.json
+          test "$(dotnet --version)" = "10.0.401"
+
       - name: Install ios workload
         run: dotnet workload install ios --version 10.0.401
 

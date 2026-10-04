@@ -104,6 +104,9 @@ mechanism as android's `EnableAndroidTarget`).
   mandatory verify-assets list) uses the same pinned toolchain and attaches
   `FEBuilderGBA-ios-unsigned-ipa.zip` to a `ver_*` release when the build succeeds, and
   degrades to "release without iOS" when it doesn't.
+Both jobs create a temporary, exact-version `global.json` after checkout and verify
+`dotnet --version` before installing the workload; installing an SDK alone does not
+prevent a newer preinstalled runner SDK from being selected.
 
 ### Unsigned `.ipa` (this fork's CI)
 
