@@ -23,6 +23,7 @@ REPOSITORY = "laqieer/FEBuilderGBA"
 ISSUE_NUMBER = 2160
 CALLER_WORKFLOW_PATH = ".github/workflows/e2e-norom.yml"
 HOSTED_WORKFLOW_PATH = ".github/workflows/linux-x11-hosted.yml"
+E2E_REUSABLE_WORKFLOW_PATH = ".github/workflows/e2e-run.yml"
 GRANT_SCHEMA = "issue2160-native-grant-v1"
 OPERATION = "issue2160-linux-x11-hosted-v1"
 PREPARE_ROUTE = "issue2160-prepare"
@@ -272,6 +273,29 @@ def _referenced_workflow(item):
     }
 
 
+def _validate_referenced_workflows(referenced, *, expected_head_sha, expected_ref):
+    if not isinstance(referenced, list):
+        raise HostedWorkflowError("GitHub API run lacked referenced_workflows evidence")
+    allowed_paths = frozenset({HOSTED_WORKFLOW_PATH, E2E_REUSABLE_WORKFLOW_PATH})
+    counts = {path: 0 for path in allowed_paths}
+    hosted = None
+    for item in referenced:
+        evidence = _referenced_workflow(item)
+        workflow_path = evidence["workflow_path"]
+        if workflow_path not in allowed_paths:
+            raise HostedWorkflowError("Hosted run referenced an unexpected reusable workflow")
+        if evidence["workflow_sha"] != expected_head_sha or evidence["workflow_ref"] != expected_ref:
+            raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
+        counts[workflow_path] += 1
+        if counts[workflow_path] > 1:
+            raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
+        if workflow_path == HOSTED_WORKFLOW_PATH:
+            hosted = evidence
+    if counts[HOSTED_WORKFLOW_PATH] != 1:
+        raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
+    return hosted
+
+
 def _run_binding(environment, token, fetch_json):
     api_base = environment.get("GITHUB_API_URL", "https://api.github.com")
     run_id = _require_match("GITHUB_RUN_ID", environment.get("GITHUB_RUN_ID", ""), RUN_ID_RE)
@@ -289,26 +313,21 @@ def _run_binding(environment, token, fetch_json):
     caller_path = str(payload.get("path", "")).split("@", 1)[0]
     if caller_path != CALLER_WORKFLOW_PATH:
         raise HostedWorkflowError("Hosted run must originate from e2e-norom.yml")
-    referenced = payload.get("referenced_workflows")
-    if not isinstance(referenced, list):
-        raise HostedWorkflowError("GitHub API run lacked referenced_workflows evidence")
-    hosted = []
-    for item in referenced:
-        evidence = _referenced_workflow(item)
-        if evidence["workflow_path"] != HOSTED_WORKFLOW_PATH:
-            raise HostedWorkflowError("Hosted run referenced an unexpected reusable workflow")
-        if evidence["workflow_sha"] != environment["GITHUB_SHA"]:
-            raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
-        hosted.append(evidence)
-    if len(hosted) != 1:
-        raise HostedWorkflowError("Hosted reusable workflow SHA/path evidence was not exact")
+    head_branch = payload.get("head_branch")
+    if not isinstance(head_branch, str) or not head_branch:
+        raise HostedWorkflowError("GitHub API run head branch was malformed")
+    hosted = _validate_referenced_workflows(
+        payload.get("referenced_workflows"),
+        expected_head_sha=environment["GITHUB_SHA"],
+        expected_ref=f"refs/heads/{head_branch}",
+    )
     return {
         "run_id": run_id,
         "run_attempt": run_attempt,
         "caller_workflow_path": CALLER_WORKFLOW_PATH,
         "caller_workflow_sha": environment["GITHUB_WORKFLOW_SHA"],
         "hosted_workflow_path": HOSTED_WORKFLOW_PATH,
-        "hosted_workflow_sha": hosted[0]["workflow_sha"],
+        "hosted_workflow_sha": hosted["workflow_sha"],
     }
 
 

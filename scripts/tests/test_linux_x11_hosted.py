@@ -21,14 +21,22 @@ ROOT = Path(__file__).resolve().parents[2]
 MODULE_PATH = ROOT / "scripts" / "linux_x11_hosted.py"
 RUN_PAYLOAD_FIXTURE = {
     "head_repository": {"full_name": "laqieer/FEBuilderGBA"},
+    "head_branch": "fix/issue-2160-linux-x11-attribution",
     "head_sha": "a" * 40,
     "run_attempt": 1,
     "path": ".github/workflows/e2e-norom.yml",
-    "referenced_workflows": [{
-        "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
-        "sha": "a" * 40,
-        "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
-    }],
+    "referenced_workflows": [
+        {
+            "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
+            "sha": "a" * 40,
+            "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+        },
+        {
+            "path": "laqieer/FEBuilderGBA/.github/workflows/e2e-run.yml@" + ("a" * 40),
+            "sha": "a" * 40,
+            "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+        },
+    ],
 }
 
 
@@ -442,11 +450,15 @@ class HostedWorkflowContracts(unittest.TestCase):
     def test_run_binding_accepts_actual_referenced_workflow_shape_and_rejects_conflicts(self):
         binding = self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10: dict(RUN_PAYLOAD_FIXTURE))
         self.assertEqual(self.hosted.HOSTED_WORKFLOW_PATH, binding["hosted_workflow_path"])
+        hosted_only = dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[RUN_PAYLOAD_FIXTURE["referenced_workflows"][0]])
+        binding = self.hosted._run_binding(self.env, "token", lambda url, token, timeout=10: hosted_only)
+        self.assertEqual(self.hosted.HOSTED_WORKFLOW_PATH, binding["hosted_workflow_path"])
         bad_payloads = [
             dict(RUN_PAYLOAD_FIXTURE, head_repository=None),
             dict(RUN_PAYLOAD_FIXTURE, head_repository={}),
             dict(RUN_PAYLOAD_FIXTURE, head_repository={"full_name": None}),
             dict(RUN_PAYLOAD_FIXTURE, head_repository={"full_name": "FEBuilderGBA/FEBuilderGBA"}),
+            dict(RUN_PAYLOAD_FIXTURE, head_branch=None),
             dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[]),
             dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
                 "path": "other/repo/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
@@ -458,7 +470,35 @@ class HostedWorkflowContracts(unittest.TestCase):
                 "sha": "a" * 40,
                 "ref": "refs/heads/master",
             }]),
-            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=RUN_PAYLOAD_FIXTURE["referenced_workflows"] * 2),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
+                "sha": "a" * 40,
+                "ref": "refs/heads/other-branch",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@" + ("a" * 40),
+                "sha": "b" * 40,
+                "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "laqieer/FEBuilderGBA/.github/workflows/linux-x11-hosted.yml@notasha",
+                "sha": "a" * 40,
+                "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[{
+                "path": "laqieer/FEBuilderGBA/.github/workflows/unexpected.yml@" + ("a" * 40),
+                "sha": "a" * 40,
+                "ref": "refs/heads/fix/issue-2160-linux-x11-attribution",
+            }]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[
+                RUN_PAYLOAD_FIXTURE["referenced_workflows"][0],
+                RUN_PAYLOAD_FIXTURE["referenced_workflows"][0],
+            ]),
+            dict(RUN_PAYLOAD_FIXTURE, referenced_workflows=[
+                RUN_PAYLOAD_FIXTURE["referenced_workflows"][0],
+                RUN_PAYLOAD_FIXTURE["referenced_workflows"][1],
+                RUN_PAYLOAD_FIXTURE["referenced_workflows"][1],
+            ]),
         ]
         for payload in bad_payloads:
             with self.subTest(payload=payload):
