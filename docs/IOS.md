@@ -79,23 +79,31 @@ validated and made trim-safe on-device.
 
 Not in `FEBuilderGBA.sln` (same reason as the Android head: `check.yml` builds the whole
 solution on windows-latest without the mobile workload; iOS also needs macOS + Xcode). Build
-standalone on macOS:
+standalone on macOS with **Xcode 26.6 selected** and **.NET SDK 10.0.401**
+(`dotnet --version` must print `10.0.401`):
 
 ```bash
-dotnet workload install ios
+dotnet workload install ios --version 10.0.401
 dotnet build FEBuilderGBA.iOS/FEBuilderGBA.iOS.csproj -c Release -p:EnableIosTarget=true
 ```
+
+The pinned workload set installs `Microsoft.iOS.Sdk.net10.0_26.5` version `26.5.10318`,
+which [requires Xcode 26.6](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode26.5-10318).
+Do not use an unpinned workload install with Xcode 26.6: the later `10.0.401.1` set
+[requires Xcode 27.0](https://github.com/dotnet/macios/releases/tag/dotnet-10.0.1xx-xcode27.0-10722).
 
 `-p:EnableIosTarget=true` is REQUIRED as a **global** property — NuGet restore's static graph
 ignores the per-reference `AdditionalProperties`, so without it restore writes a net10.0-only
 assets file for `FEBuilderGBA.Avalonia` and the build fails with `NETSDK1005` (the same
 mechanism as android's `EnableAndroidTarget`).
 
-- **`.github/workflows/ios.yml`** — advisory (context `ios-build`, non-required), `macos-latest`,
-  builds an **unsigned `.ipa`** and verifies the bundled `config/` tree. Cannot block PR merges.
+- **`.github/workflows/ios.yml`** — advisory (context `ios-build`, non-required), `macos-26`
+  with Xcode 26.6 and the pinned .NET SDK/workload set `10.0.401`; builds an **unsigned
+  `.ipa`** and verifies the bundled `config/` tree. Cannot block PR merges.
 - **`.github/workflows/release.yml`** — a **soft** `ios` job (`continue-on-error`, NOT in the
-  mandatory verify-assets list) attaches `FEBuilderGBA-ios-unsigned-ipa.zip` to a `ver_*` release
-  when the build succeeds, and degrades to "release without iOS" when it doesn't.
+  mandatory verify-assets list) uses the same pinned toolchain and attaches
+  `FEBuilderGBA-ios-unsigned-ipa.zip` to a `ver_*` release when the build succeeds, and
+  degrades to "release without iOS" when it doesn't.
 
 ### Unsigned `.ipa` (this fork's CI)
 

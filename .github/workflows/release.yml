@@ -289,8 +289,7 @@ jobs:
   # ---------------------------------------------------------------------------
   ios:
     name: iOS IPA (advisory)
-    # macos-26 defaults to Xcode 26.5, while the current .NET for iOS workload
-    # requires the preinstalled Xcode 26.6. Select it explicitly below. (#1859)
+    # Match ios.yml: .NET SDK/workload set 10.0.401 requires Xcode 26.6. (#2179)
     runs-on: macos-26
     continue-on-error: true
     steps:
@@ -307,10 +306,10 @@ jobs:
       - name: Setup .NET 10.0
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '10.0.x'
+          dotnet-version: '10.0.401'
 
       - name: Install ios workload
-        run: dotnet workload install ios
+        run: dotnet workload install ios --version 10.0.401
 
       - name: Build unsigned iOS .ipa
         run: |
