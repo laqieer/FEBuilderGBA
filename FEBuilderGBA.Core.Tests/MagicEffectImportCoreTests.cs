@@ -200,6 +200,33 @@ namespace FEBuilderGBA.Core.Tests
         // ================================================================
 
         [Fact]
+        public void Import_UnallocatedFEditorTable_RefusedWithoutMutation()
+        {
+            var rom = MakeUnallocatedFEditorRom();
+            CoreState.ROM = rom;
+            byte[] before = (byte[])rom.Data.Clone();
+            int length = rom.Data.Length;
+            var undo = new Undo.UndoData();
+            bool called = false;
+
+            using (ROM.BeginUndoScope(undo))
+            {
+                string error = MagicEffectImportCore.ImportMagicScript(
+                    rom, 0x400000u, MakeSingleFrameCmds(), _ =>
+                    {
+                        called = true;
+                        return null;
+                    });
+                Assert.Contains("allocated", error, StringComparison.OrdinalIgnoreCase);
+            }
+
+            Assert.False(called);
+            Assert.Equal(length, rom.Data.Length);
+            Assert.Equal(before, rom.Data);
+            Assert.True(undo.list == null || undo.list.Count == 0);
+        }
+
+        [Fact]
         public void Import_NullRom_ReturnsError()
         {
             var cmds = new List<MagicFrameCommand>();
@@ -439,6 +466,23 @@ namespace FEBuilderGBA.Core.Tests
         // ================================================================
         // Helpers
         // ================================================================
+
+        static ROM MakeUnallocatedFEditorRom()
+        {
+            var rom = new ROM();
+            rom.LoadLow("unallocated-fe8u.gba", new byte[0x1100000], "BE8E01");
+            byte[] engine = {
+                0x01, 0x00, 0x00, 0x00, 0x90, 0xD7, 0x95, 0x08,
+                0x03, 0x00, 0x00, 0x00, 0x39, 0xD9, 0x95, 0x08,
+            };
+            byte[] signature = {
+                0x01, 0xB4, 0x7D, 0xE7, 0x34, 0xFF, 0x03, 0x02,
+                0x80, 0xD7, 0x95, 0x08, 0x1A, 0xE1, 0x03, 0x02,
+            };
+            Array.Copy(engine, 0, rom.Data, 0x95d780, engine.Length);
+            Array.Copy(signature, 0, rom.Data, 0x200000, signature.Length);
+            return rom;
+        }
 
         /// <summary>ROM without any magic-system patch (pure vanilla).</summary>
         static ROM MakeRawRom(int size)

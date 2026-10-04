@@ -129,6 +129,8 @@ namespace FEBuilderGBA
             var ms = ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _);
             if (ms != ImageUtilMagicCore.MagicSystem.CsaCreator)
                 return "CSA Creator magic-system patch not detected (CsaCreator required for CSA import).";
+            if (ImageUtilMagicCore.FindCSASpellTable(rom, ms, out _) == U.NOT_FOUND)
+                return "CSA spell table must be allocated before importing CSA magic scripts.";
 
             // magicBaseAddr safety check.
             if (magicBaseAddr < 0x200u || magicBaseAddr + 20u > (uint)rom.Data.Length)
