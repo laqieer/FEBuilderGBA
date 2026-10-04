@@ -62,6 +62,8 @@ class HostedSourceTests(unittest.TestCase):
 
 
 class HostedWorkflowContracts(unittest.TestCase):
+    CANARY_KEY = "authority_cookie"
+
     def setUp(self):
         self.hosted = load_module()
         temporary = tempfile.TemporaryDirectory(prefix="linux-x11-hosted-")
@@ -261,6 +263,39 @@ class HostedWorkflowContracts(unittest.TestCase):
             return receipt
         finally:
             case.doCleanups()
+
+    def inject_recursive_canaries(self, value, path="root"):
+        cloned = json.loads(json.dumps(value))
+
+        def visit(node, location):
+            if isinstance(node, dict):
+                node[self.CANARY_KEY] = f"secret:{location}"
+                for key, child in list(node.items()):
+                    if key != self.CANARY_KEY:
+                        visit(child, f"{location}.{key}")
+            elif isinstance(node, list):
+                for index, child in enumerate(node):
+                    visit(child, f"{location}[{index}]")
+
+        visit(cloned, path)
+        return cloned
+
+    def assert_recursive_canary_absent(self, value):
+        if isinstance(value, dict):
+            self.assertNotIn(self.CANARY_KEY, value)
+            for child in value.values():
+                self.assert_recursive_canary_absent(child)
+        elif isinstance(value, list):
+            for child in value:
+                self.assert_recursive_canary_absent(child)
+
+    def permissive_pass_report_with_canaries(self, report):
+        report = json.loads(json.dumps(report))
+        report[self.CANARY_KEY] = "secret:diagnostic"
+        report["sources"][self.CANARY_KEY] = "0" * 64
+        report["worker"][self.CANARY_KEY] = "secret:diagnostic.worker"
+        report["libx11"][self.CANARY_KEY] = "secret:diagnostic.libx11"
+        return report
 
     def test_prepare_payload_is_metadata_only_and_bound(self):
         payload = self.hosted.prepare_payload(
@@ -778,6 +813,81 @@ class HostedWorkflowContracts(unittest.TestCase):
         self.assertEqual("passed", summary["diagnostic"]["status"])
         self.assertIn("xvfb_kill", summary["cleanup_failures"])
         self.assertLessEqual((bundle / "receipt-summary.json").stat().st_size, self.hosted.JSON_LIMIT)
+
+    def test_summarize_native_receipt_for_upload_strips_recursive_pass_diagnostic_canaries(self):
+        receipt = self.pass_receipt()
+        receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual(self.pass_report(), summary["diagnostic"])
+        self.assert_recursive_canary_absent(summary["diagnostic"])
+
+    def test_validate_native_receipt_public_output_strips_recursive_pass_diagnostic_canaries(self):
+        preflight = self.valid_preflight()
+        receipt = self.pass_receipt()
+        receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
+        result = self.hosted.validate_native_receipt(receipt, preflight)
+        self.assertEqual("digest", result["preflight_digest"])
+        self.assertEqual(self.pass_report(), result["receipt"])
+        self.assert_recursive_canary_absent(result["receipt"])
+
+    def test_stage_artifacts_strips_recursive_pass_diagnostic_canaries(self):
+        temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-pass-canary-")
+        self.addCleanup(temporary.cleanup)
+        root = Path(temporary.name)
+        old_cwd = Path.cwd()
+        os.chdir(root)
+        self.addCleanup(lambda: os.chdir(old_cwd))
+        bundle = root / "upload"
+        preflight = self.valid_preflight() | {"receipt_stem": "receipt-stem"}
+        grant = {"grant": {"receipt_stem": "receipt-stem"}}
+        preflight_path = root / "preflight.json"
+        grant_path = root / "grant.json"
+        preflight_path.write_text(json.dumps(preflight), encoding="utf-8")
+        grant_path.write_text(json.dumps(grant), encoding="utf-8")
+        receipt_dir = root / "linux-x11-smoke-receipt-stem"
+        receipt_dir.mkdir()
+        receipt = self.pass_receipt()
+        receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
+        with (receipt_dir / "receipt.json").open("x", encoding="utf-8") as stream:
+            json.dump(receipt, stream, indent=2, sort_keys=True)
+            stream.write("\n")
+        self.hosted.main([
+            "stage-artifacts",
+            "--preflight", str(preflight_path),
+            "--grant", str(grant_path),
+            "--output-dir", str(bundle),
+        ])
+        summary = json.loads((bundle / "receipt-summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(self.pass_report(), summary["diagnostic"])
+        self.assert_recursive_canary_absent(summary["diagnostic"])
+
+    def test_failed_outer_summary_strips_recursive_passed_worker_diagnostic_canaries(self):
+        receipt = self.actual_smoke_receipt(
+            mutate=lambda case: setattr(case.server, "kill_error", OSError("injected owned kill failure")),
+        )
+        receipt["diagnostic"] = self.permissive_pass_report_with_canaries(receipt["diagnostic"])
+        summary = self.hosted.summarize_native_receipt_for_upload(receipt)
+        self.assertEqual("failed", summary["status"])
+        self.assertEqual("passed", summary["diagnostic"]["status"])
+        self.assert_recursive_canary_absent(summary["diagnostic"])
+
+    def test_passed_diagnostic_exact_nested_canaries_are_rejected(self):
+        preflight = self.valid_preflight()
+        for path in (
+                ("owned_destroyed", self.CANARY_KEY),
+                ("badwindow_request", self.CANARY_KEY),
+                ("badwindow_events", 0, self.CANARY_KEY),
+                ("unrelated_rejected", 0, self.CANARY_KEY)):
+            with self.subTest(path=path):
+                receipt = self.pass_receipt()
+                target = receipt["diagnostic"]
+                for segment in path[:-1]:
+                    target = target[segment]
+                target[path[-1]] = "secret:nested"
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.summarize_native_receipt_for_upload(receipt)
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted.validate_native_receipt(receipt, preflight)
 
     def test_summarize_native_receipt_for_upload_accepts_cleanup_failure_subset_at_limit(self):
         receipt = self.actual_smoke_receipt(

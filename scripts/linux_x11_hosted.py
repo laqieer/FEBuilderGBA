@@ -539,10 +539,7 @@ def _sanitize_diagnostic(diagnostic):
         raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
     status = diagnostic.get("status")
     if status == "passed":
-        try:
-            return native_smoke.validate_pass_report(diagnostic)
-        except ValueError as error:
-            raise HostedWorkflowError(str(error)) from error
+        return _sanitize_pass_diagnostic(diagnostic)
     if status == "failed":
         return _sanitize_failure_diagnostic(diagnostic)
     raise HostedWorkflowError("Native receipt diagnostic payload was malformed")
@@ -580,6 +577,18 @@ def _sanitize_source_hashes(sources):
     return sanitized
 
 
+def _select_diagnostic_source_hashes(sources):
+    if not isinstance(sources, dict):
+        raise HostedWorkflowError("Native receipt source hashes were malformed")
+    sanitized = {}
+    for name in NATIVE_SOURCE_PATHS:
+        value = sources.get(name)
+        if not isinstance(value, str) or SHA256_RE.fullmatch(value) is None:
+            raise HostedWorkflowError("Native receipt source hashes were malformed")
+        sanitized[name] = value
+    return sanitized
+
+
 def _sanitize_identity(identity, *, required=()):
     if not isinstance(identity, dict):
         raise HostedWorkflowError("Native receipt identity payload was malformed")
@@ -589,6 +598,83 @@ def _sanitize_identity(identity, *, required=()):
         if type(value) is not int or value <= 0:
             raise HostedWorkflowError("Native receipt identity payload was malformed")
         sanitized[key] = value
+    return sanitized
+
+
+def _sanitize_libx11(libx11):
+    if not isinstance(libx11, dict):
+        raise HostedWorkflowError("Loaded libX11 evidence is required")
+    sanitized = {}
+    for key in ("path", "resolved_path"):
+        value = libx11.get(key)
+        if not isinstance(value, str) or not value.startswith("/"):
+            raise HostedWorkflowError("Loaded libX11 evidence is required")
+        sanitized[key] = value
+    sha256 = libx11.get("sha256")
+    if not isinstance(sha256, str) or SHA256_RE.fullmatch(sha256) is None:
+        raise HostedWorkflowError("Loaded libX11 evidence is required")
+    sanitized["sha256"] = sha256
+    return sanitized
+
+
+def _sanitize_exact_native_error_event(event, *, label):
+    if not isinstance(event, dict):
+        raise HostedWorkflowError(f"{label} evidence is required")
+    sanitized = {}
+    for key in ("callback_display", "display", "resourceid"):
+        value = event.get(key)
+        if type(value) is not int or value <= 0:
+            raise HostedWorkflowError(f"{label} evidence is required")
+        sanitized[key] = value
+    for key in ("serial", "error_code", "request_code", "minor_code", "type"):
+        value = event.get(key)
+        if type(value) is not int or value < 0:
+            raise HostedWorkflowError(f"{label} evidence is required")
+        sanitized[key] = value
+    return sanitized
+
+
+def _sanitize_pass_diagnostic(diagnostic):
+    try:
+        report = native_smoke.validate_pass_report(diagnostic)
+    except ValueError as error:
+        raise HostedWorkflowError(str(error)) from error
+    window = report["window"]
+    owner_display = report["owner_display"]
+    observer_display = report["observer_display"]
+    request = report["badwindow_request"]
+    badwindow_event = _sanitize_exact_native_error_event(
+        report["badwindow_events"][0],
+        label="BadWindow event",
+    )
+    unrelated_event = _sanitize_exact_native_error_event(
+        report["unrelated_rejected"][0],
+        label="Unrelated native error",
+    )
+    sanitized = {
+        "status": "passed",
+        "window": window,
+        "owner_display": owner_display,
+        "observer_display": observer_display,
+        "present_before_destroy": [window],
+        "live_value": "owned smoke",
+        "missing_property_ok": True,
+        "owned_destroyed": {"display": owner_display, "window": window},
+        "badwindow_request": {
+            "display": observer_display,
+            "serial": request["serial"],
+            "window": window,
+        },
+        "badwindow_events": [badwindow_event],
+        "fresh_children_display": observer_display,
+        "fresh_children_after_destroy": [],
+        "unrelated_rejected": [unrelated_event],
+        "pending_error_rejected": True,
+        "sources": _select_diagnostic_source_hashes(report["sources"]),
+        "worker": _sanitize_identity(report["worker"], required=("pid", "start_ticks")),
+    }
+    if "libx11" in report:
+        sanitized["libx11"] = _sanitize_libx11(report["libx11"])
     return sanitized
 
 
@@ -788,10 +874,7 @@ def validate_native_receipt(receipt, preflight):
     if receipt.get("elapsed_seconds", TIMEOUT_TOTAL + 1) > TIMEOUT_TOTAL:
         raise HostedWorkflowError("Native receipt elapsed time exceeded the reviewed outer deadline")
     _validate_native_source_hashes(receipt.get("sources"), preflight, "Supervisor")
-    try:
-        diagnostic = native_smoke.validate_pass_report(receipt.get("diagnostic"))
-    except ValueError as error:
-        raise HostedWorkflowError(str(error)) from error
+    diagnostic = _sanitize_pass_diagnostic(receipt.get("diagnostic"))
     _validate_native_source_hashes(diagnostic["sources"], preflight, "Worker")
     worker = receipt.get("worker", {})
     if diagnostic["worker"] != {key: worker.get(key) for key in ("pid", "start_ticks")}:
@@ -827,7 +910,7 @@ def validate_native_receipt(receipt, preflight):
     return {
         "schema": OPERATION,
         "preflight_digest": preflight["preflight_digest"],
-        "receipt": receipt.get("diagnostic"),
+        "receipt": diagnostic,
     }
 
 
