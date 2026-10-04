@@ -96,9 +96,9 @@ namespace FEBuilderGBA.Tests.Unit
                 @"var\s+(?<name>\w+)\s*=\s*new\s+HashSet<IntPtr>\(WinAutomation\." +
                 @"(?<probe>GetCaptureWindows|GetProcessWindows)\(_process\.Id\)\);");
             Match captureSnapshot = Assert.Single(
-                snapshots.Where(snapshot => snapshot.Groups["name"].Value == captureSet));
+                snapshots, snapshot => snapshot.Groups["name"].Value == captureSet);
             Match lifecycleSnapshot = Assert.Single(
-                snapshots.Where(snapshot => snapshot.Groups["name"].Value == lifecycleSet));
+                snapshots, snapshot => snapshot.Groups["name"].Value == lifecycleSet);
             Assert.Equal("GetCaptureWindows", captureSnapshot.Groups["probe"].Value);
             Assert.Equal("GetProcessWindows", lifecycleSnapshot.Groups["probe"].Value);
             Assert.True(lifecycleSnapshot.Index < loop.IndexOf(
