@@ -2130,6 +2130,86 @@ class TestBounds:
         assert "utf-8" in payload["error"].lower()
         assert "decode" in payload["error"].lower()
 
+    @pytest.mark.parametrize("tool_name", ["backend_check", "lz77"])
+    @pytest.mark.parametrize("long_primary", [False, True])
+    def test_issue2188_mcp_primary_secondary_bounded_after_snapshot_unwind(
+            self, initialized_state, monkeypatch, tmp_path,
+            tool_name, long_primary):
+        from cli_anything.febuildergba.tests.test_core import (
+            _issue2188_bounded_fixture,
+        )
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        snapshot = tmp_path / "private-mcp-secondary.gba"
+        monkeypatch.chdir(tmp_path)
+        private_text = f"{snapshot} and {snapshot.name}"
+        reason = f"primary-marker {private_text}"
+        if long_primary:
+            reason += "p" * (srv.MAX_STRING_LEN * 2)
+        primary = UnicodeDecodeError("utf-8", b"\xff", 0, 1, reason)
+        owned = _issue2188_bounded_fixture(
+            monkeypatch, primary, (
+                OSError(f"terminate-secondary-marker {private_text}"),
+                PermissionError(f"close-secondary-marker {private_text}")))
+
+        def failed_version():
+            with backend.register_rom_snapshot(str(snapshot)):
+                backend.run_cli(["--rom", snapshot.name], timeout=1)
+
+        if tool_name == "backend_check":
+            monkeypatch.setattr(backend, "get_version", failed_version)
+            arguments = {}
+        else:
+            def failed_handler(session, arguments):
+                failed_version()
+                raise AssertionError("The backend failure must not become success")
+
+            monkeypatch.setitem(srv.TOOL_HANDLERS, tool_name, failed_handler)
+            arguments = {
+                "mode": "compress", "in_path": "in.bin", "out_path": "out.bin",
+            }
+
+        response = _call_tool(initialized_state, tool_name, arguments)
+        result = response["result"]
+        payload = json.loads(result["content"][0]["text"])
+        assert result["isError"] is (tool_name != "backend_check")
+        if tool_name == "backend_check":
+            assert payload["available"] is False
+            assert "command" not in payload and "version" not in payload
+        else:
+            assert "available" not in payload
+
+        message = payload["error"]
+        assert "utf-8" in message and "primary-marker" in message
+        assert "terminate-secondary-marker" in message
+        assert "close-secondary-marker" in message
+        assert "cleanup" in message.lower()
+        assert str(snapshot) not in message
+        assert snapshot.name not in message
+        assert backend._PRIVATE_ROM_SNAPSHOT_LABEL in message
+        assert len(message) <= srv.MAX_STRING_LEN
+        if long_primary:
+            assert payload["error_truncated"] is True
+            assert payload["error_original_length"] > len(message)
+        assert "terminate" in owned.events and "close" in owned.events
+
+    def test_issue2188_mcp_cleanup_only_failure_is_explicit(
+            self, initialized_state, monkeypatch):
+        from cli_anything.febuildergba.tests.test_core import (
+            _issue2188_bounded_fixture,
+        )
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        _issue2188_bounded_fixture(
+            monkeypatch, cleanup_failures=(OSError("cleanup-only-marker"),))
+        response = _call_tool(initialized_state, "backend_check", {})
+        result = response["result"]
+        payload = json.loads(result["content"][0]["text"])
+        assert result["isError"] is False
+        assert payload["available"] is False
+        assert "cleanup-only-marker" in payload["error"]
+        assert "version" not in payload
+
     @pytest.mark.parametrize("tool_name", ["rom_info", "session_open"])
     def test_rom_metadata_lint_output_is_bounded(
             self, initialized_state, monkeypatch, tool_name):
