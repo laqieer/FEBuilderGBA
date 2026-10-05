@@ -44,6 +44,7 @@ namespace FEBuilderGBA.Avalonia.Tests
         /// </summary>
         public RomFixture()
         {
+            using var diagnostics = NativeProbeDiagnostics.FixtureStages();
             // Save previous CoreState
             _prevRom = CoreState.ROM;
             _prevCommentCache = CoreState.CommentCache;

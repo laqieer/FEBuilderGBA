@@ -8,6 +8,80 @@ public class NativeLeaseProcessTests
     const string Root = @"C:\owned-private-root";
 
     [Fact]
+    public async Task SaturatedHostTraceCannotHideIndependentStageAndRuntimeEvidence()
+    {
+        using var fixture = new NativeProbeDiagnosticsTests.DiagnosticFixture();
+        var dependencies = new FakeDependencies
+        {
+            DiagnosticFactory = (root, token) =>
+            {
+                fixture.Token = token;
+                var session = NativeProbeDiagnostics.Prepare(root, token, Environment.ProcessId);
+                session.Record("managed-entry");
+                session.Record("fixture-start");
+                return session;
+            },
+        };
+        dependencies.Child.Error = new StringReader(new string('h', 32_768));
+        using var process = new NativeLeaseProcess(fixture.Root, false, dependencies);
+        await process.OutputCompletion.WaitAsync(TimeSpan.FromSeconds(10));
+        dependencies.Child.Code = 137;
+        var failure = Assert.Throws<NativeLeaseProcess.Failure>(process.Dispose);
+        Assert.Contains("[truncated]", failure.Message);
+        Assert.Contains("stage=managed-entry", failure.Message);
+        Assert.Contains("stage=fixture-start", failure.Message);
+        Assert.Contains("runtime=" + System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription, failure.Message);
+        Assert.Equal(0, dependencies.Child.Kills);
+        Assert.DoesNotContain(fixture.Root, failure.Message);
+        Assert.True(failure.Message.IndexOf("stage=managed-entry", StringComparison.Ordinal)
+            < failure.Message.IndexOf("stderr:", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void AlreadyExited137HasNoKillAndIncludesBoundedLifecycleAndIndependentStages()
+    {
+        var dependencies = new FakeDependencies { MarkerExists = false };
+        dependencies.Child.Exited = true;
+        dependencies.Child.Code = 137;
+        var failure = Assert.Throws<NativeLeaseProcess.Failure>(() => new NativeLeaseProcess(Root, false, dependencies));
+        Assert.Equal(0, dependencies.Child.Kills);
+        Assert.Equal(new[] { 60_000 }, dependencies.Child.Waits);
+        Assert.Contains("before-start", failure.Message);
+        Assert.Contains("after-start", failure.Message);
+        Assert.Contains("observed-exit", failure.Message);
+        Assert.Contains("exit-code=137", failure.Message);
+        Assert.Contains("child-stages: absent; runtime=unknown", failure.Message);
+    }
+
+    [Fact]
+    public void TimeoutLedgerRecordsExactlyOneOwnedKillAttempt()
+    {
+        var dependencies = new FakeDependencies { MarkerExists = false, WaitResult = false };
+        dependencies.Child.ExitOnWait = false;
+        var failure = Assert.Throws<NativeLeaseProcess.Failure>(() => new NativeLeaseProcess(Root, false, dependencies));
+        Assert.Equal(1, dependencies.Child.Kills);
+        Assert.Equal(1, failure.Message.Split("kill-attempt", StringSplitOptions.None).Length - 1);
+        Assert.Contains("pid=123", failure.Message);
+    }
+
+    [Fact]
+    public void DiagnosticInitializationFailureDoesNotReplaceOriginalFailure()
+    {
+        var primary = new IOException("owned primary wait");
+        var dependencies = new FakeDependencies
+        {
+            WaitError = primary,
+            DiagnosticError = new IOException("owned diagnostic failure"),
+        };
+        var failure = Assert.Throws<NativeLeaseProcess.Failure>(() => new NativeLeaseProcess(Root, false, dependencies));
+        Assert.Same(primary, failure.Primary);
+        Assert.Contains(nameof(FakeDependencies.WaitUntil), primary.StackTrace);
+        Assert.Contains("secondary diagnostic error", failure.Message);
+        Assert.Contains("owned diagnostic failure", failure.Message);
+        Assert.True(dependencies.Child.Disposed);
+    }
+
+    [Fact]
     public void StartupFailurePreservesPrimaryAndRedactsPaths()
     {
         var primary = new IOException("launch " + Root + " " + typeof(NativeLeaseProcessTests).Assembly.Location);
@@ -23,6 +97,7 @@ public class NativeLeaseProcessTests
         Assert.DoesNotContain(typeof(NativeLeaseProcessTests).Assembly.Location, failure.Message);
         Assert.DoesNotContain(Root, failure.ToString());
         Assert.DoesNotContain(typeof(NativeLeaseProcessTests).Assembly.Location, failure.ToString());
+        Assert.DoesNotMatch(@"[A-Za-z]:[\\/]|/[A-Za-z]|\\\\", failure.ToString());
         Assert.False(dependencies.Child.Disposed);
     }
 
@@ -334,13 +409,23 @@ public class NativeLeaseProcessTests
     sealed class FakeDependencies : NativeLeaseProcess.Dependencies
     {
         internal FakeChild Child { get; } = new();
-        internal Exception? StartError, WaitError, ReleaseError, MarkerError, ReadError;
+        internal Exception? StartError, WaitError, ReleaseError, MarkerError, ReadError, DiagnosticError;
+        internal Func<string, string, NativeProbeDiagnostics.Session?>? DiagnosticFactory;
         internal bool MarkerExists = true, WaitResult = true;
         internal int ReleaseCalls;
         internal override int OutputWaitMilliseconds => 500;
+        internal override NativeProbeDiagnostics.Session? PrepareDiagnostics(string root, string token)
+        {
+            if (DiagnosticError != null) throw DiagnosticError;
+            return DiagnosticFactory?.Invoke(root, token);
+        }
         internal override NativeLeaseProcess.IChild Start(ProcessStartInfo start)
         {
             Assert.True(start.RedirectStandardOutput && start.RedirectStandardError);
+            Assert.Equal("1", start.Environment["DOTNET_HOST_TRACE"]);
+            Assert.Equal("1", start.Environment["COREHOST_TRACE"]);
+            Assert.False(start.Environment.ContainsKey("DOTNET_HOST_TRACEFILE"));
+            Assert.False(start.Environment.ContainsKey("COREHOST_TRACEFILE"));
             if (StartError != null) throw StartError;
             return Child;
         }
