@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
+using Microsoft.Win32.SafeHandles;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
@@ -154,6 +155,87 @@ internal static class NativeProbeDiagnostics
 
     internal static string Error(Exception ex) => ex.GetType().Name + "; hresult=" + ex.HResult.ToString("X8", CultureInfo.InvariantCulture);
 
+    [DllImport("kernel32.dll", EntryPoint = "CreateFileW", CharSet = CharSet.Unicode, SetLastError = true)]
+    static extern SafeFileHandle OpenWindows(string path, uint access, uint share, IntPtr security,
+        uint disposition, uint flags, IntPtr template);
+
+    [DllImport("libc", EntryPoint = "open", SetLastError = true)]
+    static extern int OpenUnix([MarshalAs(UnmanagedType.LPUTF8Str)] string path, int flags);
+
+    [DllImport("libc", EntryPoint = "flock", SetLastError = true)]
+    static extern int LockUnix(int descriptor, int operation);
+
+    internal static FileStreamOptions UnixCreationOptions()
+    {
+        if (OperatingSystem.IsWindows())
+            throw new PlatformNotSupportedException("Unix diagnostic creation options unavailable on Windows.");
+        return new FileStreamOptions
+        {
+            Mode = FileMode.CreateNew,
+            Access = FileAccess.ReadWrite,
+            Share = FileShare.None,
+            BufferSize = 512,
+            UnixCreateMode = UnixFileMode.UserRead | UnixFileMode.UserWrite,
+        };
+    }
+
+    static FileStream OpenWritableNoFollow(string path, FileMode mode, FileSystemEntryIdentity? previous)
+    {
+        if (mode is not (FileMode.Open or FileMode.CreateNew))
+            throw new InvalidDataException("Unsupported diagnostic open mode.");
+        SafeFileHandle handle;
+        FileStream? created = null;
+        if (OperatingSystem.IsWindows())
+        {
+            // No sharing, no truncation, and open the reparse entry itself rather than its target.
+            handle = OpenWindows(path, 0xC0000000, 0, IntPtr.Zero,
+                mode == FileMode.CreateNew ? 1u : 3u, 0x00200000, IntPtr.Zero);
+            if (handle.IsInvalid)
+            {
+                int error = Marshal.GetLastPInvokeError();
+                handle.Dispose();
+                throw new IOException("Diagnostic writable no-follow acquisition failed; native-error=" + error);
+            }
+        }
+        else if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+        {
+            if (mode == FileMode.CreateNew)
+            {
+                // Runtime O_CREAT|O_EXCL rejects every existing leaf, including dangling links.
+                // It also supplies the creation mode through the platform-correct native ABI.
+                created = new FileStream(path, UnixCreationOptions());
+                handle = created.SafeFileHandle;
+            }
+            else
+            {
+                bool mac = OperatingSystem.IsMacOS();
+                // O_RDWR | O_NOFOLLOW | O_NONBLOCK | O_CLOEXEC; never O_CREAT or O_TRUNC.
+                int flags = 2 | (mac ? 0x100 | 0x4 | 0x1000000 : 0x20000 | 0x800 | 0x80000);
+                int descriptor = OpenUnix(path, flags);
+                if (descriptor < 0)
+                    throw new IOException("Diagnostic writable no-follow acquisition failed; native-error=" +
+                        Marshal.GetLastPInvokeError());
+                handle = new SafeFileHandle((IntPtr)descriptor, ownsHandle: true);
+            }
+        }
+        else throw new PlatformNotSupportedException("Diagnostic writable no-follow acquisition unavailable.");
+        try
+        {
+            var opened = ProjectionFileSystemSafety.InspectOpenedRegularFile(handle, "diagnostic file", true);
+            if (previous is { } identity && !identity.Equals(opened.Identity))
+                throw new InvalidDataException("Diagnostic file identity changed.");
+            if (!OperatingSystem.IsWindows() && LockUnix(handle.DangerousGetHandle().ToInt32(), 2 | 4) != 0)
+                throw new IOException("Diagnostic exclusive lock failed; native-error=" + Marshal.GetLastPInvokeError());
+            return created ?? new FileStream(handle, FileAccess.ReadWrite, 512, isAsync: false);
+        }
+        catch
+        {
+            if (created != null) created.Dispose();
+            else handle.Dispose();
+            throw;
+        }
+    }
+
     internal static string ExceptionText(Exception ex, string root, int limit) =>
         Redact(ex.GetType().Name + ": " + Prefix(ex.Message, limit) + "\n" + Prefix(ex.StackTrace ?? "<stack unavailable>", limit), root, limit);
 
@@ -181,6 +263,7 @@ internal static class NativeProbeDiagnostics
 
     internal sealed class Session(string directory, string token, int owner)
     {
+        internal Action<string>? BeforeWritableOpen;
         internal string DirectoryPath => directory;
         internal string StagePath => Path.Combine(directory, "native-probe-stages");
         string ErrorPath => Path.Combine(directory, "native-probe-errors");
@@ -207,12 +290,10 @@ internal static class NativeProbeDiagnostics
                     catch (DirectoryNotFoundException) when (mode != FileMode.Open) { }
                     var actualMode = mode == FileMode.OpenOrCreate
                         ? identity.HasValue ? FileMode.Open : FileMode.CreateNew : mode;
-                    var file = new FileStream(path, actualMode, FileAccess.ReadWrite, FileShare.None, 512);
+                    Interlocked.Exchange(ref BeforeWritableOpen, null)?.Invoke(path);
+                    var file = OpenWritableNoFollow(path, actualMode, identity);
                     try
                     {
-                        var opened = ProjectionFileSystemSafety.InspectOpenedRegularFile(file.SafeFileHandle, "diagnostic file", true);
-                        if (identity is { } previous && !previous.Equals(opened.Identity))
-                            throw new InvalidDataException("Diagnostic file identity changed.");
                         ValidateDirectory(directory, token);
                         return file;
                     }

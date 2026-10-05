@@ -7,6 +7,30 @@ public class NativeLeaseProcessTests
 {
     const string Root = @"C:\owned-private-root";
 
+    [SkippableTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WritableRaceSecondaryFailurePreservesPrimaryObjectAndStack(bool errors)
+    {
+        Skip.IfNot(OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+            "Native writable no-follow race requires Windows, Linux or macOS.");
+        using var race = new NativeProbeDiagnosticsTests.WritableRace(errors);
+        var primary = new IOException("owned primary result-wait failure");
+        var dependencies = new FakeDependencies
+        {
+            WaitError = primary,
+            DiagnosticFactory = (_, _) => { race.Attempt(); return race.Session; },
+        };
+        var failure = Assert.Throws<NativeLeaseProcess.Failure>(() => new NativeLeaseProcess(Root, false, dependencies));
+        Assert.Same(primary, failure.Primary);
+        Assert.Contains(nameof(FakeDependencies.WaitUntil), primary.StackTrace);
+        Assert.Contains("secondary diagnostic error:", failure.Message);
+        Assert.Equal(1, race.HookCalls);
+        race.AssertOutsideUnchanged();
+        Assert.True(dependencies.Child.Disposed);
+        Assert.DoesNotContain(race.Session.DirectoryPath, failure.Message);
+    }
+
     [Fact]
     public async Task SaturatedHostTraceCannotHideIndependentStageAndRuntimeEvidence()
     {

@@ -4,6 +4,143 @@ namespace FEBuilderGBA.Avalonia.Tests;
 
 public class NativeProbeDiagnosticsTests
 {
+    [Fact]
+    public void ExistingUnixOpenHasOnlyFixedArgumentsAndCreationUsesRestrictiveRuntimeOptions()
+    {
+        var open = typeof(NativeProbeDiagnostics).GetMethod("OpenUnix",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic)!;
+        Assert.Equal(2, open.GetParameters().Length);
+    }
+
+    [SkippableFact]
+    public void UnixCreationOptionsAreExclusiveAndRestrictive()
+    {
+        Skip.IfNot(OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+            "UnixCreateMode runtime option is unsupported on Windows.");
+        var options = NativeProbeDiagnostics.UnixCreationOptions();
+        Assert.Equal(FileMode.CreateNew, options.Mode);
+        Assert.Equal(FileAccess.ReadWrite, options.Access);
+        Assert.Equal(FileShare.None, options.Share);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, options.UnixCreateMode);
+    }
+
+    [SkippableFact]
+    public void UnixExclusiveCreationIsPrivateRegularAndRejectsDanglingSymlink()
+    {
+        if (OperatingSystem.IsWindows())
+        {
+            Skip.If(true, "Unix native permissions/creation proof is not available on Windows.");
+            throw new PlatformNotSupportedException("Unix proof unavailable.");
+        }
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+        {
+            Skip.If(true, "Unix native permissions/creation proof requires Linux or macOS; Windows is not proof.");
+            throw new PlatformNotSupportedException("Unix proof unavailable.");
+        }
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite, File.GetUnixFileMode(session.StagePath));
+        using (var file = session.Open(session.StagePath, FileMode.Open))
+            ProjectionFileSystemSafety.InspectOpenedRegularFile(file.SafeFileHandle, "test diagnostic", true);
+        session.Record("managed-entry");
+        Assert.Contains("stage=managed-entry", session.Snapshot());
+        string errors = Path.Combine(session.DirectoryPath, "native-probe-errors");
+        string absentTarget = Path.Combine(fixture.Root, "must-not-create");
+        File.CreateSymbolicLink(errors, absentTarget);
+        try
+        {
+            Assert.ThrowsAny<Exception>(() => session.RetainError("must not follow"));
+            Assert.ThrowsAny<Exception>(() => session.Open(errors, FileMode.CreateNew));
+            Assert.False(File.Exists(absentTarget));
+        }
+        finally { File.Delete(errors); }
+    }
+
+    [Fact]
+    public void ExclusiveCreationDoesNotTruncateExistingDiagnosticFile()
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        session.Record("managed-entry");
+        byte[] before = File.ReadAllBytes(session.StagePath);
+        Assert.Throws<IOException>(() => session.Open(session.StagePath, FileMode.CreateNew));
+        Assert.Equal(before, File.ReadAllBytes(session.StagePath));
+        session.Record("fixture-start");
+        Assert.Contains("stage=fixture-start", session.Snapshot());
+    }
+
+    [SkippableTheory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void WritableAcquisitionRejectsMovedSameInodeSymlink(bool errors)
+    {
+        Skip.IfNot(OperatingSystem.IsWindows() || OperatingSystem.IsLinux() || OperatingSystem.IsMacOS(),
+            "Native writable no-follow race requires Windows, Linux or macOS.");
+        using var race = new WritableRace(errors);
+        var failure = Assert.ThrowsAny<Exception>(race.Attempt);
+        Assert.Equal(1, race.HookCalls);
+        Assert.True(failure is IOException or InvalidDataException, failure.GetType().Name);
+        race.AssertOutsideUnchanged();
+        Assert.Contains("read-error", race.Session.Snapshot());
+        Assert.Null(race.Session.BeforeWritableOpen);
+    }
+
+    internal sealed class WritableRace : IDisposable
+    {
+        readonly DiagnosticFixture fixture = new();
+        readonly bool errors;
+        readonly string moved;
+        readonly byte[] original;
+        internal NativeProbeDiagnostics.Session Session { get; }
+        internal int HookCalls;
+
+        internal WritableRace(bool errors)
+        {
+            this.errors = errors;
+            Session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+            if (errors) Session.RetainError("original bounded error");
+            string source = errors ? Path.Combine(Session.DirectoryPath, "native-probe-errors") : Session.StagePath;
+            moved = Path.Combine(fixture.Root, "moved-diagnostic");
+            original = File.ReadAllBytes(source);
+            // Probe privileges before installing the one-shot race; unsupported links are explicit skips.
+            string privilegeLink = Path.Combine(fixture.Root, "link-check");
+            try { File.CreateSymbolicLink(privilegeLink, source); }
+            catch (UnauthorizedAccessException) { fixture.Dispose(); Skip.If(true, "Symbolic-link creation privilege unavailable."); }
+            catch (IOException ex) when (OperatingSystem.IsWindows() && (ex.HResult & 0xffff) == 1314)
+            { fixture.Dispose(); Skip.If(true, "Windows symbolic-link privilege unavailable."); }
+            finally { if (File.Exists(privilegeLink)) File.Delete(privilegeLink); }
+            Session.BeforeWritableOpen = path =>
+            {
+                HookCalls++;
+                Assert.Equal(source, path);
+                File.Move(path, moved);
+                File.CreateSymbolicLink(path, moved);
+            };
+        }
+
+        internal void Attempt()
+        {
+            if (errors) Session.RetainError("must never append outside token directory");
+            else Session.Record("managed-entry");
+        }
+
+        internal void AssertOutsideUnchanged()
+        {
+            Assert.True(File.Exists(moved));
+            Assert.Equal(original.LongLength, new FileInfo(moved).Length);
+            Assert.Equal(original, File.ReadAllBytes(moved));
+        }
+
+        public void Dispose()
+        {
+            if (File.Exists(moved)) File.Delete(moved);
+            // Delete dangling links explicitly before the fixture removes its known directory.
+            string source = errors ? Path.Combine(Session.DirectoryPath, "native-probe-errors") : Session.StagePath;
+            File.Delete(source);
+            fixture.Dispose();
+        }
+    }
+
     [Theory]
     [InlineData("valid-discovery")]
     [InlineData("launcher-entry")]
