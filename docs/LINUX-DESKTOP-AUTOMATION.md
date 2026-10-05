@@ -198,10 +198,16 @@ it recomputes the same stable hosted constraints on a fresh runner, requires
 `github.run_attempt == 1`, and reads exactly one strict unquoted coordinator
 grant comment by `laqieer`/OWNER on issue #2160 matching the original run ID,
 candidate SHA, workflow binding, digests, receipt stem, operation marker, and
-the fixed timeout split `20 = 18 work + 2 cleanup`. The exact comment ID, body
-digest, author/association, and well-formed immutable `created_at`/`updated_at`
-timestamps are frozen, then re-read by comment ID immediately before native
-smoke so edits, replacement, malformed timestamps, or drift fail closed.
+the fixed timeout split `20 = 18 work + 2 cleanup`. The grant body is exactly
+twenty-two LF-delimited lines after CRLF normalization: schema, eighteen
+non-empty `key=value` fields, one blank separator, then the mandatory terminal
+footer `Copilot CLI: <version>` and `Model: <display-name> (<model-id>)`.
+Only CRLF-to-LF normalization and an optional single final LF are admitted; the
+frozen body digest still includes the separator and footer, so footer-only edits
+change the hash. The exact comment ID, body digest, author/association, and
+well-formed immutable `created_at`/`updated_at` timestamps are frozen, then
+re-read by comment ID immediately before native smoke so edits, replacement,
+malformed timestamps, or drift fail closed.
 Ephemeral runner name/image/uid observations are captured but not used as the
 grant authority. Retries, stale grants, edited grants, or stable-constraint
 drift fail closed before native execution.

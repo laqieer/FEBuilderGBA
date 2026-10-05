@@ -48,6 +48,14 @@ DPKG_OWNER_RE = re.compile(r"(?P<package>[A-Za-z0-9.+-]+(?::[A-Za-z0-9.+-]+)?): 
 REFERENCED_WORKFLOW_RE = re.compile(
     rf"{re.escape(REPOSITORY)}/(?P<workflow_path>\.github/workflows/[A-Za-z0-9_.-]+\.yml)@(?P<workflow_sha>[0-9a-f]{{40}})\Z"
 )
+GRANT_FIELD_COUNT = 18
+GRANT_BODY_LINE_COUNT = 22
+GRANT_FOOTER_CLI_RE = re.compile(
+    r"Copilot CLI: (?P<version>[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}(?:-[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*)?)\Z"
+)
+GRANT_FOOTER_MODEL_RE = re.compile(
+    r"Model: (?P<display>[A-Za-z0-9 ._-]{1,80}) \((?P<model_id>[a-z0-9.-]{1,80})\)\Z"
+)
 SOURCE_FILES = (
     ".github/workflows/e2e-norom.yml",
     ".github/workflows/linux-x11-hosted.yml",
@@ -407,13 +415,63 @@ def prepare_payload(root, environment=None, *, query=_query, fetch_json=_fetch_j
     return payload
 
 
-def _parse_grant_body(body):
-    lines = body.splitlines()
-    if not lines or lines[0] != GRANT_SCHEMA or any(not line or line.startswith((">", "`")) for line in lines[1:]):
+def _validate_grant_footer(cli_line, model_line):
+    cli_match = GRANT_FOOTER_CLI_RE.fullmatch(cli_line)
+    model_match = GRANT_FOOTER_MODEL_RE.fullmatch(model_line)
+    if cli_match is None or model_match is None:
+        raise HostedWorkflowError("Grant comment footer was malformed")
+    version = cli_match.group("version")
+    if len(version) > 52:
+        raise HostedWorkflowError("Grant comment footer was malformed")
+    suffix = version[version.find("-"):] if "-" in version else ""
+    if len(suffix) > 32:
+        raise HostedWorkflowError("Grant comment footer was malformed")
+    display = model_match.group("display")
+    model_id = model_match.group("model_id")
+    if not (display[0].isalnum() and display[-1].isalnum()):
+        raise HostedWorkflowError("Grant comment footer was malformed")
+    if not (model_id[0].isalnum() and model_id[-1].isalnum()):
+        raise HostedWorkflowError("Grant comment footer was malformed")
+
+
+def _normalized_grant_body_lines(body):
+    if not isinstance(body, str):
+        raise HostedWorkflowError("Grant comment body was malformed")
+    try:
+        encoded = body.encode("utf-8")
+    except UnicodeEncodeError as error:
+        raise HostedWorkflowError("Grant comment body was malformed") from error
+    if len(encoded) > JSON_LIMIT:
+        raise HostedWorkflowError("Grant comment body exceeded size limit")
+    normalized_body = body.replace("\r\n", "\n")
+    if "\r" in normalized_body:
+        raise HostedWorkflowError("Grant comment body was malformed")
+    for character in normalized_body:
+        if character == "\n":
+            continue
+        codepoint = ord(character)
+        if codepoint < 0x20 or codepoint == 0x7F or 0x80 <= codepoint <= 0x9F or character in ("\u2028", "\u2029"):
+            raise HostedWorkflowError("Grant comment body was malformed")
+    if normalized_body.endswith("\n"):
+        normalized_body = normalized_body[:-1]
+        if normalized_body.endswith("\n"):
+            raise HostedWorkflowError("Grant comment body was malformed")
+    lines = normalized_body.split("\n")
+    if (
+            len(lines) != GRANT_BODY_LINE_COUNT
+            or lines[0] != GRANT_SCHEMA
+            or any(not line for line in lines[1:1 + GRANT_FIELD_COUNT])
+            or lines[1 + GRANT_FIELD_COUNT] != ""):
         raise HostedWorkflowError("Grant comment was not strict unquoted grant data")
+    _validate_grant_footer(lines[-2], lines[-1])
+    return normalized_body, lines
+
+
+def _parse_grant_body(body):
+    _, lines = _normalized_grant_body_lines(body)
     data = {}
-    for line in lines[1:]:
-        match = re.fullmatch(r"([a-z_]+)=(.+)", line)
+    for line in lines[1:1 + GRANT_FIELD_COUNT]:
+        match = re.fullmatch(r"([a-z_]+)=([^\n]+)", line)
         if match is None or match.group(1) in data:
             raise HostedWorkflowError("Grant comment had malformed key/value data")
         data[match.group(1)] = match.group(2)
@@ -431,9 +489,8 @@ def _parse_grant_body(body):
 
 
 def _grant_body_sha256(body):
-    if not isinstance(body, str):
-        raise HostedWorkflowError("Grant comment body was malformed")
-    return _sha256_bytes("\n".join(body.splitlines()).encode("utf-8"))
+    normalized_body, _ = _normalized_grant_body_lines(body)
+    return _sha256_bytes(normalized_body.encode("utf-8"))
 
 
 def _parse_aware_instant(value, *, error_message):

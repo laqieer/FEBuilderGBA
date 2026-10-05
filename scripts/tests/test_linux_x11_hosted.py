@@ -192,6 +192,61 @@ class HostedWorkflowContracts(unittest.TestCase):
                 preflight["tools"]["xvfb"]["path"] = command[0]
         return preflight
 
+    def grant_fields(self, preflight, now):
+        return {
+            "lookup_key": preflight["grant_lookup_key"],
+            "run_id": preflight["run_binding"]["run_id"],
+            "run_attempt": str(preflight["run_binding"]["run_attempt"]),
+            "candidate_sha": preflight["candidate_sha"],
+            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
+            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
+            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
+            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
+            "preflight_digest": preflight["preflight_digest"],
+            "tool_constraints_digest": preflight["tool_constraints_digest"],
+            "receipt_stem": preflight["receipt_stem"],
+            "operation": self.hosted.OPERATION,
+            "invocations": "1",
+            "timeout_total": "20",
+            "timeout_work": "18",
+            "timeout_cleanup": "2",
+            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
+        }
+
+    def grant_footer_lines(self, *, cli_version="1.0.92-3", display_name="GPT-5.4", model_id="gpt-5.4"):
+        return (
+            f"Copilot CLI: {cli_version}",
+            f"Model: {display_name} ({model_id})",
+        )
+
+    def actual_grant_footer_fixtures(self):
+        return (
+            self.grant_footer_lines(cli_version="1.0.85", display_name="Auto", model_id="auto"),
+            self.grant_footer_lines(),
+        )
+
+    def grant_body(
+            self,
+            preflight,
+            now,
+            *,
+            grant_fields=None,
+            footer_lines=None,
+            line_ending="\n",
+            final_newline=False):
+        fields = self.grant_fields(preflight, now) if grant_fields is None else grant_fields
+        footer_lines = self.grant_footer_lines() if footer_lines is None else footer_lines
+        body = line_ending.join(
+            [self.hosted.GRANT_SCHEMA]
+            + [f"{key}={value}" for key, value in fields.items()]
+            + [""]
+            + list(footer_lines)
+        )
+        if final_newline:
+            body += line_ending
+        return body
+
     def pass_report(self):
         native_sources = self.native_sources()
         return {
@@ -532,29 +587,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             which=lambda name: f"/usr/bin/{name}",
         )
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)
-        grant_fields = {
-            "lookup_key": preflight["grant_lookup_key"],
-            "run_id": preflight["run_binding"]["run_id"],
-            "run_attempt": "1",
-            "candidate_sha": preflight["candidate_sha"],
-            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
-            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
-            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
-            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
-            "preflight_digest": preflight["preflight_digest"],
-            "tool_constraints_digest": preflight["tool_constraints_digest"],
-            "receipt_stem": preflight["receipt_stem"],
-            "operation": self.hosted.OPERATION,
-            "invocations": "1",
-            "timeout_total": "20",
-            "timeout_work": "18",
-            "timeout_cleanup": "2",
-            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-        }
-        grant_body = "\n".join(
-            [self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in grant_fields.items()]
-        )
+        grant_body = self.grant_body(preflight, now)
         comments = [{
             "id": 5,
             "body": grant_body,
@@ -606,26 +639,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             which=lambda name: f"/usr/bin/{name}",
         )
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)
-        base = {
-            "lookup_key": preflight["grant_lookup_key"],
-            "run_id": preflight["run_binding"]["run_id"],
-            "run_attempt": "1",
-            "candidate_sha": preflight["candidate_sha"],
-            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
-            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
-            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
-            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
-            "preflight_digest": preflight["preflight_digest"],
-            "tool_constraints_digest": preflight["tool_constraints_digest"],
-            "receipt_stem": preflight["receipt_stem"],
-            "operation": self.hosted.OPERATION,
-            "invocations": "1",
-            "timeout_total": "20",
-            "timeout_work": "18",
-            "timeout_cleanup": "2",
-            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-        }
+        base = self.grant_fields(preflight, now)
 
         def comment(
             body,
@@ -645,7 +659,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                 "updated_at": updated_at,
             }
 
-        body = "\n".join([self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in base.items()])
+        body = self.grant_body(preflight, now, grant_fields=base)
         self.assertEqual(
             1,
             self.hosted.find_matching_grant([comment(body)], preflight, now=now)["id"],
@@ -660,6 +674,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             [comment(body, created_at="not-a-timestamp")],
             [comment(body, updated_at="not-a-timestamp")],
             [comment(body, created_at="2026-10-02T00:00:02Z", updated_at="2026-10-02T00:00:01Z")],
+            [comment(body), comment(body, comment_id=2)],
             [],
         )
         for comments in bad_cases:
@@ -676,29 +691,7 @@ class HostedWorkflowContracts(unittest.TestCase):
             which=lambda name: f"/usr/bin/{name}",
         )
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)
-        grant_fields = {
-            "lookup_key": preflight["grant_lookup_key"],
-            "run_id": preflight["run_binding"]["run_id"],
-            "run_attempt": "1",
-            "candidate_sha": preflight["candidate_sha"],
-            "caller_workflow_path": preflight["run_binding"]["caller_workflow_path"],
-            "caller_workflow_sha": preflight["run_binding"]["caller_workflow_sha"],
-            "hosted_workflow_path": preflight["run_binding"]["hosted_workflow_path"],
-            "hosted_workflow_sha": preflight["run_binding"]["hosted_workflow_sha"],
-            "preflight_digest": preflight["preflight_digest"],
-            "tool_constraints_digest": preflight["tool_constraints_digest"],
-            "receipt_stem": preflight["receipt_stem"],
-            "operation": self.hosted.OPERATION,
-            "invocations": "1",
-            "timeout_total": "20",
-            "timeout_work": "18",
-            "timeout_cleanup": "2",
-            "valid_after": (now - timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-            "valid_before": (now + timedelta(minutes=1)).isoformat().replace("+00:00", "Z"),
-        }
-        base_body = "\n".join(
-            [self.hosted.GRANT_SCHEMA] + [f"{key}={value}" for key, value in grant_fields.items()]
-        )
+        base_body = self.grant_body(preflight, now)
         initial = {
             "id": 55,
             "body": base_body,
@@ -710,7 +703,11 @@ class HostedWorkflowContracts(unittest.TestCase):
         frozen = self.hosted.find_matching_grant([initial], preflight, now=now)
         with self.assertRaises(self.hosted.HostedWorkflowError):
             self.hosted.confirm_grant_freeze(
-                initial | {"body": base_body + "\n# edited"},
+                initial | {"body": self.grant_body(
+                    preflight,
+                    now,
+                    footer_lines=self.grant_footer_lines(cli_version="1.0.85", display_name="Auto", model_id="auto"),
+                )},
                 frozen,
                 now=now,
             )
@@ -724,29 +721,21 @@ class HostedWorkflowContracts(unittest.TestCase):
     def test_grant_freeze_rejects_malformed_frozen_timestamps_even_when_second_readback_matches(self):
         now = datetime(2026, 10, 2, tzinfo=timezone.utc)
         preflight = {
+            "grant_lookup_key": "grant-key",
+            "candidate_sha": "a" * 40,
+            "tool_constraints_digest": "fixed",
+            "receipt_stem": "receipt-stem",
             "preflight_digest": "digest",
+            "run_binding": {
+                "run_id": "12345",
+                "run_attempt": 1,
+                "caller_workflow_path": ".github/workflows/e2e-norom.yml",
+                "caller_workflow_sha": "a" * 40,
+                "hosted_workflow_path": ".github/workflows/linux-x11-hosted.yml",
+                "hosted_workflow_sha": "a" * 40,
+            },
         }
-        body = "\n".join([
-            self.hosted.GRANT_SCHEMA,
-            "lookup_key=grant-key",
-            "run_id=12345",
-            "run_attempt=1",
-            "candidate_sha=" + ("a" * 40),
-            "caller_workflow_path=.github/workflows/e2e-norom.yml",
-            "caller_workflow_sha=" + ("a" * 40),
-            "hosted_workflow_path=.github/workflows/linux-x11-hosted.yml",
-            "hosted_workflow_sha=" + ("a" * 40),
-            "preflight_digest=digest",
-            "tool_constraints_digest=fixed",
-            "receipt_stem=receipt-stem",
-            "operation=" + self.hosted.OPERATION,
-            "invocations=1",
-            "timeout_total=20",
-            "timeout_work=18",
-            "timeout_cleanup=2",
-            "valid_after=2026-10-01T23:59:00Z",
-            "valid_before=2026-10-02T00:01:00Z",
-        ])
+        body = self.grant_body(preflight, now)
         grant = self.hosted._parse_grant_body(body)
         frozen = {
             "grant": grant,
@@ -791,27 +780,7 @@ class HostedWorkflowContracts(unittest.TestCase):
                 "hosted_workflow_sha": "a" * 40,
             },
         }
-        body = "\n".join([
-            self.hosted.GRANT_SCHEMA,
-            "lookup_key=grant-key",
-            "run_id=12345",
-            "run_attempt=1",
-            "candidate_sha=" + ("a" * 40),
-            "caller_workflow_path=.github/workflows/e2e-norom.yml",
-            "caller_workflow_sha=" + ("a" * 40),
-            "hosted_workflow_path=.github/workflows/linux-x11-hosted.yml",
-            "hosted_workflow_sha=" + ("a" * 40),
-            "preflight_digest=digest",
-            "tool_constraints_digest=fixed",
-            "receipt_stem=receipt-stem",
-            "operation=" + self.hosted.OPERATION,
-            "invocations=1",
-            "timeout_total=20",
-            "timeout_work=18",
-            "timeout_cleanup=2",
-            "valid_after=2026-10-01T23:59:00Z",
-            "valid_before=2026-10-02T00:01:00Z",
-        ])
+        body = self.grant_body(preflight, now)
         for created_at, updated_at in (
                 ("2026-10-02T00:00:00", "2026-10-02T00:00:01Z"),
                 ("2026-10-02", "2026-10-02T00:00:01Z"),
@@ -831,6 +800,99 @@ class HostedWorkflowContracts(unittest.TestCase):
                 else:
                     with self.assertRaises(self.hosted.HostedWorkflowError):
                         self.hosted.find_matching_grant([comment], preflight, now=now)
+
+    def test_grant_parser_accepts_complete_footered_comment_and_freezes_full_body(self):
+        preflight = self.hosted.prepare_payload(
+            self.root,
+            {**self.env, "ISSUE2160_ROUTE": self.hosted.RESERVE_ROUTE},
+            query=self.query,
+            fetch_json=self.fetch,
+            which=lambda name: f"/usr/bin/{name}",
+        )
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+
+        def comment(body):
+            return {
+                "id": 91,
+                "body": body,
+                "user": {"login": "laqieer"},
+                "author_association": "OWNER",
+                "created_at": "2026-10-02T00:00:00Z",
+                "updated_at": "2026-10-02T00:00:00Z",
+            }
+
+        for footer_lines in self.actual_grant_footer_fixtures():
+            for line_ending in ("\n", "\r\n"):
+                for final_newline in (False, True):
+                    with self.subTest(footer_lines=footer_lines, line_ending=repr(line_ending), final_newline=final_newline):
+                        body = self.grant_body(
+                            preflight,
+                            now,
+                            footer_lines=footer_lines,
+                            line_ending=line_ending,
+                            final_newline=final_newline,
+                        )
+                        self.assertEqual(self.grant_fields(preflight, now), self.hosted._parse_grant_body(body))
+                        match = self.hosted.find_matching_grant([comment(body)], preflight, now=now)
+                        self.assertEqual(
+                            self.hosted._grant_body_sha256(self.grant_body(preflight, now, footer_lines=footer_lines)),
+                            match["grant_freeze"]["normalized_body_sha256"],
+                        )
+                        confirmed = self.hosted.confirm_grant_freeze(
+                            comment(body),
+                            match | {"preflight_digest": preflight["preflight_digest"]},
+                            now=now,
+                        )
+                        self.assertEqual(self.hosted.OPERATION, confirmed["schema"])
+
+    def test_grant_parser_rejects_footer_grammar_and_placement_violations(self):
+        preflight = self.hosted.prepare_payload(
+            self.root,
+            {**self.env, "ISSUE2160_ROUTE": self.hosted.RESERVE_ROUTE},
+            query=self.query,
+            fetch_json=self.fetch,
+            which=lambda name: f"/usr/bin/{name}",
+        )
+        now = datetime(2026, 10, 2, tzinfo=timezone.utc)
+        body = self.grant_body(preflight, now)
+        lines = body.split("\n")
+
+        def replacement_line(index, value):
+            changed = list(lines)
+            changed[index] = value
+            return "\n".join(changed)
+
+        cases = {
+            "missing-footer": "\n".join(lines[:-2]),
+            "partial-footer": "\n".join(lines[:-1]),
+            "double-final-newline": body + "\n\n",
+            "footer-leading-space": replacement_line(20, " Copilot CLI: 1.0.92-3"),
+            "footer-trailing-space": replacement_line(21, "Model: GPT-5.4 (gpt-5.4) "),
+            "version-component-too-long": replacement_line(20, "Copilot CLI: 1234567.0.0"),
+            "version-suffix-too-long": replacement_line(20, "Copilot CLI: 1.0.0-" + ("a" * 32)),
+            "version-total-too-long": replacement_line(20, "Copilot CLI: 123456.123456.123456-" + ("a" * 32)),
+            "display-too-long": replacement_line(21, "Model: " + ("A" * 81) + " (gpt-5.4)"),
+            "display-nonalnum-boundary": replacement_line(21, "Model: .Auto (auto)"),
+            "display-non-ascii": replacement_line(21, "Model: Áuto (auto)"),
+            "model-id-too-long": replacement_line(21, "Model: GPT-5.4 (" + ("a" * 81) + ")"),
+            "model-id-upper-case": replacement_line(21, "Model: GPT-5.4 (GPT-5.4)"),
+            "model-id-boundary": replacement_line(21, "Model: GPT-5.4 (.gpt-5.4)"),
+            "quoted-footer": replacement_line(20, "> Copilot CLI: 1.0.92-3"),
+            "fenced-footer": replacement_line(20, "```"),
+            "literal-backtick-n": replacement_line(20, "Copilot CLI: 1.0.92-3`nModel: GPT-5.4 (gpt-5.4)"),
+            "extra-blank-separator": "\n".join(lines[:20] + [""] + lines[20:]),
+            "field-after-footer": "\n".join(lines + ["lookup_key=shadow"]),
+            "footer-before-separator": "\n".join(lines[:19] + [lines[20], "", lines[21]]),
+            "tab": replacement_line(20, "Copilot CLI:\t1.0.92-3"),
+            "control": replacement_line(20, "Copilot CLI: 1.0.92-3\x1f"),
+            "lone-cr": body.replace("\n", "\r", 1),
+            "unicode-line-separator": body.replace("\n", "\u2028", 1),
+            "unicode-paragraph-separator": body.replace("\n", "\u2029", 1),
+        }
+        for label, broken in cases.items():
+            with self.subTest(label=label):
+                with self.assertRaises(self.hosted.HostedWorkflowError):
+                    self.hosted._parse_grant_body(broken)
 
     def test_stage_artifacts_rejects_untrusted_receipt_stem_before_filesystem_access(self):
         temporary = tempfile.TemporaryDirectory(prefix="linux-x11-stage-")
