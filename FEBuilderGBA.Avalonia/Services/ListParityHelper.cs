@@ -2949,7 +2949,7 @@ namespace FEBuilderGBA.Avalonia.Services
         }
 
         /// <summary>Build image unit move icon list — 8-byte entries, validate pointer at offset 0.</summary>
-        static List<AddrResult> BuildImageUnitMoveIconList(ROM rom)
+        internal static List<AddrResult> BuildImageUnitMoveIconList(ROM rom)
         {
             uint ptr = rom.RomInfo.unit_move_icon_pointer;
             if (ptr == 0) return new List<AddrResult>();
@@ -2965,11 +2965,9 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint imgPtr = rom.u32(addr + 0);
                 if (!U.isPointer(imgPtr)) break;
 
-                // #1177: append the owning class name (WF
-                // GetClassNameWhereNo(i) = GetClassName(i+1)). Lockstep with
-                // ImageUnitMoveIconViewModel.LoadList.
+                // The owning class ID is one-based; the table address and tag are not.
                 string className = NameResolver.GetClassName(i + 1) ?? string.Empty;
-                string name = U.ToHexString(i) + U.SA(className) + " MoveIcon";
+                string name = U.ToHexString(i + 1) + U.SA(className);
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

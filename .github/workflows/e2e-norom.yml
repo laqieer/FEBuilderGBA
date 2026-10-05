@@ -1,9 +1,40 @@
 name: "E2E: No ROM"
+run-name: >-
+  E2E: No ROM / ${{
+    github.event_name == 'workflow_dispatch'
+    && format('{0} / {1} / run-{2}', inputs.route != '' && inputs.route || 'default-e2e', inputs.receipt_stem, github.run_id)
+    || format('{0} / default-e2e / schedule / run-{1}', github.event_name, github.run_id)
+  }}
 
 on:
   schedule:
     - cron: '3 20 * * *'   # Daily UTC 20:03 (Beijing 04:03)
   workflow_dispatch:
+    inputs:
+      route:
+        description: "Manual route; keep default for normal No ROM E2E"
+        required: false
+        type: choice
+        default: default-e2e
+        options:
+          - default-e2e
+          - issue2160-prepare
+          - issue2160-reserve-native
+      candidate_sha:
+        description: "Immutable reviewed candidate SHA for hosted issue #2160 routes"
+        required: false
+        type: string
+        default: ""
+      receipt_stem:
+        description: "Private receipt stem for hosted issue #2160 routes"
+        required: false
+        type: string
+        default: default-e2e
+      grant_lookup_key:
+        description: "Lookup-only grant key for hosted issue #2160 routes"
+        required: false
+        type: string
+        default: ""
 
 permissions:
   contents: read
@@ -12,6 +43,7 @@ permissions:
 
 jobs:
   e2e:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.route == '' || inputs.route == 'default-e2e' }}
     uses: ./.github/workflows/e2e-run.yml
     with:
       rom-name: none
@@ -19,3 +51,20 @@ jobs:
       timeout: 10
       caller-event: ${{ github.event_name }}
     secrets: inherit
+
+  linux-x11-hosted:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch'
+        && (inputs.route == 'issue2160-prepare' || inputs.route == 'issue2160-reserve-native')
+      }}
+    permissions:
+      contents: read
+      actions: read
+      issues: read
+    uses: ./.github/workflows/linux-x11-hosted.yml
+    with:
+      route: ${{ inputs.route }}
+      candidate_sha: ${{ inputs.candidate_sha }}
+      receipt_stem: ${{ inputs.receipt_stem }}
+      grant_lookup_key: ${{ inputs.grant_lookup_key }}
