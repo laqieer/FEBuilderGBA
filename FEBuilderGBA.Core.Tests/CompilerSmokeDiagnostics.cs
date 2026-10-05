@@ -72,12 +72,17 @@ internal static class CompilerSmokeDiagnostics
             prefix.Add(Path.Combine(windows, "System"));
             prefix.Add(windows);
         }
-        string[] path = (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator);
-        IEnumerable<string> search = OperatingSystem.IsWindows()
-            ? path.Where(directory => directory.Length != 0).Select(directory => directory.Trim('"'))
-            : path.Where(directory => directory.Length != 0);
+        string[] search = ParseSearchPath(Environment.GetEnvironmentVariable("PATH"), OperatingSystem.IsWindows());
         return ResolveFromSearch(candidate, prefix, search, OperatingSystem.IsWindows(),
             OperatingSystem.IsWindows() ? null : HasPosixExecuteAccess);
+    }
+
+    internal static string[] ParseSearchPath(string? searchPath, bool windows)
+    {
+        return (searchPath ?? "").Split(windows ? ';' : ':')
+            .Where(directory => directory.Length != 0)
+            .Select(directory => windows ? directory.Trim('"') : directory)
+            .ToArray();
     }
 
     internal static string? ResolveFromSearch(
@@ -93,6 +98,7 @@ internal static class CompilerSmokeDiagnostics
         string? broken = null;
         foreach (string directory in pathDirectories)
         {
+            if (directory.Length == 0) continue;
             string? found = FindDriver(directory, name);
             if (found == null) continue;
             if (windows || (executable ?? HasPosixExecuteAccess)(found)) return found;

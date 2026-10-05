@@ -5,6 +5,45 @@ namespace FEBuilderGBA.Core.Tests;
 
 public class CompilerSmokeDiagnosticsTests
 {
+    [Theory]
+    [InlineData(":first::second:", false)]
+    [InlineData(";\"first\";;\"second\";", true)]
+    public void Resolver_DotNetPathParsingContractIsIndependentlyTestable(string searchPath, bool windows)
+    {
+        Assert.Equal(new[] { "first", "second" },
+            CompilerSmokeDiagnostics.ParseSearchPath(searchPath, windows));
+        Assert.Empty(CompilerSmokeDiagnostics.ParseSearchPath(null, windows));
+        Assert.Empty(CompilerSmokeDiagnostics.ParseSearchPath("", windows));
+    }
+
+    [Fact]
+    public void Resolver_PosixPreservesDotNetPrefixesAndSkipsEmptyPathEntries()
+    {
+        string root = CreateRoot();
+        try
+        {
+            string processDirectory = Path.Combine(root, "process");
+            string currentDirectory = Path.Combine(root, "current");
+            string pathDirectory = Path.Combine(root, "path");
+            foreach (string directory in new[] { processDirectory, currentDirectory, pathDirectory })
+            {
+                Directory.CreateDirectory(directory);
+                File.WriteAllText(Path.Combine(directory, "driver"), "not executed");
+            }
+            Assert.Equal(Path.Combine(processDirectory, "driver"), CompilerSmokeDiagnostics.ResolveFromSearch(
+                "driver", new[] { processDirectory, currentDirectory }, new[] { "", pathDirectory, "" }, false, _ => true));
+            File.Delete(Path.Combine(processDirectory, "driver"));
+            Assert.Equal(Path.Combine(currentDirectory, "driver"), CompilerSmokeDiagnostics.ResolveFromSearch(
+                "driver", new[] { processDirectory, currentDirectory }, new[] { "", pathDirectory, "" }, false, _ => true));
+            File.Delete(Path.Combine(currentDirectory, "driver"));
+            Assert.Equal(Path.Combine(pathDirectory, "driver"), CompilerSmokeDiagnostics.ResolveFromSearch(
+                "driver", new[] { processDirectory, currentDirectory }, new[] { "", pathDirectory, "" }, false, _ => true));
+            Assert.Null(CompilerSmokeDiagnostics.ResolveFromSearch(
+                "driver", Array.Empty<string>(), new[] { "", "" }, false, _ => true));
+        }
+        finally { Directory.Delete(root, true); }
+    }
+
     [Fact]
     public void Resolver_KnownCandidateLookupDoesNotRequireDirectoryListing()
     {
@@ -178,12 +217,9 @@ public class CompilerSmokeDiagnosticsTests
                 "driver", new[] { first }, new[] { second }, true));
             Assert.Equal(driver, CompilerSmokeDiagnostics.ResolveFromSearch(
                 "driver.exe", Array.Empty<string>(), new[] { second }, true));
-            if (OperatingSystem.IsWindows())
-                Assert.Null(CompilerSmokeDiagnostics.ResolveFromSearch(
-                    "driver", new[] { driver }, Array.Empty<string>(), true));
-            else
-                Assert.Throws<IOException>(() => CompilerSmokeDiagnostics.ResolveFromSearch(
-                    "driver", new[] { driver }, Array.Empty<string>(), true));
+            Assert.Throws<DirectoryNotFoundException>(() => File.GetAttributes(Path.Combine(driver, "driver.exe")));
+            Assert.Null(CompilerSmokeDiagnostics.ResolveFromSearch(
+                "driver", new[] { driver }, Array.Empty<string>(), true));
         }
         finally { Directory.Delete(root, true); }
     }
@@ -335,12 +371,10 @@ public class CompilerSmokeDiagnosticsTests
             File.WriteAllText(executable, "not executable");
             Assert.Equal(executable, CompilerSmokeDiagnostics.ResolveFromSearch("fake-compiler", new[] { root },
                 Array.Empty<string>(), OperatingSystem.IsWindows()));
-            if (OperatingSystem.IsWindows())
-                Assert.Null(CompilerSmokeDiagnostics.ResolveFromSearch("fake-compiler", new[] { executable },
-                    Array.Empty<string>(), true));
-            else
-                Assert.Throws<IOException>(() => CompilerSmokeDiagnostics.ResolveFromSearch("fake-compiler", new[] { executable },
-                    Array.Empty<string>(), false));
+            string candidateName = OperatingSystem.IsWindows() ? "fake-compiler.exe" : "fake-compiler";
+            Assert.Throws<DirectoryNotFoundException>(() => File.GetAttributes(Path.Combine(executable, candidateName)));
+            Assert.Null(CompilerSmokeDiagnostics.ResolveFromSearch("fake-compiler", new[] { executable },
+                Array.Empty<string>(), OperatingSystem.IsWindows()));
         }
         finally { Directory.Delete(root, true); }
     }
