@@ -23,6 +23,13 @@ namespace FEBuilderGBA.Core.Tests
     /// </summary>
     public class StructExportCDataFormatTests
     {
+        readonly Xunit.Abstractions.ITestOutputHelper output;
+
+        public StructExportCDataFormatTests(Xunit.Abstractions.ITestOutputHelper output)
+        {
+            this.output = output;
+        }
+
         // ====================================================================
         // Fixture helpers
         // ====================================================================
@@ -759,17 +766,13 @@ namespace FEBuilderGBA.Core.Tests
         /// <c>arm-none-eabi-gcc</c> (the real GBA target), else host <c>gcc</c>.
         /// Downloads/installs nothing — a missing compiler is a clean
         /// environment-limitation SKIP, never a failure (Ubuntu CI is the
-        /// authoritative compile gate per the accepted plan). Returns null when
-        /// neither is found.
+        /// authoritative compile gate per the accepted plan). Returns null only
+        /// when both candidates are positively absent from executable search directories.
+        /// Broken, inaccessible, timed-out or noisy probes fail explicitly.
         /// </summary>
-        static string? DetectCCompiler()
+        static CompilerSmokeDiagnostics.Compiler? DetectCCompiler()
         {
-            foreach (string candidate in new[] { "arm-none-eabi-gcc", "gcc" })
-            {
-                var probe = ProcessRunnerCore.Run(candidate, new[] { "--version" }, Environment.CurrentDirectory, 10_000);
-                if (probe.Started && probe.ExitCode == 0) return candidate;
-            }
-            return null;
+            return CompilerSmokeDiagnostics.Detect();
         }
 
         /// <summary>
@@ -781,37 +784,19 @@ namespace FEBuilderGBA.Core.Tests
         /// unambiguous even though all five share one <c>[SkippableFact]</c>.
         /// </summary>
         static void CompileGeneratedC(
-            string compiler,
+            CompilerSmokeDiagnostics.Compiler compiler,
             string tempDir,
             string caseName,
             string cSource,
             params string[] extraCompilerArgs)
         {
-            string srcPath = Path.Combine(tempDir, caseName + ".c");
-            string objPath = Path.Combine(tempDir, caseName + ".o");
-            File.WriteAllText(srcPath, cSource, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
-
-            var arguments = new List<string> { "-std=gnu11", "-Wall", "-Werror" };
-            if (extraCompilerArgs != null) arguments.AddRange(extraCompilerArgs);
-            arguments.AddRange(new[] { "-c", srcPath, "-o", objPath });
-            var result = ProcessRunnerCore.Run(
-                compiler,
-                arguments,
-                tempDir,
-                60_000);
-
-            Assert.True(result.Started, $"[{caseName}] failed to start '{compiler}': {result.ErrorMessage}");
-            Assert.True(result.ExitCode == 0,
-                $"[{caseName}] '{compiler} {string.Join(" ", arguments)}' exited " +
-                $"{result.ExitCode}.\nstdout:\n{result.Stdout}\nstderr:\n{result.Stderr}");
-            Assert.True(File.Exists(objPath),
-                $"[{caseName}] compiler reported exit 0 but no object file was produced at {objPath}.");
+            CompilerSmokeDiagnostics.Compile(compiler, tempDir, caseName, cSource, extraCompilerArgs);
         }
 
         [SkippableFact]
         public void FormatCData_CompilerSmoke_FiveRepresentativeShapesCompileCleanly()
         {
-            string? compiler = DetectCCompiler();
+            var compiler = DetectCCompiler();
             Skip.If(compiler == null,
                 "Neither arm-none-eabi-gcc nor host gcc is installed in this environment — " +
                 "skipping the GNU11 compiler smoke (downloads/installs nothing; Ubuntu CI is " +
@@ -820,6 +805,7 @@ namespace FEBuilderGBA.Core.Tests
 
             string tempDir = Path.Combine(Path.GetTempPath(), "febuilder-cdata-smoke-" + Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(tempDir);
+            bool completed = false;
             try
             {
                 // 1) FE8-style mixed byte/word/dword/pointer row (+ an interior gap byte).
@@ -922,10 +908,13 @@ namespace FEBuilderGBA.Core.Tests
                         new List<(uint, Dictionary<string, string>, byte[])>(), structDef, "empty_table", 1);
                     CompileGeneratedC(compiler, tempDir, "zero_rows", c);
                 }
+                completed = true;
             }
             finally
             {
-                try { Directory.Delete(tempDir, true); } catch { }
+                CompilerSmokeDiagnostics.Cleanup(
+                    !completed, compiler.TerminationOutstanding,
+                    () => Directory.Delete(tempDir, true), message => output.WriteLine(message));
             }
         }
 
