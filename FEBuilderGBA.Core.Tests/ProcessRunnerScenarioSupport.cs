@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit.Abstractions;
@@ -127,6 +128,286 @@ namespace FEBuilderGBA.Core.Tests
             }
         }
 
+        internal enum IdentityObservationStatus
+        {
+            Valid,
+            Missing,
+            Malformed,
+            ReadFault
+        }
+
+        internal enum ReadinessStopReason
+        {
+            Ready,
+            TaskCompleted,
+            Deadline
+        }
+
+        internal sealed class IdentityObservation
+        {
+            public IdentityObservationStatus Status { get; }
+            public ProcessIdentity? Identity { get; }
+            public string? FaultCategory { get; }
+
+            internal IdentityObservation(
+                IdentityObservationStatus status, ProcessIdentity? identity = null,
+                string? faultCategory = null)
+            {
+                Status = status;
+                Identity = identity;
+                FaultCategory = faultCategory;
+            }
+        }
+
+        internal sealed class ReadinessPollEvidence
+        {
+            public ProcessIdentity? Identity => Observation.Identity;
+            public IdentityObservation Observation { get; }
+            public IdentityObservation? EarlierReadFault { get; }
+            public ReadinessStopReason StopReason { get; }
+
+            internal ReadinessPollEvidence(
+                IdentityObservation observation, IdentityObservation? earlierReadFault,
+                ReadinessStopReason stopReason)
+            {
+                Observation = observation;
+                EarlierReadFault = earlierReadFault;
+                StopReason = stopReason;
+            }
+        }
+
+        internal sealed class ReadinessEvidence
+        {
+            public IdentityObservation? Observation { get; }
+            public IdentityObservation? EarlierReadFault { get; }
+            public string StopReason { get; }
+            public string Phase { get; }
+            public string TaskStatus { get; }
+            public bool ReadinessSucceeded { get; }
+            public long ReadinessMs { get; }
+            public ProcessRunResult? Result { get; }
+            public bool ResultAvailable => Result.HasValue;
+
+            internal ReadinessEvidence(
+                IdentityObservation? observation, IdentityObservation? earlierReadFault,
+                string stopReason, string phase, string taskStatus, bool readinessSucceeded,
+                long readinessMs, ProcessRunResult? result)
+            {
+                Observation = observation;
+                EarlierReadFault = earlierReadFault;
+                StopReason = stopReason;
+                Phase = phase;
+                TaskStatus = taskStatus;
+                ReadinessSucceeded = readinessSucceeded;
+                ReadinessMs = readinessMs;
+                Result = result;
+            }
+        }
+
+        internal sealed class FailureEvidence
+        {
+            public Exception? PrimaryFailure { get; }
+            public Exception? SecondaryFailure { get; }
+            public ReadinessEvidence Readiness { get; }
+            public string Text { get; }
+
+            internal FailureEvidence(
+                Exception? primaryFailure, ReadinessEvidence readiness,
+                Exception? secondaryFailure, string text)
+            {
+                PrimaryFailure = primaryFailure;
+                Readiness = readiness;
+                SecondaryFailure = secondaryFailure;
+                Text = text;
+            }
+        }
+
+        // Keep the original unexpected failure/dispatch privately, not in xUnit's rendered inner exception.
+        internal sealed class ScenarioFailureException : Xunit.Sdk.XunitException
+        {
+            internal ExceptionDispatchInfo OriginalFailure { get; }
+
+            internal ScenarioFailureException(string message, Exception originalFailure)
+                : base(message)
+            {
+                OriginalFailure = ExceptionDispatchInfo.Capture(originalFailure);
+            }
+        }
+
+        internal static ReadinessEvidence FreezeReadinessEvidence(
+            ReadinessPollEvidence? poll, string phase, bool readinessSucceeded,
+            Task<RunCompletion>? runTask, long readinessMs)
+        {
+            TaskStatus? status = runTask?.Status;
+            ProcessRunResult? result = status == TaskStatus.RanToCompletion
+                ? runTask!.GetAwaiter().GetResult().Result
+                : null;
+            return new ReadinessEvidence(
+                poll?.Observation, poll?.EarlierReadFault,
+                poll?.StopReason.ToString() ?? "unavailable",
+                SafePhase(phase), status?.ToString() ?? "unavailable",
+                readinessSucceeded, readinessMs, result);
+        }
+
+        internal static ReadinessEvidence FillReadinessResultBeforeCleanup(
+            ReadinessEvidence snapshot, Task<RunCompletion> runTask, bool cleanupStarted)
+        {
+            if (cleanupStarted || !snapshot.ReadinessSucceeded || snapshot.ResultAvailable)
+                return snapshot;
+            TaskStatus status = runTask.Status;
+            if (status != TaskStatus.RanToCompletion)
+                return snapshot;
+            return new ReadinessEvidence(
+                snapshot.Observation, snapshot.EarlierReadFault, snapshot.StopReason,
+                snapshot.Phase, status.ToString(), snapshot.ReadinessSucceeded,
+                snapshot.ReadinessMs, runTask.GetAwaiter().GetResult().Result);
+        }
+
+        private static string SafePhase(string phase) => phase switch
+        {
+            "prepare" or "readiness" or "run-incomplete" or "result-rejected"
+                or "assertion" or "unexpected-fault" or "complete" => phase,
+            _ => "unavailable"
+        };
+
+        internal static string ClassifyDiagnosticFault(Exception fault) => fault switch
+        {
+            FileNotFoundException => "io-not-found",
+            IOException => "read-fault",
+            UnauthorizedAccessException => "access-denied",
+            _ => "unexpected-fault"
+        };
+
+        private const int DiagnosticFieldChars = 256;
+        private const int DiagnosticRecordChars = 2048;
+        private const string Truncated = "<truncated>";
+
+        // These two primitives accept projected values only; never pass raw external text.
+        private static string FormatDiagnosticField(string label, string value)
+        {
+            string field = label + "=" + value;
+            return field.Length <= DiagnosticFieldChars
+                ? field
+                : field.Substring(0, DiagnosticFieldChars - Truncated.Length) + Truncated;
+        }
+
+        private static string FormatDiagnosticRecord(IReadOnlyList<string> fields)
+        {
+            var record = new System.Text.StringBuilder(DiagnosticRecordChars);
+            bool truncated = false;
+            for (int i = 0; i < fields.Count; i++)
+            {
+                string separator = i == 0 ? "" : " ";
+                int remaining = DiagnosticRecordChars - record.Length;
+                if (separator.Length + fields[i].Length > remaining)
+                {
+                    record.Append(separator);
+                    remaining = DiagnosticRecordChars - record.Length;
+                    record.Append(fields[i], 0, Math.Max(0, remaining));
+                    truncated = true;
+                    break;
+                }
+                record.Append(separator);
+                record.Append(fields[i]);
+            }
+            if (truncated)
+            {
+                record.Length = DiagnosticRecordChars - Truncated.Length;
+                record.Append(Truncated);
+            }
+            return record.ToString();
+        }
+
+        private static List<string> ReadinessFields(ReadinessEvidence snapshot)
+        {
+            var fields = new List<string>
+            {
+                FormatDiagnosticField("phase", snapshot.Phase),
+                FormatDiagnosticField("stopReason", snapshot.StopReason),
+                FormatDiagnosticField("identity", snapshot.Observation?.Status.ToString() ?? "unavailable"),
+                FormatDiagnosticField("readFault", snapshot.Observation?.FaultCategory ?? "unavailable"),
+                FormatDiagnosticField("earlierReadFault", snapshot.EarlierReadFault?.FaultCategory ?? "unavailable"),
+                FormatDiagnosticField("readinessMs", snapshot.ReadinessMs.ToString(CultureInfo.InvariantCulture)),
+                FormatDiagnosticField("taskStatus", snapshot.TaskStatus)
+            };
+            if (snapshot.Result is not ProcessRunResult result)
+            {
+                fields.Add(FormatDiagnosticField("result", "unavailable"));
+                return fields;
+            }
+            fields.Add(FormatDiagnosticField("result", "available"));
+            fields.Add(FormatDiagnosticField("started", BoolToken(result.Started)));
+            fields.Add(FormatDiagnosticField("timedOut", BoolToken(result.TimedOut)));
+            fields.Add(FormatDiagnosticField("outputLimitExceeded", BoolToken(result.OutputLimitExceeded)));
+            fields.Add(FormatDiagnosticField("terminationFailed", BoolToken(result.TerminationFailed)));
+            fields.Add(FormatDiagnosticField("cancelled", BoolToken(result.Cancelled)));
+            fields.Add(FormatDiagnosticField("exitCode", result.ExitCode.ToString(CultureInfo.InvariantCulture)));
+            string fixtureExit = result.Started ? result.ExitCode switch
+            {
+                97 => "leader-publish",
+                98 => "child-identity-publish",
+                99 => "child-exited-before-ready",
+                100 => "readiness-publish",
+                _ => "unavailable"
+            } : "unavailable";
+            fields.Add(FormatDiagnosticField("fixtureExit", fixtureExit));
+            fields.Add(FormatDiagnosticField("stdout", "<withheld>"));
+            fields.Add(FormatDiagnosticField("stdoutLength", (result.Stdout?.Length ?? 0).ToString(CultureInfo.InvariantCulture)));
+            fields.Add(FormatDiagnosticField("stderr", "<withheld>"));
+            fields.Add(FormatDiagnosticField("stderrLength", (result.Stderr?.Length ?? 0).ToString(CultureInfo.InvariantCulture)));
+            string error = result.ErrorMessage == "" ? "empty"
+                : result.ErrorMessage == CaptureIncompleteErrorMessage
+                    ? CaptureIncompleteErrorMessage : "<withheld>";
+            fields.Add(FormatDiagnosticField("error", error));
+            fields.Add(FormatDiagnosticField("errorLength", (result.ErrorMessage?.Length ?? 0).ToString(CultureInfo.InvariantCulture)));
+            return fields;
+        }
+
+        private static string BoolToken(bool value) => value ? "true" : "false";
+
+        internal static string FormatReadinessEvidence(ReadinessEvidence snapshot) =>
+            FormatDiagnosticRecord(ReadinessFields(snapshot));
+
+        private static List<string> CleanupFields(
+            string stage, string outcome, Exception? fault, bool retained)
+        {
+            string safeStage = stage switch
+            {
+                "cancel" or "wait" or "owned-kill" or "owned-wait" or "retain" or "release" => stage,
+                _ => "unavailable"
+            };
+            string safeOutcome = outcome switch
+            {
+                "success" or "fault" or "retained" or "unavailable" => outcome,
+                _ => "unavailable"
+            };
+            return new List<string>
+            {
+                FormatDiagnosticField("cleanupStage", safeStage),
+                FormatDiagnosticField("cleanupOutcome", safeOutcome),
+                FormatDiagnosticField("cleanupFault", fault == null ? "unavailable" : ClassifyDiagnosticFault(fault)),
+                FormatDiagnosticField("resources", retained ? "retained" : "unavailable")
+            };
+        }
+
+        internal static string FormatCleanupEvidence(
+            string stage, string outcome, Exception? fault = null, bool retained = false) =>
+            FormatDiagnosticRecord(CleanupFields(stage, outcome, fault, retained));
+
+        internal static FailureEvidence CreateFailureEvidence(
+            Exception? primary, ReadinessEvidence readiness, string cleanupStage,
+            string cleanupOutcome, Exception? secondary, bool retained)
+        {
+            List<string> fields = ReadinessFields(readiness);
+            fields.Add(FormatDiagnosticField(
+                "failureFault", primary == null ? "unavailable" : ClassifyDiagnosticFault(primary)));
+            fields.AddRange(CleanupFields(cleanupStage, cleanupOutcome, secondary, retained));
+            return new FailureEvidence(primary, readiness, secondary, FormatDiagnosticRecord(fields));
+        }
+
+        internal static void LogEvidence(Action<string> log, string projectedEvidence) =>
+            SafeDiagnosticsLog(log, projectedEvidence);
+
         /// <summary>
         /// A unique, disposable scenario root directory. Callers must ensure the scenario's
         /// Run(...) task has actually finished (normally or via <see cref="BestEffortCleanup"/>)
@@ -137,9 +418,11 @@ namespace FEBuilderGBA.Core.Tests
         internal sealed class ScenarioRoot : IDisposable
         {
             public string Path { get; }
+            private readonly Action<string>? _diagnosticsLog;
 
-            public ScenarioRoot(string prefix)
+            public ScenarioRoot(string prefix, Action<string>? diagnosticsLog = null)
             {
+                _diagnosticsLog = diagnosticsLog;
                 Path = System.IO.Path.Combine(
                     System.IO.Path.GetTempPath(),
                     $"{prefix}_{Guid.NewGuid():N}");
@@ -153,12 +436,16 @@ namespace FEBuilderGBA.Core.Tests
                     if (Directory.Exists(Path))
                         Directory.Delete(Path, recursive: true);
                 }
-                catch (IOException)
+                catch (IOException ex)
                 {
                     // Best-effort: a slow-to-exit descendant may still hold a handle briefly.
+                    if (_diagnosticsLog != null)
+                        SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
                 }
-                catch (UnauthorizedAccessException)
+                catch (UnauthorizedAccessException ex)
                 {
+                    if (_diagnosticsLog != null)
+                        SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
                 }
             }
         }
@@ -169,7 +456,6 @@ namespace FEBuilderGBA.Core.Tests
 
         private sealed class RetainedScenarioLease
         {
-            private readonly string _scenarioLabel;
             private readonly ScenarioRoot _root;
             private readonly CancellationTokenSource _cts;
             private readonly Task _runTask;
@@ -183,7 +469,6 @@ namespace FEBuilderGBA.Core.Tests
                 Task runTask,
                 Action<string> diagnosticsLog)
             {
-                _scenarioLabel = scenarioLabel;
                 _root = root;
                 _cts = cts;
                 _runTask = runTask;
@@ -197,10 +482,7 @@ namespace FEBuilderGBA.Core.Tests
                     RetainedScenarioLeases.Add(this);
                 }
 
-                SafeDiagnosticsLog(
-                    _diagnosticsLog,
-                    $"Retaining live scenario resources for {_scenarioLabel}: "
-                    + $"Run task is still live (status={_runTask.Status}, root='{_root.Path}').");
+                SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("retain", "retained", retained: true));
 
                 _runTask.ContinueWith(
                     _ => ReleaseAfterQuiesced(),
@@ -214,10 +496,7 @@ namespace FEBuilderGBA.Core.Tests
                 if (Interlocked.Exchange(ref _released, 1) != 0)
                     return;
 
-                SafeDiagnosticsLog(
-                    _diagnosticsLog,
-                    $"Releasing retained scenario resources for {_scenarioLabel}: "
-                    + $"Run task quiesced (status={_runTask.Status}, root='{_root.Path}').");
+                SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "success"));
 
                 try
                 {
@@ -225,10 +504,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 catch (Exception ex)
                 {
-                    SafeDiagnosticsLog(
-                        _diagnosticsLog,
-                        $"Disposing retained CTS for {_scenarioLabel} failed: "
-                        + $"{ex.GetType().Name}: {ex.Message}");
+                    SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
                 }
 
                 try
@@ -237,10 +513,7 @@ namespace FEBuilderGBA.Core.Tests
                 }
                 catch (Exception ex)
                 {
-                    SafeDiagnosticsLog(
-                        _diagnosticsLog,
-                        $"Disposing retained root for {_scenarioLabel} failed: "
-                        + $"{ex.GetType().Name}: {ex.Message}");
+                    SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
                 }
 
                 lock (RetainedScenarioLock)
@@ -419,36 +692,67 @@ namespace FEBuilderGBA.Core.Tests
         internal static ProcessIdentity? PollForIdentity(
             string path,
             TimeSpan maxWait,
-            Task? runTask = null)
+            Task? runTask = null) =>
+            PollForIdentityWithEvidence(path, maxWait, runTask).Identity;
+
+        internal static IdentityObservation ObserveIdentity(
+            string? path, Func<string, bool> exists, Func<string, string> read)
         {
-            var stopwatch = Stopwatch.StartNew();
+            if (string.IsNullOrEmpty(path) || !exists(path))
+                return new IdentityObservation(IdentityObservationStatus.Missing);
+            try
+            {
+                ProcessIdentity? identity = TryParseIdentity(read(path));
+                return identity.HasValue
+                    ? new IdentityObservation(IdentityObservationStatus.Valid, identity)
+                    : new IdentityObservation(IdentityObservationStatus.Malformed);
+            }
+            catch (IOException ex)
+            {
+                return new IdentityObservation(
+                    IdentityObservationStatus.ReadFault, faultCategory: ClassifyDiagnosticFault(ex));
+            }
+        }
+
+        internal static ReadinessPollEvidence PollForIdentityWithEvidence(
+            string path, TimeSpan maxWait, Task? runTask = null,
+            Func<string, bool>? exists = null, Func<string, string>? read = null,
+            Func<TimeSpan>? elapsed = null, Action<int>? delay = null)
+        {
+            exists ??= File.Exists;
+            read ??= File.ReadAllText;
+            if (elapsed == null)
+            {
+                var stopwatch = Stopwatch.StartNew();
+                elapsed = () => stopwatch.Elapsed;
+            }
+            delay ??= Thread.Sleep;
+            IdentityObservation? earlierReadFault = null;
             while (true)
             {
-                ProcessIdentity? identity = ReadFinalIdentity(path);
-                if (identity != null)
-                    return identity;
+                IdentityObservation observation = ObserveIdentity(path, exists, read);
+                if (observation.Status == IdentityObservationStatus.ReadFault)
+                    earlierReadFault ??= observation;
+                if (observation.Identity != null)
+                    return new ReadinessPollEvidence(observation, earlierReadFault, ReadinessStopReason.Ready);
                 if (runTask?.IsCompleted == true)
-                    return ReadFinalIdentity(path);
-                if (stopwatch.Elapsed >= maxWait)
-                    return null;
-                Thread.Sleep(ReadinessPollMs);
+                {
+                    observation = ObserveIdentity(path, exists, read);
+                    if (observation.Status == IdentityObservationStatus.ReadFault)
+                        earlierReadFault ??= observation;
+                    return new ReadinessPollEvidence(
+                        observation, earlierReadFault, ReadinessStopReason.TaskCompleted);
+                }
+                if (elapsed() >= maxWait)
+                    return new ReadinessPollEvidence(
+                        observation, earlierReadFault, ReadinessStopReason.Deadline);
+                delay(ReadinessPollMs);
             }
         }
 
         /// <summary>Final authoritative re-read after the run completed; must be a complete payload.</summary>
-        internal static ProcessIdentity? ReadFinalIdentity(string? path)
-        {
-            if (string.IsNullOrEmpty(path) || !File.Exists(path))
-                return null;
-            try
-            {
-                return TryParseIdentity(File.ReadAllText(path));
-            }
-            catch (IOException)
-            {
-                return null;
-            }
-        }
+        internal static ProcessIdentity? ReadFinalIdentity(string? path) =>
+            ObserveIdentity(path, File.Exists, File.ReadAllText).Identity;
 
         private static bool IsExpectedProcessName(string name)
         {
@@ -562,51 +866,56 @@ namespace FEBuilderGBA.Core.Tests
             string? childIdentityPath,
             ProcessIdentity? childIdentity,
             DateTimeOffset scenarioStartUtc,
-            Action<string> diagnosticsLog)
+            Action<string> diagnosticsLog,
+            Action<Exception>? secondaryFault = null)
         {
             bool runQuiesced = runTask == null || runTask.IsCompleted;
+            string cleanupStage = "cancel";
             try
             {
                 try
                 {
                     cts.Cancel();
                 }
-                catch (ObjectDisposedException)
+                catch (ObjectDisposedException ex)
                 {
+                    secondaryFault?.Invoke(ex);
+                    SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("cancel", "fault", ex));
                 }
 
+                cleanupStage = "wait";
                 bool quiescedAfterCancel = WaitForRunTaskQuiescence(
                     runTask,
                     CancelGraceMs,
-                    "cancel-grace wait",
-                    diagnosticsLog);
+                    "wait",
+                    diagnosticsLog,
+                    secondaryFault);
 
                 ProcessIdentity? refreshedChildIdentity =
                     ReadFinalIdentity(childIdentityPath) ?? childIdentity;
-                TryBestEffortKill(leaderIdentity, scenarioStartUtc, diagnosticsLog);
-                TryBestEffortKill(refreshedChildIdentity, scenarioStartUtc, diagnosticsLog);
+                cleanupStage = "owned-kill";
+                TryBestEffortKill(leaderIdentity, scenarioStartUtc, diagnosticsLog, secondaryFault);
+                TryBestEffortKill(refreshedChildIdentity, scenarioStartUtc, diagnosticsLog, secondaryFault);
 
+                cleanupStage = "owned-wait";
                 bool quiescedAfterKill = WaitForRunTaskQuiescence(
                     runTask,
                     FinalKillWaitMs,
-                    "post-kill wait",
-                    diagnosticsLog);
+                    "owned-wait",
+                    diagnosticsLog,
+                    secondaryFault);
 
                 runQuiesced = quiescedAfterCancel || quiescedAfterKill;
                 if (!runQuiesced)
                 {
-                    SafeDiagnosticsLog(
-                        diagnosticsLog,
-                        "Run task remained live after cancellation, PID-safe kills, and the "
-                        + $"final {FinalKillWaitMs} ms wait; retaining CTS/root/task.");
+                    SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("retain", "retained", retained: true));
                 }
             }
             catch (Exception ex)
             {
                 // Cleanup must never replace the primary test failure with one of its own.
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"BestEffortCleanup itself failed: {ex.GetType().Name}: {ex.Message}");
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence(cleanupStage, "fault", ex));
                 runQuiesced = runQuiesced || (runTask == null || runTask.IsCompleted);
             }
             return runQuiesced;
@@ -616,7 +925,8 @@ namespace FEBuilderGBA.Core.Tests
             Task? runTask,
             int waitMs,
             string phase,
-            Action<string> diagnosticsLog)
+            Action<string> diagnosticsLog,
+            Action<Exception>? secondaryFault)
         {
             if (runTask == null)
                 return true;
@@ -627,10 +937,8 @@ namespace FEBuilderGBA.Core.Tests
             }
             catch (AggregateException ex)
             {
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"Scenario Run task completed during {phase} with status {runTask.Status}: "
-                    + ex.Flatten().Message);
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence(phase, "fault", ex));
                 return true;
             }
         }
@@ -650,7 +958,8 @@ namespace FEBuilderGBA.Core.Tests
         private static void TryBestEffortKill(
             ProcessIdentity? identity,
             DateTimeOffset scenarioStartUtc,
-            Action<string> diagnosticsLog)
+            Action<string> diagnosticsLog,
+            Action<Exception>? secondaryFault)
         {
             if (identity == null)
                 return;
@@ -667,20 +976,14 @@ namespace FEBuilderGBA.Core.Tests
                 bool nameMatches = IsExpectedProcessName(name);
                 if (!nameMatches)
                 {
-                    SafeDiagnosticsLog(
-                        diagnosticsLog,
-                        $"Refusing best-effort kill of pid {id.Pid}: process name '{name}' does "
-                        + "not match the expected powershell/python prefix (likely PID reuse).");
+                    SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "unavailable"));
                     return;
                 }
                 long startUnixMs =
                     new DateTimeOffset(process.StartTime.ToUniversalTime()).ToUnixTimeMilliseconds();
                 if (startUnixMs < windowStartMs || startUnixMs > windowEndMs)
                 {
-                    SafeDiagnosticsLog(
-                        diagnosticsLog,
-                        $"Refusing best-effort kill of pid {id.Pid}: start time {startUnixMs} "
-                        + $"outside accepted window [{windowStartMs},{windowEndMs}] (likely PID reuse).");
+                    SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "unavailable"));
                     return;
                 }
                 process.Kill(entireProcessTree: true);
@@ -688,27 +991,23 @@ namespace FEBuilderGBA.Core.Tests
             }
             catch (ArgumentException ex)
             {
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"Best-effort kill of pid {id.Pid} failed closed: {ex.GetType().Name}: {ex.Message}");
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (InvalidOperationException ex)
             {
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"Best-effort kill of pid {id.Pid} failed closed: {ex.GetType().Name}: {ex.Message}");
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"Best-effort kill of pid {id.Pid} failed closed: {ex.GetType().Name}: {ex.Message}");
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (PlatformNotSupportedException ex)
             {
-                SafeDiagnosticsLog(
-                    diagnosticsLog,
-                    $"Best-effort kill of pid {id.Pid} failed closed: {ex.GetType().Name}: {ex.Message}");
+                secondaryFault?.Invoke(ex);
+                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
         }
 
@@ -724,18 +1023,12 @@ namespace FEBuilderGBA.Core.Tests
         {
             string cleanupValue = cleanupMs?.ToString(CultureInfo.InvariantCulture)
                 ?? "unknown";
-            try
-            {
-                output.WriteLine(
-                    "PROCESS_RUNNER_METRIC "
-                    + $"scenario={scenario} iteration={iteration} "
-                    + $"readinessMs={readinessMs} cleanupMs={cleanupValue} totalMs={totalMs} "
-                    + $"outcome={outcome}");
-            }
-            catch (InvalidOperationException)
-            {
-                // A retained background task may quiesce after xUnit closes its output sink.
-            }
+            SafeDiagnosticsLog(
+                message => output.WriteLine(message),
+                "PROCESS_RUNNER_METRIC "
+                + $"scenario={scenario} iteration={iteration} "
+                + $"readinessMs={readinessMs} cleanupMs={cleanupValue} totalMs={totalMs} "
+                + $"outcome={outcome}");
         }
     }
 }

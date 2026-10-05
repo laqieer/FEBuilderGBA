@@ -56,6 +56,11 @@ namespace FEBuilderGBA.Core.Tests
             ProcessRunnerScenarioSupport.RunCompletion? runCompletion = null;
             DateTimeOffset scenarioStartUtc = DateTimeOffset.UtcNow;
             ProcessRunnerScenarioSupport.ProcessIdentity? childIdentity = null;
+            ProcessRunnerScenarioSupport.ReadinessPollEvidence? poll = null;
+            ProcessRunnerScenarioSupport.ReadinessEvidence? evidence = null;
+            Exception? primaryFailure = null;
+            Exception? secondaryFailure = null;
+            string phase = "prepare";
             ProcessRunResult result = default;
             bool scenarioPassed = false;
             long readinessMs = 0;
@@ -65,7 +70,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 root = new ProcessRunnerScenarioSupport.ScenarioRoot(
-                    "febuildergba_process_tree");
+                    "febuildergba_process_tree", msg => _output.WriteLine(msg));
                 leaderPath = Path.Combine(root.Path, "leader.pid");
                 childIdentityPath = Path.Combine(root.Path, "child.pid");
                 childReadyPath = Path.Combine(root.Path, "child.ready");
@@ -82,52 +87,67 @@ namespace FEBuilderGBA.Core.Tests
                     cts.Token);
 
                 var readinessStopwatch = Stopwatch.StartNew();
-                childIdentity = ProcessRunnerScenarioSupport.PollForIdentity(
+                phase = "readiness";
+                poll = ProcessRunnerScenarioSupport.PollForIdentityWithEvidence(
                     childReadyPath, TimeSpan.FromSeconds(25), runTask);
+                childIdentity = poll.Identity;
                 readinessMs = readinessStopwatch.ElapsedMilliseconds;
-                Assert.True(childIdentity != null, "Child readiness file was never published.");
+                evidence = ProcessRunnerScenarioSupport.FreezeReadinessEvidence(
+                    poll, phase, childIdentity != null, runTask, readinessMs);
+                Assert.True(
+                    childIdentity != null,
+                    "No valid child readiness identity was observed. "
+                    + ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence));
 
+                phase = "run-incomplete";
                 Task completedTask = await Task.WhenAny(
                     runTask,
                     Task.Delay(TimeSpan.FromSeconds(25)));
                 Assert.True(
                     ReferenceEquals(runTask, completedTask),
-                    "Run(...) did not complete within 25s of observed child readiness.");
+                    "Run(...) did not complete within 25s of observed child readiness. "
+                    + ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence));
                 runCompletion = await runTask;
+                evidence = ProcessRunnerScenarioSupport.FillReadinessResultBeforeCleanup(
+                    evidence, runTask, cleanupStarted: false);
                 cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
                     childIdentity.Value,
                     runCompletion.Value.CompletionUtc);
                 Assert.InRange(cleanupMs.Value, 0, 24_999);
 
                 result = runCompletion.Value.Result;
-                Assert.True(result.Started, result.ErrorMessage);
-                Assert.False(result.TimedOut, result.ErrorMessage);
-                Assert.False(result.OutputLimitExceeded, result.ErrorMessage);
-                Assert.False(result.TerminationFailed, result.ErrorMessage);
-                Assert.False(result.Cancelled, result.ErrorMessage);
+                phase = "result-rejected";
+                string resultEvidence = ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence);
+                Assert.True(result.Started, resultEvidence);
+                Assert.False(result.TimedOut, resultEvidence);
+                Assert.False(result.OutputLimitExceeded, resultEvidence);
+                Assert.False(result.TerminationFailed, resultEvidence);
+                Assert.False(result.Cancelled, resultEvidence);
                 Assert.True(
                     result.ExitCode == 0,
-                    $"Expected exit 0, got {result.ExitCode}. "
-                    + $"ErrorMessage: {result.ErrorMessage}");
-                Assert.Equal("", result.ErrorMessage);
+                    "Expected exit 0. " + resultEvidence);
+                Assert.True(result.ErrorMessage == "", "Expected empty error. " + resultEvidence);
 
+                phase = "assertion";
                 var finalLeader = ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath);
-                Assert.True(finalLeader != null, "Leader did not record a final atomic identity payload.");
+                Assert.True(finalLeader != null, "Leader did not record a final atomic identity payload. " + resultEvidence);
                 var finalChildIdentity =
                     ProcessRunnerScenarioSupport.ReadFinalIdentity(childIdentityPath);
                 Assert.True(
                     finalChildIdentity != null,
-                    "Child did not record an immediate atomic identity payload.");
+                    "Child did not record an immediate atomic identity payload. " + resultEvidence);
                 var finalChildReady =
                     ProcessRunnerScenarioSupport.ReadFinalIdentity(childReadyPath);
                 Assert.True(
                     finalChildReady != null,
-                    "Child readiness payload was incomplete after Run() completed.");
-                Assert.Equal(finalChildIdentity.Value.Pid, finalChildReady.Value.Pid);
+                    "Child readiness payload was incomplete after Run() completed. " + resultEvidence);
+                Assert.True(
+                    finalChildIdentity.Value.Pid == finalChildReady.Value.Pid,
+                    "Child identity/readiness payloads disagreed. " + resultEvidence);
                 Assert.True(
                     finalChildReady.Value.RecordedUnixMs
                         >= finalChildIdentity.Value.RecordedUnixMs,
-                    "Child readiness timestamp preceded its spawn identity.");
+                    "Child readiness timestamp preceded its spawn identity. " + resultEvidence);
 
                 bool died = ProcessRunnerScenarioSupport.DescendantDiedWithinAcceptedWindow(
                     finalChildReady.Value,
@@ -135,58 +155,109 @@ namespace FEBuilderGBA.Core.Tests
                         finalChildReady.Value.RecordedUnixMs),
                     scenarioStartUtc,
                     out TimeSpan observedAfter);
-                Assert.True(died, $"Descendant outlived containment or died too late ({observedAfter}).");
+                Assert.True(died, $"Descendant outlived containment or died too late ({observedAfter}). " + resultEvidence);
 
                 scenarioPassed = true;
                 outcome = "pass";
             }
+            catch (Exception ex)
+            {
+                primaryFailure = ex;
+                evidence ??= ProcessRunnerScenarioSupport.FreezeReadinessEvidence(
+                    poll, phase, childIdentity != null, runTask, readinessMs);
+                if (ex is Xunit.Sdk.XunitException)
+                    throw;
+                throw new ProcessRunnerScenarioSupport.ScenarioFailureException(
+                    ProcessRunnerScenarioSupport.CreateFailureEvidence(
+                        ex, evidence, "wait", "unavailable", null, false).Text,
+                    ex);
+            }
             finally
             {
+                evidence ??= ProcessRunnerScenarioSupport.FreezeReadinessEvidence(
+                    poll, phase, childIdentity != null, runTask, readinessMs);
+                bool retained = false;
+                bool runQuiesced = runTask == null || runTask.IsCompleted;
                 try
                 {
                     if (!scenarioPassed && cts != null)
                     {
-                        bool runQuiesced = ProcessRunnerScenarioSupport.BestEffortCleanup(
+                        runQuiesced = ProcessRunnerScenarioSupport.BestEffortCleanup(
                             cts,
                             runTask,
                             ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath),
                             childIdentityPath,
                             childIdentity,
                             scenarioStartUtc,
-                            msg => _output.WriteLine(msg));
-                        if (!runQuiesced && root != null && runTask != null)
-                        {
-                            ProcessRunnerScenarioSupport.ScenarioRoot retainedRoot = root;
-                            CancellationTokenSource retainedCts = cts;
-                            root = null;
-                            cts = null;
-                            ProcessRunnerScenarioSupport.RetainLiveResources(
-                                $"{nameof(Run_ParentExitStillTerminatesDescendantHoldingPipes)}[{iteration}]",
-                                retainedRoot,
-                                retainedCts,
-                                runTask,
-                                msg => _output.WriteLine(msg));
-                        }
+                            msg => _output.WriteLine(msg),
+                            ex => secondaryFailure ??= ex);
                     }
                 }
                 catch (Exception ex)
                 {
-                    _output.WriteLine($"Cleanup after failure itself failed: {ex}");
+                    secondaryFailure ??= ex;
+                    ProcessRunnerScenarioSupport.LogEvidence(
+                        msg => _output.WriteLine(msg),
+                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("wait", "fault", ex));
+                    runQuiesced = runTask == null || runTask.IsCompleted;
                 }
                 finally
                 {
-                    cts?.Dispose();
-                    root?.Dispose();
+                    if (!runQuiesced && root != null && cts != null && runTask != null)
+                    {
+                        ProcessRunnerScenarioSupport.ScenarioRoot retainedRoot = root;
+                        CancellationTokenSource retainedCts = cts;
+                        root = null;
+                        cts = null;
+                        retained = true;
+                        ProcessRunnerScenarioSupport.RetainLiveResources(
+                            $"{nameof(Run_ParentExitStillTerminatesDescendantHoldingPipes)}[{iteration}]",
+                            retainedRoot, retainedCts, runTask, msg => _output.WriteLine(msg));
+                    }
+                    try
+                    {
+                        cts?.Dispose();
+                        root?.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        secondaryFailure ??= ex;
+                        ProcessRunnerScenarioSupport.LogEvidence(
+                            msg => _output.WriteLine(msg),
+                            ProcessRunnerScenarioSupport.FormatCleanupEvidence("release", "fault", ex));
+                    }
                 }
 
-                if (cleanupMs == null)
+                try
                 {
-                    cleanupMs = await ResolveCleanupMsAsync(
-                        runTask,
-                        runCompletion,
-                        childIdentity);
+                    if (cleanupMs == null)
+                    {
+                        cleanupMs = await ResolveCleanupMsAsync(
+                            runTask,
+                            runCompletion,
+                            childIdentity);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    secondaryFailure ??= ex;
+                    ProcessRunnerScenarioSupport.LogEvidence(
+                        msg => _output.WriteLine(msg),
+                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("wait", "fault", ex));
                 }
 
+                if (!scenarioPassed || secondaryFailure != null)
+                {
+                    ProcessRunnerScenarioSupport.LogEvidence(
+                        msg => _output.WriteLine(msg),
+                        ProcessRunnerScenarioSupport.CreateFailureEvidence(
+                            primaryFailure, evidence, retained ? "retain" : "wait",
+                            secondaryFailure != null ? "fault" : retained ? "retained" : "success",
+                            secondaryFailure, retained).Text);
+                }
+
+                if (primaryFailure == null && secondaryFailure != null)
+                    outcome = "cleanup-fault";
                 ProcessRunnerScenarioSupport.EmitMetric(
                     _output,
                     nameof(Run_ParentExitStillTerminatesDescendantHoldingPipes),
@@ -195,6 +266,12 @@ namespace FEBuilderGBA.Core.Tests
                     cleanupMs,
                     totalStopwatch.ElapsedMilliseconds,
                     outcome);
+                if (primaryFailure == null && secondaryFailure != null)
+                {
+                    throw new ProcessRunnerScenarioSupport.ScenarioFailureException(
+                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("release", "fault", secondaryFailure),
+                        secondaryFailure);
+                }
             }
         }
 
