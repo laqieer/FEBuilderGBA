@@ -25,8 +25,9 @@ retains the same slot and resolves its allocated table. A relocated CSA
 signature with this unchanged engine is unsupported because it cannot be
 distinguished from a damaged fixed installation. Other engines and versions
 retain their generic signature scan; the sentinel at any other slot is unsafe.
-The exception never exposes ROM offset zero as a table. `MagicCSACore` forwards these distinct outputs
-to the WinForms cache and Avalonia consumers. WinForms retains its existing
+The exception never exposes ROM offset zero as a table. WinForms fills its cache
+directly from `ImageUtilMagicCore`; `MagicCSACore` exposes the same outputs to
+Core and Avalonia consumers. WinForms retains its existing
 first-allocation prompt; `MagicListExpandCore` is only a relocator of allocated
 tables and rejects an unallocated CSA target before either table is written.
 Both Core magic import APIs and `MagicEffectRendererCore` still require an
