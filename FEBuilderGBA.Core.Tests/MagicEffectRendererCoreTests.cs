@@ -312,15 +312,26 @@ namespace FEBuilderGBA.Core.Tests
         // RenderMagicFrame
         // ---------------------------------------------------------------
 
-        [Fact]
-        public void RenderMagicFrame_UnallocatedTable_ReturnsNullBeforeReadingFrame()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void RenderMagicFrame_UnallocatedTable_ReturnsNullBeforeReadingFrame(bool installerSentinel)
         {
             var prevRom = CoreState.ROM;
             var prevSvc = CoreState.ImageService;
             try
             {
                 var rom = MakeFe8uRomWithMagic();
-                Array.Clear(rom.Data, 0x200010, 4);
+                if (installerSentinel)
+                {
+                    Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 16);
+                    Array.Clear(rom.Data, 0x200000, 20);
+                    BitConverter.GetBytes(0x08000000u).CopyTo(rom.Data, 0x95D904);
+                    Assert.Equal(0x95D904u, MagicCSACore.GetCSASpellTablePointer(rom));
+                    Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+                }
+                else
+                    Array.Clear(rom.Data, 0x200010, 4);
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
                 byte[] before = (byte[])rom.Data.Clone();

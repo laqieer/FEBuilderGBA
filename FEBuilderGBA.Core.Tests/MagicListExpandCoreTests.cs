@@ -273,6 +273,38 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(undoCount, CoreState.Undo.UndoBuffer.Count);
         }
 
+        [Fact]
+        public void ExpandMagicLists_FEditorInstallerSentinel_AbortsBeforeAnyWrite()
+        {
+            ROM rom = MakeRomWithCsa();
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            PlantMagicEffectRows(rom, 4);
+            byte[] engine = { 0x01,0,0,0,0x90,0xD7,0x95,0x08,
+                0x03,0,0,0,0x39,0xD9,0x95,0x08 };
+            byte[] signature = { 0x01,0xB4,0x7D,0xE7,0x34,0xFF,0x03,0x02,
+                0x80,0xD7,0x95,0x08,0x1A,0xE1,0x03,0x02 };
+            Array.Copy(engine, 0, rom.Data, (int)EngineSigAddr, engine.Length);
+            Array.Clear(rom.Data, (int)TableSigAddr, 20);
+            Array.Copy(signature, 0, rom.Data, 0x95D8F4, signature.Length);
+            WriteU32(rom, 0x95D904u, 0x08000000u);
+            byte[] before = (byte[])rom.Data.Clone();
+            int undoCount = CoreState.Undo.UndoBuffer.Count;
+            var ud = CoreState.Undo.NewUndoData("Installer sentinel");
+            using (ROM.BeginUndoScope(ud))
+            {
+                var result = MagicListExpandCore.ExpandMagicLists(rom, 4, 0, ud);
+                Assert.False(result.Success);
+                Assert.False(string.IsNullOrEmpty(result.Error));
+            }
+            Assert.Equal(0x95D904u, MagicCSACore.GetCSASpellTablePointer(rom));
+            Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+            Assert.Equal(before, rom.Data);
+            Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
+            Assert.True(ud.list == null || ud.list.Count == 0);
+            Assert.Equal(undoCount, CoreState.Undo.UndoBuffer.Count);
+        }
+
         // ==================================================================
         // newCount(254) <= currentCount guard.
         // ==================================================================

@@ -185,6 +185,114 @@ public class ImageUtilMagicCoreTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FEditorInstallerSentinel_RetainsExactSlotWithoutMutation(bool earlierDecoy)
+    {
+        var rom = MakeFe8uWithFEditorSignature();
+        const int signature = 0x95D8F4;
+        const uint slot = 0x95D904u;
+        Array.Copy(rom.Data, 0x200000, rom.Data, signature, 16);
+        if (!earlierDecoy)
+            Array.Clear(rom.Data, 0x200000, 20);
+        BitConverter.GetBytes(0x08000000u).CopyTo(rom.Data, (int)slot);
+        byte[] before = (byte[])rom.Data.Clone();
+
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.FEditorAdv,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out uint b, out _, out _));
+        Assert.Equal(0x95D780u, b);
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(
+            rom, ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(slot, pointer);
+        Assert.Equal(0x08000000u, rom.u32(slot));
+        Assert.Equal(before, rom.Data);
+    }
+
+    [Theory]
+    [InlineData(0x08000001u, false, false)]
+    [InlineData(0x09000000u, false, false)]
+    [InlineData(0xDEADBEEFu, false, false)]
+    [InlineData(0x08000000u, true, false)]
+    [InlineData(0x08000000u, false, true)]
+    public void FEditorInstallerSlot_RejectsUnsafeOrMismatchedSentinel(
+        uint rawTarget, bool missingEngine, bool movedSignature)
+    {
+        var rom = MakeFe8uWithFEditorSignature();
+        Array.Clear(rom.Data, 0x200000, 20);
+        Array.Copy(MakeFe8uWithFEditorSignature().Data, 0x200000,
+            rom.Data, movedSignature ? 0x95D8F8 : 0x95D8F4, 16);
+        BitConverter.GetBytes(rawTarget).CopyTo(rom.Data,
+            movedSignature ? 0x95D908 : 0x95D904);
+        if (missingEngine)
+            Array.Clear(rom.Data, 0x95D780, 16);
+        if (rawTarget == 0x09000000u)
+        {
+            var bounded = new ROM();
+            bounded.LoadLow("bounded-fe8u.gba", rom.Data[..0x1000000], "BE8E01");
+            rom = bounded;
+        }
+
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(
+            rom, ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(U.NOT_FOUND, pointer);
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+    }
+
+    [Fact]
+    public void FEditorInstallerSlot_AllocatedTargetRemainsAllocated()
+    {
+        var rom = MakeFe8uWithFEditorSignature();
+        Array.Clear(rom.Data, 0x200000, 20);
+        Array.Copy(MakeFe8uWithFEditorSignature().Data, 0x200000,
+            rom.Data, 0x95D8F4, 16);
+        BitConverter.GetBytes(0x08100000u).CopyTo(rom.Data, 0x95D904);
+        Assert.Equal(0x100000u, ImageUtilMagicCore.FindCSASpellTable(
+            rom, ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(0x95D904u, pointer);
+    }
+
+    [Fact]
+    public void FEditorInstallerSentinel_RejectsWrongVersion()
+    {
+        var source = MakeFe8uWithFEditorSignature();
+        Array.Copy(source.Data, 0x200000, source.Data, 0x95D8F4, 16);
+        Array.Clear(source.Data, 0x200000, 20);
+        BitConverter.GetBytes(0x08000000u).CopyTo(source.Data, 0x95D904);
+        var rom = new ROM();
+        rom.LoadLow("wrong-version.gba", source.Data, "AE7E01");
+
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(
+            rom, ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(U.NOT_FOUND, pointer);
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+    }
+
+    [Fact]
+    public void FEditorInstallerSentinel_RejectsTruncatedSlotAndCsaCreator()
+    {
+        var source = MakeFe8uWithFEditorSignature();
+        Array.Copy(source.Data, 0x200000, source.Data, 0x95D8F4, 16);
+        Array.Clear(source.Data, 0x200000, 20);
+        var truncated = new ROM();
+        truncated.LoadLow("truncated.gba", source.Data[..0x95D907], "BE8E01");
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(
+            truncated, ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer));
+        Assert.Equal(U.NOT_FOUND, pointer);
+
+        var csa = MakeFe8uWithSCACreatorSignature();
+        Array.Copy(csa.Data, 0x200000, csa.Data, 0x95D8F4, 16);
+        Array.Clear(csa.Data, 0x200000, 20);
+        BitConverter.GetBytes(0x08000000u).CopyTo(csa.Data, 0x95D904);
+        Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(
+            csa, ImageUtilMagicCore.MagicSystem.CsaCreator, out pointer));
+        Assert.Equal(U.NOT_FOUND, pointer);
+        Assert.Equal(ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(csa, out _, out _, out _));
+    }
+
+    [Theory]
     [InlineData(false, false)]
     [InlineData(false, true)]
     [InlineData(true, false)]

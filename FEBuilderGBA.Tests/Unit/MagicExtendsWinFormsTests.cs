@@ -46,6 +46,42 @@ namespace FEBuilderGBA.Tests.Unit
             }
         }
 
+        [Fact]
+        public void DetectorCache_FEditorInstallerSentinel_TransitionsToAllocated()
+        {
+            var romProperty = typeof(Program).GetProperty("ROM", BindingFlags.Public | BindingFlags.Static)!;
+            ROM previousProgramRom = Program.ROM;
+            ROM previousCoreRom = CoreState.ROM;
+            try
+            {
+                ROM installed = MakeRom(true, false);
+                Array.Copy(installed.Data, 0x200000, installed.Data, 0x95D8F4, 16);
+                Array.Clear(installed.Data, 0x200000, 20);
+                BitConverter.GetBytes(0x08000000u).CopyTo(installed.Data, 0x95D904);
+                byte[] before = (byte[])installed.Data.Clone();
+                SetRom(installed);
+
+                Assert.Equal(ImageUtilMagic.magic_system_enum.FEDITOR_ADV,
+                    ImageUtilMagic.SearchMagicSystem());
+                Assert.Equal(0x95D904u, ImageUtilMagic.GetCSASpellTablePointer());
+                Assert.Equal(U.NOT_FOUND, ImageUtilMagic.GetCSASpellTableAddr());
+                Assert.Equal(before, installed.Data);
+
+                BitConverter.GetBytes(0x08100000u).CopyTo(installed.Data, 0x95D904);
+                ImageUtilMagic.ClearCache();
+                Assert.Equal(ImageUtilMagic.magic_system_enum.FEDITOR_ADV,
+                    ImageUtilMagic.SearchMagicSystem());
+                Assert.Equal(0x95D904u, ImageUtilMagic.GetCSASpellTablePointer());
+                Assert.Equal(0x100000u, ImageUtilMagic.GetCSASpellTableAddr());
+            }
+            finally
+            {
+                romProperty.SetValue(null, previousProgramRom);
+                CoreState.ROM = previousCoreRom;
+                ImageUtilMagic.ClearCache();
+            }
+        }
+
         static void AssertEngine(bool csaCreator, uint expectedTable)
         {
             Assert.Equal(csaCreator

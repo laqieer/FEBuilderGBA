@@ -199,11 +199,18 @@ namespace FEBuilderGBA.Core.Tests
         // ImportMagicScript — validation guards (no mutation)
         // ================================================================
 
-        [Fact]
-        public void Import_UnallocatedFEditorTable_RefusedWithoutMutation()
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Import_UnallocatedFEditorTable_RefusedWithoutMutation(bool installerSentinel)
         {
-            var rom = MakeUnallocatedFEditorRom();
+            var rom = MakeUnallocatedFEditorRom(installerSentinel);
             CoreState.ROM = rom;
+            if (installerSentinel)
+            {
+                Assert.Equal(0x95D904u, MagicCSACore.GetCSASpellTablePointer(rom));
+                Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+            }
             byte[] before = (byte[])rom.Data.Clone();
             int length = rom.Data.Length;
             var undo = new Undo.UndoData();
@@ -467,7 +474,7 @@ namespace FEBuilderGBA.Core.Tests
         // Helpers
         // ================================================================
 
-        static ROM MakeUnallocatedFEditorRom()
+        static ROM MakeUnallocatedFEditorRom(bool installerSentinel)
         {
             var rom = new ROM();
             rom.LoadLow("unallocated-fe8u.gba", new byte[0x1100000], "BE8E01");
@@ -480,7 +487,10 @@ namespace FEBuilderGBA.Core.Tests
                 0x80, 0xD7, 0x95, 0x08, 0x1A, 0xE1, 0x03, 0x02,
             };
             Array.Copy(engine, 0, rom.Data, 0x95d780, engine.Length);
-            Array.Copy(signature, 0, rom.Data, 0x200000, signature.Length);
+            int signatureAddress = installerSentinel ? 0x95D8F4 : 0x200000;
+            Array.Copy(signature, 0, rom.Data, signatureAddress, signature.Length);
+            if (installerSentinel)
+                BitConverter.GetBytes(0x08000000u).CopyTo(rom.Data, 0x95D904);
             return rom;
         }
 

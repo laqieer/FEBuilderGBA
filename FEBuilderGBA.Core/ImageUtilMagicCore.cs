@@ -155,8 +155,8 @@ namespace FEBuilderGBA
         /// detected magic system. Returns the table address (the
         /// resolved p32 pointer) and the pointer slot itself
         /// (<paramref name="outPointer"/>). A complete slot with a
-        /// raw zero target retains the slot but returns
-        /// <c>U.NOT_FOUND</c> for the unallocated table. Both are
+        /// raw zero target (or the exact FE8U FEditor installer sentinel)
+        /// retains the slot but returns <c>U.NOT_FOUND</c> for the unallocated table. Both are
         /// <c>U.NOT_FOUND</c> on a non-match or unsafe nonzero target.
         ///
         /// <para>
@@ -177,6 +177,25 @@ namespace FEBuilderGBA
             {
                 if (sig.name != typeName) continue;
                 if (sig.ver != version) continue;
+
+                const uint installerSignature = 0x95D8F4u;
+                const uint installerSlot = installerSignature + 16u;
+                if (system == MagicSystem.FEditorAdv && version == "FE8U"
+                    && rom.Data.Length >= installerSlot + 4u
+                    && rom.u32(installerSlot) == 0x08000000u
+                    && U.memcmp(sig.data, rom.getBinaryData(installerSignature, (uint)sig.data.Length)) == 0)
+                {
+                    foreach (var patch in PatchSignatures)
+                    {
+                        if (patch.name == "FEditor" && patch.ver == "FE8U"
+                            && patch.addr == 0x95D780u
+                            && U.memcmp(patch.data, rom.getBinaryData(patch.addr, (uint)patch.data.Length)) == 0)
+                        {
+                            outPointer = installerSlot;
+                            return U.NOT_FOUND;
+                        }
+                    }
+                }
 
                 uint hit = U.Grep(rom.Data, sig.data, 0x10000, 0, 4);
                 if (hit == U.NOT_FOUND) continue;
