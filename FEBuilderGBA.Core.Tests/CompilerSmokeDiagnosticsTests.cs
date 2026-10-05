@@ -680,30 +680,47 @@ public class CompilerSmokeDiagnosticsTests
     [SkippableFact]
     public void OwnedFixture_NativeReaderRejectsRootAndMarkerLinks()
     {
-        string root = CreateRoot();
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string root = fixture.AnchorPath;
+        string other = Path.Combine(root, "other");
+        fixture.Directory(other);
+        string privateFile = Path.Combine(other, "private.txt");
+        fixture.Write(other, "private.txt", "SECRET_LINK_TARGET");
+        string linkedRoot = Path.Combine(root, "linked-root");
+        string linkedMarker = Path.Combine(root, "ready.stage");
+        Assert.All(CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, false),
+            stage => Assert.Equal(FixtureStageStatus.Missing, stage.Status));
         try
         {
-            string other = Path.Combine(root, "other");
-            Directory.CreateDirectory(other);
-            string privateFile = Path.Combine(other, "private.txt");
-            File.WriteAllText(privateFile, "SECRET_LINK_TARGET");
-            string linkedRoot = Path.Combine(root, "linked-root");
-            try
-            {
-                Directory.CreateSymbolicLink(linkedRoot, other);
-                File.CreateSymbolicLink(Path.Combine(root, "ready.stage"), privateFile);
-            }
-            catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
-            {
-                Skip.If(true, "Windows symbolic-link creation privilege is unavailable; no privilege change requested.");
-            }
-            var rootStages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(linkedRoot, false);
-            Assert.All(rootStages, stage => Assert.Equal(FixtureStageStatus.ReparseRejected, stage.Status));
-            var markerStages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, false);
-            Assert.Equal(FixtureStageStatus.ReparseRejected, markerStages[0].Status);
-            Assert.All(markerStages.Skip(1), stage => Assert.Equal(FixtureStageStatus.Missing, stage.Status));
+            fixture.Link(linkedRoot, other);
+            fixture.FileLink(linkedMarker, privateFile);
         }
-        finally { Directory.Delete(root, true); }
+        catch (UnauthorizedAccessException) when (OperatingSystem.IsWindows())
+        {
+            Skip.If(true, "Windows symbolic-link creation privilege is unavailable; no privilege change requested.");
+        }
+        var rootStages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(linkedRoot, false);
+        Assert.All(rootStages, stage => Assert.Equal(FixtureStageStatus.ReparseRejected, stage.Status));
+        var markerStages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, false);
+        Assert.Equal(FixtureStageStatus.ReparseRejected, markerStages[0].Status);
+        Assert.All(markerStages.Skip(1), stage => Assert.Equal(FixtureStageStatus.Missing, stage.Status));
+        Assert.Equal("SECRET_LINK_TARGET", File.ReadAllText(privateFile));
+        Assert.Equal(other, new DirectoryInfo(linkedRoot).LinkTarget);
+        Assert.Equal(privateFile, new FileInfo(linkedMarker).LinkTarget);
+    }
+
+    [Fact]
+    public void OwnedFixture_NativeReaderReadsRegularMarkersBeforeLinkChecks()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string root = fixture.AnchorPath;
+        string marker = Path.Combine(root, "ready.stage");
+        fixture.Write(root, "ready.stage", "ready:12");
+        var stages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, false);
+        Assert.Equal(new FixtureStageObservation(FixtureStage.Ready, FixtureStageStatus.Present, 12), stages[0]);
+        Assert.All(stages.Skip(1), stage => Assert.Equal(FixtureStageStatus.Missing, stage.Status));
+        Assert.Equal("ready:12", File.ReadAllText(marker));
     }
 
     [Theory]
@@ -1631,19 +1648,34 @@ public class CompilerSmokeDiagnosticsTests
         Assert.True(Directory.Exists(owned.EnvelopePath));
     }
 
-    [Fact]
-    public void OwnedOwnership_PosixAllowlistedDirectoryIsNeverTraversed()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_PosixAllowlistedDirectoryIsNeverTraversed(bool populated)
     {
         if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
         using var fixture = new OwnedOwnershipNativeFixture();
         var owned = fixture.Create();
         string child = Path.Combine(owned.RootPath, "ready.stage");
         fixture.Directory(child);
-        fixture.Write(child, "sentinel", "unrelated nested payload");
+        if (populated) fixture.Write(child, "sentinel", "unrelated nested payload");
         var identity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(child);
-        Assert.ThrowsAny<IOException>(() => owned.Delete());
+        // Darwin unlinkat(..., 0) rejects directories with EPERM; Linux uses EISDIR.
+        if (OperatingSystem.IsMacOS())
+        {
+            var error = Assert.Throws<UnauthorizedAccessException>(() => owned.Delete());
+            Assert.Equal("Owned fixture access failed.", error.Message);
+        }
+        else
+        {
+            var error = Assert.Throws<IOException>(() => owned.Delete());
+            Assert.Equal("Owned fixture handle acquisition failed.", error.Message);
+        }
         Assert.Equal(identity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(child));
-        Assert.Equal("unrelated nested payload", File.ReadAllText(Path.Combine(child, "sentinel")));
+        Assert.False(owned.RootRemoved);
+        Assert.False(owned.EnvelopeRemoved);
+        if (populated) Assert.Equal("unrelated nested payload", File.ReadAllText(Path.Combine(child, "sentinel")));
+        else Assert.Empty(Directory.GetFileSystemEntries(child));
     }
 
     [Fact]
@@ -1846,6 +1878,100 @@ public class CompilerSmokeDiagnosticsTests
         _ => throw new ArgumentOutOfRangeException(nameof(field)),
     };
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void OwnedOwnership_FixtureDisposeAfterRecordedParentRemoval(bool partial, bool moved)
+    {
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string envelope = Path.Combine(fixture.AnchorPath, "envelope");
+        string root = Path.Combine(envelope, OwnedFixtureDirectory.RootName);
+        System.IO.Directory.CreateDirectory(root);
+        var model = new OwnedOwnershipModel(root, envelope);
+        fixture.Track(model.Lifetime);
+        fixture.Write(root, "fake.py", "owned payload");
+        if (moved)
+        {
+            string movedAnchor = fixture.AnchorPath + ".moved";
+            fixture.Move(fixture.AnchorPath, movedAnchor);
+            envelope = Path.Combine(movedAnchor, "envelope");
+            root = Path.Combine(envelope, OwnedFixtureDirectory.RootName);
+            fixture.Directory(fixture.AnchorPath);
+            fixture.Write(fixture.AnchorPath, "sentinel", "unrelated ancestor");
+        }
+        model.AfterLeafDeletion = name => File.Delete(Path.Combine(root, name));
+        model.RemoveDirectoryEntry = name =>
+            System.IO.Directory.Delete(name == OwnedFixtureDirectory.RootName ? root : envelope, false);
+        string? replacementEnvelope = null;
+        if (partial)
+        {
+            Assert.Throws<OwnedIdentityMismatchException>(() => model.Lifetime.Delete(checkpoint =>
+            {
+                if (checkpoint != OwnedCleanupCheckpoint.BeforeFinalEnvelopeRemoval) return;
+                replacementEnvelope = envelope;
+                fixture.Move(envelope, envelope + ".moved");
+                envelope += ".moved";
+                root = Path.Combine(envelope, OwnedFixtureDirectory.RootName);
+                fixture.Directory(replacementEnvelope);
+                fixture.Write(replacementEnvelope, "sentinel", "unrelated envelope");
+                model.EnvelopeEntry = ChangedIdentity(model.EnvelopeIdentity, "inode");
+            }));
+            Assert.Equal("unrelated envelope", File.ReadAllText(Path.Combine(replacementEnvelope!, "sentinel")));
+        }
+        else model.Lifetime.Delete();
+        Assert.True(model.Lifetime.RootRemoved);
+        Assert.Equal(!partial, model.Lifetime.EnvelopeRemoved);
+        Assert.Throws<DirectoryNotFoundException>(() => System.IO.Directory.Delete(root, false));
+        if (!partial)
+            Assert.Throws<DirectoryNotFoundException>(() => System.IO.Directory.Delete(envelope, false));
+        if (moved)
+            Assert.Equal("unrelated ancestor", File.ReadAllText(Path.Combine(fixture.AnchorPath, "sentinel")));
+        fixture.Dispose();
+        fixture.Dispose();
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.Equal(1, handle.DisposeCalls));
+        Assert.False(Path.Exists(fixture.AnchorPath));
+        Assert.False(Path.Exists(envelope));
+        if (replacementEnvelope != null) Assert.False(Path.Exists(replacementEnvelope));
+        if (moved) Assert.False(Path.Exists(fixture.AnchorPath + ".moved"));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_FixtureDisposeRejectsUnrecordedMissingParent(bool file)
+    {
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string parent = Path.Combine(fixture.AnchorPath, "unrecorded");
+        fixture.Directory(parent);
+        if (file)
+        {
+            fixture.Write(parent, "sentinel", "test payload");
+            File.Delete(Path.Combine(parent, "sentinel"));
+        }
+        System.IO.Directory.Delete(parent, false);
+        Assert.Throws<DirectoryNotFoundException>(() => fixture.Dispose());
+        System.IO.Directory.CreateDirectory(parent);
+        fixture.Dispose();
+        fixture.Dispose();
+    }
+
+    [Fact]
+    public void OwnedOwnership_FixtureDisposePropagatesUnexpectedIo()
+    {
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string parent = Path.Combine(fixture.AnchorPath, "retained");
+        fixture.Directory(parent);
+        string sentinel = Path.Combine(parent, "sentinel");
+        File.WriteAllText(sentinel, "unexpected child");
+        Assert.ThrowsAny<IOException>(() => fixture.Dispose());
+        Assert.Equal("unexpected child", File.ReadAllText(sentinel));
+        File.Delete(sentinel);
+        fixture.Dispose();
+        fixture.Dispose();
+    }
+
     sealed class OwnedOwnershipHandle : IOwnedDirectoryHandle
     {
         public bool IsClosed => DisposeCalls != 0;
@@ -1864,13 +1990,15 @@ public class CompilerSmokeDiagnosticsTests
         internal readonly List<string> Mutations = new();
         internal Exception? Failure;
         internal Action<string>? AfterLeafDeletion;
+        internal Action<string>? RemoveDirectoryEntry;
         internal readonly OwnedFixtureDirectory Lifetime;
 
-        internal OwnedOwnershipModel()
+        internal OwnedOwnershipModel(
+            string rootPath = "ABSTRACT_PRIVATE_PATH", string envelopePath = "ABSTRACT_ENVELOPE_PATH")
         {
             EnvelopeEntry = EnvelopeIdentity;
             RootEntry = RootIdentity;
-            Lifetime = new("ABSTRACT_PRIVATE_PATH", "ABSTRACT_ENVELOPE_PATH", "envelope", this,
+            Lifetime = new(rootPath, envelopePath, "envelope", this,
                 Anchor, AnchorIdentity, Envelope, EnvelopeIdentity, Root, RootIdentity);
         }
 
@@ -1921,6 +2049,7 @@ public class CompilerSmokeDiagnosticsTests
             {
                 Assert.Equal(OwnedFixtureDirectory.RootName, name);
                 Assert.Empty(Leaves);
+                RemoveDirectoryEntry?.Invoke(name);
                 RootEntry = null;
             }
             else
@@ -1928,6 +2057,7 @@ public class CompilerSmokeDiagnosticsTests
                 Assert.Same(Anchor, parent);
                 Assert.Equal("envelope", name);
                 Assert.Null(RootEntry);
+                RemoveDirectoryEntry?.Invoke(name);
                 EnvelopeEntry = null;
             }
             Mutations.Add("remove:" + name);
@@ -1946,11 +2076,10 @@ public class CompilerSmokeDiagnosticsTests
         readonly List<string> directories = new();
         readonly List<string> files = new();
         OwnedFixtureDirectory? owned;
+        string ownedRoot = "", ownedEnvelope = "";
 
         internal OwnedOwnershipNativeFixture()
         {
-            if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
-                throw new PlatformNotSupportedException("Native ownership tests require Linux or macOS.");
             Directory(AnchorPath);
         }
 
@@ -1958,11 +2087,18 @@ public class CompilerSmokeDiagnosticsTests
         {
             return CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(AnchorPath, acquired =>
             {
-                owned = acquired;
-                directories.Add(acquired.EnvelopePath);
-                directories.Add(acquired.RootPath);
+                Track(acquired);
                 beforePublication?.Invoke(acquired);
             });
+        }
+
+        internal void Track(OwnedFixtureDirectory acquired)
+        {
+            owned = acquired;
+            ownedEnvelope = acquired.EnvelopePath;
+            ownedRoot = acquired.RootPath;
+            directories.Add(ownedEnvelope);
+            directories.Add(ownedRoot);
         }
 
         internal void Directory(string path)
@@ -1973,7 +2109,7 @@ public class CompilerSmokeDiagnosticsTests
             }
             else
             {
-                throw new PlatformNotSupportedException("Native ownership tests require Linux or macOS.");
+                System.IO.Directory.CreateDirectory(path);
             }
             directories.Add(path);
         }
@@ -1991,6 +2127,12 @@ public class CompilerSmokeDiagnosticsTests
             directories.Add(path);
         }
 
+        internal void FileLink(string path, string target)
+        {
+            File.CreateSymbolicLink(path, target);
+            files.Add(path);
+        }
+
         internal void Move(string source, string destination)
         {
             System.IO.Directory.Move(source, destination);
@@ -1999,6 +2141,8 @@ public class CompilerSmokeDiagnosticsTests
                     ? Path.Combine(destination, Path.GetRelativePath(source, path)) : path;
             for (int index = 0; index < files.Count; index++) files[index] = Rebase(files[index]);
             for (int index = 0; index < directories.Count; index++) directories[index] = Rebase(directories[index]);
+            ownedRoot = Rebase(ownedRoot);
+            ownedEnvelope = Rebase(ownedEnvelope);
         }
 
         public void Dispose()
@@ -2007,9 +2151,21 @@ public class CompilerSmokeDiagnosticsTests
             finally
             {
                 // Only exact test-created entries; never enumerate for deletion or recurse.
-                foreach (string file in files.AsEnumerable().Reverse()) File.Delete(file);
-                foreach (string directory in directories.AsEnumerable().Reverse())
-                    if (Path.Exists(directory)) System.IO.Directory.Delete(directory, false);
+                for (int index = files.Count - 1; index >= 0; index--)
+                {
+                    try { File.Delete(files[index]); }
+                    catch (DirectoryNotFoundException) when (owned?.RootRemoved == true
+                        && Path.GetDirectoryName(files[index]) == ownedRoot) { }
+                    files.RemoveAt(index);
+                }
+                for (int index = directories.Count - 1; index >= 0; index--)
+                {
+                    try { System.IO.Directory.Delete(directories[index], false); }
+                    catch (DirectoryNotFoundException) when (
+                        (owned?.RootRemoved == true && directories[index] == ownedRoot)
+                        || (owned?.EnvelopeRemoved == true && directories[index] == ownedEnvelope)) { }
+                    directories.RemoveAt(index);
+                }
             }
         }
     }

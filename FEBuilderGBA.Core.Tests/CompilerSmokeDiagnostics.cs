@@ -309,6 +309,8 @@ internal static class CompilerSmokeDiagnostics
         readonly object lifecycleLock = new();
         bool disposed;
         bool deleted;
+        internal bool RootRemoved { get; set; }
+        internal bool EnvelopeRemoved { get; set; }
 
         internal void Validate(bool includeRoot = true)
         {
@@ -347,9 +349,11 @@ internal static class CompilerSmokeDiagnostics
                 checkpoint?.Invoke(OwnedCleanupCheckpoint.BeforeFinalRootRemoval);
                 Validate();
                 Operations.RemoveDirectory(Envelope, RootName);
+                RootRemoved = true;
                 checkpoint?.Invoke(OwnedCleanupCheckpoint.BeforeFinalEnvelopeRemoval);
                 Validate(false);
                 Operations.RemoveDirectory(Anchor, EnvelopeName);
+                EnvelopeRemoved = true;
                 deleted = true;
             }
         }
@@ -452,6 +456,7 @@ internal static class CompilerSmokeDiagnostics
                         || operations.QueryChildNoFollow(envelope, OwnedFixtureDirectory.RootName) != rootIdentity)
                         throw new OwnedIdentityMismatchException();
                     operations.RemoveDirectory(envelope, OwnedFixtureDirectory.RootName);
+                    if (lifetime != null) lifetime.RootRemoved = true;
                 }
                 if (anchor != null && envelopeIdentity != null)
                 {
@@ -460,6 +465,7 @@ internal static class CompilerSmokeDiagnostics
                         || operations.QueryChildNoFollow(anchor, envelopeName) != envelopeIdentity)
                         throw new OwnedIdentityMismatchException();
                     operations.RemoveDirectory(anchor, envelopeName);
+                    if (lifetime != null) lifetime.EnvelopeRemoved = true;
                 }
             }
             catch (Exception cleanup) when (cleanup is IOException or UnauthorizedAccessException or NotSupportedException)
