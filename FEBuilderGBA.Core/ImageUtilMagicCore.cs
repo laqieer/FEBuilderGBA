@@ -180,17 +180,27 @@ namespace FEBuilderGBA
 
                 const uint installerSignature = 0x95D8F4u;
                 const uint installerSlot = installerSignature + 16u;
-                if (system == MagicSystem.FEditorAdv && version == "FE8U"
-                    && rom.Data.Length >= installerSlot + 4u
-                    && rom.u32(installerSlot) == 0x08000000u
-                    && U.memcmp(sig.data, rom.getBinaryData(installerSignature, (uint)sig.data.Length)) == 0)
+                if (system == MagicSystem.FEditorAdv && version == "FE8U")
                 {
                     foreach (var patch in PatchSignatures)
                     {
                         if (patch.name == "FEditor" && patch.ver == "FE8U"
                             && patch.addr == 0x95D780u
+                            && rom.Data.Length >= patch.addr + (uint)patch.data.Length
                             && U.memcmp(patch.data, rom.getBinaryData(patch.addr, (uint)patch.data.Length)) == 0)
                         {
+                            if (rom.Data.Length < installerSlot + 4u
+                                || U.memcmp(sig.data, rom.getBinaryData(installerSignature, (uint)sig.data.Length)) != 0)
+                                return U.NOT_FOUND;
+
+                            uint installerRawTarget = rom.u32(installerSlot);
+                            if (installerRawTarget != 0 && installerRawTarget != 0x08000000u)
+                            {
+                                if ((installerRawTarget & 3) != 0 || !U.isSafetyPointer(installerRawTarget, rom))
+                                    return U.NOT_FOUND;
+                                outPointer = installerSlot;
+                                return rom.p32(installerSlot);
+                            }
                             outPointer = installerSlot;
                             return U.NOT_FOUND;
                         }

@@ -46,6 +46,7 @@ public class ImageUtilMagicCoreTests
     public void SearchMagicSystem_FE8U_FEditorPlanted_ReturnsFEditorAdv()
     {
         var rom = MakeFe8uWithFEditorSignature();
+        Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 20);
         var result = ImageUtilMagicCore.SearchMagicSystem(
             rom, out uint baseaddr, out uint dimaddr, out uint nodimaddr);
         Assert.Equal(ImageUtilMagicCore.MagicSystem.FEditorAdv, result);
@@ -127,6 +128,7 @@ public class ImageUtilMagicCoreTests
     public void FindCSASpellTable_FE8U_FEditor_FindsPointer()
     {
         var rom = MakeFe8uWithFEditorSignature();
+        Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 20);
         uint addr = ImageUtilMagicCore.FindCSASpellTable(
             rom, ImageUtilMagicCore.MagicSystem.FEditorAdv,
             out uint outPointer);
@@ -135,6 +137,7 @@ public class ImageUtilMagicCoreTests
         // The pointer slot we planted resolves to 0x00100000 (an arbitrary
         // safety-offset target we put inside the synthetic ROM).
         Assert.Equal(0x00100000u, addr);
+        Assert.Equal(0x95D904u, outPointer);
     }
 
     [Theory]
@@ -144,7 +147,9 @@ public class ImageUtilMagicCoreTests
         bool csaCreator, ImageUtilMagicCore.MagicSystem expected, uint noDim)
     {
         var rom = csaCreator ? MakeFe8uWithSCACreatorSignature() : MakeFe8uWithFEditorSignature();
-        const uint slot = 0x00200010u;
+        uint slot = csaCreator ? 0x00200010u : 0x95D904u;
+        if (!csaCreator)
+            Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 16);
         Array.Clear(rom.Data, (int)slot, 4);
         byte[] before = (byte[])rom.Data.Clone();
         uint length = (uint)rom.Data.Length;
@@ -252,6 +257,30 @@ public class ImageUtilMagicCoreTests
         Assert.Equal(0x95D904u, pointer);
     }
 
+    [Theory]
+    [InlineData(0x08100000u, false, true)]
+    [InlineData(0x08100001u, false, false)]
+    [InlineData(0x09FFFFFFu, false, false)]
+    [InlineData(0xDEADBEEFu, false, false)]
+    [InlineData(0x08100000u, true, false)]
+    public void MaintainedFEditor_AllocatedSlotNeverFallsBackToEarlierDecoy(
+        uint target, bool damagedSignature, bool valid)
+    {
+        var rom = MakeFe8uWithFEditorSignature();
+        Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 16);
+        BitConverter.GetBytes(target).CopyTo(rom.Data, 0x95D904);
+        Array.Clear(rom.Data, 0x200010, 4);
+        if (damagedSignature) rom.Data[0x95D8F4] ^= 1;
+
+        uint table = ImageUtilMagicCore.FindCSASpellTable(rom,
+            ImageUtilMagicCore.MagicSystem.FEditorAdv, out uint pointer);
+        Assert.Equal(valid ? 0x100000u : U.NOT_FOUND, table);
+        Assert.Equal(valid ? 0x95D904u : U.NOT_FOUND, pointer);
+        Assert.Equal(valid ? ImageUtilMagicCore.MagicSystem.FEditorAdv :
+            ImageUtilMagicCore.MagicSystem.No,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+    }
+
     [Fact]
     public void FEditorInstallerSentinel_RejectsWrongVersion()
     {
@@ -313,11 +342,10 @@ public class ImageUtilMagicCoreTests
             csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv,
             out uint pointer);
         Assert.Equal(U.NOT_FOUND, table);
-        Assert.Equal(complete ? slot : U.NOT_FOUND, pointer);
+        Assert.Equal(complete && csaCreator ? slot : U.NOT_FOUND, pointer);
         var kind = ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _);
-        Assert.Equal(complete
-            ? (csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv)
-            : ImageUtilMagicCore.MagicSystem.No, kind);
+        Assert.Equal(complete && csaCreator
+            ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.No, kind);
     }
 
     [Fact]

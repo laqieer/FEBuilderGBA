@@ -179,7 +179,14 @@ public class MagicListExpandTests : IDisposable
     static void AssertUnallocatedVmRejects(bool fEditor, bool csaVm)
     {
         ROM rom = MakeRomWithCsa(fEditor);
-        WriteU32(rom, CsaPointerSlot, 0u);
+        uint pointerSlot = fEditor ? 0x95D904u : CsaPointerSlot;
+        WriteU32(rom, pointerSlot, 0u);
+        Assert.Equal(fEditor ? ImageUtilMagicCore.MagicSystem.FEditorAdv
+            : ImageUtilMagicCore.MagicSystem.CsaCreator,
+            ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+        Assert.Equal(fEditor ? 0x95D904u : CsaPointerSlot,
+            MagicCSACore.GetCSASpellTablePointer(rom));
+        Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
         PlantMagicEffectRows(rom, 4);
         CoreState.ROM = rom;
         CoreState.Undo = new Undo();
@@ -198,7 +205,7 @@ public class MagicListExpandTests : IDisposable
         Assert.Equal(before, rom.Data);
         Assert.Equal(length, rom.Data.Length);
         Assert.Equal(MagicEffectBase, rom.p32(rom.RomInfo.magic_effect_pointer));
-        Assert.Equal(0u, rom.p32(CsaPointerSlot));
+        Assert.Equal(0u, rom.p32(pointerSlot));
         Assert.True(ud.list == null || ud.list.Count == 0);
         Assert.Equal(undoCount, CoreState.Undo.UndoBuffer.Count);
     }
@@ -246,8 +253,10 @@ public class MagicListExpandTests : IDisposable
             tableSig = new byte[] { 0x01,0xB4,0x7D,0xE7,0x34,0xFF,0x03,0x02,
                 0x80,0xD7,0x95,0x08,0x1A,0xE1,0x03,0x02 };
         }
-        Buffer.BlockCopy(tableSig, 0, rom.Data, (int)TableSigAddr, tableSig.Length);
-        WriteU32(rom, CsaPointerSlot, U.toPointer(CsaTableBase));
+        uint signatureAddr = fEditor ? 0x95D8F4u : TableSigAddr;
+        uint pointerSlot = fEditor ? 0x95D904u : CsaPointerSlot;
+        Buffer.BlockCopy(tableSig, 0, rom.Data, (int)signatureAddr, tableSig.Length);
+        WriteU32(rom, pointerSlot, U.toPointer(CsaTableBase));
 
         WriteU32(rom, rom.RomInfo.magic_effect_pointer, U.toPointer(MagicEffectBase));
 
