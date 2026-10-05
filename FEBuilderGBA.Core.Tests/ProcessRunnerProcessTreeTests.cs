@@ -24,6 +24,11 @@ namespace FEBuilderGBA.Core.Tests
             _output = output;
         }
 
+        internal static ProcessRunnerScenarioSupport.FailureEvidence CaptureFailurePhaseEvidence(
+            ProcessRunnerScenarioSupport.ReadinessEvidence readiness, string phase) =>
+            ProcessRunnerScenarioSupport.CreateObservedFailureEvidence(
+                null, readiness, phase, ProcessRunnerScenarioSupport.CreateCleanupObservations());
+
         // #2050: ProcessRunnerCore.Run executes on a dedicated LongRunning task while this
         // method polls externally (<=25 ms cadence) for atomically published child readiness.
         // The old whole-run 10s budget is replaced by an explicit max-25s wait after observed
@@ -60,6 +65,7 @@ namespace FEBuilderGBA.Core.Tests
             ProcessRunnerScenarioSupport.ReadinessEvidence? evidence = null;
             Exception? primaryFailure = null;
             Exception? secondaryFailure = null;
+            var cleanup = ProcessRunnerScenarioSupport.CreateCleanupObservations();
             string phase = "prepare";
             ProcessRunResult result = default;
             bool scenarioPassed = false;
@@ -97,7 +103,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(
                     childIdentity != null,
                     "No valid child readiness identity was observed. "
-                    + ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence));
+                    + CaptureFailurePhaseEvidence(evidence, phase).Text);
 
                 phase = "run-incomplete";
                 Task completedTask = await Task.WhenAny(
@@ -106,10 +112,11 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(
                     ReferenceEquals(runTask, completedTask),
                     "Run(...) did not complete within 25s of observed child readiness. "
-                    + ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence));
+                    + CaptureFailurePhaseEvidence(evidence, phase).Text);
                 runCompletion = await runTask;
                 evidence = ProcessRunnerScenarioSupport.FillReadinessResultBeforeCleanup(
                     evidence, runTask, cleanupStarted: false);
+                phase = "assertion";
                 cleanupMs = ProcessRunnerScenarioSupport.ComputeCleanupMs(
                     childIdentity.Value,
                     runCompletion.Value.CompletionUtc);
@@ -117,7 +124,7 @@ namespace FEBuilderGBA.Core.Tests
 
                 result = runCompletion.Value.Result;
                 phase = "result-rejected";
-                string resultEvidence = ProcessRunnerScenarioSupport.FormatReadinessEvidence(evidence);
+                string resultEvidence = CaptureFailurePhaseEvidence(evidence, phase).Text;
                 Assert.True(result.Started, resultEvidence);
                 Assert.False(result.TimedOut, resultEvidence);
                 Assert.False(result.OutputLimitExceeded, resultEvidence);
@@ -129,6 +136,7 @@ namespace FEBuilderGBA.Core.Tests
                 Assert.True(result.ErrorMessage == "", "Expected empty error. " + resultEvidence);
 
                 phase = "assertion";
+                resultEvidence = CaptureFailurePhaseEvidence(evidence, phase).Text;
                 var finalLeader = ProcessRunnerScenarioSupport.ReadFinalIdentity(leaderPath);
                 Assert.True(finalLeader != null, "Leader did not record a final atomic identity payload. " + resultEvidence);
                 var finalChildIdentity =
@@ -168,15 +176,14 @@ namespace FEBuilderGBA.Core.Tests
                 if (ex is Xunit.Sdk.XunitException)
                     throw;
                 throw new ProcessRunnerScenarioSupport.ScenarioFailureException(
-                    ProcessRunnerScenarioSupport.CreateFailureEvidence(
-                        ex, evidence, "wait", "unavailable", null, false).Text,
+                    ProcessRunnerScenarioSupport.CreateObservedFailureEvidence(
+                        ex, evidence, phase, cleanup).Text,
                     ex);
             }
             finally
             {
                 evidence ??= ProcessRunnerScenarioSupport.FreezeReadinessEvidence(
                     poll, phase, childIdentity != null, runTask, readinessMs);
-                bool retained = false;
                 bool runQuiesced = runTask == null || runTask.IsCompleted;
                 try
                 {
@@ -190,15 +197,20 @@ namespace FEBuilderGBA.Core.Tests
                             childIdentity,
                             scenarioStartUtc,
                             msg => _output.WriteLine(msg),
-                            ex => secondaryFailure ??= ex);
+                            fault =>
+                            {
+                                cleanup.Add(fault);
+                                secondaryFailure ??= fault.Exception;
+                            });
                     }
                 }
                 catch (Exception ex)
                 {
                     secondaryFailure ??= ex;
+                    ProcessRunnerScenarioSupport.RecordCleanupFault(cleanup, "owned-kill", ex);
                     ProcessRunnerScenarioSupport.LogEvidence(
                         msg => _output.WriteLine(msg),
-                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("wait", "fault", ex));
+                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("owned-kill", "fault", ex));
                     runQuiesced = runTask == null || runTask.IsCompleted;
                 }
                 finally
@@ -209,23 +221,18 @@ namespace FEBuilderGBA.Core.Tests
                         CancellationTokenSource retainedCts = cts;
                         root = null;
                         cts = null;
-                        retained = true;
+                        ProcessRunnerScenarioSupport.RecordCleanupRetention(cleanup);
                         ProcessRunnerScenarioSupport.RetainLiveResources(
                             $"{nameof(Run_ParentExitStillTerminatesDescendantHoldingPipes)}[{iteration}]",
                             retainedRoot, retainedCts, runTask, msg => _output.WriteLine(msg));
                     }
-                    try
-                    {
-                        cts?.Dispose();
-                        root?.Dispose();
-                    }
-                    catch (Exception ex)
-                    {
-                        secondaryFailure ??= ex;
-                        ProcessRunnerScenarioSupport.LogEvidence(
-                            msg => _output.WriteLine(msg),
-                            ProcessRunnerScenarioSupport.FormatCleanupEvidence("release", "fault", ex));
-                    }
+                    ProcessRunnerScenarioSupport.ReleaseEvidence releaseEvidence =
+                        ProcessRunnerScenarioSupport.ReleaseResourcesWithEvidence(
+                            cts == null ? null : cts.Dispose,
+                            root == null ? null : root.DeleteContents,
+                            continueAfterCtsFault: false, msg => _output.WriteLine(msg));
+                    ProcessRunnerScenarioSupport.RecordReleaseEvidence(cleanup, releaseEvidence);
+                    secondaryFailure ??= releaseEvidence.PolicySecondaryFailure;
                 }
 
                 try
@@ -241,19 +248,18 @@ namespace FEBuilderGBA.Core.Tests
                 catch (Exception ex)
                 {
                     secondaryFailure ??= ex;
+                    ProcessRunnerScenarioSupport.RecordCleanupFault(cleanup, "wait", ex);
                     ProcessRunnerScenarioSupport.LogEvidence(
                         msg => _output.WriteLine(msg),
                         ProcessRunnerScenarioSupport.FormatCleanupEvidence("wait", "fault", ex));
                 }
 
-                if (!scenarioPassed || secondaryFailure != null)
+                if (!scenarioPassed || cleanup.FirstSecondary != null)
                 {
                     ProcessRunnerScenarioSupport.LogEvidence(
                         msg => _output.WriteLine(msg),
-                        ProcessRunnerScenarioSupport.CreateFailureEvidence(
-                            primaryFailure, evidence, retained ? "retain" : "wait",
-                            secondaryFailure != null ? "fault" : retained ? "retained" : "success",
-                            secondaryFailure, retained).Text);
+                        ProcessRunnerScenarioSupport.CreateObservedFailureEvidence(
+                            primaryFailure, evidence, phase, cleanup).Text);
                 }
 
                 if (primaryFailure == null && secondaryFailure != null)
@@ -268,8 +274,18 @@ namespace FEBuilderGBA.Core.Tests
                     outcome);
                 if (primaryFailure == null && secondaryFailure != null)
                 {
+                    string secondaryStage = "unavailable";
+                    foreach (ProcessRunnerScenarioSupport.CleanupFault fault in cleanup.Faults)
+                    {
+                        if (ReferenceEquals(fault.Exception, secondaryFailure))
+                        {
+                            secondaryStage = fault.Stage;
+                            break;
+                        }
+                    }
                     throw new ProcessRunnerScenarioSupport.ScenarioFailureException(
-                        ProcessRunnerScenarioSupport.FormatCleanupEvidence("release", "fault", secondaryFailure),
+                        ProcessRunnerScenarioSupport.FormatCleanupEvidence(
+                            secondaryStage, "fault", secondaryFailure),
                         secondaryFailure);
                 }
             }

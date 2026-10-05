@@ -813,6 +813,590 @@ namespace FEBuilderGBA.Core.Tests
             AssertPrivateTextAbsent(evidence.Text);
         }
 
+        [Theory]
+        [InlineData(false, false, false)]
+        [InlineData(true, false, false)]
+        [InlineData(true, true, false)]
+        public void Feedback_ContentionAcceptedResultFinalChecksReportAssertionPhase(
+            bool finalIdentityCaptured, bool identityConsistent, bool descendantDied)
+        {
+            var task = CompletedTask(new ProcessRunResult
+            {
+                Started = true, ExitCode = 0, ErrorMessage = ""
+            });
+            object snapshot = Freeze(ReadyPoll(task), "result-rejected", true, task);
+            string original = Format(snapshot);
+
+            object failure = InvokeOn<object>(
+                typeof(ProcessRunnerContentionTests), "CaptureFinalCheckFailureEvidence",
+                snapshot, true, finalIdentityCaptured, identityConsistent, descendantDied);
+
+            Assert.Equal("assertion", Token(failure, "FailurePhase"));
+            Assert.Same(snapshot, Required(failure, "Readiness"));
+            Assert.Equal(original, Format(snapshot));
+            Assert.Equal("result-rejected", Token(snapshot, "Phase"));
+            Assert.Contains("failurePhase=assertion", Value<string>(failure, "Text"));
+            AssertFeedbackRecord(Value<string>(failure, "Text"));
+        }
+
+        [Fact]
+        public void Feedback_ContentionRejectedResultRetainsResultFailurePrecedence()
+        {
+            var task = CompletedTask(new ProcessRunResult { Started = true, ExitCode = 98 });
+            object snapshot = Freeze(ReadyPoll(task), "result-rejected", true, task);
+
+            object failure = InvokeOn<object>(
+                typeof(ProcessRunnerContentionTests), "CaptureFinalCheckFailureEvidence",
+                snapshot, false, false, false, false);
+
+            Assert.Equal("result-rejected", Token(failure, "FailurePhase"));
+            Assert.Same(snapshot, Required(failure, "Readiness"));
+            Assert.Contains("failurePhase=result-rejected", Value<string>(failure, "Text"));
+            AssertFeedbackRecord(Value<string>(failure, "Text"));
+        }
+
+        [Theory]
+        [InlineData("run-incomplete")]
+        [InlineData("result-rejected")]
+        [InlineData("assertion")]
+        public void Feedback_TreeActualFailurePhaseDoesNotReplaceFrozenReadiness(string phase)
+        {
+            var source = NewSource();
+            object snapshot = Freeze(ReadyPoll(source.Task), "readiness", true, source.Task);
+            if (phase != "run-incomplete")
+            {
+                source.SetResult(Completion(new ProcessRunResult
+                {
+                    Started = true, ExitCode = phase == "result-rejected" ? 98 : 0,
+                    ErrorMessage = ""
+                }));
+                snapshot = Fill(snapshot, source.Task, cleanupStarted: false);
+            }
+            string original = Format(snapshot);
+            object observation = Required(snapshot, "Observation");
+
+            object failure = InvokeOn<object>(
+                typeof(ProcessRunnerProcessTreeTests), "CaptureFailurePhaseEvidence",
+                snapshot, phase);
+
+            Assert.Equal(phase, Token(failure, "FailurePhase"));
+            Assert.Same(snapshot, Required(failure, "Readiness"));
+            Assert.Same(observation, Required(snapshot, "Observation"));
+            Assert.Equal("readiness", Token(snapshot, "Phase"));
+            Assert.Equal(original, Format(snapshot));
+            string text = Value<string>(failure, "Text");
+            Assert.Contains("phase=readiness", text);
+            Assert.Contains("failurePhase=" + phase, text);
+            Assert.Equal(
+                phase != "run-incomplete", Value<bool>(snapshot, "ResultAvailable"));
+            if (phase == "run-incomplete")
+            {
+                Assert.False(source.Task.IsCompleted);
+                Assert.Contains("result=unavailable", text);
+                Assert.DoesNotContain("exitCode=", text);
+            }
+            AssertFeedbackRecord(text);
+        }
+
+        [Fact]
+        public void Feedback_TreeFailureProjectionCannotRefreshCancelledReadinessResult()
+        {
+            var source = NewSource();
+            object snapshot = Freeze(MissingPoll(source.Task), "readiness", false, source.Task);
+            string original = Format(snapshot);
+            using var cts = new CancellationTokenSource();
+            using CancellationTokenRegistration registration = cts.Token.Register(
+                () => source.SetResult(Completion(new ProcessRunResult
+                {
+                    Started = true, Cancelled = true, ExitCode = -1
+                })));
+
+            object failure = InvokeOn<object>(
+                typeof(ProcessRunnerProcessTreeTests), "CaptureFailurePhaseEvidence",
+                snapshot, "readiness");
+            cts.Cancel();
+
+            Assert.Same(snapshot, Required(failure, "Readiness"));
+            Assert.Equal(original, Format(snapshot));
+            Assert.False(Value<bool>(snapshot, "ResultAvailable"));
+            Assert.Contains("result=unavailable", Value<string>(failure, "Text"));
+            Assert.DoesNotContain("cancelled=", Value<string>(failure, "Text"));
+            AssertFeedbackRecord(Value<string>(failure, "Text"));
+        }
+
+        [Theory]
+        [InlineData("cancel")]
+        [InlineData("wait")]
+        [InlineData("owned-kill")]
+        [InlineData("owned-wait")]
+        [InlineData("release")]
+        public void Feedback_SecondaryObservationCarriesActualStageAndOriginalException(string stage)
+        {
+            var fault = new IOException(PrivateText);
+            object observations = Invoke<object>("CreateCleanupObservations");
+
+            object recorded = Invoke<object>(
+                "RecordCleanupFault", observations, stage, fault);
+
+            object first = Required(recorded, "FirstSecondary");
+            Assert.Equal(stage, Token(first, "Stage"));
+            Assert.Same(fault, Required(first, "Exception"));
+            Assert.Single(AssignableProperty<IReadOnlyList<object>>(recorded, "Faults"));
+            string text = Value<string>(recorded, "Text");
+            Assert.Contains("cleanupStage=" + stage, text);
+            Assert.Contains("cleanupFault=read-fault", text);
+            AssertFeedbackRecord(text);
+        }
+
+        [Fact]
+        public void Feedback_FakeCleanupCancelOperationPreservesStageAndCatchPolicy()
+        {
+            var original = new ObjectDisposedException("inert", PrivateText);
+            var calls = new List<string>();
+            var faults = new List<object>();
+            var logs = new List<string>();
+            Action cancel = () =>
+            {
+                calls.Add("cancel");
+                throw original;
+            };
+
+            bool cancelled = Invoke<bool>(
+                "RunCleanupCancelOperationWithEvidence", cancel,
+                (Action<string>)logs.Add, (Action<object>)faults.Add);
+            calls.Add("continued");
+
+            Assert.False(cancelled);
+            Assert.Equal(new[] { "cancel", "continued" }, calls);
+            object fault = Assert.Single(faults);
+            Assert.Equal("cancel", Token(fault, "Stage"));
+            Assert.Same(original, Required(fault, "Exception"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+            {
+                Assert.Contains("cleanupStage=cancel", text);
+                AssertFeedbackRecord(text);
+            }
+
+            var unexpected = new InvalidOperationException(PrivateText);
+            Action unexpectedCancel = () =>
+            {
+                calls.Add("unexpected-cancel");
+                throw unexpected;
+            };
+            InvalidOperationException actual = Assert.Throws<InvalidOperationException>(
+                () => Invoke<bool>(
+                    "RunCleanupCancelOperationWithEvidence", unexpectedCancel,
+                    (Action<string>)logs.Add, (Action<object>)faults.Add));
+            Assert.Same(unexpected, actual);
+            Assert.Single(faults);
+            Assert.Equal(new[] { "cancel", "continued", "unexpected-cancel" }, calls);
+        }
+
+        [Fact]
+        public void Feedback_FakeCleanupWaitOperationsPreserveStagesAndCatchPolicy()
+        {
+            var original = new IOException(PrivateText);
+            var waitFault = new AggregateException(original);
+            var ownedWaitFault = new AggregateException(original);
+            var calls = new List<string>();
+            var faults = new List<object>();
+            var logs = new List<string>();
+            Func<bool> wait = () =>
+            {
+                calls.Add("wait");
+                throw waitFault;
+            };
+            Func<bool> ownedWait = () =>
+            {
+                calls.Add("owned-wait");
+                throw ownedWaitFault;
+            };
+
+            bool quiescedAfterWait = Invoke<bool>(
+                "RunCleanupWaitOperationWithEvidence", "wait", wait,
+                (Action<string>)logs.Add, (Action<object>)faults.Add);
+            bool quiescedAfterOwnedWait = Invoke<bool>(
+                "RunCleanupWaitOperationWithEvidence", "owned-wait", ownedWait,
+                (Action<string>)logs.Add, (Action<object>)faults.Add);
+
+            Assert.True(quiescedAfterWait);
+            Assert.True(quiescedAfterOwnedWait);
+            Assert.Equal(new[] { "wait", "owned-wait" }, calls);
+            Assert.Equal(2, faults.Count);
+            Assert.Equal("wait", Token(faults[0], "Stage"));
+            Assert.Equal("owned-wait", Token(faults[1], "Stage"));
+            Assert.Same(waitFault, Required(faults[0], "Exception"));
+            Assert.Same(ownedWaitFault, Required(faults[1], "Exception"));
+            object observations = Invoke<object>("CreateCleanupObservations");
+            foreach (object fault in faults)
+            {
+                AggregateException actual = Assert.IsType<AggregateException>(
+                    Required(fault, "Exception"));
+                Assert.Same(original, Assert.Single(actual.InnerExceptions));
+                observations = Invoke<object>(
+                    "RecordCleanupFault", observations, Token(fault, "Stage"), actual);
+            }
+            Assert.Equal("wait", Token(Required(observations, "FirstSecondary"), "Stage"));
+            Assert.Same(
+                Required(faults[0], "Exception"),
+                Required(Required(observations, "FirstSecondary"), "Exception"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+                AssertFeedbackRecord(text);
+
+            Func<bool> incompleteWait = () =>
+            {
+                calls.Add("incomplete-wait");
+                return false;
+            };
+            Assert.False(Invoke<bool>(
+                "RunCleanupWaitOperationWithEvidence", "wait", incompleteWait,
+                (Action<string>)logs.Add, (Action<object>)faults.Add));
+            Func<bool> unexpectedWait = () =>
+            {
+                calls.Add("unexpected-wait");
+                throw original;
+            };
+            IOException propagated = Assert.Throws<IOException>(() => Invoke<bool>(
+                "RunCleanupWaitOperationWithEvidence", "owned-wait", unexpectedWait,
+                (Action<string>)logs.Add, (Action<object>)faults.Add));
+            Assert.Same(original, propagated);
+            Assert.Equal(2, faults.Count);
+            Assert.Equal(
+                new[] { "wait", "owned-wait", "incomplete-wait", "unexpected-wait" }, calls);
+        }
+
+        [Fact]
+        public void Feedback_MultipleSecondaryFaultsKeepFirstStageIdentityAndSeparateRetention()
+        {
+            var primary = new InvalidOperationException(PrivateText);
+            var firstFault = new IOException(PrivateText);
+            var laterFault = new UnauthorizedAccessException(PrivateText);
+            object observations = Invoke<object>("CreateCleanupObservations");
+            observations = Invoke<object>(
+                "RecordCleanupFault", observations, "owned-kill", firstFault);
+            observations = Invoke<object>(
+                "RecordCleanupFault", observations, "release", laterFault);
+            observations = Invoke<object>("RecordCleanupRetention", observations);
+            object snapshot = Freeze(MissingPoll(null), "readiness", false, null);
+
+            object failure = Invoke<object>(
+                "CreateObservedFailureEvidence", primary, snapshot, "readiness", observations);
+
+            object first = Required(observations, "FirstSecondary");
+            Assert.Equal("owned-kill", Token(first, "Stage"));
+            Assert.Same(firstFault, Required(first, "Exception"));
+            IReadOnlyList<object> faults =
+                AssignableProperty<IReadOnlyList<object>>(observations, "Faults");
+            Assert.Equal(2, faults.Count);
+            Assert.Equal("release", Token(faults[1], "Stage"));
+            Assert.Same(laterFault, Required(faults[1], "Exception"));
+            Assert.Same(primary, Required(failure, "PrimaryFailure"));
+            Assert.Same(firstFault, Required(failure, "SecondaryFailure"));
+            string text = Value<string>(failure, "Text");
+            Assert.Contains("cleanupStage=owned-kill", text);
+            Assert.Contains("secondaryCount=2", text);
+            Assert.Contains("resources=retained", text);
+            AssertFeedbackRecord(text);
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Feedback_ReleaseSuccessIsEmittedOnlyAfterBothActualOperations(
+            bool continueAfterCtsFault)
+        {
+            var calls = new List<string>();
+            var logs = new List<string>();
+            Action disposeCts = () => calls.Add("cts");
+            Action disposeRoot = () => calls.Add("root");
+            Action<string> log = text =>
+            {
+                logs.Add(text);
+                Assert.Equal(new[] { "cts", "root" }, calls);
+                Assert.Contains("cleanupOutcome=success", text);
+                calls.Add("success");
+                AssertFeedbackRecord(text);
+            };
+
+            object release = Invoke<object>(
+                "ReleaseResourcesWithEvidence", disposeCts, disposeRoot,
+                continueAfterCtsFault, log);
+
+            Assert.Equal(new[] { "cts", "root", "success" }, calls);
+            Assert.Single(logs);
+            Assert.Contains("cleanupOutcome=success", logs[0]);
+            Assert.Contains("ctsOutcome=success", logs[0]);
+            Assert.Contains("rootOutcome=success", logs[0]);
+            AssertFeedbackRecord(logs[0]);
+            Assert.Equal("success", Token(release, "CtsOutcome"));
+            Assert.Equal("success", Token(release, "RootOutcome"));
+            Assert.Equal("success", Token(release, "Outcome"));
+            Assert.Null(Property(release, "FirstSecondary"));
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Feedback_ReleaseCtsFaultPreservesExistingAttemptPolicyAndNeverAnnouncesSuccess(
+            bool continueAfterCtsFault)
+        {
+            var fault = new InvalidOperationException(PrivateText);
+            var calls = new List<string>();
+            var logs = new List<string>();
+            Action disposeCts = () =>
+            {
+                calls.Add("cts");
+                throw fault;
+            };
+            Action disposeRoot = () => calls.Add("root");
+
+            object release = Invoke<object>(
+                "ReleaseResourcesWithEvidence", disposeCts, disposeRoot,
+                continueAfterCtsFault, (Action<string>)logs.Add);
+
+            Assert.Equal(continueAfterCtsFault ? new[] { "cts", "root" } : new[] { "cts" }, calls);
+            Assert.Equal("fault", Token(release, "CtsOutcome"));
+            Assert.Equal(
+                continueAfterCtsFault ? "success" : "unavailable", Token(release, "RootOutcome"));
+            Assert.Equal("fault", Token(release, "Outcome"));
+            Assert.Same(fault, Required(Required(release, "FirstSecondary"), "Exception"));
+            Assert.Same(fault, Required(release, "PolicySecondaryFailure"));
+            Assert.Equal("release", Token(Required(release, "FirstSecondary"), "Stage"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+            {
+                Assert.DoesNotContain("cleanupOutcome=success", text);
+                Assert.Contains("ctsOutcome=fault", text);
+                Assert.Contains(
+                    "rootOutcome=" + (continueAfterCtsFault ? "success" : "unavailable"), text);
+                AssertFeedbackRecord(text);
+            }
+        }
+
+        [Theory]
+        [InlineData(false, "read-fault")]
+        [InlineData(true, "access-denied")]
+        public void Feedback_RootSwallowedFaultIsObservableWithoutThrowRetryOrSuccess(
+            bool accessDenied, string category)
+        {
+            Exception fault = accessDenied
+                ? new UnauthorizedAccessException(PrivateText) : new IOException(PrivateText);
+            int attempts = 0;
+            var logs = new List<string>();
+            Action disposeRoot = () =>
+            {
+                attempts++;
+                ExceptionDispatchInfo.Capture(fault).Throw();
+            };
+
+            object release = Invoke<object>(
+                "ReleaseResourcesWithEvidence", (Action)(() => { }), disposeRoot,
+                false, (Action<string>)logs.Add);
+
+            Assert.Equal(1, attempts);
+            Assert.Equal("success", Token(release, "CtsOutcome"));
+            Assert.Equal("fault", Token(release, "RootOutcome"));
+            Assert.Equal("fault", Token(release, "Outcome"));
+            Assert.True(Value<bool>(release, "RootFaultSwallowed"));
+            Assert.Null(Property(release, "PolicySecondaryFailure"));
+            Assert.Same(fault, Required(Required(release, "FirstSecondary"), "Exception"));
+            Assert.Equal("release", Token(Required(release, "FirstSecondary"), "Stage"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+            {
+                Assert.Contains("cleanupFault=" + category, text);
+                Assert.DoesNotContain("cleanupOutcome=success", text);
+                Assert.Contains("rootOutcome=fault", text);
+                Assert.Contains("rootFaultSwallowed=true", text);
+                AssertFeedbackRecord(text);
+            }
+        }
+
+        [Theory]
+        [InlineData(false, false)]
+        [InlineData(true, false)]
+        [InlineData(false, true)]
+        public void Feedback_UnattemptedReleaseOperationRemainsUnavailable(
+            bool attemptCts, bool attemptRoot)
+        {
+            int ctsCalls = 0;
+            int rootCalls = 0;
+            var logs = new List<string>();
+            Action? disposeCts = attemptCts ? () => ctsCalls++ : null;
+            Action? disposeRoot = attemptRoot ? () => rootCalls++ : null;
+
+            object release = Invoke<object>(
+                "ReleaseResourcesWithEvidence", disposeCts, disposeRoot,
+                false, (Action<string>)logs.Add);
+
+            Assert.Equal(attemptCts ? 1 : 0, ctsCalls);
+            Assert.Equal(attemptRoot ? 1 : 0, rootCalls);
+            Assert.Equal(attemptCts ? "success" : "unavailable", Token(release, "CtsOutcome"));
+            Assert.Equal(attemptRoot ? "success" : "unavailable", Token(release, "RootOutcome"));
+            Assert.Equal("unavailable", Token(release, "Outcome"));
+            Assert.Null(Property(release, "FirstSecondary"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+            {
+                Assert.DoesNotContain("cleanupOutcome=success", text);
+                Assert.Contains(
+                    "ctsOutcome=" + (attemptCts ? "success" : "unavailable"), text);
+                Assert.Contains(
+                    "rootOutcome=" + (attemptRoot ? "success" : "unavailable"), text);
+                AssertFeedbackRecord(text);
+            }
+        }
+
+        [Fact]
+        public void Feedback_ReleaseMultipleFaultsPreserveFirstAndAttemptEachOperationOnce()
+        {
+            var first = new InvalidOperationException(PrivateText);
+            var second = new IOException(PrivateText);
+            var calls = new List<string>();
+            var logs = new List<string>();
+            Action disposeCts = () =>
+            {
+                calls.Add("cts");
+                throw first;
+            };
+            Action disposeRoot = () =>
+            {
+                calls.Add("root");
+                throw second;
+            };
+
+            object release = Invoke<object>(
+                "ReleaseResourcesWithEvidence", disposeCts, disposeRoot,
+                true, (Action<string>)logs.Add);
+
+            Assert.Equal(new[] { "cts", "root" }, calls);
+            Assert.Same(first, Required(Required(release, "FirstSecondary"), "Exception"));
+            IReadOnlyList<object> faults = AssignableProperty<IReadOnlyList<object>>(release, "Faults");
+            Assert.Equal(2, faults.Count);
+            Assert.Same(second, Required(faults[1], "Exception"));
+            Assert.True(Value<bool>(release, "RootFaultSwallowed"));
+            Assert.Same(first, Required(release, "PolicySecondaryFailure"));
+            Assert.Equal("fault", Token(release, "Outcome"));
+            Assert.NotEmpty(logs);
+            foreach (string text in logs)
+            {
+                Assert.DoesNotContain("cleanupOutcome=success", text);
+                AssertFeedbackRecord(text);
+            }
+        }
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void Feedback_RootDisposalObservationRetainsExistingSwallowedPolicy(bool accessDenied)
+        {
+            Exception fault = accessDenied
+                ? new UnauthorizedAccessException(PrivateText) : new IOException(PrivateText);
+            int attempts = 0;
+            Action dispose = () =>
+            {
+                attempts++;
+                ExceptionDispatchInfo.Capture(fault).Throw();
+            };
+
+            object disposal = Invoke<object>("DisposeRootWithEvidence", dispose);
+
+            Assert.Equal(1, attempts);
+            Assert.Equal("fault", Token(disposal, "Outcome"));
+            Assert.Same(fault, Required(disposal, "Exception"));
+            Assert.True(Value<bool>(disposal, "FaultSwallowed"));
+            AssertFeedbackRecord(Value<string>(disposal, "Text"));
+        }
+
+        [Fact]
+        public void Feedback_RootDisposalObservationDoesNotBroadenExistingCatchSet()
+        {
+            var fault = new InvalidOperationException(PrivateText);
+            int attempts = 0;
+            Action dispose = () =>
+            {
+                attempts++;
+                throw fault;
+            };
+
+            InvalidOperationException actual = Assert.Throws<InvalidOperationException>(
+                () => Invoke<object>("DisposeRootWithEvidence", dispose));
+
+            Assert.Same(fault, actual);
+            Assert.Equal(1, attempts);
+        }
+
+        [Fact]
+        public void Feedback_RootDisposalObservationReportsSuccessAfterSingleOperation()
+        {
+            int attempts = 0;
+
+            object disposal = Invoke<object>(
+                "DisposeRootWithEvidence", (Action)(() => attempts++));
+
+            Assert.Equal(1, attempts);
+            Assert.Equal("success", Token(disposal, "Outcome"));
+            Assert.Null(Property(disposal, "Exception"));
+            Assert.False(Value<bool>(disposal, "FaultSwallowed"));
+            AssertFeedbackRecord(Value<string>(disposal, "Text"));
+        }
+
+        [Fact]
+        public void Feedback_UntrustedPhaseAndStageStayClosedWithBoundedMultipleFaultEvidence()
+        {
+            var task = CompletedTask(new ProcessRunResult
+            {
+                Started = true, ExitCode = 0,
+                Stdout = PrivateText + new string('x', 4096),
+                Stderr = PrivateText, ErrorMessage = PrivateText
+            });
+            object snapshot = Freeze(ReadyPoll(task), "readiness", true, task);
+            object observations = Invoke<object>("CreateCleanupObservations");
+            for (int i = 0; i < 40; i++)
+            {
+                observations = Invoke<object>(
+                    "RecordCleanupFault", observations, PrivateText,
+                    new IOException(PrivateText));
+            }
+
+            object failure = Invoke<object>(
+                "CreateObservedFailureEvidence", new InvalidOperationException(PrivateText),
+                snapshot, PrivateText, observations);
+
+            Assert.Same(snapshot, Required(failure, "Readiness"));
+            string text = Value<string>(failure, "Text");
+            Assert.Contains("failurePhase=unavailable", text);
+            Assert.Contains("cleanupStage=unavailable", text);
+            Assert.Contains("secondaryCount=40", text);
+            AssertFeedbackRecord(text);
+        }
+
+        private static T AssignableProperty<T>(object instance, string name) =>
+            Assert.IsAssignableFrom<T>(Required(instance, name));
+
+        private static void AssertFeedbackRecord(string text)
+        {
+            AssertPrivateTextAbsent(text);
+            Assert.DoesNotContain(IdentityPath, text);
+            Assert.DoesNotContain("123|1000", text);
+            Assert.DoesNotContain(nameof(IOException), text);
+            Assert.DoesNotContain(nameof(UnauthorizedAccessException), text);
+            Assert.DoesNotContain(nameof(InvalidOperationException), text);
+            Assert.InRange(text.Length, 1, 2048);
+            System.Text.RegularExpressions.MatchCollection labels =
+                System.Text.RegularExpressions.Regex.Matches(
+                    text, @"(?:^| )([A-Za-z][A-Za-z0-9]*)=");
+            Assert.NotEmpty(labels);
+            for (int i = 0; i < labels.Count; i++)
+            {
+                int start = labels[i].Groups[1].Index;
+                int end = i + 1 < labels.Count ? labels[i + 1].Index : text.Length;
+                Assert.InRange(end - start, 1, 256);
+            }
+        }
+
         private static object Observe(InertReader reader) =>
             Invoke<object>(
                 "ObserveIdentity", IdentityPath,
@@ -879,14 +1463,17 @@ namespace FEBuilderGBA.Core.Tests
 
         // Reflection keeps this tests-only stage compilable; absent APIs fail with named RED assertions.
         private static T Invoke<T>(string methodName, params object?[] arguments)
+            => InvokeOn<T>(typeof(ProcessRunnerScenarioSupport), methodName, arguments);
+
+        private static T InvokeOn<T>(Type declaringType, string methodName, params object?[] arguments)
         {
             MethodInfo[] methods = Array.FindAll(
-                typeof(ProcessRunnerScenarioSupport).GetMethods(
+                declaringType.GetMethods(
                     BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic),
                 method => method.Name == methodName
                     && method.GetParameters().Length == arguments.Length);
             Assert.True(methods.Length == 1,
-                $"Expected one ProcessRunnerScenarioSupport.{methodName} API with "
+                $"Expected one {declaringType.Name}.{methodName} API with "
                 + $"{arguments.Length} arguments; found {methods.Length}.");
             try
             {

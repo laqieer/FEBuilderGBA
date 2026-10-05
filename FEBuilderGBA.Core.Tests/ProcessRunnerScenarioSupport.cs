@@ -210,15 +210,83 @@ namespace FEBuilderGBA.Core.Tests
             public Exception? SecondaryFailure { get; }
             public ReadinessEvidence Readiness { get; }
             public string Text { get; }
+            public string FailurePhase { get; }
 
             internal FailureEvidence(
                 Exception? primaryFailure, ReadinessEvidence readiness,
-                Exception? secondaryFailure, string text)
+                Exception? secondaryFailure, string text, string failurePhase = "unavailable")
             {
                 PrimaryFailure = primaryFailure;
                 Readiness = readiness;
                 SecondaryFailure = secondaryFailure;
                 Text = text;
+                FailurePhase = SafePhase(failurePhase);
+            }
+        }
+
+        internal sealed class CleanupFault
+        {
+            public string Stage { get; }
+            public Exception Exception { get; }
+
+            internal CleanupFault(string stage, Exception exception)
+            {
+                Stage = SafeCleanupStage(stage);
+                Exception = exception;
+            }
+        }
+
+        internal sealed class CleanupObservations
+        {
+            private readonly List<CleanupFault> _faults = new List<CleanupFault>();
+            public IReadOnlyList<CleanupFault> Faults => _faults;
+            public CleanupFault? FirstSecondary => _faults.Count == 0 ? null : _faults[0];
+            public bool Retained { get; private set; }
+            public string ReleaseOutcome { get; private set; } = "unavailable";
+            public string CtsOutcome { get; private set; } = "unavailable";
+            public string RootOutcome { get; private set; } = "unavailable";
+            public bool RootFaultSwallowed { get; private set; }
+            public string Text => FormatDiagnosticRecord(ObservedCleanupFields(this));
+
+            internal void Add(CleanupFault fault) => _faults.Add(fault);
+            internal void Retain() => Retained = true;
+            internal void Released(ReleaseEvidence release)
+            {
+                ReleaseOutcome = release.Outcome;
+                CtsOutcome = release.CtsOutcome;
+                RootOutcome = release.RootOutcome;
+                RootFaultSwallowed = release.RootFaultSwallowed;
+            }
+        }
+
+        internal sealed class RootDisposalEvidence
+        {
+            public Exception? Exception { get; }
+            public bool FaultSwallowed => Exception != null;
+            public string Outcome => Exception == null ? "success" : "fault";
+            public string Text => FormatCleanupEvidence("release", Outcome, Exception);
+
+            internal RootDisposalEvidence(Exception? exception) => Exception = exception;
+        }
+
+        internal sealed class ReleaseEvidence
+        {
+            private readonly List<CleanupFault> _faults = new List<CleanupFault>();
+            public IReadOnlyList<CleanupFault> Faults => _faults;
+            public CleanupFault? FirstSecondary => _faults.Count == 0 ? null : _faults[0];
+            public Exception? PolicySecondaryFailure { get; private set; }
+            public string CtsOutcome { get; internal set; } = "unavailable";
+            public string RootOutcome { get; internal set; } = "unavailable";
+            public bool RootFaultSwallowed { get; internal set; }
+            public string Outcome => CtsOutcome == "fault" || RootOutcome == "fault"
+                ? "fault" : CtsOutcome == "success" && RootOutcome == "success"
+                    ? "success" : "unavailable";
+
+            internal void Add(Exception fault, bool swallowed)
+            {
+                _faults.Add(new CleanupFault("release", fault));
+                if (!swallowed)
+                    PolicySecondaryFailure ??= fault;
             }
         }
 
@@ -371,11 +439,7 @@ namespace FEBuilderGBA.Core.Tests
         private static List<string> CleanupFields(
             string stage, string outcome, Exception? fault, bool retained)
         {
-            string safeStage = stage switch
-            {
-                "cancel" or "wait" or "owned-kill" or "owned-wait" or "retain" or "release" => stage,
-                _ => "unavailable"
-            };
+            string safeStage = SafeCleanupStage(stage);
             string safeOutcome = outcome switch
             {
                 "success" or "fault" or "retained" or "unavailable" => outcome,
@@ -405,6 +469,174 @@ namespace FEBuilderGBA.Core.Tests
             return new FailureEvidence(primary, readiness, secondary, FormatDiagnosticRecord(fields));
         }
 
+        private static string SafeCleanupStage(string stage) => stage switch
+        {
+            "cancel" or "wait" or "owned-kill" or "owned-wait" or "retain" or "release" => stage,
+            _ => "unavailable"
+        };
+
+        internal static CleanupObservations CreateCleanupObservations() => new CleanupObservations();
+
+        internal static CleanupObservations RecordCleanupFault(
+            CleanupObservations observations, string stage, Exception fault)
+        {
+            observations.Add(new CleanupFault(stage, fault));
+            return observations;
+        }
+
+        internal static CleanupObservations RecordCleanupRetention(CleanupObservations observations)
+        {
+            observations.Retain();
+            return observations;
+        }
+
+        internal static void RecordReleaseEvidence(
+            CleanupObservations observations, ReleaseEvidence release)
+        {
+            foreach (CleanupFault fault in release.Faults)
+                observations.Add(fault);
+            observations.Released(release);
+        }
+
+        private static List<string> ObservedCleanupFields(CleanupObservations observations)
+        {
+            CleanupFault? first = observations.FirstSecondary;
+            var fields = CleanupFields(
+                first?.Stage ?? (observations.Retained ? "retain" : "release"),
+                first != null ? "fault" : observations.Retained ? "retained" : observations.ReleaseOutcome,
+                first?.Exception, observations.Retained);
+            fields.Add(FormatDiagnosticField(
+                "secondaryCount", observations.Faults.Count.ToString(CultureInfo.InvariantCulture)));
+            fields.Add(FormatDiagnosticField("releaseOutcome", observations.ReleaseOutcome));
+            fields.Add(FormatDiagnosticField("ctsOutcome", observations.CtsOutcome));
+            fields.Add(FormatDiagnosticField("rootOutcome", observations.RootOutcome));
+            fields.Add(FormatDiagnosticField("rootFaultSwallowed", BoolToken(observations.RootFaultSwallowed)));
+            for (int i = 1; i < observations.Faults.Count; i++)
+            {
+                fields.Add(FormatDiagnosticField(
+                    "secondaryStage" + i.ToString(CultureInfo.InvariantCulture), observations.Faults[i].Stage));
+                fields.Add(FormatDiagnosticField(
+                    "secondaryFault" + i.ToString(CultureInfo.InvariantCulture),
+                    ClassifyDiagnosticFault(observations.Faults[i].Exception)));
+            }
+            return fields;
+        }
+
+        internal static FailureEvidence CreateObservedFailureEvidence(
+            Exception? primary, ReadinessEvidence readiness, string failurePhase,
+            CleanupObservations observations)
+        {
+            List<string> fields = ReadinessFields(readiness);
+            string safePhase = SafePhase(failurePhase);
+            fields.Add(FormatDiagnosticField("failurePhase", safePhase));
+            fields.Add(FormatDiagnosticField(
+                "failureFault", primary == null ? "unavailable" : ClassifyDiagnosticFault(primary)));
+            fields.AddRange(ObservedCleanupFields(observations));
+            return new FailureEvidence(
+                primary, readiness, observations.FirstSecondary?.Exception,
+                FormatDiagnosticRecord(fields), safePhase);
+        }
+
+        internal static bool RunCleanupCancelOperationWithEvidence(
+            Action cancel, Action<string> log, Action<CleanupFault>? secondaryFault)
+        {
+            try
+            {
+                cancel();
+                return true;
+            }
+            catch (ObjectDisposedException ex)
+            {
+                secondaryFault?.Invoke(new CleanupFault("cancel", ex));
+                SafeDiagnosticsLog(log, FormatCleanupEvidence("cancel", "fault", ex));
+                return false;
+            }
+        }
+
+        internal static bool RunCleanupWaitOperationWithEvidence(
+            string stage, Func<bool> wait, Action<string> log, Action<CleanupFault>? secondaryFault)
+        {
+            try
+            {
+                return wait();
+            }
+            catch (AggregateException ex)
+            {
+                secondaryFault?.Invoke(new CleanupFault(stage, ex));
+                SafeDiagnosticsLog(log, FormatCleanupEvidence(stage, "fault", ex));
+                return true;
+            }
+        }
+
+        internal static RootDisposalEvidence DisposeRootWithEvidence(Action dispose)
+        {
+            try
+            {
+                dispose();
+                return new RootDisposalEvidence(null);
+            }
+            catch (IOException ex)
+            {
+                return new RootDisposalEvidence(ex);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return new RootDisposalEvidence(ex);
+            }
+        }
+
+        internal static ReleaseEvidence ReleaseResourcesWithEvidence(
+            Action? disposeCts, Action? disposeRoot, bool continueAfterCtsFault, Action<string> log)
+        {
+            var release = new ReleaseEvidence();
+            if (disposeCts != null)
+            {
+                try
+                {
+                    disposeCts();
+                    release.CtsOutcome = "success";
+                }
+                catch (Exception ex)
+                {
+                    release.CtsOutcome = "fault";
+                    release.Add(ex, swallowed: false);
+                }
+            }
+            if (disposeRoot != null && (release.CtsOutcome != "fault" || continueAfterCtsFault))
+            {
+                try
+                {
+                    RootDisposalEvidence root = DisposeRootWithEvidence(disposeRoot);
+                    release.RootOutcome = root.Outcome;
+                    release.RootFaultSwallowed = root.FaultSwallowed;
+                    if (root.Exception != null)
+                        release.Add(root.Exception, swallowed: true);
+                }
+                catch (Exception ex)
+                {
+                    release.RootOutcome = "fault";
+                    release.Add(ex, swallowed: false);
+                }
+            }
+            if (release.Faults.Count == 0)
+                SafeDiagnosticsLog(log, FormatReleaseEvidence(release, null));
+            else
+            {
+                foreach (CleanupFault fault in release.Faults)
+                    SafeDiagnosticsLog(log, FormatReleaseEvidence(release, fault));
+            }
+            return release;
+        }
+
+        private static string FormatReleaseEvidence(ReleaseEvidence release, CleanupFault? fault)
+        {
+            List<string> fields = CleanupFields("release", release.Outcome, fault?.Exception, false);
+            fields.Add(FormatDiagnosticField("ctsOutcome", release.CtsOutcome));
+            fields.Add(FormatDiagnosticField("rootOutcome", release.RootOutcome));
+            fields.Add(FormatDiagnosticField("rootFaultSwallowed", BoolToken(release.RootFaultSwallowed)));
+            return FormatDiagnosticRecord(fields);
+        }
+
         internal static void LogEvidence(Action<string> log, string projectedEvidence) =>
             SafeDiagnosticsLog(log, projectedEvidence);
 
@@ -431,22 +663,15 @@ namespace FEBuilderGBA.Core.Tests
 
             public void Dispose()
             {
-                try
-                {
-                    if (Directory.Exists(Path))
-                        Directory.Delete(Path, recursive: true);
-                }
-                catch (IOException ex)
-                {
-                    // Best-effort: a slow-to-exit descendant may still hold a handle briefly.
-                    if (_diagnosticsLog != null)
-                        SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
-                }
-                catch (UnauthorizedAccessException ex)
-                {
-                    if (_diagnosticsLog != null)
-                        SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
-                }
+                RootDisposalEvidence evidence = DisposeRootWithEvidence(DeleteContents);
+                if (evidence.Exception != null && _diagnosticsLog != null)
+                    SafeDiagnosticsLog(_diagnosticsLog, evidence.Text);
+            }
+
+            internal void DeleteContents()
+            {
+                if (Directory.Exists(Path))
+                    Directory.Delete(Path, recursive: true);
             }
         }
 
@@ -496,25 +721,8 @@ namespace FEBuilderGBA.Core.Tests
                 if (Interlocked.Exchange(ref _released, 1) != 0)
                     return;
 
-                SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "success"));
-
-                try
-                {
-                    _cts.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
-                }
-
-                try
-                {
-                    _root.Dispose();
-                }
-                catch (Exception ex)
-                {
-                    SafeDiagnosticsLog(_diagnosticsLog, FormatCleanupEvidence("release", "fault", ex));
-                }
+                ReleaseResourcesWithEvidence(
+                    _cts.Dispose, _root.DeleteContents, continueAfterCtsFault: true, _diagnosticsLog);
 
                 lock (RetainedScenarioLock)
                 {
@@ -867,21 +1075,13 @@ namespace FEBuilderGBA.Core.Tests
             ProcessIdentity? childIdentity,
             DateTimeOffset scenarioStartUtc,
             Action<string> diagnosticsLog,
-            Action<Exception>? secondaryFault = null)
+            Action<CleanupFault>? secondaryFault = null)
         {
             bool runQuiesced = runTask == null || runTask.IsCompleted;
             string cleanupStage = "cancel";
             try
             {
-                try
-                {
-                    cts.Cancel();
-                }
-                catch (ObjectDisposedException ex)
-                {
-                    secondaryFault?.Invoke(ex);
-                    SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("cancel", "fault", ex));
-                }
+                RunCleanupCancelOperationWithEvidence(cts.Cancel, diagnosticsLog, secondaryFault);
 
                 cleanupStage = "wait";
                 bool quiescedAfterCancel = WaitForRunTaskQuiescence(
@@ -891,9 +1091,9 @@ namespace FEBuilderGBA.Core.Tests
                     diagnosticsLog,
                     secondaryFault);
 
+                cleanupStage = "owned-kill";
                 ProcessIdentity? refreshedChildIdentity =
                     ReadFinalIdentity(childIdentityPath) ?? childIdentity;
-                cleanupStage = "owned-kill";
                 TryBestEffortKill(leaderIdentity, scenarioStartUtc, diagnosticsLog, secondaryFault);
                 TryBestEffortKill(refreshedChildIdentity, scenarioStartUtc, diagnosticsLog, secondaryFault);
 
@@ -914,7 +1114,7 @@ namespace FEBuilderGBA.Core.Tests
             catch (Exception ex)
             {
                 // Cleanup must never replace the primary test failure with one of its own.
-                secondaryFault?.Invoke(ex);
+                secondaryFault?.Invoke(new CleanupFault(cleanupStage, ex));
                 SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence(cleanupStage, "fault", ex));
                 runQuiesced = runQuiesced || (runTask == null || runTask.IsCompleted);
             }
@@ -926,21 +1126,14 @@ namespace FEBuilderGBA.Core.Tests
             int waitMs,
             string phase,
             Action<string> diagnosticsLog,
-            Action<Exception>? secondaryFault)
+            Action<CleanupFault>? secondaryFault)
         {
             if (runTask == null)
                 return true;
 
-            try
-            {
-                return runTask.Wait(TimeSpan.FromMilliseconds(waitMs));
-            }
-            catch (AggregateException ex)
-            {
-                secondaryFault?.Invoke(ex);
-                SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence(phase, "fault", ex));
-                return true;
-            }
+            return RunCleanupWaitOperationWithEvidence(
+                phase, () => runTask.Wait(TimeSpan.FromMilliseconds(waitMs)),
+                diagnosticsLog, secondaryFault);
         }
 
         private static void SafeDiagnosticsLog(Action<string> diagnosticsLog, string message)
@@ -959,7 +1152,7 @@ namespace FEBuilderGBA.Core.Tests
             ProcessIdentity? identity,
             DateTimeOffset scenarioStartUtc,
             Action<string> diagnosticsLog,
-            Action<Exception>? secondaryFault)
+            Action<CleanupFault>? secondaryFault)
         {
             if (identity == null)
                 return;
@@ -991,22 +1184,22 @@ namespace FEBuilderGBA.Core.Tests
             }
             catch (ArgumentException ex)
             {
-                secondaryFault?.Invoke(ex);
+                secondaryFault?.Invoke(new CleanupFault("owned-kill", ex));
                 SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (InvalidOperationException ex)
             {
-                secondaryFault?.Invoke(ex);
+                secondaryFault?.Invoke(new CleanupFault("owned-kill", ex));
                 SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (System.ComponentModel.Win32Exception ex)
             {
-                secondaryFault?.Invoke(ex);
+                secondaryFault?.Invoke(new CleanupFault("owned-kill", ex));
                 SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
             catch (PlatformNotSupportedException ex)
             {
-                secondaryFault?.Invoke(ex);
+                secondaryFault?.Invoke(new CleanupFault("owned-kill", ex));
                 SafeDiagnosticsLog(diagnosticsLog, FormatCleanupEvidence("owned-kill", "fault", ex));
             }
         }
