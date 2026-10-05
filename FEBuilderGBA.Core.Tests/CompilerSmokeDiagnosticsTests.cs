@@ -5,6 +5,13 @@ using FixtureMode = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.FixtureMode
 using FixtureStage = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.FixtureStage;
 using FixtureStageStatus = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.FixtureStageStatus;
 using FixtureStageObservation = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.FixtureStageObservation;
+using OwnedDirectoryIdentity = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedDirectoryIdentity;
+using OwnedEntryType = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedEntryType;
+using OwnedCleanupCheckpoint = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedCleanupCheckpoint;
+using OwnedFixtureDirectory = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedFixtureDirectory;
+using OwnedIdentityMismatchException = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedIdentityMismatchException;
+using IOwnedDirectoryHandle = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.IOwnedDirectoryHandle;
+using IOwnedDirectoryOperations = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.IOwnedDirectoryOperations;
 
 namespace FEBuilderGBA.Core.Tests;
 
@@ -1142,21 +1149,24 @@ public class CompilerSmokeDiagnosticsTests
     [Fact]
     public void OwnedFixture_NativeCleanupDeletesFixedEntriesWithoutTraversingUnknownChildren()
     {
-        string root = CreateRoot();
+        using var owned = OperatingSystem.IsWindows() ? null
+            : CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(OwnedTempAnchor);
+        string root = owned?.RootPath ?? CreateRoot();
+        void Delete() { if (owned != null) owned.Delete(); else CompilerSmokeDiagnostics.DeleteOwnedFixtureRoot(root); }
+        string script = OperatingSystem.IsWindows() ? "fake.ps1" : "fake.py";
+        string unknownDirectory = Path.Combine(root, "unknown");
+        string unknownFile = Path.Combine(unknownDirectory, "private.txt");
         try
         {
-            string script = OperatingSystem.IsWindows() ? "fake.ps1" : "fake.py";
             File.WriteAllText(Path.Combine(root, script), "not executed");
             foreach (string name in OwnedStageNames)
             {
                 File.WriteAllText(Path.Combine(root, name), "owned marker");
                 File.WriteAllText(Path.Combine(root, name + ".tmp"), "owned temporary marker");
             }
-            string unknownDirectory = Path.Combine(root, "unknown");
             Directory.CreateDirectory(unknownDirectory);
-            string unknownFile = Path.Combine(unknownDirectory, "private.txt");
             File.WriteAllText(unknownFile, "SECRET_UNKNOWN_CHILD");
-            Assert.ThrowsAny<IOException>(() => CompilerSmokeDiagnostics.DeleteOwnedFixtureRoot(root));
+            Assert.ThrowsAny<IOException>(Delete);
             Assert.True(File.Exists(unknownFile));
             Assert.Equal("SECRET_UNKNOWN_CHILD", File.ReadAllText(unknownFile));
             Assert.False(File.Exists(Path.Combine(root, script)));
@@ -1167,10 +1177,841 @@ public class CompilerSmokeDiagnosticsTests
             }
             File.Delete(unknownFile);
             Directory.Delete(unknownDirectory);
-            CompilerSmokeDiagnostics.DeleteOwnedFixtureRoot(root);
+            Delete();
             Assert.False(Directory.Exists(root));
         }
-        finally { if (Directory.Exists(root)) Directory.Delete(root, true); }
+        finally
+        {
+            if (Directory.Exists(root))
+            {
+                File.Delete(unknownFile);
+                if (Directory.Exists(unknownDirectory)) Directory.Delete(unknownDirectory, false);
+                Delete();
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData("device")]
+    [InlineData("inode")]
+    [InlineData("type")]
+    [InlineData("owner")]
+    [InlineData("missing")]
+    public void OwnedOwnership_AbstractRootMismatchPrecedesEveryLeafMutation(string changed)
+    {
+        var model = new OwnedOwnershipModel();
+        model.RootEntry = ChangedIdentity(model.RootIdentity, changed);
+        Assert.Throws<OwnedIdentityMismatchException>(() => model.Lifetime.Delete());
+        Assert.Empty(model.Mutations);
+        Assert.Equal("owned payload", model.Leaves["fake.py"]);
+        Assert.False(model.Root.IsClosed);
+    }
+
+    [Theory]
+    [InlineData("anchor")]
+    [InlineData("envelope")]
+    public void OwnedOwnership_AbstractParentMismatchFailsClosed(string changed)
+    {
+        var model = new OwnedOwnershipModel();
+        if (changed == "anchor") model.AnchorIdentity = model.AnchorIdentity with { Inode = 999 };
+        else model.EnvelopeEntry = model.EnvelopeIdentity with { Inode = 999 };
+        Assert.Throws<OwnedIdentityMismatchException>(() => model.Lifetime.Delete());
+        Assert.Empty(model.Mutations);
+    }
+
+    [Theory]
+    [InlineData("anchor", "device")]
+    [InlineData("anchor", "inode")]
+    [InlineData("anchor", "type")]
+    [InlineData("anchor", "owner")]
+    [InlineData("envelope", "device")]
+    [InlineData("envelope", "type")]
+    [InlineData("envelope", "owner")]
+    [InlineData("envelope", "missing")]
+    public void OwnedOwnership_AbstractParentIdentityUsesEveryField(string parent, string field)
+    {
+        using var lifetime = new OwnedOwnershipModel().Lifetime;
+        var model = Assert.IsType<OwnedOwnershipModel>(lifetime.Operations);
+        if (parent == "anchor") model.AnchorIdentity = ChangedIdentity(model.AnchorIdentity, field)!.Value;
+        else model.EnvelopeEntry = ChangedIdentity(model.EnvelopeIdentity, field);
+        Assert.Throws<OwnedIdentityMismatchException>(() => lifetime.Delete());
+        Assert.Empty(model.Mutations);
+        Assert.Equal("owned payload", model.Leaves["fake.py"]);
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractIdentityIsRecheckedBeforeEachLeafMutation()
+    {
+        var model = new OwnedOwnershipModel();
+        using var lifetime = model.Lifetime;
+        model.Leaves.Add("ready.stage", "second owned payload");
+        model.AfterLeafDeletion = _ => model.RootEntry = null;
+        Assert.Throws<OwnedIdentityMismatchException>(() => lifetime.Delete());
+        Assert.Equal(new[] { "delete:fake.py" }, model.Mutations);
+        Assert.Equal("second owned payload", model.Leaves["ready.stage"]);
+    }
+
+    [Theory]
+    [InlineData("BeforeLeafMutation")]
+    [InlineData("BeforeFinalRootRemoval")]
+    [InlineData("BeforeFinalEnvelopeRemoval")]
+    public void OwnedOwnership_AbstractCheckpointRunsBeforeIdentityValidation(string checkpointName)
+    {
+        var point = Enum.Parse<OwnedCleanupCheckpoint>(checkpointName);
+        var model = new OwnedOwnershipModel();
+        int calls = 0;
+        Assert.Throws<OwnedIdentityMismatchException>(() => model.Lifetime.Delete(checkpoint =>
+        {
+            Assert.False(model.Anchor.IsClosed || model.Envelope.IsClosed || model.Root.IsClosed);
+            if (checkpoint != point) return;
+            calls++;
+            if (point == OwnedCleanupCheckpoint.BeforeFinalEnvelopeRemoval)
+                model.EnvelopeEntry = model.EnvelopeIdentity with { Inode = 999 };
+            else model.RootEntry = model.RootIdentity with { Inode = 999 };
+        }));
+        Assert.Equal(1, calls);
+        if (point == OwnedCleanupCheckpoint.BeforeLeafMutation) Assert.Empty(model.Mutations);
+        Assert.DoesNotContain("remove:envelope", model.Mutations);
+        if (point != OwnedCleanupCheckpoint.BeforeFinalEnvelopeRemoval)
+            Assert.DoesNotContain("remove:root", model.Mutations);
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractUnknownChildrenAreNeverTraversed()
+    {
+        var model = new OwnedOwnershipModel();
+        model.Leaves.Add("unknown-directory", "private nested sentinel");
+        Assert.ThrowsAny<IOException>(() => model.Lifetime.Delete());
+        Assert.Equal("private nested sentinel", model.Leaves["unknown-directory"]);
+        Assert.DoesNotContain("delete:unknown-directory", model.Mutations);
+        Assert.DoesNotContain("remove:root", model.Mutations);
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractOrdinaryTeardownUsesRetainedParentsAndKeepsPinsUntilDisposal()
+    {
+        var model = new OwnedOwnershipModel();
+        model.Lifetime.Delete();
+        Assert.Equal(new[] { "delete:fake.py", "remove:root", "remove:envelope" }, model.Mutations);
+        Assert.False(model.Anchor.IsClosed || model.Envelope.IsClosed || model.Root.IsClosed);
+        model.Lifetime.Dispose();
+        model.Lifetime.Dispose();
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.Equal(1, handle.DisposeCalls));
+        Assert.Throws<ObjectDisposedException>(() => model.Lifetime.Delete());
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractDisposalOnlyClosesPinsAndIsIdempotent()
+    {
+        var model = new OwnedOwnershipModel();
+        model.Lifetime.Dispose();
+        model.Lifetime.Dispose();
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.Equal(1, handle.DisposeCalls));
+        Assert.Empty(model.Mutations);
+        Assert.Equal(model.RootIdentity, model.RootEntry);
+        Assert.Equal(model.EnvelopeIdentity, model.EnvelopeEntry);
+        Assert.Equal("owned payload", model.Leaves["fake.py"]);
+        Assert.Throws<ObjectDisposedException>(() => model.Lifetime.Delete());
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractOutstandingTerminationWithoutPrimaryIsExplicitAndClosesPins()
+    {
+        var model = new OwnedOwnershipModel();
+        var messages = new List<string>();
+        var error = Assert.Throws<InvalidOperationException>(() => model.Lifetime.Cleanup(null, true, messages.Add));
+        Assert.Equal("Owned compiler-smoke root retained: process termination is outstanding.", error.Message);
+        Assert.Empty(model.Mutations);
+        Assert.Equal("owned payload", model.Leaves["fake.py"]);
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.Equal(1, handle.DisposeCalls));
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("mismatch")]
+    [InlineData("access")]
+    [InlineData("io")]
+    [InlineData("retained")]
+    public void OwnedOwnership_AbstractCleanupClosesEveryPinOnEveryExit(string outcome)
+    {
+        var model = new OwnedOwnershipModel();
+        if (outcome == "mismatch") model.RootEntry = null;
+        if (outcome == "access") model.Failure = new UnauthorizedAccessException("SECRET_PATH");
+        if (outcome == "io") model.Failure = new IOException("SECRET_PATH");
+        var primary = new XunitException("primary");
+        var messages = new List<string>();
+        model.Lifetime.Cleanup(primary, outcome == "retained", messages.Add);
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.Equal(1, handle.DisposeCalls));
+        if (outcome == "success") Assert.Empty(messages);
+        else
+        {
+            string category = outcome switch
+            {
+                "mismatch" => "identity-mismatch", "access" => "access-error",
+                "io" => "io-error", _ => "retained",
+            };
+            Assert.Equal("owned-fixture:cleanup:" + category, Assert.Single(messages));
+            Assert.Empty(model.Mutations);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_AbstractMismatchPreservesPrimaryStackAndCappedPrivateSecondary(bool rejectOutput)
+    {
+        var model = new OwnedOwnershipModel { RootEntry = null };
+        var messages = new List<string>();
+        XunitException? primary = null;
+        var observed = Assert.ThrowsAny<XunitException>(() =>
+        {
+            try { FailOwnedFixtureAssertion(); }
+            catch (XunitException ex)
+            {
+                primary = ex;
+                ex.Data[CompilerSmokeDiagnostics.OwnedFixtureSecondaryKey] = "SECRET_PATH" + new string('x', 5000);
+                throw;
+            }
+            finally
+            {
+                model.Lifetime.Cleanup(primary, false, message =>
+                {
+                    messages.Add(message);
+                    if (rejectOutput) throw new InvalidOperationException("SECRET_OUTPUT");
+                });
+            }
+        });
+        Assert.Same(primary, observed);
+        Assert.Contains(nameof(FailOwnedFixtureAssertion), observed.StackTrace!);
+        Assert.Equal("owned-fixture:cleanup:identity-mismatch", Assert.Single(messages));
+        string secondary = Assert.IsType<string>(observed.Data[CompilerSmokeDiagnostics.OwnedFixtureSecondaryKey]);
+        Assert.Equal(rejectOutput
+            ? "owned-fixture:output-rejected;owned-fixture:cleanup:identity-mismatch"
+            : "owned-fixture:cleanup:identity-mismatch", secondary);
+        Assert.InRange(secondary.Length, 1, CompilerSmokeDiagnostics.OwnedFixtureReportCapChars);
+        Assert.DoesNotContain("SECRET", secondary);
+        Assert.Single(observed.Data.Keys.Cast<object>());
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.True(handle.IsClosed));
+    }
+
+    [Fact]
+    public void OwnedOwnership_AbstractCleanupOnlyMismatchIsTypedAndPrivate()
+    {
+        var model = new OwnedOwnershipModel { RootEntry = null };
+        var messages = new List<string>();
+        var error = Assert.Throws<OwnedIdentityMismatchException>(() =>
+            model.Lifetime.Cleanup(null, false, messages.Add));
+        Assert.Equal("owned-fixture:cleanup:identity-mismatch", error.Message);
+        Assert.Empty(messages);
+        Assert.Empty(model.Mutations);
+        Assert.All(new[] { model.Anchor, model.Envelope, model.Root }, handle => Assert.True(handle.IsClosed));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_ExistingCleanupMustNotCollapseIdentityMismatchIntoIoError(bool rejectOutput)
+    {
+        XunitException? primary = null;
+        var messages = new List<string>();
+        var observed = Assert.ThrowsAny<XunitException>(() =>
+        {
+            try { FailOwnedFixtureAssertion(); }
+            catch (XunitException ex)
+            {
+                primary = ex;
+                ex.Data[CompilerSmokeDiagnostics.OwnedFixtureSecondaryKey] = "SECRET_PATH" + new string('x', 5000);
+                throw;
+            }
+            finally
+            {
+                CompilerSmokeDiagnostics.CleanupOwnedFixture(primary, false,
+                    () => throw new OwnedIdentityMismatchException(), message =>
+                    {
+                        messages.Add(message);
+                        if (rejectOutput) throw new InvalidOperationException("SECRET_OUTPUT");
+                    });
+            }
+        });
+        Assert.Same(primary, observed);
+        Assert.Contains(nameof(FailOwnedFixtureAssertion), observed.StackTrace!);
+        Assert.Equal("owned-fixture:cleanup:identity-mismatch", Assert.Single(messages));
+        string secondary = Assert.IsType<string>(observed.Data[CompilerSmokeDiagnostics.OwnedFixtureSecondaryKey]);
+        Assert.Equal(rejectOutput
+            ? "owned-fixture:output-rejected;owned-fixture:cleanup:identity-mismatch"
+            : "owned-fixture:cleanup:identity-mismatch", secondary);
+        Assert.InRange(secondary.Length, 1, CompilerSmokeDiagnostics.OwnedFixtureReportCapChars);
+        Assert.DoesNotContain("SECRET", secondary);
+        Assert.Single(observed.Data.Keys.Cast<object>());
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void OwnedOwnership_PosixRootReplacementRetainsExactOriginalAndUnrelatedLeaves(
+        bool beforeFinal, bool populated)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return; // Native cases only; abstract cases above run on Windows.
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        string root = owned.RootPath;
+        string moved = root + ".moved";
+        fixture.Write(root, "fake.py", "original owned payload");
+        bool replaced = false;
+        OwnedDirectoryIdentity replacement = default;
+        void Replace()
+        {
+            fixture.Move(root, moved);
+            fixture.Directory(root);
+            if (populated)
+            {
+                fixture.Write(root, "sentinel", "unrelated sentinel");
+                fixture.Write(root, "fake.py", "unrelated allowlisted payload");
+                fixture.Write(root, "ready.stage", "unrelated allowlisted marker");
+                fixture.Write(root, "ready.stage.tmp", "unrelated allowlisted temporary");
+            }
+            replacement = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(root);
+            Assert.NotEqual(owned.RootIdentity, replacement);
+            replaced = true;
+        }
+        if (!beforeFinal) Replace();
+        var error = Assert.Throws<OwnedIdentityMismatchException>(() => owned.Delete(checkpoint =>
+        {
+            if (beforeFinal && checkpoint == OwnedCleanupCheckpoint.BeforeFinalRootRemoval) Replace();
+        }));
+        Assert.True(replaced);
+        Assert.Equal("owned-fixture:cleanup:identity-mismatch", error.Message);
+        Assert.Equal(replacement, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(root));
+        Assert.Equal(owned.RootIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(moved));
+        if (populated)
+        {
+            Assert.Equal("unrelated sentinel", File.ReadAllText(Path.Combine(root, "sentinel")));
+            Assert.Equal("unrelated allowlisted payload", File.ReadAllText(Path.Combine(root, "fake.py")));
+            Assert.Equal("unrelated allowlisted marker", File.ReadAllText(Path.Combine(root, "ready.stage")));
+            Assert.Equal("unrelated allowlisted temporary", File.ReadAllText(Path.Combine(root, "ready.stage.tmp")));
+            Assert.Equal(4, Directory.GetFileSystemEntries(root).Length);
+        }
+        else Assert.Empty(Directory.GetFileSystemEntries(root));
+        if (!beforeFinal)
+            Assert.Equal("original owned payload", File.ReadAllText(Path.Combine(moved, "fake.py")));
+        else Assert.False(File.Exists(Path.Combine(moved, "fake.py")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_PosixEnvelopeReplacementIsNotAdopted(bool beforeFinal)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        string envelope = owned.EnvelopePath;
+        string moved = envelope + ".moved";
+        fixture.Write(owned.RootPath, "fake.py", "original owned payload");
+        OwnedDirectoryIdentity replacement = default;
+        bool replaced = false;
+        void Replace()
+        {
+            fixture.Move(envelope, moved);
+            fixture.Directory(envelope);
+            fixture.Write(envelope, "sentinel", "unrelated envelope");
+            replacement = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(envelope);
+            replaced = true;
+        }
+        if (!beforeFinal) Replace();
+        Assert.Throws<OwnedIdentityMismatchException>(() => owned.Delete(checkpoint =>
+        {
+            if (beforeFinal && checkpoint == OwnedCleanupCheckpoint.BeforeFinalEnvelopeRemoval) Replace();
+        }));
+        Assert.True(replaced);
+        Assert.Equal(replacement, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(envelope));
+        Assert.Equal(owned.EnvelopeIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(moved));
+        Assert.Equal("unrelated envelope", File.ReadAllText(Path.Combine(envelope, "sentinel")));
+        if (!beforeFinal)
+            Assert.Equal("original owned payload", File.ReadAllText(Path.Combine(moved, OwnedFixtureDirectory.RootName, "fake.py")));
+    }
+
+    [Theory]
+    [InlineData("link")]
+    [InlineData("file")]
+    [InlineData("missing")]
+    public void OwnedOwnership_PosixNoFollowRejectsReplacementBeforeLeaves(string replacement)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        fixture.Write(owned.RootPath, "fake.py", "original owned payload");
+        string moved = owned.RootPath + ".moved";
+        fixture.Move(owned.RootPath, moved);
+        if (replacement == "link")
+        {
+            string target = Path.Combine(fixture.AnchorPath, "target");
+            fixture.Directory(target);
+            fixture.Write(target, "fake.py", "external target sentinel");
+            fixture.Link(owned.RootPath, target);
+        }
+        else if (replacement == "file") fixture.Write(owned.EnvelopePath, OwnedFixtureDirectory.RootName, "replacement file");
+        Assert.Throws<OwnedIdentityMismatchException>(() => owned.Delete());
+        Assert.Equal("original owned payload", File.ReadAllText(Path.Combine(moved, "fake.py")));
+        if (replacement == "link")
+        {
+            Assert.Equal(OwnedEntryType.SymbolicLink,
+                CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath).Type);
+            Assert.Equal("external target sentinel", File.ReadAllText(Path.Combine(fixture.AnchorPath, "target", "fake.py")));
+        }
+        else if (replacement == "file") Assert.Equal("replacement file", File.ReadAllText(owned.RootPath));
+        else Assert.False(Path.Exists(owned.RootPath));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixPinnedParentSurvivesAncestorRenameWithoutTouchingReplacement()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        fixture.Write(owned.RootPath, "fake.py", "owned payload");
+        string movedAnchor = fixture.AnchorPath + ".moved";
+        fixture.Move(fixture.AnchorPath, movedAnchor);
+        fixture.Directory(fixture.AnchorPath);
+        fixture.Directory(owned.EnvelopePath);
+        fixture.Directory(owned.RootPath);
+        fixture.Write(owned.RootPath, "fake.py", "unrelated ancestor payload");
+        var replacement = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath);
+        owned.Delete();
+        Assert.Equal(replacement, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath));
+        Assert.Equal("unrelated ancestor payload", File.ReadAllText(Path.Combine(owned.RootPath, "fake.py")));
+        Assert.False(Directory.Exists(Path.Combine(movedAnchor, owned.EnvelopeName)));
+        Assert.True(Directory.Exists(movedAnchor));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixOrdinaryTeardownRemovesRootAndPrivateEnvelopeOnly()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        Assert.Equal(UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute,
+            File.GetUnixFileMode(owned.EnvelopePath));
+        Assert.Equal(OwnedEntryType.Directory, owned.RootIdentity.Type);
+        Assert.Equal(owned.AnchorIdentity.Owner, owned.EnvelopeIdentity.Owner);
+        Assert.Equal(owned.EnvelopeIdentity.Owner, owned.RootIdentity.Owner);
+        Assert.Equal(owned.AnchorIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(fixture.AnchorPath));
+        Assert.Equal(owned.EnvelopeIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.EnvelopePath));
+        Assert.Equal(owned.RootIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath));
+        fixture.Write(owned.RootPath, "fake.py", "not executed");
+        foreach (string name in OwnedStageNames)
+        {
+            fixture.Write(owned.RootPath, name, "owned marker");
+            fixture.Write(owned.RootPath, name + ".tmp", "owned temporary");
+        }
+        owned.Cleanup(null, false, _ => Assert.Fail("Successful cleanup must not report an error."));
+        Assert.False(Path.Exists(owned.RootPath));
+        Assert.False(Path.Exists(owned.EnvelopePath));
+        Assert.True(Directory.Exists(fixture.AnchorPath));
+        Assert.All(new[] { owned.Anchor, owned.Envelope, owned.Root }, handle => Assert.True(handle.IsClosed));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_PosixUnknownChildrenRemainExactAndUntraversed(bool directory)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        string parent = directory ? Path.Combine(owned.RootPath, "unknown") : owned.RootPath;
+        if (directory) fixture.Directory(parent);
+        fixture.Write(parent, "sentinel", "unknown child payload");
+        var rootIdentity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath);
+        Assert.ThrowsAny<IOException>(() => owned.Delete());
+        Assert.Equal(rootIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath));
+        Assert.Equal("unknown child payload", File.ReadAllText(Path.Combine(parent, "sentinel")));
+        Assert.True(Directory.Exists(owned.EnvelopePath));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixAllowlistedDirectoryIsNeverTraversed()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        string child = Path.Combine(owned.RootPath, "ready.stage");
+        fixture.Directory(child);
+        fixture.Write(child, "sentinel", "unrelated nested payload");
+        var identity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(child);
+        Assert.ThrowsAny<IOException>(() => owned.Delete());
+        Assert.Equal(identity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(child));
+        Assert.Equal("unrelated nested payload", File.ReadAllText(Path.Combine(child, "sentinel")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixUnprotectedAnchorFailsBeforeCreation()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        fixture.Write(fixture.AnchorPath, "sentinel", "unrelated anchor payload");
+        File.SetUnixFileMode(fixture.AnchorPath, UnixFileMode.UserRead | UnixFileMode.UserWrite
+            | UnixFileMode.UserExecute | UnixFileMode.GroupWrite);
+        Assert.Throws<OwnedIdentityMismatchException>(() =>
+            CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(fixture.AnchorPath));
+        Assert.Equal(new[] { Path.Combine(fixture.AnchorPath, "sentinel") },
+            Directory.GetFileSystemEntries(fixture.AnchorPath));
+        Assert.Equal("unrelated anchor payload", File.ReadAllText(Path.Combine(fixture.AnchorPath, "sentinel")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixUnprotectedAncestorCannotPublishChildPaths()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string parent = Path.Combine(fixture.AnchorPath, "unprotected");
+        fixture.Directory(parent);
+        string anchor = Path.Combine(parent, "private");
+        fixture.Directory(anchor);
+        fixture.Write(anchor, "sentinel", "unrelated private payload");
+        File.SetUnixFileMode(parent, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute
+            | UnixFileMode.GroupRead | UnixFileMode.GroupWrite | UnixFileMode.GroupExecute
+            | UnixFileMode.OtherRead | UnixFileMode.OtherWrite | UnixFileMode.OtherExecute);
+        Assert.Throws<OwnedIdentityMismatchException>(() =>
+            CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(anchor));
+        Assert.Equal(new[] { Path.Combine(anchor, "sentinel") }, Directory.GetFileSystemEntries(anchor));
+        Assert.Equal("unrelated private payload", File.ReadAllText(Path.Combine(anchor, "sentinel")));
+    }
+
+    [Theory]
+    [InlineData("anchor")]
+    [InlineData("envelope")]
+    [InlineData("root")]
+    public void OwnedOwnership_PosixWeakenedPrivacyFailsBeforeLeafMutation(string component)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        fixture.Write(owned.RootPath, "fake.py", "original owned payload");
+        string path = component switch
+        {
+            "anchor" => fixture.AnchorPath, "envelope" => owned.EnvelopePath, _ => owned.RootPath,
+        };
+        var identity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(path);
+        var error = Assert.Throws<OwnedIdentityMismatchException>(() => owned.Delete(checkpoint =>
+        {
+            if (checkpoint == OwnedCleanupCheckpoint.BeforeLeafMutation)
+            {
+                if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+                {
+                    File.SetUnixFileMode(path, UnixFileMode.UserRead | UnixFileMode.UserWrite
+                        | UnixFileMode.UserExecute | UnixFileMode.GroupWrite);
+                }
+                else
+                {
+                    throw new PlatformNotSupportedException("Native ownership tests require Linux or macOS.");
+                }
+            }
+        }));
+        Assert.Equal("owned-fixture:cleanup:identity-mismatch", error.Message);
+        Assert.Equal(identity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(path));
+        Assert.Equal("original owned payload", File.ReadAllText(Path.Combine(owned.RootPath, "fake.py")));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedOwnership_PosixAcquisitionRejectsFinalAndIntermediateAnchorLinks(bool intermediate)
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        string target = Path.Combine(fixture.AnchorPath, "private");
+        fixture.Directory(target);
+        fixture.Write(target, "sentinel", "unrelated target payload");
+        string alias = Path.Combine(fixture.AnchorPath, "alias");
+        fixture.Link(alias, intermediate ? fixture.AnchorPath : target);
+        Assert.ThrowsAny<IOException>(() => CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(
+            intermediate ? Path.Combine(alias, "private") : alias));
+        Assert.Equal(new[] { Path.Combine(target, "sentinel") }, Directory.GetFileSystemEntries(target));
+        Assert.Equal("unrelated target payload", File.ReadAllText(Path.Combine(target, "sentinel")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixAcquisitionFailureRemovesOnlyCreatedEntriesAndClosesPins()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        fixture.Write(fixture.AnchorPath, "sentinel", "unrelated anchor payload");
+        var anchorIdentity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(fixture.AnchorPath);
+        OwnedFixtureDirectory? acquired = null;
+        var failure = new IOException("Intentional acquisition failure.");
+        Assert.Same(failure, Assert.Throws<IOException>(() => fixture.Create(owned =>
+        {
+            acquired = owned;
+            throw failure;
+        })));
+        Assert.NotNull(acquired);
+        Assert.All(new[] { acquired.Anchor, acquired.Envelope, acquired.Root }, handle => Assert.True(handle.IsClosed));
+        Assert.Throws<ObjectDisposedException>(() => acquired.Delete());
+        Assert.False(Path.Exists(acquired.RootPath));
+        Assert.False(Path.Exists(acquired.EnvelopePath));
+        Assert.Equal(anchorIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(fixture.AnchorPath));
+        Assert.Equal("unrelated anchor payload", File.ReadAllText(Path.Combine(fixture.AnchorPath, "sentinel")));
+        Assert.Equal(new[] { Path.Combine(fixture.AnchorPath, "sentinel") },
+            Directory.GetFileSystemEntries(fixture.AnchorPath));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixAcquisitionFailureNeverDeletesAReplacement()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        OwnedFixtureDirectory? acquired = null;
+        OwnedDirectoryIdentity replacement = default;
+        string moved = "";
+        var error = Assert.Throws<AggregateException>(() => fixture.Create(owned =>
+        {
+            acquired = owned;
+            fixture.Write(owned.RootPath, "fake.py", "original owned payload");
+            moved = owned.RootPath + ".moved";
+            fixture.Move(owned.RootPath, moved);
+            fixture.Directory(owned.RootPath);
+            fixture.Write(owned.RootPath, "fake.py", "unrelated replacement payload");
+            replacement = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(owned.RootPath);
+        }));
+        Assert.StartsWith("owned-fixture:acquisition:retained", error.Message);
+        Assert.All(error.InnerExceptions, exception => Assert.IsType<OwnedIdentityMismatchException>(exception));
+        Assert.NotNull(acquired);
+        Assert.All(new[] { acquired.Anchor, acquired.Envelope, acquired.Root }, handle => Assert.True(handle.IsClosed));
+        Assert.Throws<ObjectDisposedException>(() => acquired.Delete());
+        Assert.Equal(acquired.RootIdentity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(moved));
+        Assert.Equal(replacement, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(acquired.RootPath));
+        Assert.Equal("original owned payload", File.ReadAllText(Path.Combine(moved, "fake.py")));
+        Assert.Equal("unrelated replacement payload", File.ReadAllText(Path.Combine(acquired.RootPath, "fake.py")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixStageReaderRejectsRootReplacement()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        fixture.Write(owned.RootPath, "ready.stage", "ready:7");
+        string moved = owned.RootPath + ".moved";
+        fixture.Move(owned.RootPath, moved);
+        fixture.Directory(owned.RootPath);
+        fixture.Write(owned.RootPath, "ready.stage", "ready:99");
+        Assert.Throws<OwnedIdentityMismatchException>(() => owned.ReadStages(false));
+        Assert.All(owned.ReadStages(true), stage => Assert.Equal(FixtureStageStatus.NonQuiescent, stage.Status));
+        Assert.Equal("ready:7", File.ReadAllText(Path.Combine(moved, "ready.stage")));
+        Assert.Equal("ready:99", File.ReadAllText(Path.Combine(owned.RootPath, "ready.stage")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixStageReaderRemainsPinnedAfterAncestorRename()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        var owned = fixture.Create();
+        fixture.Write(owned.RootPath, "ready.stage", "ready:7");
+        fixture.Move(fixture.AnchorPath, fixture.AnchorPath + ".moved");
+        fixture.Directory(fixture.AnchorPath);
+        fixture.Directory(owned.EnvelopePath);
+        fixture.Directory(owned.RootPath);
+        fixture.Write(owned.RootPath, "ready.stage", "ready:99");
+        Assert.Equal(new FixtureStageObservation(FixtureStage.Ready, FixtureStageStatus.Present, 7),
+            owned.ReadStages(false)[0]);
+        Assert.Equal("ready:99", File.ReadAllText(Path.Combine(owned.RootPath, "ready.stage")));
+        owned.Delete();
+        Assert.Equal("ready:99", File.ReadAllText(Path.Combine(owned.RootPath, "ready.stage")));
+    }
+
+    [Fact]
+    public void OwnedOwnership_PosixLegacyPathCleanupFailsClosedWithoutMutation()
+    {
+        if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS()) return;
+        using var fixture = new OwnedOwnershipNativeFixture();
+        fixture.Write(fixture.AnchorPath, "fake.py", "unrelated legacy payload");
+        var identity = CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(fixture.AnchorPath);
+        Assert.Throws<PlatformNotSupportedException>(() =>
+            CompilerSmokeDiagnostics.DeleteOwnedFixtureRoot(fixture.AnchorPath));
+        Assert.Equal(identity, CompilerSmokeDiagnostics.ReadOwnedDirectoryIdentityForTest(fixture.AnchorPath));
+        Assert.Equal("unrelated legacy payload", File.ReadAllText(Path.Combine(fixture.AnchorPath, "fake.py")));
+    }
+
+    static OwnedDirectoryIdentity? ChangedIdentity(OwnedDirectoryIdentity identity, string field) => field switch
+    {
+        "device" => identity with { Device = identity.Device + 1 },
+        "inode" => identity with { Inode = identity.Inode + 1 },
+        "type" => identity with { Type = OwnedEntryType.RegularFile },
+        "owner" => identity with { Owner = identity.Owner + 1 },
+        "missing" => null,
+        _ => throw new ArgumentOutOfRangeException(nameof(field)),
+    };
+
+    sealed class OwnedOwnershipHandle : IOwnedDirectoryHandle
+    {
+        public bool IsClosed => DisposeCalls != 0;
+        internal int DisposeCalls { get; private set; }
+        public void Dispose() => DisposeCalls++;
+    }
+
+    sealed class OwnedOwnershipModel : IOwnedDirectoryOperations
+    {
+        internal readonly OwnedOwnershipHandle Anchor = new(), Envelope = new(), Root = new();
+        internal OwnedDirectoryIdentity AnchorIdentity = new(1, 10, OwnedEntryType.Directory, 1000);
+        internal readonly OwnedDirectoryIdentity EnvelopeIdentity = new(1, 11, OwnedEntryType.Directory, 1000);
+        internal readonly OwnedDirectoryIdentity RootIdentity = new(1, 12, OwnedEntryType.Directory, 1000);
+        internal OwnedDirectoryIdentity? EnvelopeEntry, RootEntry;
+        internal readonly Dictionary<string, string> Leaves = new() { ["fake.py"] = "owned payload" };
+        internal readonly List<string> Mutations = new();
+        internal Exception? Failure;
+        internal Action<string>? AfterLeafDeletion;
+        internal readonly OwnedFixtureDirectory Lifetime;
+
+        internal OwnedOwnershipModel()
+        {
+            EnvelopeEntry = EnvelopeIdentity;
+            RootEntry = RootIdentity;
+            Lifetime = new("ABSTRACT_PRIVATE_PATH", "ABSTRACT_ENVELOPE_PATH", "envelope", this,
+                Anchor, AnchorIdentity, Envelope, EnvelopeIdentity, Root, RootIdentity);
+        }
+
+        public OwnedDirectoryIdentity ReadIdentity(IOwnedDirectoryHandle handle)
+        {
+            CheckPins();
+            if (ReferenceEquals(handle, Anchor)) return AnchorIdentity;
+            if (ReferenceEquals(handle, Envelope)) return EnvelopeIdentity;
+            Assert.Same(Root, handle);
+            return RootIdentity;
+        }
+
+        public OwnedDirectoryIdentity? QueryChildNoFollow(IOwnedDirectoryHandle parent, string name)
+        {
+            CheckPins();
+            if (ReferenceEquals(parent, Anchor))
+            {
+                Assert.Equal("envelope", name);
+                return EnvelopeEntry;
+            }
+            Assert.Same(Envelope, parent);
+            Assert.Equal(OwnedFixtureDirectory.RootName, name);
+            return RootEntry;
+        }
+
+        public IReadOnlyList<string> ReadChildNames(IOwnedDirectoryHandle root)
+        {
+            CheckPins();
+            Assert.Same(Root, root);
+            return Leaves.Keys.ToArray();
+        }
+
+        public void DeleteLeaf(IOwnedDirectoryHandle root, string name)
+        {
+            CheckPins();
+            Assert.Same(Root, root);
+            Assert.Contains(name, OwnedStageNames.SelectMany(stage => new[] { stage, stage + ".tmp" }).Append("fake.py"));
+            if (!Leaves.ContainsKey(name)) throw new FileNotFoundException("Absent fixed leaf.");
+            Mutations.Add("delete:" + name);
+            Leaves.Remove(name);
+            AfterLeafDeletion?.Invoke(name);
+        }
+
+        public void RemoveDirectory(IOwnedDirectoryHandle parent, string name)
+        {
+            CheckPins();
+            if (ReferenceEquals(parent, Envelope))
+            {
+                Assert.Equal(OwnedFixtureDirectory.RootName, name);
+                Assert.Empty(Leaves);
+                RootEntry = null;
+            }
+            else
+            {
+                Assert.Same(Anchor, parent);
+                Assert.Equal("envelope", name);
+                Assert.Null(RootEntry);
+                EnvelopeEntry = null;
+            }
+            Mutations.Add("remove:" + name);
+        }
+
+        void CheckPins()
+        {
+            Assert.False(Anchor.IsClosed || Envelope.IsClosed || Root.IsClosed);
+            if (Failure != null) throw Failure;
+        }
+    }
+
+    sealed class OwnedOwnershipNativeFixture : IDisposable
+    {
+        internal string AnchorPath { get; } = Path.Combine(OwnedTempAnchor, "febuilder-owned-red-" + Guid.NewGuid().ToString("N"));
+        readonly List<string> directories = new();
+        readonly List<string> files = new();
+        OwnedFixtureDirectory? owned;
+
+        internal OwnedOwnershipNativeFixture()
+        {
+            if (!OperatingSystem.IsLinux() && !OperatingSystem.IsMacOS())
+                throw new PlatformNotSupportedException("Native ownership tests require Linux or macOS.");
+            Directory(AnchorPath);
+        }
+
+        internal OwnedFixtureDirectory Create(Action<OwnedFixtureDirectory>? beforePublication = null)
+        {
+            return CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(AnchorPath, acquired =>
+            {
+                owned = acquired;
+                directories.Add(acquired.EnvelopePath);
+                directories.Add(acquired.RootPath);
+                beforePublication?.Invoke(acquired);
+            });
+        }
+
+        internal void Directory(string path)
+        {
+            if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS())
+            {
+                System.IO.Directory.CreateDirectory(path, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            }
+            else
+            {
+                throw new PlatformNotSupportedException("Native ownership tests require Linux or macOS.");
+            }
+            directories.Add(path);
+        }
+
+        internal void Write(string parent, string name, string content)
+        {
+            string path = Path.Combine(parent, name);
+            files.Add(path);
+            File.WriteAllText(path, content);
+        }
+
+        internal void Link(string path, string target)
+        {
+            System.IO.Directory.CreateSymbolicLink(path, target);
+            directories.Add(path);
+        }
+
+        internal void Move(string source, string destination)
+        {
+            System.IO.Directory.Move(source, destination);
+            string Rebase(string path) => path == source ? destination
+                : path.StartsWith(source + Path.DirectorySeparatorChar, StringComparison.Ordinal)
+                    ? Path.Combine(destination, Path.GetRelativePath(source, path)) : path;
+            for (int index = 0; index < files.Count; index++) files[index] = Rebase(files[index]);
+            for (int index = 0; index < directories.Count; index++) directories[index] = Rebase(directories[index]);
+        }
+
+        public void Dispose()
+        {
+            try { owned?.Dispose(); }
+            finally
+            {
+                // Only exact test-created entries; never enumerate for deletion or recurse.
+                foreach (string file in files.AsEnumerable().Reverse()) File.Delete(file);
+                foreach (string directory in directories.AsEnumerable().Reverse())
+                    if (Path.Exists(directory)) System.IO.Directory.Delete(directory, false);
+            }
+        }
     }
 
     [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
@@ -1241,7 +2082,9 @@ public class CompilerSmokeDiagnosticsTests
     {
         string executable = OperatingSystem.IsWindows() ? "powershell.exe" : "/usr/bin/python3";
         Skip.If(!OperatingSystem.IsWindows() && !File.Exists(executable), "Owned fake process requires installed python3.");
-        string root = CreateRoot();
+        using var owned = OperatingSystem.IsWindows() ? null
+            : CompilerSmokeDiagnostics.CreateOwnedFixtureDirectory(OwnedTempAnchor);
+        string root = owned?.RootPath ?? CreateRoot();
         bool outstanding = false;
         Exception? primary = null;
         try
@@ -1261,7 +2104,8 @@ public class CompilerSmokeDiagnosticsTests
                 "stderr" => FixtureMode.Stderr,
                 _ => throw new ArgumentException("Invalid owned fixture mode."),
             };
-            var stages = CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, outstanding);
+            var stages = owned != null ? owned.ReadStages(outstanding)
+                : CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, outstanding);
             CompilerSmokeDiagnostics.EmitOwnedFixture(CompilerSmokeDiagnostics.DescribeOwnedFixture(
                 fixtureMode, count, call.Result, call.Elapsed, stages), null, output.WriteLine);
             Assert.Equal(expected, CompilerSmokeDiagnostics.Classify(call.Result, true));
@@ -1275,7 +2119,8 @@ public class CompilerSmokeDiagnosticsTests
         catch (NotSupportedException ex) { primary = ex; throw; }
         finally
         {
-            CompilerSmokeDiagnostics.CleanupOwnedFixture(primary, outstanding,
+            if (owned != null) owned.Cleanup(primary, outstanding, output.WriteLine);
+            else CompilerSmokeDiagnostics.CleanupOwnedFixture(primary, outstanding,
                 () => CompilerSmokeDiagnostics.DeleteOwnedFixtureRoot(root), output.WriteLine);
         }
         Assert.False(Directory.Exists(root));
@@ -1287,6 +2132,8 @@ public class CompilerSmokeDiagnosticsTests
         Directory.CreateDirectory(root);
         return root;
     }
+
+    static string OwnedTempAnchor => OperatingSystem.IsMacOS() ? "/private/tmp" : Path.GetTempPath();
 
     const string PowerShellFixture = """
         param([string]$mode, [int]$count)
