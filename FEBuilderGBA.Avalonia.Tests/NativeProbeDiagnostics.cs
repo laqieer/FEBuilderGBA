@@ -63,14 +63,19 @@ internal static class NativeProbeDiagnostics
             Emit(active.Error);
             return;
         }
-        try { active.Session?.Record(stage); }
+        if (active.Session is { } session) Mark(session, stage, Emit);
+    }
+
+    internal static void Mark(Session session, string stage, Action<string> emit)
+    {
+        try { session.Record(stage); }
         catch (Exception ex)
         {
             string error = "diagnostic-stage-error: " + Error(ex);
             // Never throw from instrumentation or obscure the fixture/probe's original exception.
-            try { active.Session?.RetainError(error); }
+            try { session.RetainError(error); }
             catch (Exception secondary) { error += "; retention-error: " + Error(secondary); }
-            Emit(error);
+            emit(error);
         }
     }
 
@@ -374,10 +379,13 @@ internal static class NativeProbeDiagnostics
                 if (file.Length > 1_024) throw new InvalidDataException("truncated: error byte cap exceeded.");
                 if (ReadBounded(file).EndsWith("\ntruncated\n", StringComparison.Ordinal)) return;
                 byte[] bytes = Encoding.UTF8.GetBytes(Prefix(error, 256) + "\n");
+                byte[] marker = Encoding.UTF8.GetBytes("\ntruncated\n");
                 file.Position = file.Length;
-                if (file.Length + bytes.Length > 1_024 - 11)
+                if (file.Length + bytes.Length > 1_024 - marker.Length)
                 {
-                    file.Write(Encoding.UTF8.GetBytes("\ntruncated\n"));
+                    if (file.Length + marker.Length > 1_024)
+                        throw new InvalidDataException("truncated: error byte cap exceeded; retention marker cannot fit.");
+                    file.Write(marker);
                 }
                 else file.Write(bytes);
             }

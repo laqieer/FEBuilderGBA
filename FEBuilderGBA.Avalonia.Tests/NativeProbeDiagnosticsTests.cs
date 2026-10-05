@@ -5,6 +5,84 @@ namespace FEBuilderGBA.Avalonia.Tests;
 public class NativeProbeDiagnosticsTests
 {
     [Fact]
+    public void MultibyteErrorAppendUsesEncodedBytesRatherThanCharacterCount()
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        string path = Path.Combine(session.DirectoryPath, "native-probe-errors");
+        File.WriteAllText(path, new string('e', 600));
+        session.RetainError(new string('\u00e9', 256));
+        Assert.Equal(611, new FileInfo(path).Length);
+        Assert.Equal(new string('e', 600) + "\ntruncated\n", File.ReadAllText(path));
+    }
+
+    [Theory]
+    [InlineData(1013)]
+    [InlineData(1014)]
+    [InlineData(1015)]
+    [InlineData(1016)]
+    [InlineData(1017)]
+    [InlineData(1018)]
+    [InlineData(1019)]
+    [InlineData(1020)]
+    [InlineData(1021)]
+    [InlineData(1022)]
+    [InlineData(1023)]
+    [InlineData(1024)]
+    public void ErrorTruncationMarkerMustFitExactByteCap(int length)
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        string path = Path.Combine(session.DirectoryPath, "native-probe-errors");
+        // Multibyte UTF-8 makes the byte count materially different from the character count.
+        byte[] original = System.Text.Encoding.UTF8.GetBytes(new string('\u00e9', length / 2) +
+            (length % 2 == 0 ? "" : "x"));
+        Assert.Equal(length, original.Length);
+        File.WriteAllBytes(path, original);
+        if (length == 1013)
+        {
+            session.RetainError("overflow");
+            Assert.Equal(1024, new FileInfo(path).Length);
+            Assert.EndsWith("\ntruncated\n", File.ReadAllText(path));
+            byte[] terminal = File.ReadAllBytes(path);
+            session.RetainError("terminal journal remains unchanged");
+            Assert.Equal(terminal, File.ReadAllBytes(path));
+        }
+        else
+        {
+            var failure = Assert.Throws<InvalidDataException>(() => session.RetainError("overflow"));
+            Assert.Contains("error byte cap", failure.Message);
+            Assert.True(failure.Message.Length < 128);
+            Assert.Equal(original, File.ReadAllBytes(path));
+            Assert.Equal(length, new FileInfo(path).Length);
+        }
+    }
+
+    [Fact]
+    public void RecordRetentionFailureIsVisibleAndDoesNotReplacePrimaryStack()
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        string errors = Path.Combine(session.DirectoryPath, "native-probe-errors");
+        File.WriteAllText(errors, new string('e', 1024));
+        using var writer = new StringWriter();
+        var primary = new IOException("owned primary failure");
+        Action failWithDiagnosticCleanup = () =>
+        {
+            try { throw primary; }
+            finally { NativeProbeDiagnostics.Mark(session, "invalid-stage", writer.WriteLine); }
+        };
+        var observed = Assert.Throws<IOException>(failWithDiagnosticCleanup);
+        Assert.Same(primary, observed);
+        Assert.Contains(nameof(RecordRetentionFailureIsVisibleAndDoesNotReplacePrimaryStack), primary.StackTrace);
+        Assert.Contains("diagnostic-stage-error:", writer.ToString());
+        Assert.Contains("retention-error: InvalidDataException;", writer.ToString());
+        Assert.True(writer.ToString().Length < 256);
+        Assert.Equal(new string('e', 1024), File.ReadAllText(errors));
+        Assert.Equal(1024, new FileInfo(errors).Length);
+    }
+
+    [Fact]
     public void ExistingUnixOpenHasOnlyFixedArgumentsAndCreationUsesRestrictiveRuntimeOptions()
     {
         var open = typeof(NativeProbeDiagnostics).GetMethod("OpenUnix",
