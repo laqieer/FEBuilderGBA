@@ -269,6 +269,7 @@ internal static class NativeProbeDiagnostics
     internal sealed class Session(string directory, string token, int owner)
     {
         internal Action<string>? BeforeWritableOpen;
+        internal Action<FileStream>? BeforeBoundedRead;
         internal string DirectoryPath => directory;
         internal string StagePath => Path.Combine(directory, "native-probe-stages");
         string ErrorPath => Path.Combine(directory, "native-probe-errors");
@@ -308,11 +309,19 @@ internal static class NativeProbeDiagnostics
             }
         }
 
-        static string ReadBounded(FileStream file)
+        string ReadBounded(FileStream file, int limit = MaximumBytes, string channel = "stage")
         {
-            if (file.Length > MaximumBytes) throw new InvalidDataException("truncated: stage byte cap exceeded.");
-            var bytes = new byte[(int)file.Length];
-            file.ReadExactly(bytes);
+            long length = file.Length;
+            if (length > limit) throw new InvalidDataException("truncated: " + channel + " byte cap exceeded.");
+            Interlocked.Exchange(ref BeforeBoundedRead, null)?.Invoke(file);
+            var bytes = new byte[(int)length];
+            try { file.ReadExactly(bytes); }
+            catch (EndOfStreamException)
+            {
+                throw new InvalidDataException("truncated: diagnostic file length changed during bounded read.");
+            }
+            if (file.Length != length)
+                throw new InvalidDataException("truncated: diagnostic file length changed during bounded read.");
             return new UTF8Encoding(false, true).GetString(bytes);
         }
 
@@ -376,8 +385,7 @@ internal static class NativeProbeDiagnostics
             lock (Sync)
             {
                 using var file = Open(ErrorPath, FileMode.OpenOrCreate);
-                if (file.Length > 1_024) throw new InvalidDataException("truncated: error byte cap exceeded.");
-                if (ReadBounded(file).EndsWith("\ntruncated\n", StringComparison.Ordinal)) return;
+                if (ReadBounded(file, 1_024, "error").EndsWith("\ntruncated\n", StringComparison.Ordinal)) return;
                 byte[] bytes = Encoding.UTF8.GetBytes(Prefix(error, 256) + "\n");
                 byte[] marker = Encoding.UTF8.GetBytes("\ntruncated\n");
                 file.Position = file.Length;
@@ -415,7 +423,7 @@ internal static class NativeProbeDiagnostics
                     {
                         using var errors = Open(ErrorPath, FileMode.Open);
                         if (errors.Length > 1_024) report.Append("\nsecondary-errors: truncated");
-                        else report.Append("\nsecondary-errors: " + ReadBounded(errors));
+                        else report.Append("\nsecondary-errors: " + ReadBounded(errors, 1_024, "error"));
                     }
                     catch (FileNotFoundException) { report.Append("\nsecondary-errors: absent"); }
                     catch (DirectoryNotFoundException) { report.Append("\nsecondary-errors: absent"); }

@@ -4,6 +4,155 @@ namespace FEBuilderGBA.Avalonia.Tests;
 
 public class NativeProbeDiagnosticsTests
 {
+    [Theory]
+    [InlineData(true, 1314, true)]
+    [InlineData(true, 50, true)]
+    [InlineData(true, 5, false)]
+    [InlineData(true, 32, false)]
+    [InlineData(false, 1314, false)]
+    [InlineData(false, 50, false)]
+    public void LinkSkipPolicyIsWindowsAndCreationErrorSpecific(bool windows, int code, bool unavailable)
+    {
+        var failure = new IOException("creation failure", unchecked((int)0x80070000) | code);
+        Assert.Equal(unavailable, WindowsLinkCreationUnavailable(failure, windows));
+        Assert.False(WindowsLinkCreationUnavailable(new InvalidDataException("unrelated"), windows));
+    }
+
+    [Fact]
+    public void LinkSkipPolicyDoesNotHideGeneralAccessDenialOnAnyPlatform()
+    {
+        Assert.False(WindowsLinkCreationUnavailable(new UnauthorizedAccessException(), true));
+        Assert.False(WindowsLinkCreationUnavailable(new UnauthorizedAccessException(), false));
+    }
+
+    static bool WindowsLinkCreationUnavailable(Exception failure, bool windows) =>
+        windows && (failure is IOException or UnauthorizedAccessException) &&
+        (failure.HResult & 0xffff) is 1314 or 50;
+
+    static void CreateLinkOrSkip(string path, string target, bool directory = false)
+    {
+        try
+        {
+            if (directory) Directory.CreateSymbolicLink(path, target);
+            else File.CreateSymbolicLink(path, target);
+        }
+        catch (Exception failure) when (WindowsLinkCreationUnavailable(failure, OperatingSystem.IsWindows()))
+        {
+            Skip.If(true, "Windows symbolic-link creation unavailable; native-error=" + (failure.HResult & 0xffff));
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ReaderRejectsEachInitialChannelCapBeforeAllocationBoundary(bool errors)
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        string path = errors ? Path.Combine(session.DirectoryPath, "native-probe-errors") : session.StagePath;
+        File.WriteAllBytes(path, new byte[(errors ? 1_024 : NativeProbeDiagnostics.MaximumBytes) + 1]);
+        int hooks = 0;
+        session.BeforeBoundedRead = _ => hooks++;
+        var failure = Assert.Throws<InvalidDataException>(() =>
+        {
+            if (errors) session.RetainError("must not write");
+            else session.Record("managed-entry");
+        });
+        Assert.Contains((errors ? "error" : "stage") + " byte cap exceeded", failure.Message);
+        Assert.Equal(0, hooks);
+        Assert.NotNull(session.BeforeBoundedRead);
+        Assert.Equal((errors ? 1_024 : NativeProbeDiagnostics.MaximumBytes) + 1, new FileInfo(path).Length);
+    }
+
+    [Theory]
+    [InlineData(false, "grow")]
+    [InlineData(false, "over-cap")]
+    [InlineData(false, "shrink")]
+    [InlineData(true, "grow")]
+    [InlineData(true, "over-cap")]
+    [InlineData(true, "shrink")]
+    public void RealReaderRejectsBoundaryLengthChangesWithoutLosingOtherChannel(bool errors, string change)
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        session.Record("managed-entry");
+        session.Record("fixture-start");
+        session.RetainError("original secondary evidence");
+        int hooks = 0;
+        session.BeforeBoundedRead = file =>
+        {
+            if (errors)
+            {
+                session.BeforeBoundedRead = ChangeLength;
+                return;
+            }
+            ChangeLength(file);
+        };
+        void ChangeLength(FileStream file)
+        {
+            hooks++;
+            file.SetLength(change == "over-cap" ? (errors ? 1_024 : NativeProbeDiagnostics.MaximumBytes) + 1 :
+                file.Length + (change == "shrink" ? -1 : 1));
+        }
+        string report = session.Snapshot();
+        Assert.Equal(1, hooks);
+        Assert.Null(session.BeforeBoundedRead);
+        if (errors)
+        {
+            Assert.Contains("stage=managed-entry", report);
+            Assert.Contains("stage=fixture-start", report);
+            Assert.Contains("secondary-errors: read-error; InvalidDataException;", report);
+        }
+        else Assert.Contains("truncated: diagnostic file length changed", report);
+        Assert.DoesNotContain(session.DirectoryPath, report);
+    }
+
+    [Theory]
+    [InlineData("header")]
+    [InlineData("record")]
+    [InlineData("retain")]
+    public void EveryReaderCallerRejectsGrowthAfterValidation(string caller)
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        session.RetainError("secondary");
+        int hooks = 0;
+        session.BeforeBoundedRead = file => { hooks++; file.SetLength(file.Length + 1); };
+        var failure = Assert.Throws<InvalidDataException>(() =>
+        {
+            if (caller == "header") session.ValidateHeader();
+            else if (caller == "record") session.Record("managed-entry");
+            else session.RetainError("must not append");
+        });
+        Assert.Contains("diagnostic file length changed", failure.Message);
+        Assert.Equal(1, hooks);
+        Assert.Null(session.BeforeBoundedRead);
+    }
+
+    [Fact]
+    public void ReaderGrowthDuringInstrumentationPreservesPrimaryIdentityAndStack()
+    {
+        using var fixture = new DiagnosticFixture();
+        var session = NativeProbeDiagnostics.Prepare(fixture.Root, fixture.Token, Environment.ProcessId);
+        byte[] original = File.ReadAllBytes(session.StagePath);
+        int hooks = 0;
+        session.BeforeBoundedRead = file => { hooks++; file.SetLength(file.Length + 1); };
+        using var writer = new StringWriter();
+        var primary = new IOException("original owned failure");
+        Action fail = () =>
+        {
+            try { throw primary; }
+            finally { NativeProbeDiagnostics.Mark(session, "managed-entry", writer.WriteLine); }
+        };
+        Assert.Same(primary, Assert.Throws<IOException>(fail));
+        Assert.Contains(nameof(ReaderGrowthDuringInstrumentationPreservesPrimaryIdentityAndStack), primary.StackTrace);
+        Assert.Equal(1, hooks);
+        Assert.Contains("diagnostic-stage-error: InvalidDataException;", writer.ToString());
+        Assert.True(writer.ToString().Length < 256);
+        File.WriteAllBytes(session.StagePath, original);
+        Assert.Contains("secondary-errors: diagnostic-stage-error: InvalidDataException;", session.Snapshot());
+    }
+
     [Fact]
     public void MultibyteErrorAppendUsesEncodedBytesRatherThanCharacterCount()
     {
@@ -183,9 +332,11 @@ public class NativeProbeDiagnosticsTests
             // Probe privileges before installing the one-shot race; unsupported links are explicit skips.
             string privilegeLink = Path.Combine(fixture.Root, "link-check");
             try { File.CreateSymbolicLink(privilegeLink, source); }
-            catch (UnauthorizedAccessException) { fixture.Dispose(); Skip.If(true, "Symbolic-link creation privilege unavailable."); }
-            catch (IOException ex) when (OperatingSystem.IsWindows() && (ex.HResult & 0xffff) == 1314)
-            { fixture.Dispose(); Skip.If(true, "Windows symbolic-link privilege unavailable."); }
+            catch (Exception failure) when (WindowsLinkCreationUnavailable(failure, OperatingSystem.IsWindows()))
+            {
+                fixture.Dispose();
+                Skip.If(true, "Windows symbolic-link creation unavailable; native-error=" + (failure.HResult & 0xffff));
+            }
             finally { if (File.Exists(privilegeLink)) File.Delete(privilegeLink); }
             Session.BeforeWritableOpen = path =>
             {
@@ -292,7 +443,7 @@ public class NativeProbeDiagnosticsTests
                     scenario == "launcher-pid" ? selectedPid : null));
     }
 
-    [Theory]
+    [SkippableTheory]
     [InlineData("utf8")]
     [InlineData("share")]
     [InlineData("redirect")]
@@ -311,7 +462,7 @@ public class NativeProbeDiagnosticsTests
             if (failure == "redirect")
             {
                 File.Delete(path);
-                File.CreateSymbolicLink(path, session.StagePath);
+                CreateLinkOrSkip(path, session.StagePath);
             }
             string report = session.Snapshot();
             Assert.Contains("stage=managed-entry", report);
@@ -498,7 +649,7 @@ public class NativeProbeDiagnosticsTests
         Assert.Null(NativeProbeDiagnostics.Activate(Guid.NewGuid().ToString("N"), session.DirectoryPath, "123").Session);
     }
 
-    [Fact]
+    [SkippableFact]
     public void SymlinkRootAndFixedStageFileRedirectAreRejected()
     {
         using var fixture = new DiagnosticFixture();
@@ -506,14 +657,14 @@ public class NativeProbeDiagnosticsTests
         string link = Path.Combine(fixture.Root, "redirect");
         try
         {
-            Directory.CreateSymbolicLink(link, session.DirectoryPath);
+            CreateLinkOrSkip(link, session.DirectoryPath, directory: true);
             Assert.Throws<InvalidDataException>(() => NativeProbeDiagnostics.Prepare(link, Guid.NewGuid().ToString("N"), 123));
         }
         finally { if (Directory.Exists(link)) Directory.Delete(link); }
         File.Delete(session.StagePath);
         string target = Path.Combine(session.DirectoryPath, "native-probe-errors");
         File.WriteAllText(target, "must not read redirected file");
-        File.CreateSymbolicLink(session.StagePath, target);
+        CreateLinkOrSkip(session.StagePath, target);
         Assert.Contains("read-error", session.Snapshot());
     }
 
