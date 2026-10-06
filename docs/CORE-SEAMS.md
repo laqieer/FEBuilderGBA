@@ -71,9 +71,14 @@ moved directory identity and complete tree twice before releasing success or
 an external report. External report path/I/O/schema faults remain exit 1;
 only a valid oracle that disagrees with the package is tamper/exit 2. A
 post-move mismatch retains the output and never deletes it. Stable held-file
-reads compare Unix mtime and ctime while the original pathname still names the
-opened identity; a pathname replacement may change ctime, so that case keeps
-identity/size/mtime/link/type checks while consuming the held bytes. Failed
+reads bind the original full pathname to the exact factory-opened handle.
+Unknown provenance and an unchanged associated pathname require the full
+snapshot, including Unix mtime and ctime. Only proven displacement of that
+associated pathname omits ctime, retaining identity/size/mtime/link/type checks
+while consuming the held bytes; inspection faults are not displacement.
+Replacement plus a concurrent held-inode rewrite with restored size/mtime is
+outside this metadata guarantee. Publication independently verifies expected
+byte hashes, current pathname identity, and a final full held snapshot. Failed
 staging cleanup verifies both the quarantine and original pathname after
 deletion. It never initializes a
 ROM and preserves legacy
