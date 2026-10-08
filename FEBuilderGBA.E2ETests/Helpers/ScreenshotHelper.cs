@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
@@ -17,6 +18,15 @@ namespace FEBuilderGBA.E2ETests.Helpers
     {
         private const int MaxCaptureAttempts = 3;
         private const int CaptureRetryDelayMs = 100;
+        private const int ErrorInvalidWindowHandle = 1400;
+
+        internal static WindowCaptureException CreateBoundsFailure(IntPtr window, int errorCode)
+        {
+            string message = $"GetWindowRect failed for HWND=0x{window:X} (Win32 error {errorCode}).";
+            return errorCode == ErrorInvalidWindowHandle
+                ? new WindowCaptureException(message)
+                : new WindowCaptureException(message, new Win32Exception(errorCode));
+        }
 
         /// <summary>
         /// Directory where screenshots are saved.
@@ -201,8 +211,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
             public (int Width, int Height) GetWindowSize(IntPtr window)
             {
                 if (!GetWindowRect(window, out RECT rect))
-                    throw new WindowCaptureException(
-                        $"GetWindowRect failed (Win32 error {Marshal.GetLastWin32Error()}).");
+                    throw CreateBoundsFailure(window, Marshal.GetLastWin32Error());
                 return (checked(rect.Right - rect.Left), checked(rect.Bottom - rect.Top));
             }
             public IWindowCaptureSurface CreateSurface(int width, int height) => new BitmapSurface(width, height);

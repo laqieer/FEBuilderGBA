@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using FEBuilderGBA.E2ETests.Helpers;
@@ -214,6 +215,24 @@ public class DesktopReadinessTests
         var native = new CaptureNative { Failure = failure };
         Assert.Throws<WindowCaptureException>(() => Capture(process, native, Ready));
         Assert.Empty(native.Surfaces);
+    }
+
+    [Theory]
+    [InlineData(1400, false)]
+    [InlineData(5, true)]
+    public void GetWindowRectFailure_PreservesStaleRefusalAndNativeFaultClassification(
+        int errorCode, bool hasNativeCause)
+    {
+        var failure = ScreenshotHelper.CreateBoundsFailure(new IntPtr(12), errorCode);
+
+        if (!hasNativeCause)
+        {
+            Assert.Null(failure.InnerException);
+            return;
+        }
+
+        var cause = Assert.IsType<Win32Exception>(failure.InnerException);
+        Assert.Equal(errorCode, cause.NativeErrorCode);
     }
 
     [Fact]
