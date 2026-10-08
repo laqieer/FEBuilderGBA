@@ -48,8 +48,10 @@ Any conflict selects the higher tier. An untrusted or cross-repository PR is alw
 | Tier | Plan gate | PR gate |
 |---|---|---|
 | Low | Classifier result plus deterministic checklist | Existing GitHub review and required CI |
-| Normal | One reviewer from a different provider | One reviewer from a different provider |
+| Normal | One eligible reviewer provider; exclude any resolved developer publisher | One eligible reviewer provider; exclude any resolved developer publisher |
 | High | Two reviewers from distinct providers | Two reviewers from distinct providers; add `security-review` when security-relevant |
+
+The available-evidence Auto exception is inactive until the #2196 policy PR merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate. After activation, only that bounded exception permits Normal or High selection without developer exclusion; reviewer distinctness is evaluated among reviewers, not against an unknown developer.
 
 For each new board, select the **newest among eligible comparable live entries** using the version-independent [reviewer selection rules, `dynamic-R1`](.github/reviewer-selection.md):
 

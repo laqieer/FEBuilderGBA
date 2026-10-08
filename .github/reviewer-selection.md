@@ -38,6 +38,8 @@ Authoritative runtime metadata contradicting the applicable rule is a blocker, n
 
 ### Available-evidence Auto boundary
 
+The available-evidence Auto exception is inactive until the #2196 policy PR merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate.
+
 Establish literal Auto mode from trusted, current, session-bound evidence. Inspect and record the trusted current identity evidence actually available to the workflow: sources checked, provenance/trust basis, relevant exact values and results, and session/time binding where available. Recheck this evidence immediately before dispatch. Do not require proof that the source inventory is exhaustive or complete, or claim that it is.
 
 If any available trusted current evidence resolves the developer publisher, exclude it as usual. Only when Auto is established and none of that available evidence resolves the publisher may the board proceed without guessing or excluding a publisher or obtaining a per-board waiver. Record exactly:
