@@ -50,6 +50,26 @@ namespace FEBuilderGBA.E2ETests.Tests
         }
 
         [Fact]
+        public void CaptureWindows_SkipsOnlyVerifiedStaleWindowAfterBoundsFailure()
+        {
+            IntPtr staleWindow = new(1);
+            IntPtr liveWindow = new(2);
+            var native = new DiscoveryNative(new[]
+            {
+                new Window(staleWindow, 42, true, 100, 100),
+                new Window(liveWindow, 42, true, 100, 100)
+            });
+            native.InvalidWindows.Add(staleWindow);
+            native.BoundsFailures.Add(staleWindow);
+
+            List<IntPtr> result = WinAutomation.GetCaptureWindows(42, native);
+
+            Assert.Equal(new[] { liveWindow }, result);
+            Assert.Equal(new[] { staleWindow }, native.WindowValidityTargets);
+            Assert.Equal(new[] { staleWindow, liveWindow }, native.BoundsTargets);
+        }
+
+        [Fact]
         public void StartupDiscovery_WaitsForHiddenWindowToBecomeVisibleAndSized()
         {
             var native = new DiscoveryNative(
@@ -297,6 +317,9 @@ namespace FEBuilderGBA.E2ETests.Tests
             public uint? OwnerOverride;
             public Action? OnBounds;
             public List<IntPtr> BoundsTargets = new();
+            public HashSet<IntPtr> InvalidWindows = new();
+            public HashSet<IntPtr> BoundsFailures = new();
+            public List<IntPtr> WindowValidityTargets = new();
 
             public IReadOnlyCollection<IntPtr> GetProcessWindows(int processId)
             {
@@ -311,10 +334,18 @@ namespace FEBuilderGBA.E2ETests.Tests
             public bool IsVisible(IntPtr handle) =>
                 current.Single(window => window.Handle == handle).Visible;
 
+            public bool IsWindow(IntPtr handle)
+            {
+                WindowValidityTargets.Add(handle);
+                return !InvalidWindows.Contains(handle);
+            }
+
             public (int Width, int Height) GetWindowSize(IntPtr handle)
             {
                 BoundsTargets.Add(handle);
                 OnBounds?.Invoke();
+                if (BoundsFailures.Contains(handle))
+                    throw new Win32Exception(1400, "Window bounds query failed");
                 Window window = current.Single(window => window.Handle == handle);
                 return (window.Width, window.Height);
             }

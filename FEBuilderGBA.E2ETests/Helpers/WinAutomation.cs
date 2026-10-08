@@ -33,6 +33,10 @@ namespace FEBuilderGBA.E2ETests.Helpers
         [DllImport("user32.dll")]
         private static extern bool IsWindowVisible(IntPtr hWnd);
 
+        [DllImport("user32.dll", EntryPoint = "IsWindow")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool NativeIsWindow(IntPtr hWnd);
+
         [DllImport("user32.dll")]
         private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
 
@@ -108,7 +112,20 @@ namespace FEBuilderGBA.E2ETests.Helpers
                     !native.IsVisible(window))
                     continue;
 
-                var (width, height) = native.GetWindowSize(window);
+                int width;
+                int height;
+                try
+                {
+                    (width, height) = native.GetWindowSize(window);
+                }
+                catch (Win32Exception ex) when (!native.IsWindow(window))
+                {
+                    Trace.WriteLine(
+                        $"Skipping stale capture HWND=0x{window:X} for PID={processId}; " +
+                        $"bounds query failed with Win32 error {ex.NativeErrorCode}: {ex.Message}");
+                    continue;
+                }
+
                 if (width > 0 && height > 0 &&
                     native.GetWindowOwner(window) == (uint)processId && native.IsVisible(window))
                     result.Add(window);
@@ -411,6 +428,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
             public bool IsVisible(IntPtr window) => IsWindowVisible(window);
 
+            public bool IsWindow(IntPtr window) => NativeIsWindow(window);
+
             public (int Width, int Height) GetWindowSize(IntPtr window)
             {
                 if (!GetWindowRect(window, out RECT rect))
@@ -426,6 +445,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
         IReadOnlyCollection<IntPtr> GetProcessWindows(int processId);
         uint GetWindowOwner(IntPtr window);
         bool IsVisible(IntPtr window);
+        bool IsWindow(IntPtr window);
         (int Width, int Height) GetWindowSize(IntPtr window);
     }
 }
