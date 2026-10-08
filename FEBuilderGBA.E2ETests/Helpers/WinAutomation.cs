@@ -108,7 +108,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
             var result = new List<IntPtr>();
             foreach (IntPtr window in native.GetProcessWindows(processId))
             {
-                if (window == IntPtr.Zero || native.GetWindowOwner(window) != (uint)processId ||
+                if (window == IntPtr.Zero || native.GetWindowProcessId(window) != (uint)processId ||
                     !native.IsVisible(window))
                     continue;
 
@@ -127,7 +127,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 }
 
                 if (width > 0 && height > 0 &&
-                    native.GetWindowOwner(window) == (uint)processId && native.IsVisible(window))
+                    native.GetWindowProcessId(window) == (uint)processId && native.IsVisible(window))
                     result.Add(window);
             }
             return result;
@@ -423,8 +423,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
             public IReadOnlyCollection<IntPtr> GetProcessWindows(int processId) =>
                 WinAutomation.GetProcessWindows(processId);
 
-            public uint GetWindowOwner(IntPtr window) =>
-                GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+            public uint GetWindowProcessId(IntPtr window) =>
+                GetWindowThreadProcessId(window, out uint processId) == 0 ? 0 : processId;
 
             public bool IsVisible(IntPtr window) => IsWindowVisible(window);
 
@@ -443,7 +443,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
     internal interface IWindowDiscoveryNative
     {
         IReadOnlyCollection<IntPtr> GetProcessWindows(int processId);
-        uint GetWindowOwner(IntPtr window);
+        uint GetWindowProcessId(IntPtr window);
         bool IsVisible(IntPtr window);
         bool IsWindow(IntPtr window);
         (int Width, int Height) GetWindowSize(IntPtr window);

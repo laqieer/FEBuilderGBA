@@ -165,21 +165,21 @@ namespace FEBuilderGBA.E2ETests.Helpers
             if (process == null || hWnd == IntPtr.Zero)
                 throw new WindowCaptureException("Capture requires a retained Process and a nonzero HWND.");
             CaptureProcessIdentity identity;
-            uint owner;
+            uint windowProcessId;
             try
             {
                 identity = native.GetProcessIdentity(process);
                 if (!identity.IsAlive || identity.ProcessId <= 0 ||
                     identity.HandleProcessId != (uint)identity.ProcessId)
                     throw new WindowCaptureException("Retained process is exited or its identity cannot be verified.");
-                owner = native.GetWindowOwner(hWnd);
+                windowProcessId = native.GetWindowProcessId(hWnd);
             }
             catch (Exception ex) when (ex is not WindowCaptureException &&
                 ex is InvalidOperationException or ExternalException)
             {
                 throw new WindowCaptureException("Cannot verify retained process/window ownership.", ex);
             }
-            if (owner == 0 || owner != identity.HandleProcessId)
+            if (windowProcessId == 0 || windowProcessId != identity.HandleProcessId)
                 throw new WindowCaptureException("HWND is stale or belongs to a different process.");
             return identity;
         }
@@ -206,8 +206,8 @@ namespace FEBuilderGBA.E2ETests.Helpers
                     return new(process.Id, false, 0);
                 return new(process.Id, true, GetProcessId(process.SafeHandle));
             }
-            public uint GetWindowOwner(IntPtr window) =>
-                GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+            public uint GetWindowProcessId(IntPtr window) =>
+                GetWindowThreadProcessId(window, out uint processId) == 0 ? 0 : processId;
             public (int Width, int Height) GetWindowSize(IntPtr window)
             {
                 if (!GetWindowRect(window, out RECT rect))
@@ -294,7 +294,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
     internal interface IWindowCaptureNative
     {
         CaptureProcessIdentity GetProcessIdentity(Process process);
-        uint GetWindowOwner(IntPtr window);
+        uint GetWindowProcessId(IntPtr window);
         (int Width, int Height) GetWindowSize(IntPtr window);
         IWindowCaptureSurface CreateSurface(int width, int height);
         bool PrintWindow(IntPtr window, IntPtr hdc, uint flags);

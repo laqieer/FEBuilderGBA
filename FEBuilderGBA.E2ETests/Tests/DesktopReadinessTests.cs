@@ -171,7 +171,7 @@ public class DesktopReadinessTests
         Assert.Throws<DesktopUnavailableException>(() =>
             Capture(process, native, () => Rejected(unknown)));
         Assert.Equal(0, native.IdentityQueries);
-        Assert.Equal(0, native.OwnerQueries);
+        Assert.Equal(0, native.ProcessIdQueries);
         Assert.Empty(native.Surfaces);
     }
 
@@ -183,7 +183,7 @@ public class DesktopReadinessTests
     [InlineData("identity-query")]
     [InlineData("foreign")]
     [InlineData("stale-window")]
-    [InlineData("owner-query")]
+    [InlineData("process-id-query")]
     [InlineData("zero-window")]
     public void Capture_RejectsInvalidOwnershipBeforeCapture(string failure)
     {
@@ -663,6 +663,34 @@ public class DesktopReadinessTests
         Assert.Equal(Color.White.ToArgb(), bitmap.GetPixel(x, y).ToArgb());
     }
 
+    [Fact]
+    public void BitmapContent_HandlesNegativeStride()
+    {
+        const int width = 11;
+        const int height = 9;
+        const int stride = width * 4;
+        IntPtr memory = System.Runtime.InteropServices.Marshal.AllocHGlobal(
+            stride * height);
+        try
+        {
+            System.Runtime.InteropServices.Marshal.Copy(
+                new byte[stride * height], 0, memory, stride * height);
+            using var bitmap = new Bitmap(
+                width,
+                height,
+                -stride,
+                System.Drawing.Imaging.PixelFormat.Format32bppArgb,
+                IntPtr.Add(memory, stride * (height - 1)));
+            bitmap.SetPixel(7, 5, Color.White);
+
+            Assert.True(BitmapHasContent(bitmap));
+        }
+        finally
+        {
+            System.Runtime.InteropServices.Marshal.FreeHGlobal(memory);
+        }
+    }
+
     [Theory]
     [InlineData(0, 0, 0)]
     [InlineData(255, 255, 255)]
@@ -791,7 +819,7 @@ public class DesktopReadinessTests
     private sealed class CaptureNative : IWindowCaptureNative
     {
         public string Failure = "";
-        public int IdentityQueries, OwnerQueries, BoundsQueries, Prints;
+        public int IdentityQueries, ProcessIdQueries, BoundsQueries, Prints;
         public Process? Process;
         public List<uint> Flags = new();
         public List<CaptureSurface> Surfaces = new();
@@ -809,10 +837,10 @@ public class DesktopReadinessTests
             return new(Failure == "invalid-pid" ? -1 : 42, Failure != "exited",
                 Failure == "reused-pid" ? 43u : Failure == "missing-handle" ? 0u : 42u);
         }
-        public uint GetWindowOwner(IntPtr window)
+        public uint GetWindowProcessId(IntPtr window)
         {
-            OwnerQueries++;
-            if (Failure == "owner-query") throw new InvalidOperationException();
+            ProcessIdQueries++;
+            if (Failure == "process-id-query") throw new InvalidOperationException();
             return Failure == "foreign" ? 43u : Failure == "stale-window" ? 0u : 42u;
         }
         public (int Width, int Height) GetWindowSize(IntPtr window)

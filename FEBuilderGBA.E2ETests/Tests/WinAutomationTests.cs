@@ -33,7 +33,7 @@ namespace FEBuilderGBA.E2ETests.Tests
         public void CaptureWindows_RecheckOwnershipAfterGeometry()
         {
             var native = new DiscoveryNative(new[] { new Window(new(1), 42, true, 100, 100) });
-            native.OnBounds = () => native.OwnerOverride = 43;
+            native.OnBounds = () => native.ProcessIdOverride = 43;
 
             Assert.Empty(WinAutomation.GetCaptureWindows(42, native));
         }
@@ -308,13 +308,13 @@ namespace FEBuilderGBA.E2ETests.Tests
             };
         }
 
-        private readonly record struct Window(IntPtr Handle, uint Owner, bool Visible, int Width, int Height);
+        private readonly record struct Window(IntPtr Handle, uint ProcessId, bool Visible, int Width, int Height);
 
         private sealed class DiscoveryNative(params Window[][] snapshots) : IWindowDiscoveryNative
         {
             private Window[] current = Array.Empty<Window>();
             public int Enumerations;
-            public uint? OwnerOverride;
+            public uint? ProcessIdOverride;
             public Action? OnBounds;
             public List<IntPtr> BoundsTargets = new();
             public HashSet<IntPtr> InvalidWindows = new();
@@ -328,8 +328,8 @@ namespace FEBuilderGBA.E2ETests.Tests
                 return current.Select(window => window.Handle).ToArray();
             }
 
-            public uint GetWindowOwner(IntPtr handle) =>
-                OwnerOverride ?? current.Single(window => window.Handle == handle).Owner;
+            public uint GetWindowProcessId(IntPtr handle) =>
+                ProcessIdOverride ?? current.Single(window => window.Handle == handle).ProcessId;
 
             public bool IsVisible(IntPtr handle) =>
                 current.Single(window => window.Handle == handle).Visible;
