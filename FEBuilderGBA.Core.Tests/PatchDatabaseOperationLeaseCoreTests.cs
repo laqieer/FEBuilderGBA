@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Reflection;
+using System.Text;
 
 namespace FEBuilderGBA.Core.Tests;
 
@@ -206,6 +207,92 @@ public class PatchDatabaseOperationLeaseCoreTests
         }
     }
 
+    [Fact]
+    public async Task ExistingProbeOutputCaptureIsBoundedAndContinuesDraining()
+    {
+        string content = new('x', ExistingProbeDiagnostics.MaximumOutputChars + 4096);
+        using var reader = new StringReader(content);
+
+        var captured = await ExistingProbeDiagnostics.CaptureOutputAsync(reader);
+
+        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars, captured.Text.Length);
+        Assert.True(captured.Truncated);
+        Assert.Equal(-1, reader.Peek());
+    }
+
+    [Theory]
+    [InlineData("busy", "busy", "expected:busy")]
+    [InlineData("acquired", "acquired", "expected:acquired")]
+    [InlineData("other", "busy", "malformed-or-oversize")]
+    [InlineData("", "busy", "malformed-or-oversize")]
+    public void ExistingProbeMarkerReportsOnlyBoundedSafeState(string marker, string expected, string expectedState)
+    {
+        using var stream = new MemoryStream(Encoding.UTF8.GetBytes(marker));
+
+        Assert.Equal(expectedState, ExistingProbeDiagnostics.ReadMarker(() => stream, expected));
+    }
+
+    [Fact]
+    public void ExistingProbeMarkerDistinguishesMissingOversizeAndReadFailure()
+    {
+        Assert.Equal("missing", ExistingProbeDiagnostics.ReadMarker(
+            () => throw new FileNotFoundException(), "busy"));
+        Assert.Equal("malformed-or-oversize", ExistingProbeDiagnostics.ReadMarker(
+            () => new MemoryStream(new byte[ExistingProbeDiagnostics.MaximumMarkerBytes + 1]), "busy"));
+        Assert.Equal("read-error:IOException", ExistingProbeDiagnostics.ReadMarker(
+            () => throw new IOException("untrusted detail"), "busy"));
+    }
+
+    [Fact]
+    public void ExistingProbeFailureReportRetainsExitCodeAndBoundsStreamsAndPrimaryException()
+    {
+        var primary = new InvalidOperationException("primary failure");
+        string report = ExistingProbeDiagnostics.Report("nonzero-exit", 123, TimeSpan.FromMilliseconds(321),
+            new(new string('o', ExistingProbeDiagnostics.MaximumOutputChars), true),
+            new(new string('e', ExistingProbeDiagnostics.MaximumOutputChars), true),
+            "expected:busy", primary, null, exitCode: 37, hasExited: true, drainsFinished: true);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        var root = json.RootElement;
+
+        Assert.Equal(37, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars,
+            root.GetProperty("stdout").GetProperty("text").GetString()!.Length);
+        Assert.True(root.GetProperty("stdout").GetProperty("truncated").GetBoolean());
+        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars,
+            root.GetProperty("stderr").GetProperty("text").GetString()!.Length);
+        Assert.True(root.GetProperty("stderr").GetProperty("truncated").GetBoolean());
+        Assert.Equal(nameof(InvalidOperationException),
+            root.GetProperty("primaryException").GetProperty("type").GetString());
+        Assert.Equal("expected:busy", root.GetProperty("resultMarker").GetString());
+    }
+
+    [Fact]
+    public void ExistingProbeFailurePreservesActualNonzeroExitAndMissingMarker()
+    {
+        var start = new ProcessStartInfo("dotnet")
+        {
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            WorkingDirectory = AppContext.BaseDirectory,
+        };
+        start.ArgumentList.Add("exec");
+        start.ArgumentList.Add(Path.Combine(AppContext.BaseDirectory, "missing-native-probe-child.dll"));
+        string marker = Path.Combine(AppContext.BaseDirectory, "TestResults",
+            "missing-native-probe-" + Guid.NewGuid().ToString("N") + ".txt");
+
+        var failure = Assert.Throws<InvalidOperationException>(() =>
+            ExistingProbeDiagnostics.Run(start, marker, "busy"));
+        using var json = System.Text.Json.JsonDocument.Parse(failure.Message);
+        var root = json.RootElement;
+
+        Assert.Equal("nonzero-exit", root.GetProperty("outcome").GetString());
+        Assert.NotEqual(0, root.GetProperty("exitCode").GetInt32());
+        Assert.True(root.GetProperty("processId").GetInt32() > 0);
+        Assert.Equal("missing", root.GetProperty("resultMarker").GetString());
+        Assert.Equal(typeof(InvalidOperationException), failure.InnerException?.GetType());
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
@@ -220,8 +307,8 @@ public class PatchDatabaseOperationLeaseCoreTests
         var probe = PatchDatabaseOperationLeaseCore.ProbeExisting(fixture.Root, "FE8U",
             Path.Combine(fixture.Root, "config", "patch2", "FE8U"));
         using (readerHolds ? PatchDatabaseOperationLeaseCore.AcquireExisting(probe) : PatchDatabaseOperationLeaseCore.Acquire(fixture.Root))
-            Assert.Equal("busy", RunExistingProbe(fixture.Root, reader: !readerHolds));
-        Assert.Equal("acquired", RunExistingProbe(fixture.Root, reader: !readerHolds));
+            Assert.Equal("busy", RunExistingProbe(fixture.Root, reader: !readerHolds, expected: "busy"));
+        Assert.Equal("acquired", RunExistingProbe(fixture.Root, reader: !readerHolds, expected: "acquired"));
         Assert.Equal("unchanged fixed lock", File.ReadAllText(path));
         Assert.Equal(created, File.GetCreationTimeUtc(path));
         Assert.Equal(attributes, File.GetAttributes(path));
@@ -255,7 +342,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         File.WriteAllText(Path.Combine(root, "existing-reader-result.txt"), result);
     }
 
-    static string RunExistingProbe(string root, bool reader, bool snapshot = false)
+    static string RunExistingProbe(string root, bool reader, bool snapshot = false, string expected = "busy")
     {
         string result = Path.Combine(root, "existing-reader-result.txt");
         if (File.Exists(result)) File.Delete(result);
@@ -270,12 +357,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         start.Environment["FEBUILDER_TEST_EXISTING_LEASE_ROOT"] = root;
         start.Environment["FEBUILDER_TEST_EXISTING_LEASE_READER"] = reader ? "1" : "0";
         start.Environment["FEBUILDER_TEST_EXISTING_LEASE_SNAPSHOT"] = snapshot ? "1" : "0";
-        using var process = Process.Start(start)!;
-        var stdout = process.StandardOutput.ReadToEndAsync();
-        var stderr = process.StandardError.ReadToEndAsync();
-        if (!process.WaitForExit(60_000)) { process.Kill(true); throw new TimeoutException("Existing reader native probe timed out."); }
-        Assert.True(process.ExitCode == 0, stdout.Result + stderr.Result);
-        return File.ReadAllText(result);
+        return ExistingProbeDiagnostics.Run(start, result, expected);
     }
 
     [Fact]
@@ -468,6 +550,169 @@ public class PatchDatabaseOperationLeaseCoreTests
         Assert.True(process.ExitCode == 0, stdout.Result + stderr.Result);
         Assert.True(File.Exists(result));
         return File.ReadAllText(result);
+    }
+
+    static class ExistingProbeDiagnostics
+    {
+        internal const int MaximumOutputChars = 8 * 1024;
+        internal const int MaximumMarkerBytes = 64;
+        const int MaximumPostKillWaitMs = 5_000;
+        const int MaximumExceptionMessageChars = 1_024;
+        const int MaximumExceptionStackChars = 2_048;
+
+        internal readonly record struct CapturedOutput(string Text, bool Truncated);
+
+        internal static async Task<CapturedOutput> CaptureOutputAsync(TextReader reader)
+        {
+            var output = new StringBuilder(MaximumOutputChars);
+            var buffer = new char[1_024];
+            bool truncated = false;
+            int count;
+            while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0)
+            {
+                int retained = Math.Min(count, MaximumOutputChars - output.Length);
+                if (retained > 0) output.Append(buffer, 0, retained);
+                if (retained != count) truncated = true;
+            }
+            return new CapturedOutput(output.ToString(), truncated);
+        }
+
+        internal static string ReadMarker(Func<Stream> open, string expected)
+        {
+            try
+            {
+                using var stream = open();
+                var bytes = new byte[MaximumMarkerBytes + 1];
+                int count = 0;
+                while (count < bytes.Length)
+                {
+                    int read = stream.Read(bytes, count, bytes.Length - count);
+                    if (read == 0) break;
+                    count += read;
+                }
+                if (count > MaximumMarkerBytes) return "malformed-or-oversize";
+                string value;
+                try { value = new UTF8Encoding(false, true).GetString(bytes, 0, count); }
+                catch (DecoderFallbackException) { return "malformed-or-oversize"; }
+                return value == expected ? "expected:" + expected : "malformed-or-oversize";
+            }
+            catch (FileNotFoundException) { return "missing"; }
+            catch (DirectoryNotFoundException) { return "missing"; }
+            catch (Exception ex) { return "read-error:" + ex.GetType().Name; }
+        }
+
+        internal static string Run(ProcessStartInfo start, string resultPath, string expected)
+        {
+            var timer = Stopwatch.StartNew();
+            Process process;
+            try
+            {
+                process = Process.Start(start)
+                    ?? throw new InvalidOperationException("Process.Start returned no process.");
+            }
+            catch (Exception ex)
+            {
+                timer.Stop();
+                throw new InvalidOperationException(Report("start-failure", null, timer.Elapsed,
+                    default, default, ReadMarker(() => File.OpenRead(resultPath), expected), ex, null), ex);
+            }
+
+            using (process)
+            {
+                int pid;
+                try { pid = process.Id; }
+                catch { pid = -1; }
+                Task<CapturedOutput> stdout = CaptureOutputAsync(process.StandardOutput);
+                Task<CapturedOutput> stderr = CaptureOutputAsync(process.StandardError);
+                bool exited;
+                Exception? waitFailure = null;
+                try { exited = process.WaitForExit(60_000); }
+                catch (Exception ex) { exited = false; waitFailure = ex; }
+
+                Exception? killFailure = null;
+                bool timedOut = !exited && waitFailure == null;
+                if (!exited)
+                {
+                    try { process.Kill(entireProcessTree: true); }
+                    catch (Exception ex) { killFailure = ex; }
+                    try { process.WaitForExit(MaximumPostKillWaitMs); }
+                    catch (Exception ex) { killFailure ??= ex; }
+                }
+
+                bool hasExited;
+                int? exitCode = null;
+                try
+                {
+                    hasExited = process.HasExited;
+                    if (hasExited) exitCode = process.ExitCode;
+                }
+                catch (Exception ex)
+                {
+                    hasExited = false;
+                    waitFailure ??= ex;
+                }
+
+                bool drainsFinished;
+                Exception? drainFailure = null;
+                try { drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, MaximumPostKillWaitMs); }
+                catch (Exception ex) { drainsFinished = true; drainFailure = ex; }
+                timer.Stop();
+                var capturedOut = stdout.IsCompletedSuccessfully ? stdout.Result : default;
+                var capturedError = stderr.IsCompletedSuccessfully ? stderr.Result : default;
+                string marker = ReadMarker(() => File.OpenRead(resultPath), expected);
+                string outcome = timedOut ? "timeout" :
+                    waitFailure != null ? "wait-failure" :
+                    exitCode is { } code && code != 0 ? "nonzero-exit" :
+                    exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
+                if (outcome == "success") return expected;
+
+                Exception primary = timedOut
+                    ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
+                    : waitFailure ?? new InvalidOperationException("Existing reader native probe did not complete successfully.");
+                throw new InvalidOperationException(Report(outcome, pid, timer.Elapsed,
+                    capturedOut, capturedError, marker, primary, killFailure,
+                    exitCode, hasExited, drainsFinished, drainFailure), primary);
+            }
+        }
+
+        internal static string Report(string outcome, int? pid, TimeSpan elapsed, CapturedOutput stdout,
+            CapturedOutput stderr, string marker, Exception? primary, Exception? cleanup,
+            int? exitCode = null, bool? hasExited = null, bool? drainsFinished = null, Exception? drainFailure = null)
+        {
+            static string Text(CapturedOutput capture) =>
+                System.Text.Json.JsonSerializer.Serialize(new
+                {
+                    text = capture.Text ?? "",
+                    truncated = capture.Truncated,
+                });
+
+            static object? ExceptionInfo(Exception? exception) => exception == null ? null : new
+            {
+                type = exception.GetType().Name,
+                hresult = exception.HResult,
+                message = Prefix(exception.Message, MaximumExceptionMessageChars),
+                stack = Prefix(exception.StackTrace ?? "<stack unavailable>", MaximumExceptionStackChars),
+            };
+
+            return System.Text.Json.JsonSerializer.Serialize(new
+            {
+                outcome,
+                processId = pid,
+                elapsedMilliseconds = elapsed.TotalMilliseconds,
+                exitCode,
+                hasExited,
+                outputDrainsFinished = drainsFinished,
+                stdout = Text(stdout),
+                stderr = Text(stderr),
+                resultMarker = marker,
+                primaryException = ExceptionInfo(primary),
+                cleanupException = ExceptionInfo(cleanup),
+                drainException = ExceptionInfo(drainFailure),
+            });
+        }
+
+        static string Prefix(string value, int maximum) =>
+            value.Length <= maximum ? value : value[..maximum] + "[truncated]";
     }
 
     sealed class Fixture : IDisposable
