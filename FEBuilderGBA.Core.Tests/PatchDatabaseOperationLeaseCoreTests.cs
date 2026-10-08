@@ -211,7 +211,8 @@ public class PatchDatabaseOperationLeaseCoreTests
     public async Task ExistingProbeOutputCaptureIsBoundedAndContinuesDraining()
     {
         const int outputByteBudget = 8 * 1024;
-        string content = string.Concat(Enumerable.Repeat("é\"\\", outputByteBudget));
+        string astral = char.ConvertFromUtf32(0x1F600);
+        string content = string.Concat(Enumerable.Repeat("é\"\\", outputByteBudget)) + astral;
         using var reader = new StringReader(content);
 
         var captured = await ExistingProbeDiagnostics.CaptureOutputAsync(reader);
@@ -220,6 +221,67 @@ public class PatchDatabaseOperationLeaseCoreTests
         Assert.True(Encoding.UTF8.GetByteCount(encoded) - 2 <= outputByteBudget);
         Assert.True(captured.Truncated);
         Assert.Equal(-1, reader.Peek());
+    }
+
+    [Fact]
+    public async Task ExistingProbeOutputCapturePreservesAstralScalarsAcrossReadBoundaries()
+    {
+        string astral = char.ConvertFromUtf32(0x1F600);
+        foreach (string content in new[] { "before" + astral + "after", new string('x', 1_023) + astral + "after" })
+        {
+            using var reader = new StringReader(content);
+
+            var captured = await ExistingProbeDiagnostics.CaptureOutputAsync(reader);
+
+            Assert.Equal(content, captured.Text);
+            Assert.Null(captured.Failure);
+        }
+    }
+
+    [Fact]
+    public async Task ExistingProbeOutputCaptureReplacesMalformedUtf16AndRetainsPrefixOnReadFailure()
+    {
+        using var malformed = new StringReader("prefix" + '\uD83D' + "suffix");
+        var replaced = await ExistingProbeDiagnostics.CaptureOutputAsync(malformed);
+        Assert.Equal("prefix\uFFFDsuffix", replaced.Text);
+        Assert.Null(replaced.Failure);
+
+        var failed = await ExistingProbeDiagnostics.CaptureOutputAsync(new ThrowAfterPrefixReader("captured-prefix"));
+        Assert.Equal("captured-prefix", failed.Text);
+        Assert.IsType<IOException>(failed.Failure);
+    }
+
+    [Fact]
+    public void ExistingProbeDoesNotReportSuccessWhenOutputDrainFailsOrDoesNotFinish()
+    {
+        Assert.Equal("drain-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 0, marker: "expected:busy", expected: "busy",
+            drainFailure: new IOException("read failed"), drainsFinished: false));
+        Assert.Equal("drain-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 0, marker: "expected:busy", expected: "busy",
+            drainFailure: null, drainsFinished: false));
+        Assert.Equal("wait-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: new InvalidOperationException("primary"), exitCode: 0,
+            marker: "expected:busy", expected: "busy", drainFailure: new IOException("secondary"),
+            drainsFinished: false));
+        Assert.Equal("success", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 0, marker: "expected:busy", expected: "busy",
+            drainFailure: null, drainsFinished: true));
+    }
+
+    [Fact]
+    public async Task ExistingProbeDrainFailureRetainsPrefixAndStopsTheChild()
+    {
+        bool stopped = false;
+        var failed = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput(
+            "captured-prefix", false, new IOException("synthetic read failure")));
+        var complete = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput("", false));
+
+        Exception? failure = await ExistingProbeDiagnostics.MonitorDrainFailureAsync(
+            failed, complete, () => stopped = true);
+
+        Assert.IsType<IOException>(failure);
+        Assert.True(stopped);
     }
 
     [Theory]
@@ -562,33 +624,106 @@ public class PatchDatabaseOperationLeaseCoreTests
         const int MaximumExceptionMessageChars = 1_024;
         const int MaximumExceptionStackChars = 2_048;
 
-        internal readonly record struct CapturedOutput(string Text, bool Truncated);
+        internal readonly record struct CapturedOutput(string Text, bool Truncated, Exception? Failure = null);
 
         internal static async Task<CapturedOutput> CaptureOutputAsync(TextReader reader)
         {
             var output = new StringBuilder(MaximumOutputBytes);
             var buffer = new char[1_024];
             int encodedBytes = 0;
+            bool retaining = true;
             bool truncated = false;
-            int count;
-            while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0)
+            char? pendingHighSurrogate = null;
+            Exception? failure = null;
+
+            void AppendScalar(string scalar)
             {
-                for (int i = 0; i < count; i++)
+                if (!retaining) return;
+                int scalarBytes = System.Text.Json.JsonEncodedText.Encode(scalar).EncodedUtf8Bytes.Length;
+                if (encodedBytes + scalarBytes <= MaximumOutputBytes)
                 {
-                    int characterBytes = System.Text.Json.JsonEncodedText.Encode(buffer[i].ToString())
-                        .EncodedUtf8Bytes.Length;
-                    if (encodedBytes + characterBytes <= MaximumOutputBytes)
-                    {
-                        output.Append(buffer[i]);
-                        encodedBytes += characterBytes;
-                    }
-                    else
-                    {
-                        truncated = true;
-                    }
+                    output.Append(scalar);
+                    encodedBytes += scalarBytes;
+                }
+                else
+                {
+                    truncated = true;
+                    retaining = false;
                 }
             }
-            return new CapturedOutput(output.ToString(), truncated);
+
+            try
+            {
+                int count;
+                while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0)
+                {
+                    for (int i = 0; i < count; i++)
+                    {
+                        char current = buffer[i];
+                        if (pendingHighSurrogate is { } high)
+                        {
+                            if (char.IsLowSurrogate(current))
+                            {
+                                AppendScalar(new string(new[] { high, current }));
+                                pendingHighSurrogate = null;
+                                continue;
+                            }
+
+                            AppendScalar("\uFFFD");
+                            pendingHighSurrogate = null;
+                        }
+
+                        if (char.IsHighSurrogate(current)) pendingHighSurrogate = current;
+                        else if (char.IsLowSurrogate(current)) AppendScalar("\uFFFD");
+                        else AppendScalar(current.ToString());
+                    }
+                }
+                if (pendingHighSurrogate.HasValue) AppendScalar("\uFFFD");
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+
+            return new CapturedOutput(output.ToString(), truncated, failure);
+        }
+
+        internal static string Outcome(bool timedOut, Exception? waitFailure, int? exitCode,
+            string marker, string expected, Exception? drainFailure, bool drainsFinished)
+        {
+            return timedOut ? "timeout" :
+                waitFailure != null ? "wait-failure" :
+                exitCode is { } code && code != 0 ? "nonzero-exit" :
+                drainFailure != null || !drainsFinished ? "drain-failure" :
+                exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
+        }
+
+        internal static async Task<Exception?> MonitorDrainFailureAsync(
+            Task<CapturedOutput> stdout, Task<CapturedOutput> stderr, Action stopProcess)
+        {
+            var pending = new List<Task<CapturedOutput>> { stdout, stderr };
+            while (pending.Count > 0)
+            {
+                Task<CapturedOutput> completed = await Task.WhenAny(pending).ConfigureAwait(false);
+                pending.Remove(completed);
+
+                Exception? failure = completed.IsFaulted
+                    ? completed.Exception?.Flatten().InnerExceptions.FirstOrDefault()
+                    : completed.IsCanceled ? new TaskCanceledException() : completed.Result.Failure;
+                if (failure == null) continue;
+
+                try { stopProcess(); }
+                catch { }
+                return failure;
+            }
+            return null;
+        }
+
+        static Exception? CaptureFailure(Task<CapturedOutput> task)
+        {
+            if (task.IsFaulted) return task.Exception?.Flatten().InnerExceptions.FirstOrDefault();
+            if (task.IsCanceled) return new TaskCanceledException();
+            return task.IsCompletedSuccessfully ? task.Result.Failure : null;
         }
 
         internal static string ReadMarker(Func<Stream> open, string expected)
@@ -638,12 +773,20 @@ public class PatchDatabaseOperationLeaseCoreTests
                 catch { pid = -1; }
                 Task<CapturedOutput> stdout = CaptureOutputAsync(process.StandardOutput);
                 Task<CapturedOutput> stderr = CaptureOutputAsync(process.StandardError);
+                Exception? killFailure = null;
+                Task<Exception?> drainMonitor = MonitorDrainFailureAsync(stdout, stderr, () =>
+                {
+                    try
+                    {
+                        if (!process.HasExited) process.Kill(entireProcessTree: true);
+                    }
+                    catch (Exception ex) { killFailure ??= ex; }
+                });
                 bool exited;
                 Exception? waitFailure = null;
                 try { exited = process.WaitForExit(60_000); }
                 catch (Exception ex) { exited = false; waitFailure = ex; }
 
-                Exception? killFailure = null;
                 bool timedOut = !exited && waitFailure == null;
                 if (!exited)
                 {
@@ -666,23 +809,42 @@ public class PatchDatabaseOperationLeaseCoreTests
                     waitFailure ??= ex;
                 }
 
-                bool drainsFinished;
+                bool drainsFinished = false;
                 Exception? drainFailure = null;
-                try { drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, MaximumPostKillWaitMs); }
-                catch (Exception ex) { drainsFinished = true; drainFailure = ex; }
+                try
+                {
+                    drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, MaximumPostKillWaitMs);
+                    if (!drainsFinished)
+                    {
+                        drainFailure = new TimeoutException("Native probe output drains did not finish within the bounded post-exit wait.");
+                    }
+                    else
+                    {
+                        if (!drainMonitor.Wait(MaximumPostKillWaitMs))
+                            drainFailure = new TimeoutException("Native probe drain status was not observed within the bounded wait.");
+                        else
+                            drainFailure = drainMonitor.GetAwaiter().GetResult();
+                        drainsFinished = drainFailure == null;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    drainFailure = CaptureFailure(stdout) ?? CaptureFailure(stderr) ??
+                        ex.GetBaseException();
+                    drainsFinished = false;
+                }
                 timer.Stop();
                 var capturedOut = stdout.IsCompletedSuccessfully ? stdout.Result : default;
                 var capturedError = stderr.IsCompletedSuccessfully ? stderr.Result : default;
                 string marker = ReadMarker(() => File.OpenRead(resultPath), expected);
-                string outcome = timedOut ? "timeout" :
-                    waitFailure != null ? "wait-failure" :
-                    exitCode is { } code && code != 0 ? "nonzero-exit" :
-                    exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
+                string outcome = Outcome(timedOut, waitFailure, exitCode, marker, expected,
+                    drainFailure, drainsFinished);
                 if (outcome == "success") return expected;
 
                 Exception primary = timedOut
                     ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
-                    : waitFailure ?? new InvalidOperationException("Existing reader native probe did not complete successfully.");
+                    : waitFailure ?? drainFailure ??
+                        new InvalidOperationException("Existing reader native probe did not complete successfully.");
                 throw new InvalidOperationException(Report(outcome, pid, timer.Elapsed,
                     capturedOut, capturedError, marker, primary, killFailure,
                     exitCode, hasExited, drainsFinished, drainFailure), primary);
@@ -726,6 +888,19 @@ public class PatchDatabaseOperationLeaseCoreTests
 
         static string Prefix(string value, int maximum) =>
             value.Length <= maximum ? value : value[..maximum] + "[truncated]";
+    }
+
+    sealed class ThrowAfterPrefixReader(string prefix) : TextReader
+    {
+        bool returnedPrefix;
+
+        public override Task<int> ReadAsync(char[] buffer, int index, int count)
+        {
+            if (returnedPrefix) throw new IOException("synthetic read failure");
+            returnedPrefix = true;
+            prefix.CopyTo(0, buffer, index, prefix.Length);
+            return Task.FromResult(prefix.Length);
+        }
     }
 
     sealed class Fixture : IDisposable
