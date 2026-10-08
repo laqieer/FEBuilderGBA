@@ -171,12 +171,18 @@ public class ImageUtilMagicCoreTests
     [Theory]
     [InlineData(false, 0xDEADBEEFu)]
     [InlineData(true, 0xDEADBEEFu)]
-    [InlineData(false, 0x08000000u)]
+    [InlineData(false, 0x08000001u)]
     [InlineData(true, 0x08000000u)]
     public void UnsafeNonzeroTarget_DoesNotExposeSlotOrEngine(bool csaCreator, uint rawTarget)
     {
         var rom = csaCreator ? MakeFe8uWithSCACreatorSignature() : MakeFe8uWithFEditorSignature();
-        BitConverter.GetBytes(rawTarget).CopyTo(rom.Data, 0x00200010);
+        uint slotOffset = csaCreator ? 0x00200010u : 0x95D904u;
+        if (!csaCreator)
+        {
+            Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 16);
+            Array.Clear(rom.Data, 0x200000, 20);
+        }
+        BitConverter.GetBytes(rawTarget).CopyTo(rom.Data, (int)slotOffset);
 
         Assert.Equal(U.NOT_FOUND, ImageUtilMagicCore.FindCSASpellTable(rom,
             csaCreator ? ImageUtilMagicCore.MagicSystem.CsaCreator : ImageUtilMagicCore.MagicSystem.FEditorAdv,

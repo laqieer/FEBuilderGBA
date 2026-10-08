@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Reflection;
 using FEBuilderGBA;
 using Xunit;
@@ -109,17 +108,16 @@ namespace FEBuilderGBA.Tests.Unit
             try
             {
                 ROM rom = MakeRom(true, false);
-                byte[] blob = File.ReadAllBytes(Path.Combine(FindRepoRoot(),
-                    "config", "patch2", "FE8U", "FEEditor", "Magic", "CSA System.dmp"));
-                Assert.Equal(1088, blob.Length);
-                Array.Copy(blob, 0, rom.Data, 0x95D780, blob.Length);
+                Array.Copy(rom.Data, 0x200000, rom.Data, 0x95D8F4, 16);
+                Array.Clear(rom.Data, 0x200000, 20);
+                BitConverter.GetBytes(0x08000000u).CopyTo(rom.Data, 0x95D904);
                 Assert.Equal(0x08000000u, rom.u32(0x95D904));
                 Assert.Equal(0u, rom.u32(0x200010));
                 BitConverter.GetBytes(0x08700000u).CopyTo(rom.Data, 0x3000C);
                 BitConverter.GetBytes(0x08030000u).CopyTo(rom.Data, 0x4000);
                 for (int i = 0; i < 32; i++)
                     rom.Data[0x700000 + i] = (byte)(i + 1);
-                CoreState.BaseDirectory = FindRepoRoot();
+                CoreState.BaseDirectory = AppContext.BaseDirectory;
                 SetRom(rom);
                 configProperty.SetValue(null, new ConfigWinForms());
                 undoProperty.SetValue(null, new Undo());
@@ -172,15 +170,6 @@ namespace FEBuilderGBA.Tests.Unit
                 commentProperty.SetValue(null, previousComment);
                 ImageUtilMagic.ClearCache();
             }
-        }
-
-        static string FindRepoRoot()
-        {
-            for (var dir = new DirectoryInfo(AppContext.BaseDirectory);
-                 dir != null; dir = dir.Parent)
-                if (File.Exists(Path.Combine(dir.FullName, "FEBuilderGBA.sln")))
-                    return dir.FullName;
-            throw new DirectoryNotFoundException("FEBuilderGBA.sln not found");
         }
 
         static void AssertEngine(bool csaCreator, uint expectedTable)
