@@ -3,14 +3,17 @@
 All tests use synthetic data — no external dependencies required.
 """
 
+import io
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import time
 from contextlib import contextmanager
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -709,6 +712,498 @@ class TestBackend:
         result = backend.check_backend()
 
         assert result == {"available": False, "error": "execution denied"}
+
+
+def _issue2188_bounded_fixture(
+        monkeypatch, primary=None, cleanup_failures=(), exited=True):
+    """Exercise the real supervisor and drain with inert process/thread seams."""
+    from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+    events = []
+
+    class Pipe(io.StringIO):
+        failure_traceback = None
+
+        def read(self, size=-1):
+            if primary is not None:
+                try:
+                    raise primary
+                except BaseException as exc:
+                    self.failure_traceback = exc.__traceback__
+                    raise
+            return super().read(size)
+
+    stdout = Pipe("version\n")
+    stderr = io.StringIO()
+
+    class Process:
+        returncode = 0 if exited else None
+
+        def poll(self):
+            return self.returncode
+
+        def kill(self):
+            events.append("kill")
+            self.returncode = -1
+
+        def wait(self, timeout):
+            events.append(("wait", timeout))
+            return self.returncode
+
+    process = Process()
+    process.stdout = stdout
+    process.stderr = stderr
+
+    class Lifetime:
+        def resume(self):
+            events.append("resume")
+
+        def terminate(self):
+            events.append("terminate")
+            if cleanup_failures:
+                raise cleanup_failures[0]
+
+        def close(self):
+            events.append("close")
+            if len(cleanup_failures) > 1:
+                raise cleanup_failures[1]
+
+        def finish(self):
+            events.append("finish")
+            self.terminate()
+            self.close()
+
+    lifetime = Lifetime()
+
+    class Reader:
+        def __init__(self, target, args, daemon):
+            self.target = target
+            self.args = args
+            assert daemon is True
+
+        def start(self):
+            self.target(*self.args)
+
+        def is_alive(self):
+            return False
+
+        def join(self, timeout):
+            events.append(("join", timeout))
+
+    monkeypatch.setattr(
+        backend, "_start_bounded_process", lambda cmd: (process, lifetime))
+    monkeypatch.setattr(backend.threading, "Thread", Reader)
+    monkeypatch.setattr(
+        backend, "find_febuildergba_cli", lambda: ["inert-owned-backend"])
+
+    def close_inert_pipe(stream):
+        events.append(("pipe-close", stream))
+        stream.close()
+
+    monkeypatch.setattr(backend, "_force_close_pipe", close_inert_pipe)
+    return SimpleNamespace(
+        process=process, lifetime=lifetime, stdout=stdout, events=events)
+
+
+class TestIssue2188Cleanup:
+    @pytest.mark.parametrize("exited", [False, True])
+    @pytest.mark.parametrize("double_failure", [False, True])
+    def test_issue2188_decode_preserves_exact_primary_and_traceback(
+            self, monkeypatch, exited, double_failure):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        primary = UnicodeDecodeError("utf-8", b"\xff", 0, 1, "invalid byte")
+        failures = (OSError("owned terminate failed"),) if double_failure else ()
+        owned = _issue2188_bounded_fixture(
+            monkeypatch, primary, failures, exited)
+
+        with pytest.raises(UnicodeDecodeError) as caught:
+            backend._run_cli_bounded(["inert-owned-backend"], 1, 16)
+
+        assert caught.value is primary
+        assert primary.args == ("utf-8", b"\xff", 0, 1, "invalid byte")
+        tracebacks = []
+        tb = caught.value.__traceback__
+        while tb is not None:
+            tracebacks.append(tb)
+            tb = tb.tb_next
+        assert any(tb is owned.stdout.failure_traceback for tb in tracebacks)
+        assert all(
+            tb.tb_frame.f_code.co_name != "_cleanup_bounded_process"
+            for tb in tracebacks)
+        assert "terminate" in owned.events
+        assert "close" in owned.events
+        message = backend._format_backend_error(caught.value)
+        assert "utf-8" in message and "invalid byte" in message
+        if double_failure:
+            assert "owned terminate failed" in message
+            assert "cleanup" in message.lower()
+        else:
+            assert "owned terminate failed" not in message
+
+    @pytest.mark.parametrize("boundary", ["run_cli", "check_backend"])
+    @pytest.mark.parametrize("primary_kind", ["decode", "os_error", "timeout"])
+    def test_issue2188_secondary_survives_snapshot_unwind(
+            self, monkeypatch, tmp_path, boundary, primary_kind):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        snapshot = tmp_path / "private-secondary.gba"
+        monkeypatch.chdir(tmp_path)
+        command = ["inert-owned-backend", "--rom", snapshot.name]
+        private_text = f"{snapshot} and {snapshot.name}"
+        if primary_kind == "decode":
+            primary = UnicodeDecodeError("utf-8", b"\xff", 0, 1, private_text)
+        elif primary_kind == "os_error":
+            primary = PermissionError(private_text)
+        else:
+            primary = None
+        _issue2188_bounded_fixture(
+            monkeypatch, primary,
+            (OSError(f"secondary-marker {private_text}"),),
+            exited=primary_kind != "timeout")
+        if primary_kind == "timeout":
+            clock = [0.0]
+
+            def monotonic():
+                clock[0] += 1.0
+                return clock[0]
+
+            monkeypatch.setattr(backend.time, "monotonic", monotonic)
+
+        with backend.register_rom_snapshot(str(snapshot)):
+            with backend.bounded_capture(16):
+                with pytest.raises((UnicodeError, RuntimeError)) as caught:
+                    backend.run_cli(command[1:], timeout=1)
+
+        if primary_kind == "decode":
+            assert caught.value is primary
+        elif primary_kind == "timeout":
+            assert "timed out after 1s" in str(caught.value)
+        else:
+            assert "Failed to run" in str(caught.value)
+
+        if boundary == "check_backend":
+            def failed_version():
+                raise caught.value
+
+            monkeypatch.setattr(backend, "get_version", failed_version)
+            result = backend.check_backend()
+            assert set(result) == {"available", "error"}
+            assert result["available"] is False
+            message = result["error"]
+        else:
+            message = backend._format_backend_error(caught.value)
+
+        assert "secondary-marker" in message
+        assert "cleanup" in message.lower()
+        assert str(snapshot) not in message
+        assert snapshot.name not in message
+        assert backend._PRIVATE_ROM_SNAPSHOT_LABEL in message
+        assert len(message) <= 65536
+        assert "Traceback (most recent call last)" not in message
+
+    def test_issue2188_cleanup_only_failure_is_explicit(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(
+            monkeypatch, cleanup_failures=(OSError("finish-only-marker"),))
+        with pytest.raises((OSError, RuntimeError)) as caught:
+            backend._run_cli_bounded(["inert-owned-backend"], 1, 16)
+        assert "finish-only-marker" in backend._format_backend_error(caught.value)
+        assert "finish" in owned.events
+
+    @pytest.mark.parametrize("overflow_stream", ["stdout", "stderr", None])
+    def test_issue2188_exact_cap_and_overflow_do_not_kill_success(
+            self, monkeypatch, overflow_stream):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(monkeypatch)
+        lengths = {
+            "stdout": 17 if overflow_stream == "stdout" else 16,
+            "stderr": 17 if overflow_stream == "stderr" else 16,
+        }
+        owned.process.stdout = io.StringIO("o" * lengths["stdout"])
+        owned.process.stderr = io.StringIO("e" * lengths["stderr"])
+        result = backend._run_cli_bounded(["inert-owned-backend"], 1, 16)
+
+        assert result.returncode == 0
+        for name, letter in (("stdout", "o"), ("stderr", "e")):
+            output = getattr(result, name)
+            assert output == letter * 16
+            assert output.original_length == lengths[name]
+            assert output.truncated is (name == overflow_stream)
+        assert "finish" in owned.events
+        assert "terminate" in owned.events
+        assert "close" in owned.events
+        assert "kill" not in owned.events
+
+    def test_issue2188_multiple_cleanup_causes_remain_visible(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(
+            monkeypatch, cleanup_failures=(
+                PermissionError("terminate-cause"), OSError("close-cause")))
+
+        def failed_wait(timeout):
+            raise subprocess.TimeoutExpired(["inert-owned-backend"], timeout)
+
+        owned.process.wait = failed_wait
+        reader = SimpleNamespace(
+            join=lambda timeout: None, is_alive=lambda: True)
+        with pytest.raises(RuntimeError) as caught:
+            backend._cleanup_bounded_process(
+                owned.process, (), (reader,), owned.lifetime)
+
+        message = backend._format_backend_error(caught.value)
+        assert "terminate-cause" in message
+        assert "close-cause" in message
+        assert "TimeoutExpired" in message
+        assert "reader did not stop" in message
+        assert len(message) <= 65536
+
+    def test_issue2188_cleanup_cause_bounds_and_exact_omission_count(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(monkeypatch)
+        cause_count = 40
+        monkeypatch.setattr(backend.time, "monotonic", lambda: 0.0)
+        readers = []
+        for index in range(cause_count):
+            def failed_join(timeout, index=index):
+                raise OSError(f"cause-{index:02d}-marker " + "x" * 8192)
+
+            readers.append(SimpleNamespace(
+                join=failed_join, is_alive=lambda: False))
+
+        with pytest.raises(RuntimeError) as caught:
+            backend._cleanup_bounded_process(
+                owned.process, (), readers, owned.lifetime)
+
+        message = backend._format_backend_error(caught.value)
+        included = re.findall(r"cause-\d{2}-marker", message)
+        omission = re.search(r"(\d+) cleanup causes omitted", message)
+        assert omission is not None
+        assert len(included) + int(omission.group(1)) == cause_count
+        assert 0 < len(included) < cause_count
+        assert "x" * 4097 not in message
+        assert len(message) <= 65536
+        assert "close" in owned.events
+
+    def test_issue2188_long_primary_cannot_erase_secondary(self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        primary = UnicodeDecodeError(
+            "utf-8", b"\xff", 0, 1, "primary-marker " + "p" * 131072)
+        _issue2188_bounded_fixture(
+            monkeypatch, primary, (OSError("reserved-secondary-marker"),))
+        with pytest.raises(UnicodeDecodeError) as caught:
+            backend._run_cli_bounded(["inert-owned-backend"], 1, 16)
+        message = backend._format_backend_error(caught.value)
+        assert "primary-marker" in message
+        assert "reserved-secondary-marker" in message
+        assert len(message) <= 65536
+        assert primary.reason == "primary-marker " + "p" * 131072
+
+    @pytest.mark.parametrize("spent_in_terminate", [0.2, 0.6])
+    def test_issue2188_one_cleanup_deadline_and_unconditional_teardown(
+            self, monkeypatch, spent_in_terminate):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(monkeypatch, exited=False)
+        clock = [0.0]
+        monkeypatch.setattr(backend.time, "monotonic", lambda: clock[0])
+        assert backend._CLEANUP_TIMEOUT_SECONDS == 0.5
+
+        def terminate():
+            owned.events.append("terminate")
+            clock[0] += spent_in_terminate
+
+        def wait(timeout):
+            owned.events.append(("wait", timeout))
+            clock[0] += timeout
+            raise subprocess.TimeoutExpired(["inert-owned-backend"], timeout)
+
+        def join(timeout):
+            owned.events.append(("join", timeout))
+            clock[0] += timeout
+
+        owned.lifetime.terminate = terminate
+        owned.process.wait = wait
+        monkeypatch.setattr(
+            backend, "_force_close_pipe",
+            lambda stream: owned.events.append(("pipe-close", stream)))
+        reader = SimpleNamespace(join=join, is_alive=lambda: False)
+
+        with pytest.raises(RuntimeError):
+            backend._cleanup_bounded_process(
+                owned.process, (owned.stdout, owned.process.stderr),
+                (reader,), owned.lifetime)
+
+        waits = [event[1] for event in owned.events
+                 if isinstance(event, tuple) and event[0] == "wait"]
+        joins = [event[1] for event in owned.events
+                 if isinstance(event, tuple) and event[0] == "join"]
+        remaining = max(0.0, 0.5 - spent_in_terminate)
+        assert waits == [pytest.approx(remaining)]
+        assert sum(waits + joins) <= remaining + 1e-9
+        assert "terminate" in owned.events
+        assert "kill" in owned.events
+        assert ("pipe-close", owned.stdout) in owned.events
+        assert ("pipe-close", owned.process.stderr) in owned.events
+        assert owned.events[-1] == "close"
+
+    @pytest.mark.parametrize("stage", ["poll", "kill", "wait"])
+    def test_issue2188_cleanup_os_error_does_not_skip_owned_teardown(
+            self, monkeypatch, stage):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(monkeypatch, exited=False)
+
+        def fail(*args, **kwargs):
+            raise OSError(f"{stage}-failure-marker")
+
+        setattr(owned.process, stage, fail)
+        monkeypatch.setattr(
+            backend, "_force_close_pipe",
+            lambda stream: owned.events.append(("pipe-close", stream)))
+        with pytest.raises((OSError, RuntimeError)) as caught:
+            backend._cleanup_bounded_process(
+                owned.process, (owned.stdout,), (), owned.lifetime)
+        assert "terminate" in owned.events
+        assert ("pipe-close", owned.stdout) in owned.events
+        assert "close" in owned.events
+        assert f"{stage}-failure-marker" in backend._format_backend_error(
+            caught.value)
+
+    def test_issue2188_missing_pipe_primary_survives_cleanup_failure(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(
+            monkeypatch, cleanup_failures=(OSError("missing-pipe-secondary"),))
+        owned.process.stderr = None
+        with pytest.raises(
+                OSError, match="Failed to create backend output pipes") as caught:
+            backend._run_cli_bounded(["inert-owned-backend"], 1, 16)
+        assert "missing-pipe-secondary" in backend._format_backend_error(
+            caught.value)
+        assert "close" in owned.events
+
+    @pytest.mark.parametrize("failure", ["already_closed", "permission", "value"])
+    def test_issue2188_pipe_close_only_ignores_proven_closed_pipe(
+            self, monkeypatch, failure):
+        import errno
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        pipe = SimpleNamespace(fileno=lambda: 123, closed=False)
+        if failure == "already_closed":
+            error = OSError(errno.EBADF, "already closed")
+        elif failure == "permission":
+            error = PermissionError(errno.EACCES, "close-permission-marker")
+        else:
+            error = ValueError("close-value-marker")
+
+        def fail_close(fd):
+            assert fd == 123
+            raise error
+
+        fake_os = SimpleNamespace(**vars(backend.os))
+        fake_os.close = fail_close
+        monkeypatch.setattr(backend, "os", fake_os)
+        if failure == "already_closed":
+            backend._force_close_pipe(pipe)
+        else:
+            with pytest.raises(type(error)) as caught:
+                backend._force_close_pipe(pipe)
+            assert caught.value is error
+
+    def test_issue2188_pipe_close_failure_does_not_skip_lifetime_close(
+            self, monkeypatch):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        owned = _issue2188_bounded_fixture(monkeypatch)
+
+        def failed_close(stream):
+            owned.events.append(("pipe-close", stream))
+            raise PermissionError("pipe-close-secondary-marker")
+
+        monkeypatch.setattr(backend, "_force_close_pipe", failed_close)
+        with pytest.raises(RuntimeError) as caught:
+            backend._cleanup_bounded_process(
+                owned.process, (owned.stdout, owned.process.stderr),
+                (), owned.lifetime)
+        assert ("pipe-close", owned.stdout) in owned.events
+        assert ("pipe-close", owned.process.stderr) in owned.events
+        assert owned.events[-1] == "close"
+        message = backend._format_backend_error(caught.value)
+        assert message.count("pipe-close-secondary-marker") == 2
+
+    @pytest.mark.parametrize("stage", ["launch", "isolation", "isolation-wait"])
+    def test_issue2188_launch_isolation_preserves_primary_and_cleanup(
+            self, monkeypatch, stage):
+        from cli_anything.febuildergba.utils import febuildergba_backend as backend
+
+        primary = PermissionError(f"{stage}-primary-marker")
+        primary_traceback = []
+        original_start = backend._start_bounded_process
+        owned = _issue2188_bounded_fixture(monkeypatch, exited=False)
+
+        def fail():
+            try:
+                raise primary
+            except PermissionError as exc:
+                primary_traceback.append(exc.__traceback__)
+                raise
+
+        def popen(cmd, **kwargs):
+            assert kwargs["stdin"] == subprocess.DEVNULL
+            assert kwargs["creationflags"] == backend._WINDOWS_CREATE_SUSPENDED
+            if stage == "launch":
+                fail()
+            return owned.process
+
+        def assign(process):
+            assert process is owned.process
+            fail()
+
+        def close():
+            owned.events.append("close")
+            raise OSError("launch-secondary-marker")
+
+        if stage == "isolation-wait":
+            def failed_wait(timeout):
+                owned.events.append(("wait", timeout))
+                raise subprocess.TimeoutExpired(["inert-owned-backend"], timeout)
+
+            owned.process.wait = failed_wait
+
+        owned.lifetime.assign = assign
+        owned.lifetime.close = close
+        fake_os = SimpleNamespace(**vars(backend.os))
+        fake_os.name = "nt"
+        monkeypatch.setattr(backend, "os", fake_os)
+        monkeypatch.setattr(
+            backend, "_WindowsBoundedProcessLifetime",
+            lambda: owned.lifetime, raising=False)
+        monkeypatch.setattr(backend.subprocess, "Popen", popen)
+        with pytest.raises(PermissionError) as caught:
+            original_start(["inert-owned-backend"])
+        assert caught.value is primary
+        tb = caught.value.__traceback__
+        while tb is not None and tb is not primary_traceback[0]:
+            tb = tb.tb_next
+        assert tb is primary_traceback[0]
+        message = backend._format_backend_error(caught.value)
+        assert "launch-secondary-marker" in message
+        if stage == "isolation-wait":
+            assert "TimeoutExpired" in message
+        assert "close" in owned.events
+        if stage.startswith("isolation"):
+            assert "kill" in owned.events
+            assert any(
+                isinstance(event, tuple) and event[0] == "wait"
+                for event in owned.events)
 
 
 class TestRomSnapshotGate:
