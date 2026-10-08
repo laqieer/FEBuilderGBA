@@ -741,6 +741,23 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(new[] { "exists", "read", "exists", "read" }, reader.Calls);
         }
 
+        [Fact]
+        public void Poll_FinalReadFaultIsNotReportedAsEarlierFault()
+        {
+            var reader = new InertReader(true, "")
+            {
+                ReadOverride = count => count == 1
+                    ? "malformed"
+                    : throw new IOException(PrivateText)
+            };
+
+            object poll = Poll(reader, new InertClock(), CompletedTask(), TimeSpan.Zero);
+
+            AssertObservation(Required(poll, "Observation"), "ReadFault", "read-fault");
+            Assert.Null(Property(poll, "EarlierReadFault"));
+            Assert.Equal(new[] { "exists", "read", "exists", "read" }, reader.Calls);
+        }
+
         [Theory]
         [InlineData(false)]
         [InlineData(true)]

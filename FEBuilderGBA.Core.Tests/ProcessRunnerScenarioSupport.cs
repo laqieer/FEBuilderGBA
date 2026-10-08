@@ -946,8 +946,6 @@ namespace FEBuilderGBA.Core.Tests
                 if (runTask?.IsCompleted == true)
                 {
                     observation = ObserveIdentity(path, exists, read);
-                    if (observation.Status == IdentityObservationStatus.ReadFault)
-                        earlierReadFault ??= observation;
                     return new ReadinessPollEvidence(
                         observation, earlierReadFault, ReadinessStopReason.TaskCompleted);
                 }
