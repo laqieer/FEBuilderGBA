@@ -20,6 +20,8 @@ from unittest import mock
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW_PATH = ROOT / ".github" / "workflows" / "crossplatform.yml"
+E2E_NOROM_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "e2e-norom.yml"
+HOSTED_WORKFLOW_PATH = ROOT / ".github" / "workflows" / "linux-x11-hosted.yml"
 
 
 def all_job_blocks(text: str) -> dict[str, str]:
@@ -161,6 +163,48 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
             r"(?m)^    needs: workflow-contract$",
         )
         self.assertRegex(self.jobs["publish"], r"(?m)^    needs: build$")
+
+    def test_linux_x11_pure_suite_runs_unconditionally_after_python_setup(self) -> None:
+        build_steps = named_steps(self.jobs["build"])
+        names = [name for name, _ in build_steps]
+        suite_name = "Run Linux X11 pure contract tests (issue #2160)"
+        self.assertEqual(1, names.count(suite_name))
+        self.assertLess(names.index("Setup Python 3.12"), names.index(suite_name))
+
+        command = (
+            "python -B -m unittest scripts.tests.test_linux_x11 "
+            "scripts.tests.test_linux_x11_metadata "
+            "scripts.tests.test_linux_x11_hosted"
+        )
+        suite_step = dict(build_steps)[suite_name]
+        self.assertEqual(command, run_command(suite_step))
+        self.assertEqual(
+            1,
+            sum(run_command(step) == command for _, step in build_steps),
+        )
+        self.assertNotRegex(
+            suite_step,
+            r"(?m)^      (?:if|continue-on-error|working-directory|shell):",
+        )
+        self.assertNotRegex(self.jobs["build"], r"(?m)^    if:")
+        self.assertNotIn("linux_x11_native_smoke", self.jobs["build"])
+
+    def test_metadata_supervisor_contracts_are_windows_only_and_never_observe(self):
+        steps = dict(named_steps(self.jobs["build"]))
+        step = steps["Run Windows Linux metadata supervisor pure contracts (issue #2160)"]
+        self.assertEqual(
+            r".\scripts\tests\test_linux_x11_metadata_supervisor.ps1",
+            run_command(step),
+        )
+        self.assertRegex(step, r"(?m)^      if: runner\.os == 'Windows'$")
+        self.assertRegex(step, r"(?m)^      shell: pwsh$")
+        self.assertNotRegex(step, r"(?m)^      continue-on-error:")
+        for block in self.all_jobs.values():
+            for _, item in named_steps(block):
+                command = run_command(item)
+                self.assertNotIn("Invoke-LinuxX11Metadata.ps1", command)
+                self.assertNotIn("--observe", command)
+                self.assertNotIn("linux_x11_metadata.py", command)
 
     def test_every_build_test_and_publish_is_server_isolated(self) -> None:
         expected_steps: dict[str, dict[str, tuple[str, str]]] = {
@@ -350,6 +394,160 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     self.jobs[job_name],
                     r"(?m)^\s+continue-on-error:",
                 )
+
+
+class LinuxX11HostedWorkflowContractTests(unittest.TestCase):
+    def assert_e2e_norom_contract(self, workflow):
+        self.assertIn("name: \"E2E: No ROM\"", workflow)
+        self.assertIn("run-name:", workflow)
+        self.assertIn("inputs.route", workflow)
+        self.assertIn("inputs.receipt_stem", workflow)
+        self.assertIn("cron: '3 20 * * *'", workflow)
+        self.assertIn("default: default-e2e", workflow)
+        self.assertIn("- issue2160-prepare", workflow)
+        self.assertIn("- issue2160-reserve-native", workflow)
+        self.assertIn("github.event_name != 'workflow_dispatch'", workflow)
+        self.assertIn("inputs.route == ''", workflow)
+        self.assertIn("inputs.route == 'default-e2e'", workflow)
+        self.assertIn("inputs.route != '' && inputs.route || 'default-e2e'", workflow)
+        self.assertIn("uses: ./.github/workflows/e2e-run.yml", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)e2e:.*?with:\n\s+rom-name: none\n\s+job-name: \"E2E No ROM\"\n\s+timeout: 10\n\s+caller-event: \$\{\{ github\.event_name \}\}",
+        )
+        self.assertIn("secrets: inherit", workflow)
+        self.assertIn("uses: ./.github/workflows/linux-x11-hosted.yml", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)linux-x11-hosted:.*?permissions:\n\s+contents: read\n\s+actions: read\n\s+issues: read",
+        )
+        self.assertNotRegex(
+            workflow,
+            r"(?ms)linux-x11-hosted:.*?secrets:\s+inherit",
+        )
+
+    def test_e2e_norom_dispatch_route_preserves_default_e2e_and_manual_hosted_opt_in(self):
+        workflow = E2E_NOROM_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assert_e2e_norom_contract(workflow)
+
+    def test_e2e_norom_dispatch_route_rejects_timeout_or_caller_event_mutations(self):
+        workflow = E2E_NOROM_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assert_e2e_norom_contract(workflow)
+        mutations = (
+            ("timeout drift", "      timeout: 10", "      timeout: 11"),
+            ("timeout missing", "      timeout: 10\n", ""),
+            ("caller-event drift", "      caller-event: ${{ github.event_name }}", "      caller-event: schedule"),
+            ("caller-event missing", "      caller-event: ${{ github.event_name }}\n", ""),
+        )
+        for label, before, after in mutations:
+            with self.subTest(label=label):
+                self.assertIn(before, workflow)
+                with self.assertRaises(AssertionError):
+                    self.assert_e2e_norom_contract(workflow.replace(before, after, 1))
+
+    def test_hosted_reusable_workflow_is_workflow_call_only_and_keeps_native_manual(self):
+        workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assertRegex(workflow, r"(?m)^on:\n  workflow_call:$")
+        self.assertNotIn("workflow_dispatch:", workflow)
+        self.assertRegex(workflow, r"(?m)^permissions:\n  contents: read\n  actions: read\n  issues: read$")
+        self.assertIn("runs-on: ubuntu-24.04", workflow)
+        self.assertIn("persist-credentials: false", workflow)
+        self.assertIn("environment:\n      name: issue2160-native", workflow)
+        self.assertIn("if: ${{ inputs.route == 'issue2160-reserve-native' }}", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted run-native-smoke", workflow)
+        self.assertNotIn("actions/setup-python", workflow)
+        self.assertNotIn("apt-get", workflow)
+        self.assertNotIn("sudo", workflow)
+
+    def test_hosted_reusable_workflow_precheckout_gate_module_entry_and_token_scoping(self):
+        workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
+        jobs = all_job_blocks(workflow)
+        for job_name in ("prepare", "native"):
+            with self.subTest(job=job_name):
+                steps = [
+                    (match.group("name").strip(), match.group("body"))
+                    for match in re.finditer(
+                        r"(?ms)^      - name: (?P<name>[^\n]+)\n(?P<body>.*?)(?=^      - name: |\Z)",
+                        jobs[job_name],
+                    )
+                ]
+                names = [name for name, _ in steps]
+                self.assertEqual("Verify immutable reviewed candidate before checkout", names[0])
+                self.assertEqual("Checkout immutable candidate", names[1])
+                gate = dict(steps)["Verify immutable reviewed candidate before checkout"]
+                self.assertRegex(gate, r"(?m)^        shell: bash$")
+                self.assertRegex(
+                    gate,
+                    r"(?m)^          ISSUE2160_CANDIDATE_SHA: \$\{\{ inputs\.candidate_sha \}\}$",
+                )
+                self.assertIn("^[0-9a-f]{40}$", gate)
+                self.assertNotIn("${{", gate.split("run:", 1)[1])
+                self.assertIn('[[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_SHA" ]]', gate)
+                self.assertIn('[[ "$ISSUE2160_CANDIDATE_SHA" == "$GITHUB_WORKFLOW_SHA" ]]', gate)
+        self.assertNotIn("|| github.sha", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Checkout immutable candidate.*?ref: \$\{\{ github\.sha \}\}.*?persist-credentials: false",
+        )
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted prepare", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted authorize-native", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted confirm-grant", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted run-native-smoke", workflow)
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted validate-receipt", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Gather hosted preflight evidence.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Reverify run binding and read coordinator grant.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Confirm grant freeze before native smoke.*?env:\n\s+GITHUB_TOKEN: \$\{\{ github\.token \}\}",
+        )
+        native_smoke = re.search(
+            r"(?ms)- name: Run bounded native X11 smoke(?P<body>.*?)(?:\n\s+- name:|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(native_smoke)
+        self.assertNotIn("GITHUB_TOKEN", native_smoke.group("body"))
+
+    def test_hosted_reusable_workflow_always_uploads_safe_json_only_after_native_outcomes(self):
+        workflow = HOSTED_WORKFLOW_PATH.read_text(encoding="utf-8")
+        self.assertIn("id: checkout_candidate", workflow)
+        self.assertIn("id: native_smoke", workflow)
+        self.assertIn("id: stage_artifacts", workflow)
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Prepare hosted native artifact bundle.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",
+        )
+        self.assertIn("/usr/bin/python3 -B -m scripts.linux_x11_hosted stage-artifacts", workflow)
+        stage_step = re.search(
+            r"(?ms)- name: Prepare hosted native artifact bundle(?P<body>.*?)(?:\n\s+- name:|\Z)",
+            workflow,
+        )
+        self.assertIsNotNone(stage_step)
+        self.assertNotIn("${{ inputs.receipt_stem }}", stage_step.group("body").split("run:", 1)[1])
+        self.assertNotIn("linux-x11-smoke-${{ inputs.receipt_stem }}", stage_step.group("body"))
+        self.assertRegex(
+            workflow,
+            r"(?ms)- name: Upload hosted native receipt.*?if: \$\{\{ always\(\) && steps\.checkout_candidate\.outcome == 'success' \}\}",
+        )
+        upload_step = re.search(
+            r"(?ms)- name: Upload hosted native receipt.*?path: \|\n"
+            r"\s+TestResults/issue2160-hosted/upload/preflight\.json\n"
+            r"\s+TestResults/issue2160-hosted/upload/grant\.json\n"
+            r"\s+TestResults/issue2160-hosted/upload/receipt-summary\.json\n"
+            r"\s+if-no-files-found: ignore",
+            workflow,
+        )
+        self.assertIsNotNone(upload_step)
+        self.assertNotIn("linux-x11-smoke-${{ inputs.receipt_stem }}/receipt.json", upload_step.group(0))
+        self.assertNotIn("path: TestResults/issue2160-hosted/upload", workflow)
 
 
 class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):

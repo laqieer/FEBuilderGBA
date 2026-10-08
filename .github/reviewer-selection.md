@@ -11,6 +11,7 @@ Each new board discovers the actual dispatch tool's current choices and selects 
 - A preference statement, issue creation, reviewer approval, agent-generated post under a maintainer account, quoted approval/template, or future intention is not maintainer authorization. Verify the author and the separate explicit approval itself. An agent cannot author or infer its own approval. External documentation may inform the maintainer but cannot authorize a new interpretation.
 - Bind each board to the approved plan digest, approval permalink, and this ruleset at a **full commit SHA**, with an immutable file link rather than a moving branch reference. For the initial policy PR, use its full candidate head SHA; the pre-implementation plan gate instead references the approved v5 digest because the ruleset file does not yet exist.
 - Material changes to interpretation rules, selection algorithm, or evidence standard require renewed independent review and explicit maintainer approval. An ordinary new ID satisfying unchanged approved rules does not.
+- Available-evidence Auto amendment: [issue #2196, exact plan](https://github.com/laqieer/FEBuilderGBA/issues/2196#issuecomment-6037971180), normalized SHA-256 `038b4d45dcd044734e9a2b8a679f05623a08ca6ed7b7d1c354b16ebcc9e5ef5c` (UTF-8 comment body, CRLF/CR to LF, no trimming), with [separate explicit maintainer approval](https://github.com/laqieer/FEBuilderGBA/issues/2196#issuecomment-6051826339). It amends only the unresolved-Auto developer exclusion boundary and GUI evidence guidance within the approved three-file scope. General reuse begins only after the separately HIGH/security-reviewed policy PR merges; approval is not backend identity attestation.
 
 The initial bootstrap is only for #2153's own plan/PR evidence gates: obtain aligned v5 substantive reviews; obtain separate explicit approval before any branch or implementation; then record the formal plan gate against the exact approved revision. Prior advisory reviews count only if their frozen discovery/dispatch/registry evidence meets these rules; otherwise rerun. They never retroactively become execution attestations.
 
@@ -33,7 +34,26 @@ Prefer runtime fields whose **documented semantics** identify the configured mod
 
 Resolve each field deterministically: use semantically explicit runtime metadata first and fill only missing fields through R1. Keep provenance separately for publisher, family/version key, capability, and raw index. Use `provider_source` / `version_source=approved-rule:dynamic-R1` when the ID rule supplied them, never `runtime-metadata`. Capability fallback identifies the dispatch-tool choices as its source.
 
-Authoritative runtime metadata contradicting the applicable rule is a blocker, not permission to hide the conflict. Missing or unrelated gateway metadata is not itself a contradiction. Reject contradictory publisher mappings, invalid authoritative keys, and conflicting duplicate IDs. Resolve the active developer's configured publisher with the same procedure and exclude that publisher; an unknown or contradictory developer identity blocks the board.
+Authoritative runtime metadata contradicting the applicable rule is a blocker, not permission to hide the conflict. Missing or unrelated gateway metadata is not itself a contradiction. Reject contradictory publisher mappings, invalid authoritative keys, and conflicting duplicate IDs. Resolve the active developer's configured publisher with the same procedure and exclude any resolved publisher, including in Auto mode. An unresolved developer publisher blocks except under the bounded Auto path below.
+
+### Available-evidence Auto boundary
+
+The available-evidence Auto exception is inactive until [policy PR #2200](https://github.com/laqieer/FEBuilderGBA/pull/2200) for issue #2196 merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate.
+
+Establish literal Auto mode from trusted, current, session-bound evidence. Inspect and record the trusted current identity evidence actually available to the workflow: sources checked, provenance/trust basis, relevant exact values and results, and session/time binding where available. Recheck this evidence immediately before dispatch. Do not require proof that the source inventory is exhaustive or complete, or claim that it is.
+
+If any available trusted current evidence resolves the developer publisher, exclude it as usual. Only when Auto is established and none of that available evidence resolves the publisher may the board proceed without guessing or excluding a publisher or obtaining a per-board waiver. Record exactly:
+
+```text
+developer_publisher=unknown
+developer_exclusion=not_applied
+reviewer_diversity=among_reviewers_only
+developer_independence=unconfirmed
+```
+
+This narrowly amends the developer exclusion and non-developer-reviewer conditions: a selected reviewer may share the unknown actual developer publisher. Keep the ordinary required number of distinct reviewer publishers; their diversity establishes diversity among reviewers only, not developer independence or actual backend diversity. All other discovery, ranking, exact-revision, registry/completion, evidence and substantive-verdict safeguards remain.
+
+Partial, stale, ambiguous or contradictory authoritative identity evidence still blocks; do not discard such evidence to manufacture the unknown-Auto case. If the publisher remains unresolved and Auto itself cannot be established, or mode is unknown/non-Auto, block. Distinguish configured identity, routed identity and actual execution identity; the exception never supplies execution attestation or relaxes partial-execution-identity blocking. Screenshots, UI/footer text, issue/board/history prose, model self-reports and prior switch notices cannot resolve identity or establish Auto. Residual uncertainty about an unresolved Auto publisher is intentionally accepted, not proved absent.
 
 Use one canonical `provider_id` for grouping, developer exclusion, diversity counts, stage bias, and ties. For R1 publishers, that key is exactly the publisher string in the table below. Runtime identity evidence must unambiguously agree with that key; an unexplained spelling/casing difference or alias is unresolved/conflicting identity, not a second publisher. Do not invent case-folding or alias mappings. A runtime-only new publisher needs a documented, unambiguous canonical key; ambiguity about whether it duplicates another publisher blocks the board. Compare canonical provider keys and model IDs with case-sensitive ordinal equality and ordinal lexical ordering, never locale-dependent comparison. Keep the original runtime value and its provenance in the audit record.
 
@@ -71,11 +91,11 @@ Disclose exclusions/unranked entries and qualify the result as newest **among el
 
 ## Deterministic board selection
 
-1. Validate the fresh snapshot and field/capability provenance, exclude the developer's configured publisher and other ineligible entries, and resolve all blocking conflicts.
+1. Validate the fresh snapshot and field/capability provenance, apply resolved developer-publisher exclusion or the bounded available-evidence Auto exception, exclude other ineligible entries, and resolve all blocking conflicts.
 2. Within each remaining publisher, choose the highest comparable release key. For R1, this is the numeric tuple above, not lexical version ordering. Raw advertised order is never the primary version preference.
 3. For equal versions, choose the smallest `(raw advertised index, model_id lexical)` if the source provides a reliable order; otherwise use `model_id lexical` alone. The raw index is the zero-based position in the captured source list, before exclusions. Absence of order is allowed; a contradictory claimed order is not reliable evidence.
 4. Assign stage bias: plan `Google=0`, `xAI=1`, others `2`; PR `xAI=0`, `Google=1`, others `2`. With reliable order, sort retained providers by `(stage bias, selected_model.raw_index, provider_id lexical)`; otherwise by `(stage bias, provider_id lexical)`. Never compare release numbers across publishers.
-5. Normal takes the first non-developer provider; high takes the first **two distinct non-developer providers**. Never duplicate provider or model IDs. Enforce any specifically required providers and block insufficient diversity.
+5. Normal takes the first eligible provider; high takes the first **two distinct eligible providers**. Exclude the resolved developer publisher; only the bounded unresolved-Auto exception permits selecting without developer exclusion. Never duplicate provider or model IDs. Enforce any specifically required providers and block insufficient diversity.
 6. Record ordered selections before dispatch and apply the freshness checks above. Selected IDs and historical rankings are audit outputs, never defaults or eligibility input to the next board.
 
 ## Evidence and gate outcomes
@@ -98,6 +118,7 @@ Record the following in the issue/PR Review Board, linking session/CI artifacts 
 - Live inventory interface/tool-schema source, capture time, snapshot digest and its serialization/normalization, whether raw order is reliable, and pre-dispatch availability recheck.
 - Eligibility exclusions and diagnostics, unranked entries, discarded older releases/tie decisions, and any publisher without a representative; sufficient ranking evidence to reproduce the selection.
 - Developer requested/configured identity and publisher; ordered selected model IDs, configured publishers, comparable families/version keys and raw indices when supplied; provenance **per field**, including capability evidence.
+- Trusted current developer-identity sources actually checked, provenance/trust basis, relevant exact values/results and session/time binding where available, plus the pre-dispatch identity recheck. For unresolved Auto, record its trusted current session-bound mode evidence and all four exact labels above; no exhaustive/completeness proof or developer-independence claim.
 - Reviewer IDs and review turn/invocation, requested and task-registry configured IDs, authoritative registry source, successful completion evidence, and substantive verdicts/findings with citations.
 - `configured-only` or `execution-confirmed`; actual execution identity and authoritative source when supplied, otherwise explicitly `execution_identity=unconfirmed`.
 
@@ -116,7 +137,13 @@ Validate policy changes with the existing Copilot-customization validator/tests,
 | Add/remove an unversioned experimental sibling beside a higher numeric release | Diagnose/exclude only the sibling; numeric winner remains unchanged. |
 | Sufficient explicit metadata for a new publisher/format | Eligible without a rule edit, using documented comparable ordering and field provenance. |
 | Unknown publisher or publisher with no rankable entries | Diagnose and exclude; apply remaining provider priorities/counts, not a blanket veto on rankable siblings. |
-| Missing specifically required provider, unknown developer, or too few non-developer publishers | Block the board. |
+| Missing specifically required provider or too few eligible distinct reviewer publishers | Block the board. |
+| Auto established; available trusted evidence resolves developer publisher | Exclude that publisher as usual. |
+| Auto established; no available trusted current identity evidence resolves developer publisher | Proceed with normal distinct reviewer-provider counts and all four exact labels; audit sources actually checked without exhaustive-inventory proof, publisher guessing, waiver or independence claim. |
+| Developer publisher unresolved; Auto unestablished, mode unknown/non-Auto, or authoritative identity partial/stale/ambiguous/contradictory | Block; do not use the exception or hide supplied evidence. |
+| Screenshot, UI/footer, prose/history, self-report or prior switch notice offered as mode/identity authority | Reject as identity evidence; use trusted current session-bound evidence. |
+| GUI proof needed while currently connected | Prioritize the real-app run, affected-editor exercise and fresh GitHub-attached screenshot; verify current connectivity and visible responsive application with representative data. A prior connection is not current evidence. |
+| GUI proof needed while disconnected | Reconnect and verify the current visible responsive application before capture; failed reconnect or verification blocks completion. Black, stale, lock-screen, unrelated or API-success-only captures cannot substitute. |
 | Two eligible versioned families within one publisher lacking common ordering | Block; neither drop a family nor conceal ambiguity with another publisher. |
 | Authoritative field contradiction, invalid authoritative key, conflicting duplicate ID, or unresolved publisher spelling/alias | Block; do not relabel a conflict as missing metadata or count two spellings as distinct publishers. |
 | Alias/picker, non-review specialization, or developer-publisher candidate | Exclude before ranking. |
