@@ -14,11 +14,15 @@ Invoke this skill before creating a branch or changing repository files. The sou
 3. Classify the planned paths with `python scripts/classify_review_risk.py <paths...>`. Missing or invalid input is `high`.
 4. Complete the plan gate:
    - `low`: deterministic classifier/checklist.
-   - `normal`: one reviewer using a different model provider.
+   - `normal`: one eligible reviewer provider, excluding any resolved developer publisher; only the activated bounded unresolved-Auto exception permits selection without that exclusion.
    - `high`: two reviewers from distinct providers; add `security-review` when security-relevant.
 5. Post the consolidated verdict with `Review Tier`, classifier result, reviewer IDs when required, and the runtime footer. Do not implement until no blocking concerns remain.
 
-For every normal/high plan or PR board, follow [dynamic reviewer selection](../../reviewer-selection.md) and the [workflow review gates](../../../DEVELOPMENT-WORKFLOW.md#review-gates). Capture a fresh list from the actual dispatch tool, resolve fields metadata-first with the approved `dynamic-R1` fallback, and select the newest eligible comparable version per non-developer configured publisher. New matching versions/variants require no per-ID approval or source edit; snapshots and examples are audit outputs, never allowlists.
+For every normal/high plan or PR board, follow [dynamic reviewer selection](../../reviewer-selection.md) and the [workflow review gates](../../../DEVELOPMENT-WORKFLOW.md#review-gates). Capture a fresh list from the actual dispatch tool, resolve fields metadata-first with the approved `dynamic-R1` fallback, and select the newest eligible comparable version per eligible configured publisher, excluding any resolved developer publisher. New matching versions/variants require no per-ID approval or source edit; snapshots and examples are audit outputs, never allowlists.
+
+The available-evidence Auto exception is inactive until [policy PR #2200](https://github.com/laqieer/FEBuilderGBA/pull/2200) for issue #2196 merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate.
+
+For unresolved developer identity, use only the bounded available-evidence Auto path: establish Auto from trusted current session-bound evidence, check and record the trusted current identity sources actually available (provenance, relevant values/results and session/time binding where available), and recheck before dispatch. If any source resolves the publisher, exclude it. Otherwise established Auto may proceed without a per-board waiver or exhaustive-source-inventory proof, recording exactly `developer_publisher=unknown`, `developer_exclusion=not_applied`, `reviewer_diversity=among_reviewers_only`, and `developer_independence=unconfirmed`. Normal still requires one eligible reviewer provider; HIGH requires two distinct reviewer providers. A reviewer may share the unknown developer publisher; claim no developer independence or execution attestation. Partial/stale/ambiguous/contradictory authoritative identity, or unresolved publisher without established Auto, blocks. Screenshots, UI/footer, prose/history, self-reports and prior switch notices are not identity authority.
 
 Keep individual unranked/unknown entries excluded with diagnostics, not publisher-wide vetoes. Genuine metadata conflicts or incomparable eligible versioned families still block. Preserve numeric ordering, deterministic ties, stage priorities, and the required distinct-provider counts. Recheck before dispatch; freeze dispatched evidence and never silently substitute after failure.
 
@@ -40,7 +44,7 @@ Reviewers fetch issue/plan content from identifiers in their own isolated contex
 
 ## 3. Validation and commit
 
-Run the smallest existing checks that cover the change, then all directly affected test projects. GUI changes require actual application validation and a real screenshot of the affected editor. Non-GUI changes use tests and CI; screenshots are not required.
+Run the smallest existing checks that cover the change, then all directly affected test projects. GUI `feat`/`fix` changes require a connected live application with representative data, exercise of the affected editor, a GUI Test Report, and a fresh GitHub-attached screenshot of that editor. If RDP was disconnected, reconnect and verify the current visible application is responsive before capture; failed reconnect or application verification leaves proof unmet and blocks completion. Black, stale, lock-screen, unrelated or API-success-only captures are not substitutes. Non-GUI changes use tests and CI; screenshots are not required.
 
 Update README/docs only when behavior, interfaces, setup, or contributor workflow changes.
 
