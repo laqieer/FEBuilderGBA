@@ -38,7 +38,7 @@ Authoritative runtime metadata contradicting the applicable rule is a blocker, n
 
 ### Available-evidence Auto boundary
 
-The available-evidence Auto exception is inactive until the #2196 policy PR merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate.
+The available-evidence Auto exception is inactive until [policy PR #2200](https://github.com/laqieer/FEBuilderGBA/pull/2200) for issue #2196 merges; every instruction permitting unresolved-Auto selection below is subject to that activation gate.
 
 Establish literal Auto mode from trusted, current, session-bound evidence. Inspect and record the trusted current identity evidence actually available to the workflow: sources checked, provenance/trust basis, relevant exact values and results, and session/time binding where available. Recheck this evidence immediately before dispatch. Do not require proof that the source inventory is exhaustive or complete, or claim that it is.
 
