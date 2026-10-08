@@ -54,11 +54,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint imgPtr = rom.u32(addr + 4);
                 if (!U.isPointer(imgPtr)) break;
 
-                // #991: append the owning class name (lockstep with
-                // ListParityHelper.BuildImageUnitWaitIconList — golden test
-                // gated). U.SA prefixes a single space iff the name is non-empty.
+                // Append the owning class name (lockstep with
+                // ListParityHelper.BuildImageUnitWaitIconList). U.SA prefixes
+                // a single space iff the name is non-empty.
                 string className = ClassFormCore.GetClassNameWhereWaitIconId(rom, i);
-                string name = U.ToHexString(i) + U.SA(className) + " WaitIcon";
+                string name = U.ToHexString(i) + U.SA(className);
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
