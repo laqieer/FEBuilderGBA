@@ -122,7 +122,29 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
     public void Initial_Host_Layout_Keeps_Bottom_Toolbar_Visible()
     {
         var view = new ImageUnitWaitIconView();
+        var scrollViewer = view.GetLogicalDescendants().OfType<ScrollViewer>()
+            .Single(x => x.Content is StackPanel panel &&
+                panel.Children.OfType<TextBlock>().Any(text => text.Text == "Unit Wait Icon"));
+        var content = Assert.IsType<StackPanel>(scrollViewer.Content);
+        content.Children.Add(new StackPanel
+        {
+            Spacing = 8,
+            Children =
+            {
+                new TextBlock { Text = "Additional animation frames" },
+                new Border
+                {
+                    Height = 160,
+                    Child = new TextBlock
+                    {
+                        Text = "Frame preview",
+                    },
+                },
+            },
+        });
         var host = new EditorHostWindow(view);
+        host.Width = 900;
+        host.Height = 520;
         host.Show();
         try
         {
@@ -132,7 +154,8 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
             var importButton = Assert.IsType<Button>(
                 CollectAutomationIds(view)
                     .Single(x => x.Id == "ImageUnitWaitIcon_Import_Button").Control);
-            Assert.Equal(SizeToContent.Manual, host.SizeToContent);
+            Assert.Equal(new Size(900, 520), host.ClientSize);
+            Assert.Equal(new Size(900, 520), view.Bounds.Size);
             Assert.True(importButton.IsVisible);
             Assert.True(importButton.Bounds.Height > 0,
                 "The import button must have a visible layout size on the editor's first display.");
@@ -140,9 +163,12 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
             var toolbarBottom = importButton.TranslatePoint(
                 new Point(0, importButton.Bounds.Height), view);
             Assert.NotNull(toolbarBottom);
-            Assert.True(toolbarBottom!.Value.Y <= view.Bounds.Height + 0.5,
+            Assert.True(toolbarBottom!.Value.Y <= 520 + 0.5,
                 $"The bottom toolbar extends beyond the editor viewport on first display " +
-                $"(bottom={toolbarBottom.Value.Y:F1}, viewport={view.Bounds.Height:F1}).");
+                $"(bottom={toolbarBottom.Value.Y:F1}, viewport=520).");
+            Assert.True(scrollViewer.Extent.Height > 520,
+                $"The editor content must exceed the fixed 520-pixel first-show viewport " +
+                $"(extent={scrollViewer.Extent.Height:F1}).");
         }
         finally
         {
