@@ -487,6 +487,8 @@ namespace FEBuilderGBA.Core.Tests
                     out _,
                     afterInspection: () =>
                     {
+                        // Cross coarse ctime boundaries before the rewrite.
+                        Thread.Sleep(1100);
                         File.WriteAllBytes(path, replacement);
                         File.SetLastWriteTimeUtc(path, mtime);
                         var after = ProjectionFileSystemSafety.InspectOpenedRegularFile(
@@ -572,6 +574,8 @@ namespace FEBuilderGBA.Core.Tests
                     out _,
                     afterInspection: () =>
                     {
+                        // Cross coarse ctime boundaries before the rename.
+                        Thread.Sleep(1100);
                         File.Move(path, moved);
                         File.WriteAllBytes(path, GenerationReportBytes('b'));
                         var after = ProjectionFileSystemSafety.InspectOpenedRegularFile(
