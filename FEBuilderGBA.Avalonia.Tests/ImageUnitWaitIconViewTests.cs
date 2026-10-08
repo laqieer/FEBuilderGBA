@@ -11,6 +11,7 @@
 //
 // ROM-backed tests skip when FE8U.gba is unavailable (matching the codebase
 // pattern). Control-presence tests run without a ROM.
+using Avalonia;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -20,6 +21,7 @@ using Avalonia.Headless.XUnit;
 using Avalonia.LogicalTree;
 using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
+using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Core;
@@ -114,6 +116,38 @@ public class ImageUnitWaitIconViewTests : IClassFixture<RomFixture>
         Assert.Contains("ImageUnitWaitIcon_W0_Input", ids);
         Assert.Contains("ImageUnitWaitIcon_W2_Input", ids);
         Assert.Contains("ImageUnitWaitIcon_P4_Input", ids);
+    }
+
+    [AvaloniaFact]
+    public void Initial_Host_Layout_Keeps_Bottom_Toolbar_Visible()
+    {
+        var view = new ImageUnitWaitIconView();
+        var host = new EditorHostWindow(view);
+        host.Show();
+        try
+        {
+            host.UpdateLayout();
+            view.UpdateLayout();
+
+            var importButton = Assert.IsType<Button>(
+                CollectAutomationIds(view)
+                    .Single(x => x.Id == "ImageUnitWaitIcon_Import_Button").Control);
+            Assert.Equal(SizeToContent.Manual, host.SizeToContent);
+            Assert.True(importButton.IsVisible);
+            Assert.True(importButton.Bounds.Height > 0,
+                "The import button must have a visible layout size on the editor's first display.");
+
+            var toolbarBottom = importButton.TranslatePoint(
+                new Point(0, importButton.Bounds.Height), view);
+            Assert.NotNull(toolbarBottom);
+            Assert.True(toolbarBottom!.Value.Y <= view.Bounds.Height + 0.5,
+                $"The bottom toolbar extends beyond the editor viewport on first display " +
+                $"(bottom={toolbarBottom.Value.Y:F1}, viewport={view.Bounds.Height:F1}).");
+        }
+        finally
+        {
+            host.Close();
+        }
     }
 
     // ====================================================================
