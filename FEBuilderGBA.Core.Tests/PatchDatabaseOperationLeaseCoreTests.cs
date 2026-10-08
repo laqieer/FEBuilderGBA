@@ -134,7 +134,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         Directory.CreateDirectory(selected);
         string fifo = Path.Combine(selected, "fifo");
         Assert.Equal(0, CreateSnapshotFifo(fifo, 0x180));
-        Assert.Equal("refused", RunExistingProbe(fixture.Root, true, snapshot: true));
+        Assert.Equal("refused", RunExistingProbe(fixture.Root, true, expected: "refused", snapshot: true));
         Assert.True(File.Exists(fifo));
     }
 
@@ -210,12 +210,14 @@ public class PatchDatabaseOperationLeaseCoreTests
     [Fact]
     public async Task ExistingProbeOutputCaptureIsBoundedAndContinuesDraining()
     {
-        string content = new('x', ExistingProbeDiagnostics.MaximumOutputChars + 4096);
+        const int outputByteBudget = 8 * 1024;
+        string content = string.Concat(Enumerable.Repeat("é\"\\", outputByteBudget));
         using var reader = new StringReader(content);
 
         var captured = await ExistingProbeDiagnostics.CaptureOutputAsync(reader);
 
-        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars, captured.Text.Length);
+        string encoded = System.Text.Json.JsonSerializer.Serialize(captured.Text);
+        Assert.True(Encoding.UTF8.GetByteCount(encoded) - 2 <= outputByteBudget);
         Assert.True(captured.Truncated);
         Assert.Equal(-1, reader.Peek());
     }
@@ -248,18 +250,18 @@ public class PatchDatabaseOperationLeaseCoreTests
     {
         var primary = new InvalidOperationException("primary failure");
         string report = ExistingProbeDiagnostics.Report("nonzero-exit", 123, TimeSpan.FromMilliseconds(321),
-            new(new string('o', ExistingProbeDiagnostics.MaximumOutputChars), true),
-            new(new string('e', ExistingProbeDiagnostics.MaximumOutputChars), true),
+            new(new string('o', ExistingProbeDiagnostics.MaximumOutputBytes), true),
+            new(new string('e', ExistingProbeDiagnostics.MaximumOutputBytes), true),
             "expected:busy", primary, null, exitCode: 37, hasExited: true, drainsFinished: true);
         using var json = System.Text.Json.JsonDocument.Parse(report);
         var root = json.RootElement;
 
         Assert.Equal(37, root.GetProperty("exitCode").GetInt32());
-        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars,
-            root.GetProperty("stdout").GetProperty("text").GetString()!.Length);
+        Assert.True(Encoding.UTF8.GetByteCount(System.Text.Json.JsonSerializer.Serialize(
+            root.GetProperty("stdout").GetProperty("text").GetString())) - 2 <= 8 * 1024);
         Assert.True(root.GetProperty("stdout").GetProperty("truncated").GetBoolean());
-        Assert.Equal(ExistingProbeDiagnostics.MaximumOutputChars,
-            root.GetProperty("stderr").GetProperty("text").GetString()!.Length);
+        Assert.True(Encoding.UTF8.GetByteCount(System.Text.Json.JsonSerializer.Serialize(
+            root.GetProperty("stderr").GetProperty("text").GetString())) - 2 <= 8 * 1024);
         Assert.True(root.GetProperty("stderr").GetProperty("truncated").GetBoolean());
         Assert.Equal(nameof(InvalidOperationException),
             root.GetProperty("primaryException").GetProperty("type").GetString());
@@ -342,7 +344,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         File.WriteAllText(Path.Combine(root, "existing-reader-result.txt"), result);
     }
 
-    static string RunExistingProbe(string root, bool reader, bool snapshot = false, string expected = "busy")
+    static string RunExistingProbe(string root, bool reader, string expected, bool snapshot = false)
     {
         string result = Path.Combine(root, "existing-reader-result.txt");
         if (File.Exists(result)) File.Delete(result);
@@ -554,7 +556,7 @@ public class PatchDatabaseOperationLeaseCoreTests
 
     static class ExistingProbeDiagnostics
     {
-        internal const int MaximumOutputChars = 8 * 1024;
+        internal const int MaximumOutputBytes = 8 * 1024;
         internal const int MaximumMarkerBytes = 64;
         const int MaximumPostKillWaitMs = 5_000;
         const int MaximumExceptionMessageChars = 1_024;
@@ -564,15 +566,27 @@ public class PatchDatabaseOperationLeaseCoreTests
 
         internal static async Task<CapturedOutput> CaptureOutputAsync(TextReader reader)
         {
-            var output = new StringBuilder(MaximumOutputChars);
+            var output = new StringBuilder(MaximumOutputBytes);
             var buffer = new char[1_024];
+            int encodedBytes = 0;
             bool truncated = false;
             int count;
             while ((count = await reader.ReadAsync(buffer, 0, buffer.Length).ConfigureAwait(false)) != 0)
             {
-                int retained = Math.Min(count, MaximumOutputChars - output.Length);
-                if (retained > 0) output.Append(buffer, 0, retained);
-                if (retained != count) truncated = true;
+                for (int i = 0; i < count; i++)
+                {
+                    int characterBytes = System.Text.Json.JsonEncodedText.Encode(buffer[i].ToString())
+                        .EncodedUtf8Bytes.Length;
+                    if (encodedBytes + characterBytes <= MaximumOutputBytes)
+                    {
+                        output.Append(buffer[i]);
+                        encodedBytes += characterBytes;
+                    }
+                    else
+                    {
+                        truncated = true;
+                    }
+                }
             }
             return new CapturedOutput(output.ToString(), truncated);
         }
@@ -679,12 +693,11 @@ public class PatchDatabaseOperationLeaseCoreTests
             CapturedOutput stderr, string marker, Exception? primary, Exception? cleanup,
             int? exitCode = null, bool? hasExited = null, bool? drainsFinished = null, Exception? drainFailure = null)
         {
-            static string Text(CapturedOutput capture) =>
-                System.Text.Json.JsonSerializer.Serialize(new
-                {
-                    text = capture.Text ?? "",
-                    truncated = capture.Truncated,
-                });
+            static object Text(CapturedOutput capture) => new
+            {
+                text = capture.Text ?? "",
+                truncated = capture.Truncated,
+            };
 
             static object? ExceptionInfo(Exception? exception) => exception == null ? null : new
             {
