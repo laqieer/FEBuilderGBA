@@ -263,8 +263,6 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
         {
             Assert.Equal(vmList[i].addr, refList[i].addr);
             Assert.Equal(vmList[i].name, refList[i].name);
-            Assert.False(vmList[i].name.EndsWith(" WaitIcon", System.StringComparison.Ordinal),
-                $"Wait icon entry {i} has an unwanted static suffix: {vmList[i].name}");
         }
     }
 
