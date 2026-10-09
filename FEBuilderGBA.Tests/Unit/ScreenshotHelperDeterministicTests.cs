@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text.RegularExpressions;
 
 namespace FEBuilderGBA.Tests.Unit
 {
@@ -35,10 +36,106 @@ namespace FEBuilderGBA.Tests.Unit
         }
 
         [Fact]
-        public void ScreenshotHelper_DeterministicHasNoTimestamp()
-        {
-            string source = ScreenshotHelperSource;
+        public void ScreenshotHelper_DeterministicHasNoTimestamp() =>
+            AssertDeterministicCaptureContract(ScreenshotHelperSource);
 
+        [Theory]
+        [InlineData("private static void RequireOwnedWindow")]
+        [InlineData("private static CaptureProcessIdentity RequireOwnedWindow")]
+        [InlineData("private static CaptureProcessIdentity RequireCaptureAdmission")]
+        [InlineData("internal static string AnotherHelper")]
+        [InlineData("public static string AnotherHelper")]
+        public void DeterministicContract_ScopesCaptureIndependentlyOfFollowingMember(string declaration)
+        {
+            AssertDeterministicCaptureContract(CreateCaptureSource(declaration));
+        }
+
+        [Theory]
+        [InlineData(false, true)]
+        [InlineData(true, false)]
+        [InlineData(false, false)]
+        public void DeterministicContract_RejectsFilenameRulesOnlyInFollowingMember(
+            bool hasSuffix, bool hasPath)
+        {
+            string source = CreateCaptureSource(
+                "private static void RequireOwnedWindow", hasSuffix, hasPath);
+
+            Assert.Throws<Xunit.Sdk.ContainsException>(() => AssertDeterministicCaptureContract(source));
+        }
+
+        [Fact]
+        public void DeterministicContract_RejectsTimestampedWrapper()
+        {
+            string source = CreateCaptureSource("private static void RequireOwnedWindow")
+                .Replace("OutputDirectory, false,", "OutputDirectory, true,", StringComparison.Ordinal);
+
+            Assert.Throws<Xunit.Sdk.ContainsException>(() => AssertDeterministicCaptureContract(source));
+        }
+
+        [Theory]
+        [InlineData("FormSmokeTests.cs")]
+        [InlineData("WinFormsScreenshotAllTests.cs")]
+        public void ToolbarCapture_KeepsIndependentAllHandleLifecycleBaseline(string fileName)
+        {
+            string source = File.ReadAllText(Path.Combine(
+                SolutionDir, "FEBuilderGBA.E2ETests", "Tests", fileName));
+            string loop = ToolInitWizardDownloadRouteTests.ExtractMethodBody(
+                source, "foreach (var (btnHWnd, btnText) in buttons)");
+            AssertToolbarCaptureBaselines(loop);
+        }
+
+        [Theory]
+        [InlineData("GetCaptureWindows")]
+        [InlineData("GetProcessWindows")]
+        public void ToolbarCapture_RejectsSnapshotAfterClick(string lateProbe)
+        {
+            const string captureSnapshot =
+                "var beforeCapture = new HashSet<IntPtr>(WinAutomation.GetCaptureWindows(_process.Id));";
+            const string lifecycleSnapshot =
+                "var keepLifecycle = new HashSet<IntPtr>(WinAutomation.GetProcessWindows(_process.Id));";
+            string lateSnapshot = lateProbe == "GetCaptureWindows" ? captureSnapshot : lifecycleSnapshot;
+            string earlySnapshot = lateProbe == "GetCaptureWindows" ? lifecycleSnapshot : captureSnapshot;
+            string loop = earlySnapshot + """
+
+                WinAutomation.ClickButton(btnHWnd);
+                """ + lateSnapshot + """
+
+                WinAutomation.WaitForNewCaptureWindows(_process.Id, beforeCapture, 1000);
+                WinAutomation.CloseUnexpectedWindows(_process.Id, keepLifecycle);
+                """;
+
+            Assert.Throws<Xunit.Sdk.TrueException>(() => AssertToolbarCaptureBaselines(loop));
+        }
+
+        private static void AssertToolbarCaptureBaselines(string loop)
+        {
+            Match capture = Regex.Match(loop,
+                @"WaitForNewCaptureWindows\(\s*_process\.Id,\s*(?<baseline>\w+)\s*,");
+            Match cleanup = Regex.Match(loop,
+                @"CloseUnexpectedWindows\(\s*_process\.Id,\s*(?<baseline>\w+)\s*\)");
+
+            Assert.True(capture.Success, "Capture discovery baseline not found.");
+            Assert.True(cleanup.Success, "Lifecycle cleanup baseline not found.");
+            string captureSet = capture.Groups["baseline"].Value;
+            string lifecycleSet = cleanup.Groups["baseline"].Value;
+            Assert.NotEqual(captureSet, lifecycleSet);
+
+            MatchCollection snapshots = Regex.Matches(loop,
+                @"var\s+(?<name>\w+)\s*=\s*new\s+HashSet<IntPtr>\(WinAutomation\." +
+                @"(?<probe>GetCaptureWindows|GetProcessWindows)\(_process\.Id\)\);");
+            Match captureSnapshot = Assert.Single(
+                snapshots, snapshot => snapshot.Groups["name"].Value == captureSet);
+            Match lifecycleSnapshot = Assert.Single(
+                snapshots, snapshot => snapshot.Groups["name"].Value == lifecycleSet);
+            Assert.Equal("GetCaptureWindows", captureSnapshot.Groups["probe"].Value);
+            Assert.Equal("GetProcessWindows", lifecycleSnapshot.Groups["probe"].Value);
+            int clickIndex = loop.IndexOf("WinAutomation.ClickButton(", StringComparison.Ordinal);
+            Assert.True(captureSnapshot.Index < clickIndex);
+            Assert.True(lifecycleSnapshot.Index < clickIndex);
+        }
+
+        private static void AssertDeterministicCaptureContract(string source)
+        {
             int methodStart = source.IndexOf("public static string CaptureWindowDeterministic(",
                 StringComparison.Ordinal);
             Assert.True(methodStart >= 0, "CaptureWindowDeterministic method not found");
@@ -52,15 +149,48 @@ namespace FEBuilderGBA.Tests.Unit
 
             int captureStart = source.IndexOf("internal static string CaptureWindow(", StringComparison.Ordinal);
             Assert.True(captureStart >= 0, "Shared CaptureWindow implementation not found");
-            int captureEnd = source.IndexOf("private static void RequireOwnedWindow(",
-                captureStart, StringComparison.Ordinal);
-            Assert.True(captureEnd > captureStart, "Shared CaptureWindow implementation boundary not found");
-            string captureBody = source.Substring(captureStart, captureEnd - captureStart);
+            string captureBody = ToolInitWizardDownloadRouteTests.ExtractMethodBody(
+                source, "internal static string CaptureWindow(");
 
             Assert.Contains("string suffix = timestamp ? $\"_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}\" : \"\";",
                 captureBody);
             Assert.Contains("string path = Path.Combine(outputDir, $\"{SanitizeFileName(name)}{suffix}.png\");",
                 captureBody);
+        }
+
+        private static string CreateCaptureSource(
+            string followingDeclaration, bool hasSuffix = true, bool hasPath = true)
+        {
+            const string suffix =
+                "string suffix = timestamp ? $\"_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}\" : \"\";";
+            const string path =
+                "string path = Path.Combine(outputDir, $\"{SanitizeFileName(name)}{suffix}.png\");";
+
+            return $$"""
+                public static string CaptureWindowDeterministic(
+                    Process process, IntPtr hWnd, string name, string? outputDir = null) =>
+                    CaptureWindow(process, hWnd, name, outputDir ?? OutputDirectory, false,
+                        probe, native);
+
+                internal static string CaptureWindow(
+                    Process process, IntPtr hWnd, string name, string outputDir, bool timestamp)
+                {
+                    string text = "} private static void RequireOwnedWindow(";
+                    char brace = '{';
+                    // } unmatched comment brace
+                    /* { unmatched comment brace */
+                    if (timestamp) { text = "nested"; }
+                    {{(hasSuffix ? suffix : "")}}
+                    {{(hasPath ? path : "")}}
+                    return path;
+                }
+
+                {{followingDeclaration}}()
+                {
+                    {{suffix}}
+                    {{path}}
+                }
+                """;
         }
 
         [Fact]
