@@ -390,7 +390,7 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
             Assert.True(rom.LoadLow("synthetic-wait-icons.gba", bytes, "BE8E01"));
             CoreState.ROM = rom;
 
-            const uint tableBase = 0x1000;
+            const uint tableBase = 0x01000000;
             rom.write_p32(rom.RomInfo.unit_wait_icon_pointer, tableBase);
             rom.write_p32(tableBase + 4, 0x2000);
 
@@ -406,6 +406,45 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
         finally
         {
             CoreState.ROM = previousRom;
+        }
+    }
+
+    [Fact]
+    public void UnitWaitIconLabels_AppendOwningClassName_WhenClassOwnsEntry()
+    {
+        if (!_rom.IsAvailable) return;
+
+        ROM? previousRom = CoreState.ROM;
+        try
+        {
+            ROM rom = _rom.ROM!;
+            CoreState.ROM = rom;
+            NameResolver.ClearCache();
+
+            var vmList = new ImageUnitWaitIconViewModel().LoadList();
+            var refList = ListParityHelper.BuildReferenceList("ImageUnitWaitIconView");
+
+            Assert.NotNull(refList);
+            int ownedIndex = -1;
+            string className = string.Empty;
+            for (int i = 0; i < vmList.Count; i++)
+            {
+                string candidate = FEBuilderGBA.Core.ClassFormCore.GetClassNameWhereWaitIconId(rom, (uint)i);
+                if (string.IsNullOrEmpty(candidate)) continue;
+                ownedIndex = i;
+                className = candidate;
+                break;
+            }
+
+            Assert.True(ownedIndex >= 0, "The fixture ROM should contain a wait icon owned by a named class.");
+            string expectedLabel = U.ToHexString((uint)ownedIndex) + U.SA(className);
+            Assert.Equal(expectedLabel, vmList[ownedIndex].name);
+            Assert.Equal(expectedLabel, refList[ownedIndex].name);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+            NameResolver.ClearCache();
         }
     }
 

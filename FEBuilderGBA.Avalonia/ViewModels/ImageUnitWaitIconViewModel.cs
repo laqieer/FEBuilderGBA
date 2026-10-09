@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
