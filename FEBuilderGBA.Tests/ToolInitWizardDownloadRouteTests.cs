@@ -98,7 +98,7 @@ namespace FEBuilderGBA.Tests
             return count;
         }
 
-        static string ExtractMethodBody(
+        internal static string ExtractMethodBody(
             string source,
             string signature)
         {
