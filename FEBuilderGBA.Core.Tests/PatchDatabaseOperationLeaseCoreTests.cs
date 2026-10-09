@@ -277,11 +277,34 @@ public class PatchDatabaseOperationLeaseCoreTests
             "captured-prefix", false, new IOException("synthetic read failure")));
         var complete = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput("", false));
 
-        Exception? failure = await ExistingProbeDiagnostics.MonitorDrainFailureAsync(
-            failed, complete, () => stopped = true);
+        ExistingProbeDiagnostics.DrainMonitorResult monitor = await ExistingProbeDiagnostics.MonitorDrainFailureAsync(
+            failed, complete, () =>
+            {
+                stopped = true;
+                return true;
+            });
 
-        Assert.IsType<IOException>(failure);
+        Assert.IsType<IOException>(monitor.Failure);
         Assert.True(stopped);
+        Assert.True(monitor.ProcessStopped);
+        Assert.Equal("drain-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 137, marker: "missing", expected: "busy",
+            drainFailure: monitor.Failure, drainsFinished: false, drainStoppedProcess: monitor.ProcessStopped));
+        Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
+            timedOut: false, waitFailure: null, exitCode: 137, monitor.Failure,
+            drainStoppedProcess: monitor.ProcessStopped);
+        Assert.IsType<IOException>(primary);
+
+        string report = ExistingProbeDiagnostics.Report("drain-failure", 123, TimeSpan.FromMilliseconds(321),
+            default, default, "missing", primary, null, exitCode: 137, hasExited: true,
+            drainsFinished: false, drainFailure: monitor.Failure,
+            drainMonitorStoppedProcess: monitor.ProcessStopped);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        var root = json.RootElement;
+        Assert.Equal(137, root.GetProperty("exitCode").GetInt32());
+        Assert.True(root.GetProperty("drainMonitorStoppedProcess").GetBoolean());
+        Assert.Equal(nameof(IOException), root.GetProperty("primaryException").GetProperty("type").GetString());
+        Assert.Equal(nameof(IOException), root.GetProperty("drainException").GetProperty("type").GetString());
     }
 
     [Theory]
@@ -331,15 +354,27 @@ public class PatchDatabaseOperationLeaseCoreTests
     }
 
     [Fact]
-    public void ExistingProbeNonzeroExitRemainsPrimaryWhenDrainFails()
+    public async Task ExistingProbeNonzeroExitRemainsPrimaryWhenDrainFailsAfterChildExit()
     {
         const int childExitCode = 37;
-        var drainFailure = new IOException("synthetic drain failure");
+        var failed = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput(
+            "captured-prefix", false, new IOException("synthetic drain failure")));
+        var complete = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput("", false));
+        ExistingProbeDiagnostics.DrainMonitorResult monitor = await ExistingProbeDiagnostics.MonitorDrainFailureAsync(
+            failed, complete, () => false);
+        Assert.IsType<IOException>(monitor.Failure);
+        Assert.False(monitor.ProcessStopped);
+
         Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
-            timedOut: false, waitFailure: null, exitCode: childExitCode, drainFailure);
+            timedOut: false, waitFailure: null, exitCode: childExitCode, monitor.Failure,
+            drainStoppedProcess: monitor.ProcessStopped);
+        Assert.Equal("nonzero-exit", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: childExitCode, marker: "missing", expected: "busy",
+            monitor.Failure, drainsFinished: false, drainStoppedProcess: monitor.ProcessStopped));
         string report = ExistingProbeDiagnostics.Report("nonzero-exit", 123, TimeSpan.FromMilliseconds(321),
             default, default, "expected:busy", primary, null, exitCode: childExitCode,
-            hasExited: true, drainsFinished: false, drainFailure);
+            hasExited: true, drainsFinished: false, drainFailure: monitor.Failure,
+            drainMonitorStoppedProcess: monitor.ProcessStopped);
         using var json = System.Text.Json.JsonDocument.Parse(report);
         var root = json.RootElement;
 
@@ -648,6 +683,7 @@ public class PatchDatabaseOperationLeaseCoreTests
         const int MaximumExceptionStackChars = 2_048;
 
         internal readonly record struct CapturedOutput(string Text, bool Truncated, Exception? Failure = null);
+        internal readonly record struct DrainMonitorResult(Exception? Failure, bool ProcessStopped);
 
         internal static async Task<CapturedOutput> CaptureOutputAsync(TextReader reader)
         {
@@ -712,27 +748,31 @@ public class PatchDatabaseOperationLeaseCoreTests
         }
 
         internal static string Outcome(bool timedOut, Exception? waitFailure, int? exitCode,
-            string marker, string expected, Exception? drainFailure, bool drainsFinished)
+            string marker, string expected, Exception? drainFailure, bool drainsFinished,
+            bool drainStoppedProcess = false)
         {
             return timedOut ? "timeout" :
                 waitFailure != null ? "wait-failure" :
+                drainStoppedProcess ? "drain-failure" :
                 exitCode is { } code && code != 0 ? "nonzero-exit" :
                 drainFailure != null || !drainsFinished ? "drain-failure" :
                 exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
         }
 
         internal static Exception SelectPrimaryFailure(bool timedOut, Exception? waitFailure,
-            int? exitCode, Exception? drainFailure) =>
+            int? exitCode, Exception? drainFailure, bool drainStoppedProcess = false) =>
             timedOut
                 ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
                 : waitFailure ??
-                    (exitCode is { } code && code != 0
+                    (drainStoppedProcess
+                        ? drainFailure ?? new InvalidOperationException("Output draining failed and the native probe was stopped.")
+                        : exitCode is { } code && code != 0
                         ? new InvalidOperationException($"Existing reader native probe exited with code {code}.")
                         : drainFailure ??
                             new InvalidOperationException("Existing reader native probe did not complete successfully."));
 
-        internal static async Task<Exception?> MonitorDrainFailureAsync(
-            Task<CapturedOutput> stdout, Task<CapturedOutput> stderr, Action stopProcess)
+        internal static async Task<DrainMonitorResult> MonitorDrainFailureAsync(
+            Task<CapturedOutput> stdout, Task<CapturedOutput> stderr, Func<bool> stopProcess)
         {
             var pending = new List<Task<CapturedOutput>> { stdout, stderr };
             while (pending.Count > 0)
@@ -745,11 +785,12 @@ public class PatchDatabaseOperationLeaseCoreTests
                     : completed.IsCanceled ? new TaskCanceledException() : completed.Result.Failure;
                 if (failure == null) continue;
 
-                try { stopProcess(); }
+                bool processStopped = false;
+                try { processStopped = stopProcess(); }
                 catch { }
-                return failure;
+                return new DrainMonitorResult(failure, processStopped);
             }
-            return null;
+            return new DrainMonitorResult(null, false);
         }
 
         static Exception? CaptureFailure(Task<CapturedOutput> task)
@@ -807,13 +848,16 @@ public class PatchDatabaseOperationLeaseCoreTests
                 Task<CapturedOutput> stdout = CaptureOutputAsync(process.StandardOutput);
                 Task<CapturedOutput> stderr = CaptureOutputAsync(process.StandardError);
                 Exception? killFailure = null;
-                Task<Exception?> drainMonitor = MonitorDrainFailureAsync(stdout, stderr, () =>
+                Task<DrainMonitorResult> drainMonitor = MonitorDrainFailureAsync(stdout, stderr, () =>
                 {
                     try
                     {
-                        if (!process.HasExited) process.Kill(entireProcessTree: true);
+                        if (process.HasExited) return false;
+                        process.Kill(entireProcessTree: true);
+                        return true;
                     }
                     catch (Exception ex) { killFailure ??= ex; }
+                    return false;
                 });
                 bool exited;
                 Exception? waitFailure = null;
@@ -844,6 +888,7 @@ public class PatchDatabaseOperationLeaseCoreTests
 
                 bool drainsFinished = false;
                 Exception? drainFailure = null;
+                bool drainStoppedProcess = false;
                 try
                 {
                     drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, MaximumPostKillWaitMs);
@@ -856,7 +901,11 @@ public class PatchDatabaseOperationLeaseCoreTests
                         if (!drainMonitor.Wait(MaximumPostKillWaitMs))
                             drainFailure = new TimeoutException("Native probe drain status was not observed within the bounded wait.");
                         else
-                            drainFailure = drainMonitor.GetAwaiter().GetResult();
+                        {
+                            ExistingProbeDiagnostics.DrainMonitorResult monitor = drainMonitor.GetAwaiter().GetResult();
+                            drainFailure = monitor.Failure;
+                            drainStoppedProcess = monitor.ProcessStopped;
+                        }
                         drainsFinished = drainFailure == null;
                     }
                 }
@@ -864,6 +913,8 @@ public class PatchDatabaseOperationLeaseCoreTests
                 {
                     drainFailure = CaptureFailure(stdout) ?? CaptureFailure(stderr) ??
                         ex.GetBaseException();
+                    if (drainMonitor.IsCompletedSuccessfully)
+                        drainStoppedProcess = drainMonitor.Result.ProcessStopped;
                     drainsFinished = false;
                 }
                 timer.Stop();
@@ -871,19 +922,21 @@ public class PatchDatabaseOperationLeaseCoreTests
                 var capturedError = stderr.IsCompletedSuccessfully ? stderr.Result : default;
                 string marker = ReadMarker(() => File.OpenRead(resultPath), expected);
                 string outcome = Outcome(timedOut, waitFailure, exitCode, marker, expected,
-                    drainFailure, drainsFinished);
+                    drainFailure, drainsFinished, drainStoppedProcess);
                 if (outcome == "success") return expected;
 
-                Exception primary = SelectPrimaryFailure(timedOut, waitFailure, exitCode, drainFailure);
+                Exception primary = SelectPrimaryFailure(timedOut, waitFailure, exitCode, drainFailure,
+                    drainStoppedProcess);
                 throw new InvalidOperationException(Report(outcome, pid, timer.Elapsed,
                     capturedOut, capturedError, marker, primary, killFailure,
-                    exitCode, hasExited, drainsFinished, drainFailure), primary);
+                    exitCode, hasExited, drainsFinished, drainFailure, drainStoppedProcess), primary);
             }
         }
 
         internal static string Report(string outcome, int? pid, TimeSpan elapsed, CapturedOutput stdout,
             CapturedOutput stderr, string marker, Exception? primary, Exception? cleanup,
-            int? exitCode = null, bool? hasExited = null, bool? drainsFinished = null, Exception? drainFailure = null)
+            int? exitCode = null, bool? hasExited = null, bool? drainsFinished = null, Exception? drainFailure = null,
+            bool drainMonitorStoppedProcess = false)
         {
             static object Text(CapturedOutput capture) => new
             {
@@ -907,6 +960,7 @@ public class PatchDatabaseOperationLeaseCoreTests
                 exitCode,
                 hasExited,
                 outputDrainsFinished = drainsFinished,
+                drainMonitorStoppedProcess,
                 stdout = Text(stdout),
                 stderr = Text(stderr),
                 resultMarker = marker,
