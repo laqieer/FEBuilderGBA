@@ -760,16 +760,18 @@ public class PatchDatabaseOperationLeaseCoreTests
         }
 
         internal static Exception SelectPrimaryFailure(bool timedOut, Exception? waitFailure,
-            int? exitCode, Exception? drainFailure, bool drainStoppedProcess = false) =>
-            timedOut
-                ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
-                : waitFailure ??
-                    (drainStoppedProcess
-                        ? drainFailure ?? new InvalidOperationException("Output draining failed and the native probe was stopped.")
-                        : exitCode is { } code && code != 0
-                        ? new InvalidOperationException($"Existing reader native probe exited with code {code}.")
-                        : drainFailure ??
-                            new InvalidOperationException("Existing reader native probe did not complete successfully."));
+            int? exitCode, Exception? drainFailure, bool drainStoppedProcess = false)
+        {
+            if (timedOut)
+                return new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.");
+            if (waitFailure != null) return waitFailure;
+            if (drainStoppedProcess)
+                return drainFailure ?? new InvalidOperationException("Output draining failed and the native probe was stopped.");
+            if (exitCode is { } code && code != 0)
+                return new InvalidOperationException($"Existing reader native probe exited with code {code}.");
+            return drainFailure ??
+                new InvalidOperationException("Existing reader native probe did not complete successfully.");
+        }
 
         internal static async Task<DrainMonitorResult> MonitorDrainFailureAsync(
             Task<CapturedOutput> stdout, Task<CapturedOutput> stderr, Func<bool> stopProcess)
