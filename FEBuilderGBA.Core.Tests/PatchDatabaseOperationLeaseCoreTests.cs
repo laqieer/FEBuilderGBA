@@ -331,6 +331,29 @@ public class PatchDatabaseOperationLeaseCoreTests
     }
 
     [Fact]
+    public void ExistingProbeNonzeroExitRemainsPrimaryWhenDrainFails()
+    {
+        const int childExitCode = 37;
+        var drainFailure = new IOException("synthetic drain failure");
+        Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
+            timedOut: false, waitFailure: null, exitCode: childExitCode, drainFailure);
+        string report = ExistingProbeDiagnostics.Report("nonzero-exit", 123, TimeSpan.FromMilliseconds(321),
+            default, default, "expected:busy", primary, null, exitCode: childExitCode,
+            hasExited: true, drainsFinished: false, drainFailure);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        var root = json.RootElement;
+
+        Assert.Equal("nonzero-exit", root.GetProperty("outcome").GetString());
+        Assert.Equal(childExitCode, root.GetProperty("exitCode").GetInt32());
+        Assert.Equal(nameof(InvalidOperationException), primary.GetType().Name);
+        Assert.Contains(childExitCode.ToString(), primary.Message);
+        Assert.Equal(nameof(IOException),
+            root.GetProperty("drainException").GetProperty("type").GetString());
+        Assert.Equal(nameof(InvalidOperationException),
+            root.GetProperty("primaryException").GetProperty("type").GetString());
+    }
+
+    [Fact]
     public void ExistingProbeFailurePreservesActualNonzeroExitAndMissingMarker()
     {
         var start = new ProcessStartInfo("dotnet")
@@ -698,6 +721,16 @@ public class PatchDatabaseOperationLeaseCoreTests
                 exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
         }
 
+        internal static Exception SelectPrimaryFailure(bool timedOut, Exception? waitFailure,
+            int? exitCode, Exception? drainFailure) =>
+            timedOut
+                ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
+                : waitFailure ??
+                    (exitCode is { } code && code != 0
+                        ? new InvalidOperationException($"Existing reader native probe exited with code {code}.")
+                        : drainFailure ??
+                            new InvalidOperationException("Existing reader native probe did not complete successfully."));
+
         internal static async Task<Exception?> MonitorDrainFailureAsync(
             Task<CapturedOutput> stdout, Task<CapturedOutput> stderr, Action stopProcess)
         {
@@ -841,10 +874,7 @@ public class PatchDatabaseOperationLeaseCoreTests
                     drainFailure, drainsFinished);
                 if (outcome == "success") return expected;
 
-                Exception primary = timedOut
-                    ? new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.")
-                    : waitFailure ?? drainFailure ??
-                        new InvalidOperationException("Existing reader native probe did not complete successfully.");
+                Exception primary = SelectPrimaryFailure(timedOut, waitFailure, exitCode, drainFailure);
                 throw new InvalidOperationException(Report(outcome, pid, timer.Elapsed,
                     capturedOut, capturedError, marker, primary, killFailure,
                     exitCode, hasExited, drainsFinished, drainFailure), primary);
