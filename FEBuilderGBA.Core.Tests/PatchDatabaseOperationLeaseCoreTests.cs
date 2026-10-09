@@ -246,9 +246,24 @@ public class PatchDatabaseOperationLeaseCoreTests
         Assert.Equal("prefix\uFFFDsuffix", replaced.Text);
         Assert.Null(replaced.Failure);
 
-        var failed = await ExistingProbeDiagnostics.CaptureOutputAsync(new ThrowAfterPrefixReader("captured-prefix"));
-        Assert.Equal("captured-prefix", failed.Text);
+        var failed = await ExistingProbeDiagnostics.CaptureOutputAsync(
+            new ThrowAfterPrefixReader("captured-prefix" + '\uD83D'));
+        Assert.Equal("captured-prefix\uFFFD", failed.Text);
         Assert.IsType<IOException>(failed.Failure);
+    }
+
+    [Fact]
+    public void ExistingProbeFailureReportDoesNotSplitAstralScalarsWhenTruncatingExceptionMessage()
+    {
+        const int maximumExceptionMessageChars = 1_024;
+        string astral = char.ConvertFromUtf32(0x1F600);
+        string message = new string('x', maximumExceptionMessageChars - 1) + astral + "suffix";
+        string report = ExistingProbeDiagnostics.Report("wait-failure", null, TimeSpan.Zero,
+            new("", false), new("", false), "missing", new InvalidOperationException(message), null);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+
+        Assert.Equal(new string('x', maximumExceptionMessageChars - 1) + "[truncated]",
+            json.RootElement.GetProperty("primaryException").GetProperty("message").GetString());
     }
 
     [Fact]
@@ -854,13 +869,13 @@ public class PatchDatabaseOperationLeaseCoreTests
                         else AppendScalar(current.ToString());
                     }
                 }
-                if (pendingHighSurrogate.HasValue) AppendScalar("\uFFFD");
             }
             catch (Exception ex)
             {
                 failure = ex;
             }
 
+            if (pendingHighSurrogate.HasValue) AppendScalar("\uFFFD");
             return new CapturedOutput(output.ToString(), truncated, failure);
         }
 
@@ -1067,8 +1082,12 @@ public class PatchDatabaseOperationLeaseCoreTests
             });
         }
 
-        static string Prefix(string value, int maximum) =>
-            value.Length <= maximum ? value : value[..maximum] + "[truncated]";
+        static string Prefix(string value, int maximum)
+        {
+            if (value.Length <= maximum) return value;
+            int length = char.IsHighSurrogate(value[maximum - 1]) ? maximum - 1 : maximum;
+            return value[..length] + "[truncated]";
+        }
     }
 
     sealed class ThrowAfterPrefixReader(string prefix) : TextReader
