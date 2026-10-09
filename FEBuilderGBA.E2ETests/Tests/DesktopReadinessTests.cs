@@ -464,6 +464,26 @@ public class DesktopReadinessTests
         Assert.Empty(native.Surfaces);
     }
 
+    [Fact]
+    public void Capture_AdmissionFailureOnRetryDoesNotReportPriorAttemptDetails()
+    {
+        using var process = new Process();
+        var native = new CaptureNative { PrintResults = new(new[] { false, false }) };
+
+        var failure = Assert.Throws<WindowCaptureException>(() =>
+            Capture(process, native, Ready, _ => native.Failure = "foreign"));
+
+        Assert.Contains("PID=unknown", failure.Message);
+        Assert.Contains("dimensions=unknown, attempt 2/3", failure.Message);
+        Assert.Equal(1, native.BoundsQueries);
+        Assert.Equal(2, native.Prints);
+        Assert.All(native.Surfaces, surface =>
+        {
+            Assert.Equal(0, surface.Saves);
+            Assert.Equal(1, surface.Disposals);
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

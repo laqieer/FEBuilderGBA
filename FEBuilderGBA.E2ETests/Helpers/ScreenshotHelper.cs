@@ -87,6 +87,9 @@ namespace FEBuilderGBA.E2ETests.Helpers
                 string transientFailure = "";
                 for (; attempt <= MaxCaptureAttempts; attempt++)
                 {
+                    processId = null;
+                    width = height = 0;
+                    measured = false;
                     processId = RequireCaptureAdmission(process, hWnd, probe, native).ProcessId;
                     (width, height) = native.GetWindowSize(hWnd);
                     measured = true;
