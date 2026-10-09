@@ -291,8 +291,8 @@ public class PatchDatabaseOperationLeaseCoreTests
             timedOut: false, waitFailure: null, exitCode: 137, marker: "missing", expected: "busy",
             drainFailure: monitor.Failure, drainsFinished: false, drainStoppedProcess: monitor.ProcessStopped));
         Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
-            timedOut: false, waitFailure: null, exitCode: 137, monitor.Failure,
-            drainStoppedProcess: monitor.ProcessStopped);
+            timedOut: false, waitFailure: null, exitCode: 137, marker: "missing", expected: "busy",
+            monitor.Failure, drainStoppedProcess: monitor.ProcessStopped);
         Assert.IsType<IOException>(primary);
 
         string report = ExistingProbeDiagnostics.Report("drain-failure", 123, TimeSpan.FromMilliseconds(321),
@@ -366,8 +366,8 @@ public class PatchDatabaseOperationLeaseCoreTests
         Assert.False(monitor.ProcessStopped);
 
         Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
-            timedOut: false, waitFailure: null, exitCode: childExitCode, monitor.Failure,
-            drainStoppedProcess: monitor.ProcessStopped);
+            timedOut: false, waitFailure: null, exitCode: childExitCode, marker: "missing", expected: "busy",
+            monitor.Failure, drainStoppedProcess: monitor.ProcessStopped);
         Assert.Equal("nonzero-exit", ExistingProbeDiagnostics.Outcome(
             timedOut: false, waitFailure: null, exitCode: childExitCode, marker: "missing", expected: "busy",
             monitor.Failure, drainsFinished: false, drainStoppedProcess: monitor.ProcessStopped));
@@ -386,6 +386,39 @@ public class PatchDatabaseOperationLeaseCoreTests
             root.GetProperty("drainException").GetProperty("type").GetString());
         Assert.Equal(nameof(InvalidOperationException),
             root.GetProperty("primaryException").GetProperty("type").GetString());
+    }
+
+    [Fact]
+    public void ExistingProbeMarkerFailureRemainsPrimaryWhenDrainFails()
+    {
+        const string marker = "missing";
+        const string expected = "busy";
+        var drainFailure = new IOException("synthetic drain failure");
+        Assert.Equal("probe-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 0, marker, expected,
+            drainFailure, drainsFinished: false));
+        Assert.Equal("drain-failure", ExistingProbeDiagnostics.Outcome(
+            timedOut: false, waitFailure: null, exitCode: 0, "expected:" + expected, expected,
+            drainFailure, drainsFinished: false));
+        Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
+            timedOut: false, waitFailure: null, exitCode: 0, marker, expected, drainFailure);
+        Assert.IsType<InvalidOperationException>(primary);
+        Assert.Contains(marker, primary.Message);
+        Assert.Same(drainFailure, ExistingProbeDiagnostics.SelectPrimaryFailure(
+            timedOut: false, waitFailure: null, exitCode: 0, "expected:" + expected, expected, drainFailure));
+
+        string report = ExistingProbeDiagnostics.Report("probe-failure", 123, TimeSpan.FromMilliseconds(321),
+            default, default, marker, primary, null, exitCode: 0, hasExited: true, drainsFinished: false,
+            drainFailure: drainFailure);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        var root = json.RootElement;
+
+        Assert.Equal("probe-failure", root.GetProperty("outcome").GetString());
+        Assert.Equal(marker, root.GetProperty("resultMarker").GetString());
+        Assert.Equal(nameof(InvalidOperationException),
+            root.GetProperty("primaryException").GetProperty("type").GetString());
+        Assert.Equal(nameof(IOException),
+            root.GetProperty("drainException").GetProperty("type").GetString());
     }
 
     [Fact]
@@ -755,12 +788,13 @@ public class PatchDatabaseOperationLeaseCoreTests
                 waitFailure != null ? "wait-failure" :
                 drainStoppedProcess ? "drain-failure" :
                 exitCode is { } code && code != 0 ? "nonzero-exit" :
+                exitCode == 0 && marker != "expected:" + expected ? "probe-failure" :
                 drainFailure != null || !drainsFinished ? "drain-failure" :
-                exitCode == 0 && marker == "expected:" + expected ? "success" : "probe-failure";
+                exitCode == 0 ? "success" : "probe-failure";
         }
 
         internal static Exception SelectPrimaryFailure(bool timedOut, Exception? waitFailure,
-            int? exitCode, Exception? drainFailure, bool drainStoppedProcess = false)
+            int? exitCode, string marker, string expected, Exception? drainFailure, bool drainStoppedProcess = false)
         {
             if (timedOut)
                 return new TimeoutException("Existing reader native probe exceeded its unchanged 60,000 ms wait.");
@@ -769,6 +803,9 @@ public class PatchDatabaseOperationLeaseCoreTests
                 return drainFailure ?? new InvalidOperationException("Output draining failed and the native probe was stopped.");
             if (exitCode is { } code && code != 0)
                 return new InvalidOperationException($"Existing reader native probe exited with code {code}.");
+            if (exitCode == 0 && marker != "expected:" + expected)
+                return new InvalidOperationException(
+                    $"Existing reader native probe returned unexpected result marker '{marker}'; expected 'expected:{expected}'.");
             return drainFailure ??
                 new InvalidOperationException("Existing reader native probe did not complete successfully.");
         }
@@ -927,8 +964,8 @@ public class PatchDatabaseOperationLeaseCoreTests
                     drainFailure, drainsFinished, drainStoppedProcess);
                 if (outcome == "success") return expected;
 
-                Exception primary = SelectPrimaryFailure(timedOut, waitFailure, exitCode, drainFailure,
-                    drainStoppedProcess);
+                Exception primary = SelectPrimaryFailure(timedOut, waitFailure, exitCode, marker, expected,
+                    drainFailure, drainStoppedProcess);
                 throw new InvalidOperationException(Report(outcome, pid, timer.Elapsed,
                     capturedOut, capturedError, marker, primary, killFailure,
                     exitCode, hasExited, drainsFinished, drainFailure, drainStoppedProcess), primary);
