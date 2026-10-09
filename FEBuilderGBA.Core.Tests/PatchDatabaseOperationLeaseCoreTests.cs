@@ -307,6 +307,45 @@ public class PatchDatabaseOperationLeaseCoreTests
         Assert.Equal(nameof(IOException), root.GetProperty("drainException").GetProperty("type").GetString());
     }
 
+    [Fact]
+    public async Task ExistingProbeIncompleteDrainRetainsCompletedMonitorFailureAndStopState()
+    {
+        var failed = Task.FromResult(new ExistingProbeDiagnostics.CapturedOutput(
+            "captured-prefix", false, new IOException("synthetic read failure")));
+        var pending = new TaskCompletionSource<ExistingProbeDiagnostics.CapturedOutput>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<ExistingProbeDiagnostics.CapturedOutput> pendingDrain = pending.Task;
+        Task<ExistingProbeDiagnostics.DrainMonitorResult> monitorTask =
+            ExistingProbeDiagnostics.MonitorDrainFailureAsync(failed, pendingDrain, () => true);
+
+        try
+        {
+            Task allDrains = Task.WhenAll(failed, pendingDrain);
+            await Task.WhenAny(allDrains, Task.Delay(10));
+            Assert.False(allDrains.IsCompleted);
+            ExistingProbeDiagnostics.DrainStatus drainStatus = ExistingProbeDiagnostics.CollectDrainStatus(
+                failed, pendingDrain, monitorTask, waitTimeoutMs: 10);
+            ExistingProbeDiagnostics.DrainMonitorResult monitor = await monitorTask;
+
+            Assert.IsType<IOException>(monitor.Failure);
+            Assert.True(monitor.ProcessStopped);
+            Assert.IsType<IOException>(drainStatus.Failure);
+            Assert.True(drainStatus.ProcessStopped);
+            Assert.False(drainStatus.DrainsFinished);
+            Assert.Equal("drain-failure", ExistingProbeDiagnostics.Outcome(
+                timedOut: false, waitFailure: null, exitCode: 137, marker: "missing", expected: "busy",
+                drainStatus.Failure, drainsFinished: false, drainStoppedProcess: drainStatus.ProcessStopped));
+            Exception primary = ExistingProbeDiagnostics.SelectPrimaryFailure(
+                timedOut: false, waitFailure: null, exitCode: 137, marker: "missing", expected: "busy",
+                drainStatus.Failure, drainStoppedProcess: drainStatus.ProcessStopped);
+            Assert.Same(monitor.Failure, primary);
+        }
+        finally
+        {
+            pending.TrySetResult(new ExistingProbeDiagnostics.CapturedOutput("", false));
+        }
+    }
+
     [Theory]
     [InlineData("busy", "busy", "expected:busy")]
     [InlineData("acquired", "acquired", "expected:acquired")]
@@ -717,6 +756,51 @@ public class PatchDatabaseOperationLeaseCoreTests
 
         internal readonly record struct CapturedOutput(string Text, bool Truncated, Exception? Failure = null);
         internal readonly record struct DrainMonitorResult(Exception? Failure, bool ProcessStopped);
+        internal readonly record struct DrainStatus(bool DrainsFinished, Exception? Failure, bool ProcessStopped);
+
+        internal static DrainStatus CollectDrainStatus(Task<CapturedOutput> stdout, Task<CapturedOutput> stderr,
+            Task<DrainMonitorResult> drainMonitor, int waitTimeoutMs)
+        {
+            bool drainsFinished = false;
+            Exception? drainFailure = null;
+            bool drainStoppedProcess = false;
+            try
+            {
+                drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, waitTimeoutMs);
+                if (!drainsFinished)
+                {
+                    drainFailure = new TimeoutException("Native probe output drains did not finish within the bounded post-exit wait.");
+                    if (drainMonitor.IsCompletedSuccessfully)
+                    {
+                        DrainMonitorResult monitor = drainMonitor.Result;
+                        drainFailure = monitor.Failure ?? drainFailure;
+                        drainStoppedProcess = monitor.ProcessStopped;
+                    }
+                }
+                else
+                {
+                    if (!drainMonitor.Wait(waitTimeoutMs))
+                        drainFailure = new TimeoutException("Native probe drain status was not observed within the bounded wait.");
+                    else
+                    {
+                        DrainMonitorResult monitor = drainMonitor.GetAwaiter().GetResult();
+                        drainFailure = monitor.Failure;
+                        drainStoppedProcess = monitor.ProcessStopped;
+                    }
+                    drainsFinished = drainFailure == null;
+                }
+            }
+            catch (Exception ex)
+            {
+                drainFailure = CaptureFailure(stdout) ?? CaptureFailure(stderr) ??
+                    ex.GetBaseException();
+                if (drainMonitor.IsCompletedSuccessfully)
+                    drainStoppedProcess = drainMonitor.Result.ProcessStopped;
+                drainsFinished = false;
+            }
+
+            return new DrainStatus(drainsFinished, drainFailure, drainStoppedProcess);
+        }
 
         internal static async Task<CapturedOutput> CaptureOutputAsync(TextReader reader)
         {
@@ -925,37 +1009,11 @@ public class PatchDatabaseOperationLeaseCoreTests
                     waitFailure ??= ex;
                 }
 
-                bool drainsFinished = false;
-                Exception? drainFailure = null;
-                bool drainStoppedProcess = false;
-                try
-                {
-                    drainsFinished = Task.WaitAll(new Task[] { stdout, stderr }, MaximumPostKillWaitMs);
-                    if (!drainsFinished)
-                    {
-                        drainFailure = new TimeoutException("Native probe output drains did not finish within the bounded post-exit wait.");
-                    }
-                    else
-                    {
-                        if (!drainMonitor.Wait(MaximumPostKillWaitMs))
-                            drainFailure = new TimeoutException("Native probe drain status was not observed within the bounded wait.");
-                        else
-                        {
-                            ExistingProbeDiagnostics.DrainMonitorResult monitor = drainMonitor.GetAwaiter().GetResult();
-                            drainFailure = monitor.Failure;
-                            drainStoppedProcess = monitor.ProcessStopped;
-                        }
-                        drainsFinished = drainFailure == null;
-                    }
-                }
-                catch (Exception ex)
-                {
-                    drainFailure = CaptureFailure(stdout) ?? CaptureFailure(stderr) ??
-                        ex.GetBaseException();
-                    if (drainMonitor.IsCompletedSuccessfully)
-                        drainStoppedProcess = drainMonitor.Result.ProcessStopped;
-                    drainsFinished = false;
-                }
+                ExistingProbeDiagnostics.DrainStatus drainStatus =
+                    CollectDrainStatus(stdout, stderr, drainMonitor, MaximumPostKillWaitMs);
+                bool drainsFinished = drainStatus.DrainsFinished;
+                Exception? drainFailure = drainStatus.Failure;
+                bool drainStoppedProcess = drainStatus.ProcessStopped;
                 timer.Stop();
                 var capturedOut = stdout.IsCompletedSuccessfully ? stdout.Result : default;
                 var capturedError = stderr.IsCompletedSuccessfully ? stderr.Result : default;
