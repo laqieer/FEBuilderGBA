@@ -36,3 +36,26 @@ public class EditorHostWindowTests
         public override EditorDescriptor Descriptor => new("Sized", 10, 20, SizeToContent: global::Avalonia.Controls.SizeToContent.WidthAndHeight);
     }
 }
+
+[Collection("WindowManagerSerial")]
+public class EditorHostWindowTitleKeyTests
+{
+    [AvaloniaFact]
+    public void Uses_explicit_title_key_instead_of_descriptor_title()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+
+        var editor = new ExplicitTitleKeyEditor();
+        var host = new EditorHostWindow(editor);
+
+        Assert.Equal(R._("Item Editor"), host.Title);
+        Assert.NotEqual(editor.Descriptor.Title, host.Title);
+    }
+
+    sealed class ExplicitTitleKeyEditor : TestEmbeddableEditor, IEmbeddableEditor
+    {
+        public override EditorDescriptor Descriptor => new("Literal descriptor", 100, 100);
+        string? IEditorView.TitleKey => "Item Editor";
+    }
+}

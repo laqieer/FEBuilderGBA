@@ -6,7 +6,7 @@ namespace FEBuilderGBA.Avalonia.Services
         public EditorHostWindow(IEmbeddableEditor editor)
         {
             var descriptor = editor.Descriptor;
-            SetTitle(descriptor.Title, editor.TitleKey == null ? null : descriptor.Title);
+            SetTitle(descriptor.Title, editor.TitleKey);
             Width = descriptor.PreferredWidth;
             Height = descriptor.PreferredHeight;
             MinWidth = descriptor.MinWidth;
