@@ -10,6 +10,56 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("SharedState")]
 public class PatchManagerOperationGuardTests
 {
+    readonly Xunit.Abstractions.ITestOutputHelper output;
+    public PatchManagerOperationGuardTests(Xunit.Abstractions.ITestOutputHelper output) => this.output = output;
+
+    [Fact]
+    public void NativeDiagnosticRoundTripRecordsActualTesthostStagesAndRuntime()
+    {
+        using var fixture = new Fixture();
+        using var child = new NativeLeaseProcess(fixture.Root, false);
+        Assert.Equal("acquired", child.Result);
+        child.Dispose();
+        string report = child.DiagnosticSnapshot;
+        Assert.NotNull(child.LauncherPid);
+        int testhostPid = AssertNativeDiagnosticRoundTrip(report, Environment.ProcessId, child.LauncherPid);
+        output.WriteLine($"native-diagnostic-roundtrip: verified; parent-pid={Environment.ProcessId}; launcher-pid={child.LauncherPid}; testhost-pid={testhostPid}; non-testhost-module-entries=retained");
+        output.WriteLine(report);
+    }
+
+    internal static int AssertNativeDiagnosticRoundTrip(string report, int parentPid, int? launcherPid = null)
+    {
+        string[] expected = ["managed-entry", "fixture-start", "fixture-end", "probe-entry",
+            "acquire-start", "acquire-end", "publish-start", "publish-end"];
+        var records = report.Split('\n').Where(line => line.StartsWith("owner-pid=", StringComparison.Ordinal))
+            .Select(line => line.Split("; ").Select(field => field.Split('=', 2))
+                .ToDictionary(field => field[0], field => field[1])).ToArray();
+        Assert.True(records.Length >= expected.Length && records.Length <= NativeProbeDiagnostics.MaximumRecords, report);
+        string? token = null;
+        foreach (var fields in records)
+        {
+            Assert.True(fields["owner-pid"] == parentPid.ToString(System.Globalization.CultureInfo.InvariantCulture), report);
+            Assert.True(int.TryParse(fields["managed-pid"], out int pid) && pid > 0 && pid != parentPid, report);
+            Assert.True(fields["runtime"] != "unknown" && fields["runtime"].Length > 0, report);
+            Assert.True(Version.TryParse(fields["version"], out _), report);
+            Assert.True(Enum.TryParse<System.Runtime.InteropServices.Architecture>(fields["arch"], out _), report);
+            Assert.True(Guid.TryParseExact(fields["launch-token"], "N", out _) &&
+                (token == null || token == fields["launch-token"]), report);
+            token = fields["launch-token"];
+        }
+        var fixtureStarts = records.Where(fields => fields["stage"] == "fixture-start").ToArray();
+        Assert.True(fixtureStarts.Length == 1, report);
+        int testhostPid = int.Parse(fixtureStarts[0]["managed-pid"], System.Globalization.CultureInfo.InvariantCulture);
+        Assert.True(testhostPid != launcherPid, report);
+        var hostRecords = records.Where(fields => fields["managed-pid"] == fixtureStarts[0]["managed-pid"]).ToArray();
+        Assert.True(hostRecords.Select(fields => fields["stage"]).SequenceEqual(expected), report);
+        Assert.True(records.Where(fields => fields["managed-pid"] != fixtureStarts[0]["managed-pid"])
+            .All(fields => fields["stage"] == "managed-entry"), report);
+        Assert.True(hostRecords.All(fields => fields["runtime"] == hostRecords[0]["runtime"] &&
+            fields["version"] == hostRecords[0]["version"] && fields["arch"] == hostRecords[0]["arch"]), report);
+        return testhostPid;
+    }
+
     [Theory]
     [InlineData("en", false)]
     [InlineData("ja", false)]
@@ -338,24 +388,29 @@ public class PatchManagerOperationGuardTests
     {
         string? root = Environment.GetEnvironmentVariable("FEBUILDER_ACTION_LEASE_ROOT");
         if (root == null) return;
-        Assert.StartsWith(Path.Combine(AppContext.BaseDirectory, "TestResults") + Path.DirectorySeparatorChar,
-            Path.GetFullPath(root), StringComparison.OrdinalIgnoreCase);
+        NativeProbeDiagnostics.ValidateLeaseRoot(root);
+        NativeProbeDiagnostics.Mark("probe-entry");
         try
         {
+            NativeProbeDiagnostics.Mark("acquire-start");
             using var lease = PatchDatabaseOperationLeaseCore.Acquire(root);
+            NativeProbeDiagnostics.Mark("acquire-end");
             PublishResult("acquired");
             if (Environment.GetEnvironmentVariable("FEBUILDER_ACTION_LEASE_HOLD") == "1")
                 Assert.True(SpinWait.SpinUntil(() => File.Exists(Path.Combine(root, "native-action-release")), 60_000));
         }
         catch (PatchDatabaseOperationLeaseCore.BusyException)
         {
+            NativeProbeDiagnostics.Mark("acquire-end");
             PublishResult("busy");
         }
         void PublishResult(string result)
         {
+            NativeProbeDiagnostics.Mark("publish-start");
             string path = Path.Combine(root, "native-action-result");
             File.WriteAllText(path + ".pending", result);
             File.Move(path + ".pending", path, true);
+            NativeProbeDiagnostics.Mark("publish-end");
         }
     }
 
@@ -365,6 +420,13 @@ public class PatchManagerOperationGuardTests
         readonly Dependencies dependencies;
         readonly DateTimeOffset launch = DateTimeOffset.UtcNow;
         readonly List<Exception> cleanupErrors = new();
+        readonly List<string> ledger = new();
+        readonly List<Exception> diagnosticErrors = new();
+        readonly System.Diagnostics.Stopwatch clock = System.Diagnostics.Stopwatch.StartNew();
+        readonly string token = Guid.NewGuid().ToString("N");
+        NativeProbeDiagnostics.Session? stages;
+        int? childPid;
+        bool ledgerTruncated, diagnosticErrorsTruncated;
         IChild? process;
         OutputCapture? stdout, stderr;
         DateTimeOffset? exit;
@@ -375,6 +437,8 @@ public class PatchManagerOperationGuardTests
         {
             // Keep the original object/stack without exposing unredacted InnerException text to TRX.
             internal Exception Primary { get; } = primary;
+            public override string? StackTrace => base.StackTrace is { } stack
+                ? NativeProbeDiagnostics.Redact(stack, "", 8_192) : null;
         }
 
         internal interface IChild : IDisposable
@@ -404,6 +468,8 @@ public class PatchManagerOperationGuardTests
 
         internal class Dependencies
         {
+            internal virtual NativeProbeDiagnostics.Session? PrepareDiagnostics(string root, string token) =>
+                NativeProbeDiagnostics.Prepare(root, token, Environment.ProcessId);
             internal virtual int OutputWaitMilliseconds => 1_000;
             internal virtual IChild Start(System.Diagnostics.ProcessStartInfo start) =>
                 new Child(System.Diagnostics.Process.Start(start) ??
@@ -464,7 +530,8 @@ public class PatchManagerOperationGuardTests
             {
                 lock (sync)
                     return text.ToString() + (truncated ? "\n[truncated]" : "") +
-                        (error == null ? "" : "\n[read error: " + error.Message + "]");
+                        (error == null ? "" : "\n[read error: " + NativeProbeDiagnostics.Error(error) + "; " +
+                            error.Message[..Math.Min(error.Message.Length, 256)] + "]");
             }
             internal Exception? ReadError { get { lock (sync) return error; } }
             internal void Close()
@@ -477,8 +544,25 @@ public class PatchManagerOperationGuardTests
         }
 
         string PathFor(string name) => Path.Combine(root, name);
+        void Note(string stage)
+        {
+            if (ledger.Count < 24)
+                ledger.Add($"stage={stage}; elapsed-ticks={clock.ElapsedTicks}; time={DateTimeOffset.UtcNow:O}; pid={childPid?.ToString() ?? "unknown"}");
+            else ledgerTruncated = true;
+        }
+        void Diagnose(Action action)
+        {
+            try { action(); }
+            catch (Exception ex)
+            {
+                if (diagnosticErrors.Count < 4) diagnosticErrors.Add(ex);
+                else diagnosticErrorsTruncated = true;
+            }
+        }
         internal Task OutputCompletion => Task.WhenAll(
             stdout?.Completion ?? Task.CompletedTask, stderr?.Completion ?? Task.CompletedTask);
+        internal int? LauncherPid => childPid;
+        internal string DiagnosticSnapshot => stages?.Snapshot() ?? "child-stages: absent; runtime=unknown";
         internal string Result
         {
             get
@@ -517,14 +601,31 @@ public class PatchManagerOperationGuardTests
             start.ArgumentList.Add(Filter);
             start.Environment["FEBUILDER_ACTION_LEASE_ROOT"] = root;
             start.Environment["FEBUILDER_ACTION_LEASE_HOLD"] = hold ? "1" : "0";
+            NativeProbeDiagnostics.ConfigureTrace(start);
+            foreach (string variable in new[] { NativeProbeDiagnostics.TokenVariable,
+                NativeProbeDiagnostics.DirectoryVariable, NativeProbeDiagnostics.OwnerVariable })
+                start.Environment.Remove(variable);
+            Diagnose(() => stages = dependencies.PrepareDiagnostics(root, token));
+            if (stages != null)
+            {
+                start.Environment[NativeProbeDiagnostics.TokenVariable] = token;
+                start.Environment[NativeProbeDiagnostics.DirectoryVariable] = stages.DirectoryPath;
+                start.Environment[NativeProbeDiagnostics.OwnerVariable] = Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            }
             try
             {
                 dependencies.Delete(PathFor("native-action-result"));
                 dependencies.Delete(PathFor("native-action-release"));
+                Note("before-start");
                 process = dependencies.Start(start);
+                Diagnose(() => childPid = process.Id);
+                Note("after-start");
                 stdout = new OutputCapture(process.StandardOutput);
                 stderr = new OutputCapture(process.StandardError);
-                if (!dependencies.WaitUntil(() => dependencies.Exists(PathFor("native-action-result")) || process.HasExited, 60_000))
+                Note("result-wait-start");
+                bool ready = dependencies.WaitUntil(() => dependencies.Exists(PathFor("native-action-result")) || process.HasExited, 60_000);
+                Note("result-wait-end");
+                if (!ready)
                     throw new TimeoutException("Native result wait timed out.");
                 if (!dependencies.Exists(PathFor("native-action-result")))
                     throw new IOException("No native result.");
@@ -557,18 +658,24 @@ public class PatchManagerOperationGuardTests
             if (disposed) return;
             disposed = true;
             if (process == null) return;
+            Note("release-attempt");
             Attempt(() => dependencies.Release(PathFor("native-action-release")));
             bool exited = false;
+            Note("exit-wait-start");
             Attempt(() => exited = process.WaitForExit(60_000));
+            Note("exit-wait-end");
             if (!exited)
             {
                 cleanupErrors.Add(new TimeoutException("Owned native action probe timed out."));
+                Note("kill-attempt");
                 Attempt(process.Kill);
+                Note("reap-start");
                 Attempt(() =>
                 {
                     exited = process.WaitForExit(5_000);
                     if (!exited) throw new TimeoutException("Owned native probe reap timed out.");
                 });
+                Note("reap-end");
             }
             var captures = new[] { stdout, stderr }.OfType<OutputCapture>().ToArray();
             Attempt(() =>
@@ -583,12 +690,14 @@ public class PatchManagerOperationGuardTests
             }
             // Cache process metadata before disposing the handle.
             processStatus = ProcessStatus();
+            if (processExitCode != null) Note("observed-exit");
             Attempt(() =>
             {
                 if (processExitCode is { } code && code != 0)
                     throw new IOException("Native probe exited with nonzero status.");
             });
             Attempt(process.Dispose);
+            Note("disposed");
         }
 
         string? processStatus;
@@ -611,34 +720,31 @@ public class PatchManagerOperationGuardTests
             }
         }
 
-        string Redact(string text, int limit = 40_000)
-        {
-            foreach (string path in new[] { root, typeof(PatchManagerOperationGuardTests).Assembly.Location,
-                AppContext.BaseDirectory.TrimEnd(Path.DirectorySeparatorChar),
-                Environment.GetFolderPath(Environment.SpecialFolder.UserProfile) })
-            {
-                if (path.Length == 0) continue;
-                text = text.Replace(path, "<owned-path>", StringComparison.OrdinalIgnoreCase)
-                    .Replace(path.Replace('\\', '/'), "<owned-path>", StringComparison.OrdinalIgnoreCase);
-            }
-            return text.Length <= limit ? text : text[..limit] + "\n[diagnostics truncated]";
-        }
+        string Redact(string text, int limit = 40_000) => NativeProbeDiagnostics.Redact(text, root, limit);
 
         Failure Describe(Exception primary)
         {
             var report = new System.Text.StringBuilder();
-            report.AppendLine("Native lease probe failed: " + Redact(primary.ToString(), 2_048));
+            report.AppendLine("Native lease probe failed: " + NativeProbeDiagnostics.ExceptionText(primary, root, 2_048));
             report.AppendLine($"command=dotnet vstest <test-assembly> {Filter}; root=<owned-root>");
             report.AppendLine($"{processStatus ?? ProcessStatus()}; launch={launch:O}; exit={exit?.ToString("O") ?? "unobserved"}");
+            report.AppendLine("parent-ledger:\n" + string.Join("\n", ledger));
+            report.AppendLine($"parent-pid={Environment.ProcessId}; launcher-pid={childPid?.ToString() ?? "unknown"}; " +
+                $"launch-token={token}; monotonic-frequency={System.Diagnostics.Stopwatch.Frequency}; termination-cause=UNCONFIRMED");
+            if (ledgerTruncated) report.AppendLine("parent-ledger: truncated");
+            report.AppendLine(stages?.Snapshot() ?? "child-stages: absent; runtime=unknown");
+            foreach (var error in diagnosticErrors)
+                report.AppendLine("secondary diagnostic error: " + NativeProbeDiagnostics.ExceptionText(error, root, 512));
+            if (diagnosticErrorsTruncated) report.AppendLine("secondary diagnostic errors: truncated");
             foreach (string marker in new[] { "native-action-result", "native-action-result.pending", "native-action-release" })
             {
                 string state;
                 try { state = dependencies.Marker(PathFor(marker)); }
-                catch (Exception ex) { state = "metadata error: " + ex.Message; }
+                catch (Exception ex) { state = "metadata error: " + NativeProbeDiagnostics.ExceptionText(ex, root, 512); }
                 report.AppendLine(marker + ": " + Redact(state, 512));
             }
             foreach (var error in cleanupErrors)
-                report.AppendLine("cleanup error: " + Redact(error.ToString(), 1_024));
+                report.AppendLine("cleanup error: " + NativeProbeDiagnostics.ExceptionText(error, root, 1_024));
             report.AppendLine("stdout:\n" + Redact(stdout?.Snapshot() ?? "<not-started>", 9_216));
             report.AppendLine("stderr:\n" + Redact(stderr?.Snapshot() ?? "<not-started>", 9_216));
             return new Failure(primary, Redact(report.ToString()));
