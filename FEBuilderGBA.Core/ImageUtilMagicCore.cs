@@ -136,12 +136,11 @@ namespace FEBuilderGBA
                         : MagicSystem.No;
                 if (candidate == MagicSystem.No) continue;
 
-                // The WF code requires that the CSA spell table is also
-                // findable; otherwise the patch is "broken" and we keep
-                // scanning.
+                // A complete CSA slot identifies the installed patch even
+                // before the first spell table has been allocated.
                 uint csaPointer;
-                uint csaAddr = FindCSASpellTable(rom, candidate, out csaPointer);
-                if (csaAddr == U.NOT_FOUND || csaPointer == U.NOT_FOUND) continue;
+                FindCSASpellTable(rom, candidate, out csaPointer);
+                if (csaPointer == U.NOT_FOUND) continue;
 
                 baseaddr = entry.addr;
                 dimaddr = entry.dim;
@@ -155,8 +154,10 @@ namespace FEBuilderGBA
         /// Scan the ROM for the CSA spell-table pattern matching the
         /// detected magic system. Returns the table address (the
         /// resolved p32 pointer) and the pointer slot itself
-        /// (<paramref name="outPointer"/>). Both are
-        /// <c>U.NOT_FOUND</c> on a non-match.
+        /// (<paramref name="outPointer"/>). A complete slot with a
+        /// raw zero target (or the exact FE8U FEditor installer sentinel)
+        /// retains the slot but returns <c>U.NOT_FOUND</c> for the unallocated table. Both are
+        /// <c>U.NOT_FOUND</c> on a non-match or unsafe nonzero target.
         ///
         /// <para>
         /// Mirrors WF <c>ImageUtilMagic.FindCSASpellTableLow</c>.
@@ -177,17 +178,47 @@ namespace FEBuilderGBA
                 if (sig.name != typeName) continue;
                 if (sig.ver != version) continue;
 
+                const uint installerSignature = 0x95D8F4u;
+                const uint installerSlot = installerSignature + 16u;
+                if (system == MagicSystem.FEditorAdv && version == "FE8U")
+                {
+                    foreach (var patch in PatchSignatures)
+                    {
+                        if (patch.name == "FEditor" && patch.ver == "FE8U"
+                            && patch.addr == 0x95D780u
+                            && rom.Data.Length >= patch.addr + (uint)patch.data.Length
+                            && U.memcmp(patch.data, rom.getBinaryData(patch.addr, (uint)patch.data.Length)) == 0)
+                        {
+                            if (rom.Data.Length < installerSlot + 4u
+                                || U.memcmp(sig.data, rom.getBinaryData(installerSignature, (uint)sig.data.Length)) != 0)
+                                return U.NOT_FOUND;
+
+                            uint installerRawTarget = rom.u32(installerSlot);
+                            if (installerRawTarget != 0 && installerRawTarget != 0x08000000u)
+                            {
+                                if ((installerRawTarget & 3) != 0 || !U.isSafetyPointer(installerRawTarget, rom))
+                                    return U.NOT_FOUND;
+                                outPointer = installerSlot;
+                                return rom.p32(installerSlot);
+                            }
+                            outPointer = installerSlot;
+                            return U.NOT_FOUND;
+                        }
+                    }
+                }
+
                 uint hit = U.Grep(rom.Data, sig.data, 0x10000, 0, 4);
                 if (hit == U.NOT_FOUND) continue;
 
                 uint csaSpellTablePointer = hit + (uint)sig.data.Length;
                 if (csaSpellTablePointer + 4 > rom.Data.Length) continue;
 
+                uint rawTarget = rom.u32(csaSpellTablePointer);
                 uint csaSpellTable = rom.p32(csaSpellTablePointer);
-                if (!U.isSafetyOffset(csaSpellTable, rom)) continue;
+                if (rawTarget != 0 && !U.isSafetyOffset(csaSpellTable, rom)) continue;
 
                 outPointer = csaSpellTablePointer;
-                return csaSpellTable;
+                return csaSpellTable == 0 ? U.NOT_FOUND : csaSpellTable;
             }
             return U.NOT_FOUND;
         }

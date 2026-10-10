@@ -43,7 +43,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (ptr == 0) return new List<AddrResult>();
 
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -54,11 +54,11 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 uint imgPtr = rom.u32(addr + 4);
                 if (!U.isPointer(imgPtr)) break;
 
-                // #991: append the owning class name (lockstep with
-                // ListParityHelper.BuildImageUnitWaitIconList — golden test
-                // gated). U.SA prefixes a single space iff the name is non-empty.
+                // Append the owning class name (lockstep with
+                // ListParityHelper.BuildImageUnitWaitIconList). U.SA prefixes
+                // a single space iff the name is non-empty.
                 string className = ClassFormCore.GetClassNameWhereWaitIconId(rom, i);
-                string name = U.ToHexString(i) + U.SA(className) + " WaitIcon";
+                string name = U.ToHexString(i) + U.SA(className);
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;
