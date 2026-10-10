@@ -41,6 +41,7 @@
           <TextBlock Name="FilterLabelBlock" Text="Filter:"
                      VerticalAlignment="Center" FontSize="11" />
           <TextBox Name="FilterInput" Width="140" FontSize="11"
+                   AutomationProperties.LabeledBy="{Binding #FilterLabelBlock}"
                    VerticalAlignment="Center" />
         </StackPanel>
 

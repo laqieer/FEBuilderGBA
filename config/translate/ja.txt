@@ -1,3 +1,6 @@
+:Build Output
+ビルド出力
+
 :Characters
 キャラクター
 
