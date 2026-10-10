@@ -4,7 +4,7 @@
         x:Class="FEBuilderGBA.Avalonia.Views.MainWindow"
         Title="{Binding WindowTitle}"
         Width="900" Height="700"
-        SizeToContent="WidthAndHeight">
+        SizeToContent="Height">
   <DockPanel>
     <!-- Menu Bar -->
     <Menu DockPanel.Dock="Top" Name="MainMenu">
@@ -82,6 +82,18 @@
         <Panel /> <!-- fill remaining space -->
       </DockPanel>
     </Border>
+
+    <Grid DockPanel.Dock="Top" ColumnDefinitions="Auto,*" Margin="8,4"
+          IsVisible="{Binding IsRomLoaded}">
+      <TextBlock AutomationProperties.AutomationId="Main_RomFilePath_Label" Name="RomFilePathLabel"
+                 Text="ROM:" VerticalAlignment="Center" Margin="0,0,8,0" />
+      <TextBox Grid.Column="1" AutomationProperties.AutomationId="Main_RomFilePath_Input"
+               AutomationProperties.Name="{Binding Text, ElementName=RomFilePathLabel}"
+               Name="RomFilePathTextBox" Text="{Binding RomFilePath, Mode=OneWay}"
+               IsReadOnly="True" TextWrapping="NoWrap" MinWidth="0"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               ToolTip.Tip="{Binding RomFilePath}" />
+    </Grid>
 
     <!-- Decomp Build Panel (only visible in decomp mode) -->
     <Border DockPanel.Dock="Top" IsVisible="{Binding IsDecompMode}"
