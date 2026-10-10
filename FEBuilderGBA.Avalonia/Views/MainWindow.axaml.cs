@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
             Dispatcher.UIThread.Post(() =>
             {
                 // Refresh status bar
-                _vm.UpdateFromRom();
+                _vm.UpdateFromRom(hasLocalPath: _currentRomStorageFile == null);
                 SetStatusText(_vm.StatusText);
 
                 // Refresh menu headers and navigation labels
@@ -592,6 +592,7 @@ namespace FEBuilderGBA.Avalonia.Views
         void RefreshLabels()
         {
             if (FilterLabel != null) FilterLabel.Text = R._("Filter:");
+            if (RomFilePathLabel != null) RomFilePathLabel.Text = R._("ROM:");
             if (ClearFilterButton != null) ClearFilterButton.Content = R._("Clear");
             if (NoRomLabel != null) NoRomLabel.Text = R._("Open a ROM file to begin editing.");
             if (FilterTextBox != null) FilterTextBox.Watermark = R._("Type to filter editors...");
@@ -654,7 +655,7 @@ namespace FEBuilderGBA.Avalonia.Views
             RefreshMenuItemHeaders();
             RefreshEditorButtons();
             RefreshLabels();
-            _vm.UpdateFromRom();
+            _vm.UpdateFromRom(hasLocalPath: _currentRomStorageFile == null);
             SetStatusText(_vm.StatusText);
             // Only run the startup update check on a real interactive GUI session —
             // never in headless/smoke/CLI modes (--screenshot-all / --validate-import /
@@ -829,7 +830,7 @@ namespace FEBuilderGBA.Avalonia.Views
             RomFileService.InitializeLoadedRom(rom);
 
             // Update UI
-            _vm.UpdateFromRom();
+            _vm.UpdateFromRom(hasLocalPath: _currentRomStorageFile == null);
             // #1129: reflect decomp mode on the toolbar badge. CoreState.DecompProject
             // is set BEFORE this call in the decomp open path and cleared before it in
             // the classic open path, so reading CoreState.IsDecompMode here is correct.
@@ -2526,25 +2527,22 @@ namespace FEBuilderGBA.Avalonia.Views
             // leaves a currently-open decomp preview (and its save guard) intact.
             CoreState.DecompProject = null;
 
-            string? localPath = file.TryGetLocalPath();
-            bool ok;
-            if (!string.IsNullOrEmpty(localPath))
-            {
-                // Desktop / any provider with a real filesystem path — unchanged behavior.
-                _currentRomStorageFile = null;
-                ok = LoadRomFile(localPath);
-            }
-            else
-            {
-                // Android SAF content:// — no local path. Read via the stream API and
-                // retain the handle so a later Save can OpenWriteAsync() it (#1124).
-                ok = await LoadRomFromStorageFile(file);
-            }
+            bool ok = await LoadPickedRomAsync(file);
             if (!ok)
             {
                 await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
             }
             UpdateDecompBadge();
+        }
+
+        internal async Task<bool> LoadPickedRomAsync(IStorageFile file)
+        {
+            string? localPath = file.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                return LoadRomFile(localPath);
+            }
+            return await LoadRomFromStorageFile(file);
         }
 
         /// <summary>
@@ -2562,7 +2560,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await rom.LoadFromStreamAsync(stream, displayName);
                 ok = result.ok;
             }
-            if (!ok) { _currentRomStorageFile = null; return false; }
+            if (!ok) return false;
             _currentRomStorageFile = file;
             return FinishLoadedRom(rom, displayName);
         }
@@ -2806,7 +2804,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 displayName = file.Name ?? "rom.gba";
                 CoreState.ROM.Filename = displayName;
             }
-            _vm.RomFilename = Path.GetFileName(displayName);
+            _vm.UpdateRomFilename(hasLocalPath: _currentRomStorageFile == null);
             _vm.HasUnsavedChanges = false;
             AutoSaveService.Instance.UpdateRomFilename(displayName);
             AutoSaveService.Instance.MarkSaved();

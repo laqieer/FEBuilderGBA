@@ -38,6 +38,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         bool _isRomLoaded;
         string _romVersion = "";
         string _romFilename = "";
+        string _romFilePath = "";
         string _statusText = R._("No ROM loaded");
         string _filterText = "";
         long _romSize;
@@ -66,6 +67,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         {
             get => _romFilename;
             set { SetField(ref _romFilename, value); OnPropertyChanged(nameof(WindowTitle)); }
+        }
+
+        public string RomFilePath
+        {
+            get => _romFilePath;
+            private set => SetField(ref _romFilePath, value);
         }
 
         public bool HasUnsavedChanges
@@ -170,13 +177,23 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             set => SetField(ref _estimatedFreeSpace, value);
         }
 
-        public void UpdateFromRom()
+        public void UpdateRomFilename(bool hasLocalPath = true)
+        {
+            string filename = CoreState.ROM?.Filename ?? "";
+            RomFilename = Path.GetFileName(filename);
+            // Stream-backed storage providers supply only a name, not a local path.
+            RomFilePath = hasLocalPath && !string.IsNullOrEmpty(filename)
+                ? Path.GetFullPath(filename)
+                : filename;
+        }
+
+        public void UpdateFromRom(bool hasLocalPath = true)
         {
             if (CoreState.ROM != null)
             {
                 IsRomLoaded = true;
                 RomVersion = CoreState.ROM.RomInfo?.VersionToFilename ?? "Unknown";
-                RomFilename = System.IO.Path.GetFileName(CoreState.ROM.Filename ?? "");
+                UpdateRomFilename(hasLocalPath);
                 RomSize = CoreState.ROM.Data?.Length ?? 0;
                 EstimatedFreeSpace = EstimateFreeSpace(CoreState.ROM);
                 StatusText = $"{RomFilename} | {RomVersion} | {RomSize:N0} " + R._("bytes") + $" | " + R._("Free:") + $" ~{EstimatedFreeSpace:N0} " + R._("bytes");
@@ -188,6 +205,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 IsRomLoaded = false;
                 RomVersion = "";
                 RomFilename = "";
+                RomFilePath = "";
                 RomSize = 0;
                 EstimatedFreeSpace = 0;
                 StatusText = R._("No ROM loaded");
