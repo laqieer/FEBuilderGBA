@@ -200,6 +200,420 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal("do-not-delete", File.ReadAllText(replacement));
         }
 
+        [Theory]
+        [InlineData(0, false)]
+        [InlineData(1, false)]
+        [InlineData(2, false)]
+        [InlineData(3, false)]
+        [InlineData(4, true)]
+        [InlineData(5, true)]
+        [InlineData(6, false)]
+        [InlineData(7, false)]
+        public void StableRead_SnapshotPolicyOmitsOnlyChangeTime(
+            int changedField,
+            bool unchangedWhenDisplaced)
+        {
+            var identity = new FileSystemEntryIdentity(
+                FileSystemEntryIdentityKind.Unix, 1, 2, 0);
+            var before = new ProjectionFileSystemSafety.OpenedRegularFileState(
+                identity, 4, 10, 20, 30, 40, 1, 0x8000);
+            var after = new ProjectionFileSystemSafety.OpenedRegularFileState(
+                changedField == 0
+                    ? new FileSystemEntryIdentity(
+                        FileSystemEntryIdentityKind.Unix, 1, 3, 0)
+                    : identity,
+                changedField == 1 ? 5 : 4,
+                changedField == 2 ? 11UL : 10UL,
+                changedField == 3 ? 21UL : 20UL,
+                changedField == 4 ? 31UL : 30UL,
+                changedField == 5 ? 41UL : 40UL,
+                changedField == 6 ? 2U : 1U,
+                changedField == 7 ? 0x8001U : 0x8000U);
+
+            Assert.True(before.SameSnapshot(before));
+            Assert.True(before.SameSnapshotIgnoringChangeTime(before));
+            Assert.False(before.SameSnapshot(after));
+            Assert.Equal(
+                unchangedWhenDisplaced,
+                before.SameSnapshotIgnoringChangeTime(after));
+            foreach (var relation in new[]
+            {
+                ProjectionFileSystemSafety.OriginalPathRelation.Unknown,
+                ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile,
+                ProjectionFileSystemSafety.OriginalPathRelation.Displaced,
+            })
+            {
+                Assert.Equal(
+                    relation == ProjectionFileSystemSafety.OriginalPathRelation.Displaced
+                        && unchangedWhenDisplaced,
+                    ProjectionFileSystemSafety.IsSnapshotUnchanged(before, after, relation));
+            }
+        }
+
+        [Theory]
+        [InlineData(0, false)]
+        [InlineData(1, false)]
+        [InlineData(2, true)]
+        public void StableRead_RelationPolicyRequiresProofToOmitChangeTime(
+            int relation, bool expected)
+        {
+            var identity = new FileSystemEntryIdentity(
+                FileSystemEntryIdentityKind.Unix, 1, 2, 0);
+            var before = new ProjectionFileSystemSafety.OpenedRegularFileState(
+                identity, 4, 10, 20, 30, 40, 1, 0x8000);
+            var after = new ProjectionFileSystemSafety.OpenedRegularFileState(
+                identity, 4, 10, 20, 31, 40, 1, 0x8000);
+            Assert.Equal(expected, ProjectionFileSystemSafety.IsSnapshotUnchanged(
+                before, after, (ProjectionFileSystemSafety.OriginalPathRelation)relation));
+            Assert.Throws<ArgumentOutOfRangeException>(() =>
+                ProjectionFileSystemSafety.IsSnapshotUnchanged(
+                    before, after, (ProjectionFileSystemSafety.OriginalPathRelation)99));
+        }
+
+        [Fact]
+        public void StableRead_FactoryProvenanceNormalizesPathAndDisposesHandle()
+        {
+            string path = Path.Combine(tempDirectory, "factory.txt");
+            File.WriteAllBytes(path, new byte[] { 1 });
+            string relative = Path.GetRelativePath(Directory.GetCurrentDirectory(), path);
+            var stream = ProjectionFileSystemSafety.OpenRegularFileForRead(relative);
+            var handle = stream.SafeFileHandle;
+            var state = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                handle, "factory", rejectHardLinks: true);
+            try
+            {
+                Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile,
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, inspectedPath =>
+                        {
+                            Assert.True(inspectedPath == Path.GetFullPath(relative),
+                                "Factory must freeze the full original pathname before open.");
+                            return state.Identity;
+                        }));
+                Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.Displaced,
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, _ => throw new FileNotFoundException()));
+                Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.Displaced,
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, _ => throw new DirectoryNotFoundException()));
+                Assert.Throws<IOException>(() =>
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, _ => throw new IOException("inspection fault")));
+                Assert.Throws<UnauthorizedAccessException>(() =>
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, _ => throw new UnauthorizedAccessException()));
+                Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.Displaced,
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(
+                        stream, state.Identity, _ => default));
+            }
+            finally
+            {
+                stream.Dispose();
+            }
+            Assert.True(handle.IsClosed);
+        }
+
+        [Fact]
+        public void StableRead_UnknownProvenanceNeverProbesStreamName()
+        {
+            string path = Path.Combine(tempDirectory, "unknown-probe.txt");
+            File.WriteAllBytes(path, new byte[] { 1 });
+            using var handle = File.OpenHandle(path);
+            using var stream = new FileStream(handle, FileAccess.Read);
+            var state = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                handle, "unknown probe", rejectHardLinks: true);
+            Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.Unknown,
+                ProjectionFileSystemSafety.GetOriginalPathRelation(
+                    stream, state.Identity, _ => throw new InvalidOperationException(
+                        "Unknown streams must not probe any pathname.")));
+        }
+
+        [Fact]
+        public void StableRead_ExclusiveStageOwnsProvenanceAndHandle()
+        {
+            string path = Path.Combine(tempDirectory, "exclusive-stage.tmp");
+            var stream = ProjectionFileSystemSafety.CreatePublicationStagingFile(path);
+            var handle = stream.SafeFileHandle;
+            try
+            {
+                stream.WriteByte(7);
+                stream.Flush(flushToDisk: true);
+                var state = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                    handle, "exclusive stage", rejectHardLinks: true);
+                Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile,
+                    ProjectionFileSystemSafety.GetOriginalPathRelation(stream, state.Identity));
+                Assert.True(new byte[] { 7 }.SequenceEqual(
+                    ProjectionFileSystemSafety.ReadOpenedRegularFileBoundedStable(
+                        stream, 1, "exclusive stage", rejectHardLinks: true, out _)));
+                if (OperatingSystem.IsWindows())
+                    Assert.Throws<IOException>(() => File.OpenRead(path));
+            }
+            finally
+            {
+                stream.Dispose();
+            }
+            Assert.True(handle.IsClosed);
+            Assert.Throws<IOException>(() =>
+                ProjectionFileSystemSafety.CreatePublicationStagingFile(path));
+        }
+
+        [SkippableFact]
+        public void StableRead_WindowsExtendedPathRetainsFactoryProvenance()
+        {
+            Skip.IfNot(OperatingSystem.IsWindows(), "Requires Windows extended paths.");
+            string path = Path.Combine(tempDirectory, "extended-path.txt");
+            File.WriteAllBytes(path, new byte[] { 1 });
+            using var stream = ProjectionFileSystemSafety.OpenRegularFileForRead(
+                BuildfilePathSafety.ToWindowsExtendedPath(path));
+            var state = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                stream.SafeFileHandle, "extended path", rejectHardLinks: true);
+            Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile,
+                ProjectionFileSystemSafety.GetOriginalPathRelation(stream, state.Identity));
+        }
+
+        [Theory]
+        [InlineData(true)]
+        [InlineData(false)]
+        public void StableRead_VerifierRequiresChangeTimeUnlessDisplaced(
+            bool originalPathStillReferencesOpenedFile)
+        {
+            string path = Path.Combine(tempDirectory, "verification-state.txt");
+            File.WriteAllBytes(path, new byte[] { 1, 2, 3, 4 });
+            using FileStream stream =
+                ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+            var current = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                stream.SafeFileHandle, "verification state", rejectHardLinks: true);
+            var before = new ProjectionFileSystemSafety.OpenedRegularFileState(
+                current.Identity,
+                current.Length,
+                current.ChangeTimeA,
+                current.ChangeTimeB,
+                current.ChangeTimeC ^ 1UL,
+                current.ChangeTimeD,
+                current.LinkCount,
+                current.TypeBits);
+
+            if (originalPathStillReferencesOpenedFile)
+            {
+                Assert.Throws<IOException>(() =>
+                    ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(
+                        stream.SafeFileHandle,
+                        "verification state",
+                        rejectHardLinks: true,
+                        before));
+                Assert.Throws<IOException>(() =>
+                    ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(
+                        stream.SafeFileHandle,
+                        "verification state",
+                        rejectHardLinks: true,
+                        before,
+                        ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile));
+            }
+            else
+            {
+                ProjectionFileSystemSafety.VerifyOpenedRegularFileUnchanged(
+                    stream.SafeFileHandle,
+                    "verification state",
+                    rejectHardLinks: true,
+                    before,
+                    ProjectionFileSystemSafety.OriginalPathRelation.Displaced);
+            }
+        }
+
+        [Fact]
+        public void StableRead_UnassociatedNativeHandleReadsUnchangedReport()
+        {
+            string path = Path.Combine(tempDirectory, "unassociated-report.json");
+            byte[] original = GenerationReportBytes('a');
+            File.WriteAllBytes(path, original);
+            using var handle = File.OpenHandle(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var stream = new FileStream(handle, FileAccess.Read);
+
+            byte[] read = ProjectionFileSystemSafety.ReadOpenedRegularFileBoundedStable(
+                stream,
+                FontLibraryReportFormatter.MaxReportBytes,
+                "external generation report",
+                rejectHardLinks: true,
+                out _);
+
+            Assert.True(original.SequenceEqual(read));
+            Assert.True(FontLibraryReportFormatter.TryParse(read, out var report, out _));
+            Assert.True(report.FullTreeSha256 == new string('a', 64));
+        }
+
+        [SkippableFact]
+        public void StableRead_AssociatedReportRewriteWithRestoredMtimeRejectsBeforeParsing()
+            => AssertReportRewriteWithRestoredMtimeRejected(useSafeOpener: true);
+
+        [SkippableFact]
+        public void StableRead_UnknownProvenanceReportRewriteWithRestoredMtimeRejectsBeforeParsing()
+            => AssertReportRewriteWithRestoredMtimeRejected(useSafeOpener: false);
+
+        void AssertReportRewriteWithRestoredMtimeRejected(bool useSafeOpener)
+        {
+            Skip.If(OperatingSystem.IsWindows(), "Requires Unix ctime.");
+            string path = Path.Combine(tempDirectory, "rewritten-report.json");
+            byte[] original = GenerationReportBytes('a');
+            byte[] replacement = GenerationReportBytes('b');
+            Assert.Equal(original.Length, replacement.Length);
+            File.WriteAllBytes(path, original);
+            DateTime mtime = new DateTime(2001, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            File.SetLastWriteTimeUtc(path, mtime);
+            using FileStream stream = useSafeOpener
+                ? ProjectionFileSystemSafety.OpenRegularFileForRead(path)
+                : new FileStream(
+                    File.OpenHandle(
+                        path, FileMode.Open, FileAccess.Read,
+                        FileShare.ReadWrite | FileShare.Delete),
+                    FileAccess.Read);
+            var before = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                stream.SafeFileHandle, "report rewrite", rejectHardLinks: true);
+            var expectedRelation = useSafeOpener
+                ? ProjectionFileSystemSafety.OriginalPathRelation.SameOpenedFile
+                : ProjectionFileSystemSafety.OriginalPathRelation.Unknown;
+            Assert.Equal(expectedRelation,
+                ProjectionFileSystemSafety.GetOriginalPathRelation(stream, before.Identity));
+            bool mutationStateVerified = false;
+            bool parserReached = false;
+
+            IOException error = Assert.Throws<IOException>(() =>
+            {
+                byte[] read = ProjectionFileSystemSafety.ReadOpenedRegularFileBoundedStable(
+                    stream,
+                    FontLibraryReportFormatter.MaxReportBytes,
+                    "external generation report",
+                    rejectHardLinks: true,
+                    out _,
+                    afterInspection: () =>
+                    {
+                        // Cross coarse ctime boundaries before the rewrite.
+                        Thread.Sleep(1100);
+                        File.WriteAllBytes(path, replacement);
+                        File.SetLastWriteTimeUtc(path, mtime);
+                        var after = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                            stream.SafeFileHandle, "report rewrite", rejectHardLinks: true);
+                        AssertOnlyChangeTimeChanged(before, after);
+                        Assert.Equal(expectedRelation,
+                            ProjectionFileSystemSafety.GetOriginalPathRelation(stream, before.Identity));
+                        Assert.True(
+                            before.Identity.Equals(
+                                ProjectionFileSystemSafety.CaptureExistingFileSystemEntryIdentity(path)));
+                        mutationStateVerified = true;
+                    });
+                parserReached = true;
+                Assert.True(FontLibraryReportFormatter.TryParse(read, out _, out _));
+            });
+
+            Assert.True(mutationStateVerified);
+            Assert.False(parserReached);
+            Assert.True(error.Message ==
+                "Opened regular file changed while it was read: external generation report",
+                "Expected the held-file snapshot mutation rejection, not an unrelated I/O failure.");
+        }
+
+        [SkippableTheory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void StableRead_AssociatedReportRenameParsesHeldBytes(
+            bool createReplacement)
+        {
+            Skip.If(OperatingSystem.IsWindows(), "Production Windows handle denies rename.");
+            string path = Path.Combine(tempDirectory, "renamed-report.json");
+            string moved = Path.Combine(tempDirectory, "held-report.json");
+            byte[] original = GenerationReportBytes('a');
+            byte[] replacement = GenerationReportBytes('b');
+            File.WriteAllBytes(path, original);
+            using FileStream stream = ProjectionFileSystemSafety.OpenRegularFileForRead(path);
+
+            byte[] read = ProjectionFileSystemSafety.ReadOpenedRegularFileBoundedStable(
+                stream,
+                FontLibraryReportFormatter.MaxReportBytes,
+                "external generation report",
+                rejectHardLinks: true,
+                out var held,
+                afterInspection: () =>
+                {
+                    File.Move(path, moved);
+                    if (createReplacement)
+                        File.WriteAllBytes(path, replacement);
+                });
+
+            Assert.True(original.SequenceEqual(read));
+            Assert.Equal(ProjectionFileSystemSafety.OriginalPathRelation.Displaced,
+                ProjectionFileSystemSafety.GetOriginalPathRelation(stream, held.Identity));
+            Assert.True(FontLibraryReportFormatter.TryParse(read, out var report, out _));
+            Assert.True(report.FullTreeSha256 == new string('a', 64));
+            Assert.True(original.SequenceEqual(File.ReadAllBytes(moved)));
+            if (createReplacement)
+                Assert.True(replacement.SequenceEqual(File.ReadAllBytes(path)));
+            else
+                Assert.False(File.Exists(path));
+        }
+
+        [SkippableFact]
+        public void StableRead_UnassociatedNativeHandleRenameDoesNotProveDisplacement()
+        {
+            Skip.If(OperatingSystem.IsWindows(), "Requires Unix ctime.");
+            string path = Path.Combine(tempDirectory, "unknown-origin.json");
+            string moved = Path.Combine(tempDirectory, "unknown-held.json");
+            File.WriteAllBytes(path, GenerationReportBytes('a'));
+            using var handle = File.OpenHandle(
+                path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            using var stream = new FileStream(handle, FileAccess.Read);
+            var before = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                stream.SafeFileHandle, "unknown origin", rejectHardLinks: true);
+            bool renameStateVerified = false;
+
+            IOException error = Assert.Throws<IOException>(() =>
+                ProjectionFileSystemSafety.ReadOpenedRegularFileBoundedStable(
+                    stream,
+                    FontLibraryReportFormatter.MaxReportBytes,
+                    "external generation report",
+                    rejectHardLinks: true,
+                    out _,
+                    afterInspection: () =>
+                    {
+                        // Cross coarse ctime boundaries before the rename.
+                        Thread.Sleep(1100);
+                        File.Move(path, moved);
+                        File.WriteAllBytes(path, GenerationReportBytes('b'));
+                        var after = ProjectionFileSystemSafety.InspectOpenedRegularFile(
+                            stream.SafeFileHandle, "unknown origin", rejectHardLinks: true);
+                        AssertOnlyChangeTimeChanged(before, after);
+                        Assert.False(
+                            before.Identity.Equals(
+                                ProjectionFileSystemSafety.CaptureExistingFileSystemEntryIdentity(path)));
+                        renameStateVerified = true;
+                    }));
+
+            Assert.True(renameStateVerified);
+            Assert.True(error.Message ==
+                "Opened regular file changed while it was read: external generation report",
+                "Expected Unknown-provenance full snapshot rejection, not an unrelated I/O failure.");
+        }
+
+        static byte[] GenerationReportBytes(char hashDigit)
+            => Encoding.UTF8.GetBytes(FontLibraryReportFormatter.Format(
+                new FontLibraryReport
+                {
+                    Mode = "generate",
+                    Oracle = "generation",
+                    ManifestSha256 = new string('c', 64),
+                    PayloadTreeSha256 = new string('d', 64),
+                    FullTreeSha256 = new string(hashDigit, 64),
+                }));
+
+        static void AssertOnlyChangeTimeChanged(
+            ProjectionFileSystemSafety.OpenedRegularFileState before,
+            ProjectionFileSystemSafety.OpenedRegularFileState after)
+        {
+            Assert.True(before.SameSnapshotIgnoringChangeTime(after),
+                "Mutation prerequisite: identity/length/mtime/links/type equal.");
+            Assert.False(before.SameSnapshot(after),
+                "Mutation prerequisite: held-file ctime changed.");
+        }
+
         [SkippableFact]
         public void StableRead_RejectsSameLengthRewriteWithRestoredMtime()
         {
