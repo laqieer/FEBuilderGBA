@@ -18,7 +18,7 @@ namespace FEBuilderGBA.E2ETests.Tests
     ///
     /// Note on localization: FEBuilderGBA's startup form title is localized
     /// (English: "Welcome to the FEBuilderGBA", Chinese: "初始设置向导", etc.).
-    /// Tests use Process.MainWindowTitle or WinForms class detection for robustness.
+    /// Tests use Unicode window titles or visible WinForms class detection for robustness.
     /// </summary>
     public class GuiStartupTests : IDisposable
     {
@@ -95,7 +95,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             do
             {
                 Thread.Sleep(300);
-                foreach (IntPtr w in WinAutomation.GetProcessWindows(_process!.Id))
+                foreach (IntPtr w in WinAutomation.GetCaptureWindows(_process!.Id))
                 {
                     string t = WinAutomation.GetTitle(w);
                     if (!string.IsNullOrWhiteSpace(t)) { title = t; break; }
@@ -167,7 +167,7 @@ namespace FEBuilderGBA.E2ETests.Tests
             if (!exitedAfterClose)
             {
                 exitConfirmed = StartupCloseDiagnostics.CaptureAndCleanup(
-                    () => WinAutomation.GetProcessWindows(_process.Id),
+                    () => WinAutomation.GetCaptureWindows(_process.Id),
                     window => ScreenshotHelper.CaptureWindow(
                         _process, window, "StartupWindow_close_stuck"),
                     message => _output.WriteLine(message),
