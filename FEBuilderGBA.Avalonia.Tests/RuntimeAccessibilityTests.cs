@@ -9,6 +9,8 @@ using Avalonia.VisualTree;
 using Avalonia.LogicalTree;
 using Avalonia.Controls.Templates;
 using Avalonia.Automation.Provider;
+using System.IO;
+using FEBuilderGBA.Core;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Avalonia.Services;
@@ -56,6 +58,31 @@ public class RuntimeAccessibilityTests : IDisposable
             Assert.Equal(output.Text, value.Value);
         }
         finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void BuildOutput_UsesProductionLanguageRefresh()
+    {
+        var window = new MainWindow();
+        try
+        {
+            var root = new DirectoryInfo(AppContext.BaseDirectory);
+            while (!File.Exists(Path.Combine(root.FullName, "FEBuilderGBA.sln")))
+                root = root.Parent!;
+            var output = window.FindControl<TextBox>("DecompBuildOutputBox")!;
+            foreach (var (language, expected) in new[] { ("ja", "ビルド出力"), ("zh", "构建输出") })
+            {
+                MyTranslateResource.LoadResource(Path.Combine(root.FullName, "config", "translate", $"{language}.txt"));
+                CoreState.RaiseLanguageChanged();
+                global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                Assert.Equal(expected, Name(output));
+            }
+        }
+        finally
+        {
+            window.Close();
+            MyTranslateResource.Clear();
+        }
     }
 
     [AvaloniaFact]
