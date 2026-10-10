@@ -955,11 +955,7 @@ namespace FEBuilderGBA
                 FileStream stream;
                 try
                 {
-                    stream = new FileStream(
-                        stage,
-                        FileMode.CreateNew,
-                        FileAccess.ReadWrite,
-                        FileShare.None);
+                    stream = ProjectionFileSystemSafety.CreatePublicationStagingFile(stage);
                 }
                 catch (IOException createEx)
                 {

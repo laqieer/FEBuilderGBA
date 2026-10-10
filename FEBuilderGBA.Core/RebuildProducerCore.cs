@@ -6221,8 +6221,8 @@ namespace FEBuilderGBA
                 return;
             }
 
-            // WF: if SearchMagicSystem(...) != <system> return. (The Core SearchMagicSystem also requires the
-            // CSA spell table to be findable — same posture as the WF cache, which keeps scanning otherwise.)
+            // WF: if SearchMagicSystem(...) != <system> return. Core detects installed engines even when
+            // the CSA table is unallocated; the table check below still requires allocation for rebuild.
             uint baseaddr, dimaddr, no_dimaddr;
             if (ImageUtilMagicCore.SearchMagicSystem(rom, out baseaddr, out dimaddr, out no_dimaddr) != system)
             {
