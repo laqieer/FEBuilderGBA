@@ -105,6 +105,12 @@ deterministic startup contract, safety boundary, and CI proof.
 > are shared and cross-platform and are **not** restricted by this policy. See
 > **[docs/GUI-STRATEGY.md](docs/GUI-STRATEGY.md)**.
 
+The Avalonia desktop main window shows the loaded ROM's full local path in a
+read-only **ROM:** field. Focus it and use Select All / Copy to inspect or
+copy long paths; the window title still shows the filename and unsaved `*` marker.
+Storage providers without a local path show their available filename instead.
+The field is hidden when no ROM is loaded and follows successful Save As changes.
+
 ### Event-unit origin safety
 
 The Avalonia FE6/FE7/FE8 Event Unit editors discover placement lists from both
