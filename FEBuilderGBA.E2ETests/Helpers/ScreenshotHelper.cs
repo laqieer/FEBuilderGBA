@@ -1,10 +1,12 @@
 using System;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.IO;
 using System.Reflection;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Microsoft.Win32.SafeHandles;
 
 namespace FEBuilderGBA.E2ETests.Helpers
@@ -14,6 +16,18 @@ namespace FEBuilderGBA.E2ETests.Helpers
     /// </summary>
     public static class ScreenshotHelper
     {
+        private const int MaxCaptureAttempts = 3;
+        private const int CaptureRetryDelayMs = 100;
+        private const int ErrorInvalidWindowHandle = 1400;
+
+        internal static WindowCaptureException CreateBoundsFailure(IntPtr window, int errorCode)
+        {
+            string message = $"GetWindowRect failed for HWND=0x{window:X} (Win32 error {errorCode}).";
+            return errorCode == ErrorInvalidWindowHandle
+                ? new WindowCaptureException(message)
+                : new WindowCaptureException(message, new Win32Exception(errorCode));
+        }
+
         /// <summary>
         /// Directory where screenshots are saved.
         /// Defaults to a "screenshots" folder beside the test assembly.
@@ -58,67 +72,119 @@ namespace FEBuilderGBA.E2ETests.Helpers
 
         internal static string CaptureWindow(Process process, IntPtr hWnd, string name,
             string outputDir, bool timestamp, Func<DesktopReadinessResult> probe,
-            IWindowCaptureNative native)
+            IWindowCaptureNative native, Action<int>? wait = null)
         {
-            DesktopReadiness.RequireReady(probe);
-            RequireOwnedWindow(process, hWnd, native);
+            wait ??= Thread.Sleep;
+            int attempt = 1;
+            int? processId = null;
+            int width = 0, height = 0;
+            bool measured = false;
 
             try
             {
-                var (width, height) = native.GetWindowSize(hWnd);
-                if (width <= 0 || height <= 0)
-                    throw new WindowCaptureException("Window has invalid capture dimensions.");
-
                 string suffix = timestamp ? $"_{DateTime.UtcNow:yyyyMMdd_HHmmss_fff}" : "";
                 string path = Path.Combine(outputDir, $"{SanitizeFileName(name)}{suffix}.png");
-                foreach (uint flags in new uint[] { 2 /* PW_RENDERFULLCONTENT */, 0 })
+                string transientFailure = "";
+                for (; attempt <= MaxCaptureAttempts; attempt++)
                 {
-                    using IWindowCaptureSurface surface = native.CreateSurface(width, height);
-                    IntPtr hdc = surface.GetHdc();
-                    if (hdc == IntPtr.Zero)
-                        throw new WindowCaptureException("Capture surface did not supply an HDC.");
-                    bool printed;
-                    try
+                    processId = null;
+                    width = height = 0;
+                    measured = false;
+                    processId = RequireCaptureAdmission(process, hWnd, probe, native).ProcessId;
+                    (width, height) = native.GetWindowSize(hWnd);
+                    measured = true;
+                    if (width <= 0 || height <= 0)
                     {
-                        printed = native.PrintWindow(hWnd, hdc, flags);
+                        transientFailure = "Window has nonpositive capture dimensions.";
                     }
-                    finally
+                    else
                     {
-                        surface.ReleaseHdc(hdc);
+                        foreach (uint flags in new uint[] { 2 /* PW_RENDERFULLCONTENT */, 0 })
+                        {
+                            RequireCaptureAdmission(process, hWnd, probe, native);
+                            using IWindowCaptureSurface surface = native.CreateSurface(width, height);
+                            IntPtr hdc = surface.GetHdc();
+                            if (hdc == IntPtr.Zero)
+                                throw new WindowCaptureException("Capture surface did not supply an HDC.");
+                            bool printed;
+                            try
+                            {
+                                RequireCaptureAdmission(process, hWnd, probe, native);
+                                printed = native.PrintWindow(hWnd, hdc, flags);
+                            }
+                            finally
+                            {
+                                surface.ReleaseHdc(hdc);
+                            }
+                            if (!printed)
+                            {
+                                transientFailure = $"PrintWindow(flags={flags}) returned false.";
+                                continue;
+                            }
+                            if (!surface.HasContent())
+                            {
+                                transientFailure = $"PrintWindow(flags={flags}) returned uniform RGB content.";
+                                continue;
+                            }
+                            RequireCaptureAdmission(process, hWnd, probe, native);
+                            surface.Save(path);
+                            return path;
+                        }
                     }
-                    if (!printed || !surface.HasContent())
-                        continue;
-                    surface.Save(path);
-                    return path;
+
+                    if (attempt == MaxCaptureAttempts)
+                        break;
+                    wait(CaptureRetryDelayMs);
                 }
-                throw new WindowCaptureException("PrintWindow failed or returned an empty image; no screenshot saved.");
+                throw new WindowCaptureException($"{transientFailure} No screenshot saved.");
             }
-            catch (Exception ex) when (ex is not WindowCaptureException)
+            catch (WindowCaptureException ex)
             {
-                throw new WindowCaptureException("Owned-window capture failed; screenshot is not valid evidence.", ex);
+                throw new WindowCaptureException($"{TargetDescription()} {ex.Message}", ex.InnerException);
             }
+            catch (Exception ex) when (ex is not DesktopUnavailableException &&
+                ex is InvalidOperationException or ExternalException or IOException or
+                    UnauthorizedAccessException or ArgumentException or OverflowException or OutOfMemoryException)
+            {
+                throw new WindowCaptureException(
+                    $"{TargetDescription()} Capture operation failed: {ex.Message} No screenshot saved.", ex);
+            }
+
+            string TargetDescription() =>
+                $"Capture '{name}', HWND=0x{hWnd:X}, PID={processId?.ToString() ?? "unknown"}, " +
+                $"dimensions={(measured ? $"{width}x{height}" : "unknown")}, attempt {attempt}/{MaxCaptureAttempts}:";
         }
 
-        private static void RequireOwnedWindow(Process process, IntPtr hWnd, IWindowCaptureNative native)
+        private static CaptureProcessIdentity RequireCaptureAdmission(Process process, IntPtr hWnd,
+            Func<DesktopReadinessResult> probe, IWindowCaptureNative native)
+        {
+            DesktopReadiness.RequireReady(probe);
+            return RequireOwnedWindow(process, hWnd, native);
+        }
+
+        private static CaptureProcessIdentity RequireOwnedWindow(
+            Process process, IntPtr hWnd, IWindowCaptureNative native)
         {
             if (process == null || hWnd == IntPtr.Zero)
                 throw new WindowCaptureException("Capture requires a retained Process and a nonzero HWND.");
             CaptureProcessIdentity identity;
-            uint owner;
+            uint windowProcessId;
             try
             {
                 identity = native.GetProcessIdentity(process);
                 if (!identity.IsAlive || identity.ProcessId <= 0 ||
                     identity.HandleProcessId != (uint)identity.ProcessId)
                     throw new WindowCaptureException("Retained process is exited or its identity cannot be verified.");
-                owner = native.GetWindowOwner(hWnd);
+                windowProcessId = native.GetWindowProcessId(hWnd);
             }
-            catch (Exception ex) when (ex is not WindowCaptureException)
+            catch (Exception ex) when (ex is not WindowCaptureException &&
+                ex is InvalidOperationException or ExternalException)
             {
                 throw new WindowCaptureException("Cannot verify retained process/window ownership.", ex);
             }
-            if (owner == 0 || owner != identity.HandleProcessId)
+            if (windowProcessId == 0 || windowProcessId != identity.HandleProcessId)
                 throw new WindowCaptureException("HWND is stale or belongs to a different process.");
+            return identity;
         }
 
         private sealed class WindowsCaptureNative : IWindowCaptureNative
@@ -143,12 +209,12 @@ namespace FEBuilderGBA.E2ETests.Helpers
                     return new(process.Id, false, 0);
                 return new(process.Id, true, GetProcessId(process.SafeHandle));
             }
-            public uint GetWindowOwner(IntPtr window) =>
-                GetWindowThreadProcessId(window, out uint owner) == 0 ? 0 : owner;
+            public uint GetWindowProcessId(IntPtr window) =>
+                GetWindowThreadProcessId(window, out uint processId) == 0 ? 0 : processId;
             public (int Width, int Height) GetWindowSize(IntPtr window)
             {
                 if (!GetWindowRect(window, out RECT rect))
-                    throw new WindowCaptureException("GetWindowRect failed.");
+                    throw CreateBoundsFailure(window, Marshal.GetLastWin32Error());
                 return (checked(rect.Right - rect.Left), checked(rect.Bottom - rect.Top));
             }
             public IWindowCaptureSurface CreateSurface(int width, int height) => new BitmapSurface(width, height);
@@ -189,26 +255,34 @@ namespace FEBuilderGBA.E2ETests.Helpers
         }
 
         /// <summary>
-        /// Quick check: sample a few pixels to see if the bitmap has real content
-        /// (not all-black or all-same-color).
+        /// Requires RGB variation anywhere in the bitmap; alpha alone is not rendered content.
         /// </summary>
-        private static bool HasContent(Bitmap bmp)
+        internal static bool HasContent(Bitmap bmp)
         {
-            if (bmp.Width < 2 || bmp.Height < 2) return false;
-            var firstPixel = bmp.GetPixel(0, 0);
-            // Sample corners and center
-            var samples = new[]
+            ArgumentNullException.ThrowIfNull(bmp);
+            BitmapData data = bmp.LockBits(new Rectangle(0, 0, bmp.Width, bmp.Height),
+                ImageLockMode.ReadOnly, PixelFormat.Format32bppArgb);
+            try
             {
-                bmp.GetPixel(bmp.Width / 2, bmp.Height / 2),
-                bmp.GetPixel(bmp.Width - 1, 0),
-                bmp.GetPixel(0, bmp.Height - 1),
-                bmp.GetPixel(bmp.Width - 1, bmp.Height - 1),
-            };
-            foreach (var s in samples)
-            {
-                if (s != firstPixel) return true;
+                var row = new byte[checked(bmp.Width * 4)];
+                Marshal.Copy(data.Scan0, row, 0, row.Length);
+                byte blue = row[0], green = row[1], red = row[2];
+                for (int y = 0; y < bmp.Height; y++)
+                {
+                    if (y > 0)
+                        Marshal.Copy(IntPtr.Add(data.Scan0, checked(y * data.Stride)), row, 0, row.Length);
+                    for (int x = 0; x < row.Length; x += 4)
+                    {
+                        if (row[x] != blue || row[x + 1] != green || row[x + 2] != red)
+                            return true;
+                    }
+                }
+                return false;
             }
-            return false;
+            finally
+            {
+                bmp.UnlockBits(data);
+            }
         }
 
     }
@@ -223,7 +297,7 @@ namespace FEBuilderGBA.E2ETests.Helpers
     internal interface IWindowCaptureNative
     {
         CaptureProcessIdentity GetProcessIdentity(Process process);
-        uint GetWindowOwner(IntPtr window);
+        uint GetWindowProcessId(IntPtr window);
         (int Width, int Height) GetWindowSize(IntPtr window);
         IWindowCaptureSurface CreateSurface(int width, int height);
         bool PrintWindow(IntPtr window, IntPtr hdc, uint flags);
