@@ -2928,7 +2928,7 @@ namespace FEBuilderGBA.Avalonia.Services
             uint ptr = rom.RomInfo.unit_wait_icon_pointer;
             if (ptr == 0) return new List<AddrResult>();
             uint baseAddr = rom.p32(ptr);
-            if (!U.isSafetyOffset(baseAddr)) return new List<AddrResult>();
+            if (!U.isSafetyOffset(baseAddr, rom)) return new List<AddrResult>();
 
             var result = new List<AddrResult>();
             for (uint i = 0; i < 0x100; i++)
@@ -2939,10 +2939,10 @@ namespace FEBuilderGBA.Avalonia.Services
                 uint imgPtr = rom.u32(addr + 4);
                 if (!U.isPointer(imgPtr)) break;
 
-                // #991: append the owning class name (lockstep with
-                // ImageUnitWaitIconViewModel.LoadList — golden test gated).
+                // Append the owning class name (lockstep with
+                // ImageUnitWaitIconViewModel.LoadList).
                 string className = FEBuilderGBA.Core.ClassFormCore.GetClassNameWhereWaitIconId(rom, i);
-                string name = U.ToHexString(i) + U.SA(className) + " WaitIcon";
+                string name = U.ToHexString(i) + U.SA(className);
                 result.Add(new AddrResult(addr, name, i));
             }
             return result;

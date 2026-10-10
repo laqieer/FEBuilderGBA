@@ -15,6 +15,7 @@ private validated snapshot created by ``core.project.validated_rom_snapshot``
 behavior: the guard is completely inert outside MCP's dynamic scope.
 """
 
+import errno
 import os
 import signal
 import shutil
@@ -24,6 +25,7 @@ import threading
 import time
 from contextlib import contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
@@ -36,6 +38,10 @@ _OUTPUT_READ_CHARS = 8192
 _CLEANUP_TIMEOUT_SECONDS = 0.5
 _WINDOWS_CREATE_SUSPENDED = 0x00000004
 _PRIVATE_ROM_SNAPSHOT_LABEL = "<private ROM snapshot>"
+_ERROR_TEXT_LIMIT = 65536
+_CLEANUP_TEXT_LIMIT = 16384
+_CLEANUP_CAUSE_LIMIT = 4096
+_CLEANUP_CAUSES_TEXT_LIMIT = 16000
 
 
 class _PosixBoundedProcessLifetime:
@@ -493,6 +499,140 @@ def _redact_registered_snapshot_paths(text: str, cmd: list[str]) -> str:
     return text
 
 
+@dataclass(frozen=True)
+class _CleanupEvidence:
+    causes: tuple[str, ...]
+    omitted: int
+
+    def text(self) -> str:
+        parts = ["Secondary cleanup failures:", *self.causes]
+        if self.omitted:
+            parts.append(f"{self.omitted} cleanup causes omitted")
+        return "\n".join(parts)
+
+
+@dataclass(frozen=True)
+class _BackendErrorEvidence:
+    primary: str
+    cleanup: Optional[_CleanupEvidence]
+
+
+class _BoundedCleanupFailure(RuntimeError):
+    def __init__(self, evidence: _CleanupEvidence):
+        super().__init__(
+            "Failed to fully terminate the bounded backend process tree")
+        self.evidence = evidence
+
+
+def _bounded_error_text(text: str, limit: int) -> str:
+    marker = "... [truncated]"
+    if len(text) <= limit:
+        return text
+    original_length = getattr(text, "original_length", len(text))
+    if limit <= len(marker):
+        prefix = text[:max(0, limit)]
+    else:
+        prefix = text[:limit - len(marker)] + marker
+    return _BoundedOutput(prefix, original_length, True)
+
+
+class _CleanupErrors:
+    """Retain bounded descriptions, not an unbounded list of exceptions."""
+
+    def __init__(self, cmd: list[str]):
+        self.cmd = cmd
+        self.first: Optional[BaseException] = None
+        self.causes: list[str] = []
+        self.retained_chars = 0
+        self.omitted = 0
+
+    def add(self, error: BaseException) -> None:
+        if self.first is None:
+            self.first = error
+        text = _redact_registered_snapshot_paths(
+            f"{type(error).__name__}: {error}", self.cmd)
+        text = _bounded_error_text(text, _CLEANUP_CAUSE_LIMIT)
+        size = len(text) + 1
+        if self.retained_chars + size <= _CLEANUP_CAUSES_TEXT_LIMIT:
+            self.causes.append(text)
+            self.retained_chars += size
+        else:
+            self.omitted += 1
+
+    def raise_if_failed(self) -> None:
+        if self.first is not None:
+            raise _BoundedCleanupFailure(
+                _CleanupEvidence(tuple(self.causes), self.omitted)
+            ) from self.first
+
+
+def _backend_error_evidence(error: BaseException) -> Optional[_BackendErrorEvidence]:
+    evidence = getattr(error, "_febuildergba_error_evidence", None)
+    return evidence if isinstance(evidence, _BackendErrorEvidence) else None
+
+
+def _capture_backend_error(
+        error: BaseException, cmd: list[str],
+        cleanup: Optional[_CleanupEvidence] = None) -> None:
+    # Capture while snapshot registration and relative command spellings still
+    # exist. Never mutate the original exception's message/args/traceback.
+    previous = _backend_error_evidence(error)
+    if cleanup is None:
+        if previous is not None:
+            cleanup = previous.cleanup
+        elif isinstance(error, _BoundedCleanupFailure):
+            cleanup = error.evidence
+    primary = (
+        previous.primary if previous is not None
+        else _redact_registered_snapshot_paths(str(error), cmd)
+    )
+    limit = _ERROR_TEXT_LIMIT - _CLEANUP_TEXT_LIMIT - 1 if cleanup else _ERROR_TEXT_LIMIT
+    setattr(
+        error, "_febuildergba_error_evidence",
+        _BackendErrorEvidence(_bounded_error_text(primary, limit), cleanup))
+
+
+def _format_backend_error(error: BaseException, limit: int = _ERROR_TEXT_LIMIT) -> str:
+    evidence = _backend_error_evidence(error)
+    if evidence is None:
+        _capture_backend_error(error, [])
+        evidence = _backend_error_evidence(error)
+    assert evidence is not None
+    if evidence.cleanup is None:
+        return _bounded_error_text(evidence.primary, limit)
+    secondary = evidence.cleanup.text()
+    # Reserve secondary space before the MCP field's final prefix cap.
+    secondary = _bounded_error_text(secondary, min(_CLEANUP_TEXT_LIMIT, limit // 2))
+    primary = _bounded_error_text(evidence.primary, limit - len(secondary) - 1)
+    return _BoundedOutput(
+        primary + "\n" + secondary,
+        getattr(primary, "original_length", len(primary))
+        + 1 + getattr(secondary, "original_length", len(secondary)),
+        bool(getattr(primary, "truncated", False)
+             or getattr(secondary, "truncated", False)),
+    )
+
+
+def _normalized_backend_error(
+        message: str, source: BaseException, cmd: list[str]) -> RuntimeError:
+    error = RuntimeError(message)
+    evidence = _backend_error_evidence(source)
+    _capture_backend_error(
+        error, cmd, evidence.cleanup if evidence is not None else None)
+    return error
+
+
+def _cleanup_preserving_primary(
+        primary: BaseException, process, streams, readers, lifetime,
+        cmd: list[str]) -> None:
+    try:
+        _cleanup_bounded_process(process, streams, readers, lifetime, cmd)
+    except _BoundedCleanupFailure as cleanup:
+        _capture_backend_error(primary, cmd, cleanup.evidence)
+    else:
+        _capture_backend_error(primary, cmd)
+
+
 def _drain_bounded_stream(stream, captured: _BoundedStreamCapture) -> None:
     """Drain one text pipe to EOF without retaining data beyond its prefix."""
     try:
@@ -515,8 +655,12 @@ def _force_close_pipe(stream) -> None:
     """Close an OS pipe without waiting on a reader's TextIOWrapper lock."""
     try:
         os.close(stream.fileno())
-    except (OSError, ValueError):
-        pass
+    except OSError as exc:
+        if exc.errno != errno.EBADF:
+            raise
+    except ValueError:
+        if not stream.closed:
+            raise
 
 
 def _start_bounded_process(cmd: list[str]):
@@ -547,57 +691,75 @@ def _start_bounded_process(cmd: list[str]):
         )
         lifetime.assign(process)
         return process, lifetime
-    except BaseException:
-        if process is not None and process.poll() is None:
-            try:
-                process.kill()
-                process.wait(timeout=_CLEANUP_TIMEOUT_SECONDS)
-            except (OSError, subprocess.TimeoutExpired):
-                pass
-        lifetime.close()
+    except BaseException as primary:
+        streams = tuple(
+            stream for stream in (
+                getattr(process, "stdout", None),
+                getattr(process, "stderr", None),
+            ) if stream is not None
+        )
+        _cleanup_preserving_primary(primary, process, streams, (), lifetime, cmd)
         raise
 
 
-def _cleanup_bounded_process(process, streams, readers, lifetime) -> None:
+def _cleanup_bounded_process(
+        process, streams, readers, lifetime,
+        cmd: Optional[list[str]] = None) -> None:
     """Bound teardown when a process or an inherited pipe refuses to finish."""
-    cleanup_errors = []
+    deadline = time.monotonic() + _CLEANUP_TIMEOUT_SECONDS
+    cleanup_errors = _CleanupErrors(cmd if cmd is not None else [])
+    # Aggregate even unexpected teardown failures so later owned resources
+    # still receive cleanup; every failure is raised or reported explicitly.
     try:
         lifetime.terminate()
     except BaseException as exc:
-        cleanup_errors.append(exc)
+        cleanup_errors.add(exc)
 
-    if process.poll() is None:
+    if process is not None:
+        running = True
         try:
-            process.kill()
-        except OSError as exc:
-            cleanup_errors.append(exc)
-    try:
-        process.wait(timeout=_CLEANUP_TIMEOUT_SECONDS)
-    except subprocess.TimeoutExpired as exc:
-        cleanup_errors.append(exc)
+            running = process.poll() is None
+        except BaseException as exc:
+            cleanup_errors.add(exc)
+        if running:
+            try:
+                process.kill()
+            except BaseException as exc:
+                cleanup_errors.add(exc)
+        try:
+            process.wait(timeout=max(0.0, deadline - time.monotonic()))
+        except BaseException as exc:
+            cleanup_errors.add(exc)
 
     for stream in streams:
-        _force_close_pipe(stream)
+        try:
+            _force_close_pipe(stream)
+        except BaseException as exc:
+            cleanup_errors.add(exc)
 
-    deadline = time.monotonic() + _CLEANUP_TIMEOUT_SECONDS
     for reader in readers:
-        remaining = deadline - time.monotonic()
-        if remaining <= 0:
-            break
-        reader.join(remaining)
-    if any(reader.is_alive() for reader in readers):
-        cleanup_errors.append(
+        try:
+            remaining = deadline - time.monotonic()
+            if remaining > 0:
+                reader.join(remaining)
+        except BaseException as exc:
+            cleanup_errors.add(exc)
+    reader_alive = False
+    for reader in readers:
+        try:
+            reader_alive = reader.is_alive() or reader_alive
+        except BaseException as exc:
+            cleanup_errors.add(exc)
+    if reader_alive:
+        cleanup_errors.add(
             RuntimeError("Bounded backend pipe reader did not stop"))
 
     try:
         lifetime.close()
     except BaseException as exc:
-        cleanup_errors.append(exc)
+        cleanup_errors.add(exc)
 
-    if cleanup_errors:
-        raise RuntimeError(
-            "Failed to fully terminate the bounded backend process tree"
-        ) from cleanup_errors[0]
+    cleanup_errors.raise_if_failed()
 
 
 def _run_cli_bounded(
@@ -607,16 +769,17 @@ def _run_cli_bounded(
     # Popen creates these streams whenever PIPE is requested.  The explicit
     # guard keeps the reader contract clear to type checkers and future edits.
     if process.stdout is None or process.stderr is None:
-        _cleanup_bounded_process(
-            process,
-            tuple(
-                stream for stream in (process.stdout, process.stderr)
-                if stream is not None
-            ),
-            (),
-            lifetime,
-        )
-        raise OSError("Failed to create backend output pipes")
+        try:
+            raise OSError("Failed to create backend output pipes")
+        except OSError as primary:
+            _cleanup_preserving_primary(
+                primary, process,
+                tuple(
+                    stream for stream in (process.stdout, process.stderr)
+                    if stream is not None
+                ),
+                (), lifetime, cmd)
+            raise
 
     stdout_capture = _BoundedStreamCapture(max_chars)
     stderr_capture = _BoundedStreamCapture(max_chars)
@@ -663,16 +826,17 @@ def _run_cli_bounded(
             raise stdout_capture.error
         if stderr_capture.error is not None:
             raise stderr_capture.error
-    except BaseException:
-        _cleanup_bounded_process(
-            process,
-            (process.stdout, process.stderr),
-            readers,
-            lifetime,
-        )
+    except BaseException as primary:
+        _cleanup_preserving_primary(
+            primary, process, (process.stdout, process.stderr),
+            readers, lifetime, cmd)
         raise
 
-    lifetime.finish()
+    try:
+        lifetime.finish()
+    except BaseException as primary:
+        _capture_backend_error(primary, cmd)
+        raise
 
     return subprocess.CompletedProcess(
         cmd,
@@ -800,25 +964,26 @@ def run_cli(args: list[str], capture: bool = True,
             timeout=timeout,
         )
         return result
-    except FileNotFoundError:
+    except FileNotFoundError as e:
         command = _redact_registered_snapshot_paths(
             " ".join(cmd), cmd)
-        raise RuntimeError(
+        raise _normalized_backend_error(
             f"Failed to run: {command}\n"
-            "Is .NET 10.0 SDK installed? https://dotnet.microsoft.com/download"
-        )
-    except subprocess.TimeoutExpired:
+            "Is .NET 10.0 SDK installed? https://dotnet.microsoft.com/download",
+            e, cmd,
+        ) from e
+    except subprocess.TimeoutExpired as e:
         command = _redact_registered_snapshot_paths(
             " ".join(cmd), cmd)
-        raise RuntimeError(
-            f"Command timed out after {timeout}s: {command}"
-        )
+        raise _normalized_backend_error(
+            f"Command timed out after {timeout}s: {command}", e, cmd,
+        ) from e
     except OSError as e:
         command = _redact_registered_snapshot_paths(
             " ".join(cmd), cmd)
         detail = _redact_registered_snapshot_paths(str(e), cmd)
-        raise RuntimeError(
-            f"Failed to run {command}: {detail}"
+        raise _normalized_backend_error(
+            f"Failed to run {command}: {detail}", e, cmd,
         ) from e
 
 
@@ -898,5 +1063,5 @@ def check_backend() -> dict:
     except (RuntimeError, OSError, UnicodeError) as e:
         return {
             "available": False,
-            "error": str(e),
+            "error": _format_backend_error(e),
         }

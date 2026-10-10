@@ -215,6 +215,17 @@ exactly as before this fix.
   complete lifetime before joining pipe readers; successful calls close it to reap any stray
   descendants. Click retains its legacy subprocess path. A POSIX descendant that deliberately
   starts a new session is outside this process-group contract.
+- A bounded backend failure remains the primary exception, with its identity and traceback
+  preserved even if teardown also fails. CLI/MCP error normalization includes explicit secondary
+  cleanup causes without changing response keys or backend-check unavailable-status behavior.
+  Error text is limited to 65,536 characters, reserving up to 16,384 for cleanup evidence;
+  individual cleanup causes are limited to 4,096 characters, with omitted causes counted.
+  Private snapshot spellings are redacted while registration and command context are still
+  active, so later formatting cannot disclose them after the snapshot context unwinds.
+  Cleanup-only failures remain errors. Process waits and pipe-reader joins share one monotonic
+  0.5-second cleanup budget (previously separate wait/join budgets); owned termination, pipe
+  teardown and lifetime close are still attempted when that budget is exhausted. Capture caps
+  retain prefixes while draining/counting output; overflow alone does not terminate the backend.
 - `rom checksum`'s advisory exit-2 "invalid header" behavior is local, byte-level, and unrelated
   to the backend/snapshot mechanism — it is unaffected by any of the above.
 

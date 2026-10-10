@@ -1108,6 +1108,9 @@ def _h_tools_call(state, params):
         )
 
     handler = TOOL_HANDLERS[name]
+    from cli_anything.febuildergba.utils.febuildergba_backend import (
+        _format_backend_error,
+    )
     try:
         # Scope bounded capture to all MCP tool handlers.  The shared core
         # wrappers keep their Click behavior because their run_cli calls only
@@ -1119,7 +1122,7 @@ def _h_tools_call(state, params):
         with bounded_capture(MAX_STRING_LEN), prebuilt_backend_only():
             payload, is_error = handler(state.session, arguments)
     except Exception as e:  # tool business/backend failure -> isError result, never a protocol error
-        payload, is_error = {"error": str(e)}, True
+        payload, is_error = {"error": _format_backend_error(e, MAX_STRING_LEN)}, True
 
     if isinstance(payload, dict):
         _bound_string_fields(payload)
