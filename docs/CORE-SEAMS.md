@@ -10,6 +10,29 @@ a WinForms form, with its behavioural contract and the issue that introduced it.
 points here; this file is the exhaustive reference. New seam entries belong
 **here**, not in always-loaded instructions.
 
+## #2176 Magic Extends installed-versus-allocated state
+
+`ImageUtilMagicCore` recognizes a known engine only with its matching complete
+CSA pointer slot. A raw zero slot means installed but not yet allocated:
+the slot is retained, while the table address is `U.NOT_FOUND`. Absent or
+truncated slots, wrong-version signatures, and unsafe nonzero targets do not
+identify an installed engine. The maintained FE8U FEditor engine signature at
+`0x95D780` anchors its CSA signature at `0x95D8F4` and slot at `0x95D904`.
+For this exact engine, Core never falls back to an earlier generic signature:
+a missing or damaged fixed signature/slot fails closed, raw `0x08000000` or
+zero retains the unallocated slot, and a safe four-byte-aligned ROM pointer
+retains the same slot and resolves its allocated table. A relocated CSA
+signature with this unchanged engine is unsupported because it cannot be
+distinguished from a damaged fixed installation. Other engines and versions
+retain their generic signature scan; the sentinel at any other slot is unsafe.
+The exception never exposes ROM offset zero as a table. WinForms fills its cache
+directly from `ImageUtilMagicCore`; `MagicCSACore` exposes the same outputs to
+Core and Avalonia consumers. WinForms retains its existing
+first-allocation prompt; `MagicListExpandCore` is only a relocator of allocated
+tables and rejects an unallocated CSA target before either table is written.
+Both Core magic import APIs and `MagicEffectRendererCore` still require an
+allocated CSA table; engine detection alone does not authorize those operations.
+
 ## #2034 Deterministic font-library builder
 
 `FontBulkManifestCore` is the shared `.fontall.txt` streaming parser/formatter.

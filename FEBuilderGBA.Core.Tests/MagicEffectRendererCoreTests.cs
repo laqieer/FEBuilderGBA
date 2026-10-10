@@ -312,6 +312,38 @@ namespace FEBuilderGBA.Core.Tests
         // RenderMagicFrame
         // ---------------------------------------------------------------
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void RenderMagicFrame_UnallocatedTable_ReturnsNullBeforeReadingFrame(bool installerSentinel)
+        {
+            var prevRom = CoreState.ROM;
+            var prevSvc = CoreState.ImageService;
+            try
+            {
+                var rom = MakeFe8uRomWithMagic();
+                BitConverter.GetBytes(installerSentinel ? 0x08000000u : 0u)
+                    .CopyTo(rom.Data, 0x95D904);
+                Assert.Equal(ImageUtilMagicCore.MagicSystem.FEditorAdv,
+                    ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+                Assert.Equal(0x95D904u, MagicCSACore.GetCSASpellTablePointer(rom));
+                Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+                CoreState.ROM = rom;
+                CoreState.ImageService = new StubImageService();
+                byte[] before = (byte[])rom.Data.Clone();
+                int length = rom.Data.Length;
+
+                var image = MagicEffectRendererCore.RenderMagicFrame(
+                    rom, 0x400u, 0u, 0u, 0u, out string log);
+
+                Assert.Null(image);
+                Assert.Contains("allocated", log, StringComparison.OrdinalIgnoreCase);
+                Assert.Equal(length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+            }
+            finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
+        }
+
         /// <summary>
         /// No magic system patch → RenderMagicFrame returns null.
         /// </summary>
@@ -362,6 +394,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var rom = MakeFe8uRomWithMagic();
+                AssertAllocatedFEditor(rom);
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
                 // frameDataAddr at ROM end − 3 bytes (not enough for 4-byte guard).
@@ -369,7 +402,8 @@ namespace FEBuilderGBA.Core.Tests
                 string log;
                 var img = MagicEffectRendererCore.RenderMagicFrame(
                     rom, nearEOF, 0u, 0x200000u, 0x300000u, out log);
-                Assert.Null(img); // expected: no frame found → null
+                Assert.Null(img);
+                Assert.Contains("Frame 0 not found", log);
             }
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
@@ -385,6 +419,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var rom = MakeFe8uRomWithMagic();
+                AssertAllocatedFEditor(rom);
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
 
@@ -407,6 +442,7 @@ namespace FEBuilderGBA.Core.Tests
                 var img = MagicEffectRendererCore.RenderMagicFrame(
                     rom, frameBase, 0u, 0x10000u, 0x20000u, out log);
                 Assert.Null(img);
+                Assert.Contains("BG LZ77 header invalid", log);
             }
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
@@ -422,6 +458,7 @@ namespace FEBuilderGBA.Core.Tests
             try
             {
                 var rom = MakeFe8uRomWithMagic();
+                AssertAllocatedFEditor(rom);
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
 
@@ -442,6 +479,7 @@ namespace FEBuilderGBA.Core.Tests
                 var img = MagicEffectRendererCore.RenderMagicFrame(
                     rom, frameBase, 0u, 0x10000u, 0x20000u, out log);
                 Assert.Null(img);
+                Assert.Contains("OBJ LZ77 header invalid", log);
             }
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
@@ -456,8 +494,8 @@ namespace FEBuilderGBA.Core.Tests
             var prevSvc = CoreState.ImageService;
             try
             {
-                // Use a very small ROM so the palette pointer is out of bounds.
-                var rom = MakeFe8uRomWithMagic(0x1000);
+                var rom = MakeFe8uRomWithMagic();
+                AssertAllocatedFEditor(rom);
                 CoreState.ROM = rom;
                 CoreState.ImageService = new StubImageService();
 
@@ -475,6 +513,7 @@ namespace FEBuilderGBA.Core.Tests
                 var img = MagicEffectRendererCore.RenderMagicFrame(
                     rom, frameBase, 0u, 0x10000u, 0x20000u, out log);
                 Assert.Null(img);
+                Assert.Contains("OBJPAL out of bounds", log);
             }
             finally { CoreState.ROM = prevRom; CoreState.ImageService = prevSvc; }
         }
@@ -559,6 +598,14 @@ namespace FEBuilderGBA.Core.Tests
             return rom;
         }
 
+        static void AssertAllocatedFEditor(ROM rom)
+        {
+            Assert.Equal(ImageUtilMagicCore.MagicSystem.FEditorAdv,
+                ImageUtilMagicCore.SearchMagicSystem(rom, out _, out _, out _));
+            Assert.Equal(0x95D904u, MagicCSACore.GetCSASpellTablePointer(rom));
+            Assert.Equal(0x100000u, MagicCSACore.GetCSASpellTableAddr(rom));
+        }
+
         static ROM MakeMinimalFe8uRom_NoMagic()
         {
             var rom = new ROM();
@@ -577,12 +624,12 @@ namespace FEBuilderGBA.Core.Tests
             if (0x95d780 + sig.Length <= size)
                 Array.Copy(sig, 0, data, 0x95d780, sig.Length);
 
-            // FEditor CSA spell table pattern at 0x00200000 + pointer to 0x00100000.
+            // Matching fixed FEditor CSA footprint with an allocated table.
             byte[] csaPat = {
                 0x01, 0xB4, 0x7D, 0xE7, 0x34, 0xFF, 0x03, 0x02,
                 0x80, 0xD7, 0x95, 0x08, 0x1A, 0xE1, 0x03, 0x02,
             };
-            uint csaPos = 0x00200000u;
+            uint csaPos = 0x95D8F4u;
             if ((int)csaPos + csaPat.Length + 4 <= size)
             {
                 Array.Copy(csaPat, 0, data, (int)csaPos, csaPat.Length);
