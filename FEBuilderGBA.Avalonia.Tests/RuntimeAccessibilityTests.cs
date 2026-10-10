@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System;
 using System.Linq;
 using Avalonia.Automation;
 using Avalonia.Automation.Peers;
@@ -7,11 +8,17 @@ using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Views;
+using FEBuilderGBA.Avalonia.Services;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
-public class RuntimeAccessibilityTests
+[Collection("SharedState")]
+public class RuntimeAccessibilityTests : IDisposable
 {
+    readonly Window? _previousMainWindow = WindowManager.Instance.MainWindow;
+
+    public void Dispose() => WindowManager.Instance.MainWindow = _previousMainWindow;
+
     static string Name(Control control) =>
         ControlAutomationPeer.CreatePeerForElement(control)!.GetName();
 
@@ -62,7 +69,9 @@ public class RuntimeAccessibilityTests
             window.Show();
             window.UpdateLayout();
             var combo = view.FindControl<ComboBox>("CostTypeCombo")!;
-            Assert.False(string.IsNullOrWhiteSpace(Name(combo)));
+            var caption = view.FindControl<TextBlock>("CostTypeCaption")!;
+            caption.Text = "消费类型:";
+            Assert.Equal(caption.Text, Name(combo));
             var fields = view.GetVisualDescendants().OfType<NumericUpDown>().ToArray();
             Assert.Equal(65, fields.Length);
             foreach (var field in fields)
