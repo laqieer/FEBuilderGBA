@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Avalonia.Headless.XUnit;
+using FEBuilderGBA;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -9,6 +10,7 @@ namespace FEBuilderGBA.Avalonia.Tests;
 /// <summary>
 /// Tests for ListParityHelper comparison logic and AddressListControl.GetItems().
 /// </summary>
+[Collection("SharedState")]
 public class ListParityHelperTests : IClassFixture<RomFixture>
 {
     readonly RomFixture _rom;
@@ -374,6 +376,75 @@ public class ListParityHelperTests : IClassFixture<RomFixture>
         {
             Assert.Equal(vmList[i].addr, refList[i].addr);
             Assert.Equal(vmList[i].name, refList[i].name);
+        }
+    }
+
+    [Fact]
+    public void UnitWaitIconLabels_OmitStaticSuffix_WhenNoClassOwnsEntry()
+    {
+        ROM? previousRom = CoreState.ROM;
+        try
+        {
+            var bytes = new byte[0x1100000];
+            var rom = new ROM();
+            Assert.True(rom.LoadLow("synthetic-wait-icons.gba", bytes, "BE8E01"));
+            CoreState.ROM = rom;
+
+            const uint tableBase = 0x01000000;
+            rom.write_p32(rom.RomInfo.unit_wait_icon_pointer, tableBase);
+            rom.write_p32(tableBase + 4, 0x2000);
+
+            var vmList = new ImageUnitWaitIconViewModel().LoadList();
+            var refList = ListParityHelper.BuildReferenceList("ImageUnitWaitIconView");
+
+            Assert.NotNull(refList);
+            Assert.Single(vmList);
+            Assert.Single(refList);
+            Assert.Equal(U.ToHexString(0), vmList[0].name);
+            Assert.Equal(vmList[0].name, refList[0].name);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+        }
+    }
+
+    [Fact]
+    public void UnitWaitIconLabels_AppendOwningClassName_WhenClassOwnsEntry()
+    {
+        if (!_rom.IsAvailable) return;
+
+        ROM? previousRom = CoreState.ROM;
+        try
+        {
+            ROM rom = _rom.ROM!;
+            CoreState.ROM = rom;
+            NameResolver.ClearCache();
+
+            var vmList = new ImageUnitWaitIconViewModel().LoadList();
+            var refList = ListParityHelper.BuildReferenceList("ImageUnitWaitIconView");
+
+            Assert.NotNull(refList);
+            int ownedIndex = -1;
+            string className = string.Empty;
+            for (int i = 0; i < vmList.Count; i++)
+            {
+                string candidate = FEBuilderGBA.Core.ClassFormCore.GetClassNameWhereWaitIconId(rom, (uint)i);
+                if (string.IsNullOrEmpty(candidate)) continue;
+                ownedIndex = i;
+                className = candidate;
+                break;
+            }
+
+            Assert.True(ownedIndex >= 0, "The fixture ROM should contain a wait icon owned by a named class.");
+            string expectedLabel = U.ToHexString((uint)ownedIndex) + U.SA(className);
+            Assert.Equal(expectedLabel, vmList[ownedIndex].name);
+            Assert.Equal(expectedLabel, refList[ownedIndex].name);
+        }
+        finally
+        {
+            CoreState.ROM = previousRom;
+            NameResolver.ClearCache();
         }
     }
 
