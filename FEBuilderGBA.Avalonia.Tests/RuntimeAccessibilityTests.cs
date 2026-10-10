@@ -6,6 +6,9 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless.XUnit;
 using Avalonia.VisualTree;
+using Avalonia.LogicalTree;
+using Avalonia.Controls.Templates;
+using Avalonia.Automation.Provider;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Avalonia.Services;
@@ -21,6 +24,116 @@ public class RuntimeAccessibilityTests : IDisposable
 
     static string Name(Control control) =>
         ControlAutomationPeer.CreatePeerForElement(control)!.GetName();
+
+    [AvaloniaFact]
+    public void SharedTopBarFilter_AnnouncesLiveCaption()
+    {
+        var bar = new EditorTopBar { ShowFilter = true };
+        var label = bar.FindControl<TextBlock>("FilterLabelBlock")!;
+        var input = bar.FindControl<TextBox>("FilterInput")!;
+        label.Text = "筛选:";
+        Assert.Equal(label.Text, Name(input));
+        var value = Assert.IsAssignableFrom<IValueProvider>(ControlAutomationPeer.CreatePeerForElement(input));
+        value.SetValue("Lord");
+        global::Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+        Assert.Equal("Lord", bar.FilterText);
+    }
+
+    [AvaloniaFact]
+    public void BuildOutput_AnnouncesLocalizedPurpose_NotOutputText()
+    {
+        var window = new MainWindow();
+        try
+        {
+            var output = window.GetLogicalDescendants().OfType<TextBox>()
+                .Single(x => AutomationProperties.GetAutomationId(x) == "Main_DecompBuildOutput_Control");
+            output.Text = "Compiler diagnostic";
+            Assert.False(string.IsNullOrWhiteSpace(Name(output)));
+            output.Watermark = "构建输出";
+            Assert.Equal(output.Watermark, Name(output));
+            var value = Assert.IsAssignableFrom<IValueProvider>(ControlAutomationPeer.CreatePeerForElement(output));
+            Assert.True(value.IsReadOnly);
+            Assert.Equal(output.Text, value.Value);
+        }
+        finally { window.Close(); }
+    }
+
+    [AvaloniaFact]
+    public void Classes_AllFieldsAndNumericTemplates_TrackTheirActualLabels()
+    {
+        var view = new ClassEditorView();
+        var pairs = new[]
+        {
+            "NameIdBox|Name ID (W0):", "DescIdBox|Desc ID (W2):",
+            "ClassNumberBox|Class # (B4):", "PromotionLevelBox|Promo Lv (B5):",
+            "WaitIconBox|Wait Icon (B6):", "WalkSpeedBox|Walk Spd (B7):",
+            "PortraitIdBox|Portrait (W8):", "SortOrderBox|Sort Order (B10):",
+            "BaseHpBox|HP (B11):", "BaseStrBox|Str (B12):", "BaseSklBox|Skl (B13):",
+            "BaseSpdBox|Spd (B14):", "BaseDefBox|Def (B15):", "BaseResBox|Res (B16):",
+            "BaseConBox|Con (B17):", "BaseMovBox|Mov (B18):",
+            "MaxHpBox|Max HP (B19):", "MaxStrBox|Max Str (B20):", "MaxSklBox|Max Skl (B21):",
+            "MaxSpdBox|Max Spd (B22):", "MaxDefBox|Max Def (B23):", "MaxResBox|Max Res (B24):",
+            "MaxConBox|Max Con (B25):", "ClassPowerBox|Power (B26):",
+            "GrowHpBox|HP (B27):", "GrowStrBox|Str (B28):", "GrowSklBox|Skl (B29):",
+            "GrowSpdBox|Spd (B30):", "GrowDefBox|Def (B31):", "GrowResBox|Res (B32):",
+            "GrowLckBox|Lck (B33):",
+            "PromoHpBox|HP (b34):", "PromoStrBox|Str (b35):", "PromoSklBox|Skl (b36):",
+            "PromoSpdBox|Spd (b37):", "PromoDefBox|Def (b38):", "PromoResBox|Res (b39):",
+            "B44Box|Sword (B44):", "B45Box|Lance (B45):", "B46Box|Axe (B46):",
+            "B47Box|Bow (B47):", "B48Box|Staff (B48):", "B49Box|Anima (B49):",
+            "B50Box|Light (B50):", "B51Box|Dark (B51):",
+            "Ptr52Box|Battle Anime (P52):", "Ptr56Box|Move Cost (P56):",
+            "Ptr60Box|Move Cost Rain (P60):", "Ptr64Box|Move Cost Snow (P64):",
+            "Ptr68Box|Terrain Avoid (P68):", "Ptr72Box|Terrain Def (P72):",
+            "Ptr76Box|Terrain Res (P76):", "D80Box|??? (D80):", "SimLevelBox|Sim Level:",
+        };
+        var labels = pairs.Select(pair => pair.Split('|'))
+            .Select(pair => (Field: view.FindControl<Control>(pair[0])!,
+                Label: view.GetLogicalDescendants().OfType<TextBlock>().Single(x => x.Text == pair[1])))
+            .ToArray();
+        var fields = view.GetLogicalDescendants().OfType<Control>()
+            .Where(x => (x is NumericUpDown or TextBox) &&
+                AutomationProperties.GetAutomationId(x)?.StartsWith("ClassEditor_") == true).ToArray();
+        Assert.Equal(fields.OrderBy(x => x.Name), labels.Select(x => x.Field).OrderBy(x => x.Name));
+        var window = new Window { Content = view, Width = 1400, Height = 1000 };
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+            foreach (var (field, label) in labels)
+            {
+                Assert.Same(label, AutomationProperties.GetLabeledBy(field));
+                label.Text = $"{field.Name} 翻译:";
+                Assert.Equal(label.Text, Name(field));
+                if (field is NumericUpDown numeric)
+                {
+                    var input = numeric.GetVisualDescendants().OfType<TextBox>().Single();
+                    Assert.Equal(label.Text, Name(input));
+                    Assert.Equal(AutomationControlType.Edit,
+                        ControlAutomationPeer.CreatePeerForElement(input)!.GetAutomationControlType());
+                    var provider = Assert.IsAssignableFrom<IValueProvider>(ControlAutomationPeer.CreatePeerForElement(input));
+                    Assert.Equal(input.Text, provider.Value);
+                    var value = numeric.Value;
+                    numeric.Template = new FuncControlTemplate<NumericUpDown>((_, scope) =>
+                    {
+                        var text = new TextBox { Name = "PART_TextBox" };
+                        scope.Register(text.Name, text);
+                        return text;
+                    });
+                    numeric.ApplyTemplate();
+                    var replacement = numeric.GetVisualDescendants().OfType<TextBox>().Single();
+                    Assert.NotSame(input, replacement);
+                    label.Text += " 更新";
+                    Assert.Equal(label.Text, Name(replacement));
+                    Assert.Equal(value, numeric.Value);
+                }
+                else
+                    Assert.Equal(AutomationControlType.Edit,
+                        ControlAutomationPeer.CreatePeerForElement(field)!.GetAutomationControlType());
+            }
+        }
+        finally { window.Close(); }
+    }
 
     [AvaloniaFact]
     public void MainFilter_AnnouncesCurrentTranslatedLabel()

@@ -32,7 +32,25 @@ Avalonia's menu peers in this Windows run expose neither Invoke nor ExpandCollap
 
 ## Remaining inventory and platform limits
 
-The issue remains open. Known additional gaps observed in the Classes editor are the unnamed `PART_TextBox` descendants of `ClassEditor_NameId_Input`, `ClassEditor_DescId_Input`, `ClassEditor_ClassNumber_Input`, `ClassEditor_PromotionLevel_Input`, `ClassEditor_WaitIcon_Input`, `ClassEditor_WalkSpeed_Input`, `ClassEditor_PortraitId_Input`, `ClassEditor_SortOrder_Input`, `ClassEditor_BaseHp_Input`, and `ClassEditor_BaseStr_Input`. These require a separate focused investigation of shared ID/numeric controls and their field labels; fixing shared list-row names does not fix those inputs.
+The issue remains open. The ten additional unnamed Classes numeric template inputs confirmed in the native audit were acceptance failures, not non-goals. The follow-up fixes all **46 Classes numeric inputs and their template Edits**, plus **8 pointer/data TextBoxes**, using the existing translated/version-specific field captions. Identity, base stats, stat caps, growth, promotion, weapon ranks, terrain pointers and simulation level are explicitly paired in semantic peer regressions. Numeric templates are recreated in tests to ensure their label references survive retemplating without altering values. These follow-up results are **headless**, awaiting exact-head native verification; the original screenshot does not prove them.
+
+The shared `EditorTopBar` filter and main read-only decompilation build output also had empty production peer names in headless tests. The filter now follows its live caption, with a writable Value provider that retains filter synchronization. Output announces its translated purpose rather than compiler diagnostics, while keeping a read-only Value provider.
+
+### Offline inventory (not native certification)
+
+The static October 10 follow-up enumerated **371 AXAML files**: 2,048 NumericUpDowns, 475 TextBoxes, 147 ComboBoxes, 1,506 Buttons, 138 CheckBoxes, 99 ListBoxes, 39 MenuItems, 21 TabControls and one Slider. These are source instances, not realized runtime peers; generated fields/templates add descendants. Static presence, content and AutomationIds do not certify accessible names, roles or operation.
+
+| Surface | Static inventory / outstanding runtime work |
+| --- | --- |
+| Classes detail inputs | 46 numerics + 8 text inputs: explicit current caption, Edit-role/value and replacement-template headless coverage; native values/focus/enabled states and version-specific visibility still to refresh. |
+| Classes commands | 16 Buttons with visible Content; includes seven pointer Jump buttons with repeated names, description navigation, Write, growth/export commands. Their context and keyboard/Invoke behavior require native validation; no ROM Write was exercised. |
+| Classes flags/export options | Four BitFlagPanels generate 32 CheckBoxes, with version-specific Content; eight additional CheckBoxes have Content. Toggle states and native operation remain to audit. |
+| Main host | 36 MenuItems, 233 Buttons and two TextBoxes. Critical commands have the earlier native evidence above; build-output purpose has new headless coverage. Other launchers/menu states require representative runtime verification. |
+| Shared EditorTopBar | One optional filter TextBox and one Reload Button, plus noneditable metadata labels. Filter name/value has new headless coverage; native optional-filter/reload flow remains. |
+| Shared AddressListControl | One search TextBox, three Buttons, one ListBox, three context MenuItems; generated ListBoxItems have the earlier native evidence. Context commands and edge selection/disabled states remain to audit. |
+| Shared BitFlagPanel | Eight generated CheckBoxes per instance; labels follow bit Content. Cross-editor version-specific names and toggle behavior remain to audit. |
+
+No confirmed Classes input-name defect is intentionally left unfixed. The remaining gates above are concrete incomplete validation/inventory, not assertions that unaffected controls are accessible. Further confirmed distinct failures require fixes and focused regression coverage.
 
 The rest of the Classes detail controls and other editors, dialogs, third-party templates, and disabled/selection/validation states remain unaudited beyond the surfaces above. Physical foreground keyboard navigation was unavailable to the automation process (`GetForegroundWindow` returned zero); native UIA focus/value/selection/invoke and application keyboard messages are reported separately, not presented as an end-to-end screen-reader pass.
 

@@ -100,6 +100,9 @@
           <Panel />
         </DockPanel>
         <TextBox AutomationProperties.AutomationId="Main_DecompBuildOutput_Control"
+                 Name="DecompBuildOutputBox"
+                 Watermark="Build Output"
+                 AutomationProperties.Name="{Binding #DecompBuildOutputBox.Watermark}"
                  Text="{Binding DecompBuildOutput}" IsReadOnly="True" AcceptsReturn="True"
                  MaxHeight="120" ScrollViewer.VerticalScrollBarVisibility="Auto"
                  FontFamily="Courier New,monospace" FontSize="11"
