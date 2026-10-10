@@ -180,6 +180,46 @@ namespace FEBuilderGBA
                 && TypeBits == other.TypeBits;
         }
 
+        internal enum OriginalPathRelation
+        {
+            Unknown,
+            SameOpenedFile,
+            Displaced,
+        }
+
+        sealed class ProvenanceFileStream : FileStream
+        {
+            internal string OriginalFullPath { get; }
+
+            internal ProvenanceFileStream(SafeFileHandle handle, string originalFullPath)
+                : base(handle, FileAccess.Read)
+            {
+                OriginalFullPath = originalFullPath;
+            }
+
+            internal ProvenanceFileStream(string originalFullPath)
+                : base(originalFullPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None)
+            {
+                OriginalFullPath = originalFullPath;
+            }
+        }
+
+        internal static FileStream CreatePublicationStagingFile(string path)
+            => new ProvenanceFileStream(Path.GetFullPath(path));
+
+        internal static bool IsSnapshotUnchanged(
+            OpenedRegularFileState before,
+            OpenedRegularFileState after,
+            OriginalPathRelation relation)
+            => relation switch
+            {
+                OriginalPathRelation.Unknown or OriginalPathRelation.SameOpenedFile
+                    => before.SameSnapshot(after),
+                OriginalPathRelation.Displaced
+                    => before.SameSnapshotIgnoringChangeTime(after),
+                _ => throw new ArgumentOutOfRangeException(nameof(relation)),
+            };
+
         [DllImport("libSystem.Native", EntryPoint = "SystemNative_LStat", SetLastError = true,
             CallingConvention = CallingConvention.Cdecl)]
         static extern int GetUnixFileStatus(
@@ -321,6 +361,7 @@ namespace FEBuilderGBA
                     "Exact regular-file validation is unavailable on Browser.");
             }
 
+            path = Path.GetFullPath(path);
             if (OperatingSystem.IsWindows())
                 return OpenRegularWindows(path);
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
@@ -482,20 +523,18 @@ namespace FEBuilderGBA
                 label,
                 rejectHardLinks,
                 before,
-                originalPathStillReferencesOpenedFile: true);
+                OriginalPathRelation.Unknown);
 
         internal static void VerifyOpenedRegularFileUnchanged(
             SafeFileHandle handle,
             string label,
             bool rejectHardLinks,
             OpenedRegularFileState before,
-            bool originalPathStillReferencesOpenedFile)
+            OriginalPathRelation relation)
         {
             OpenedRegularFileState after = InspectOpenedRegularFile(
                 handle, label, rejectHardLinks);
-            bool unchanged = originalPathStillReferencesOpenedFile
-                ? before.SameSnapshot(after)
-                : before.SameSnapshotIgnoringChangeTime(after);
+            bool unchanged = IsSnapshotUnchanged(before, after, relation);
             if (!unchanged)
                 throw new IOException(
                     "Opened regular file changed while it was read: " + label);
@@ -535,12 +574,37 @@ namespace FEBuilderGBA
                 label,
                 rejectHardLinks,
                 identity,
-                PathStillReferencesIdentity(
-                    stream.Name, identity.Identity));
+                GetOriginalPathRelation(stream, identity.Identity));
             return buffer.ToArray();
         }
 
-        static bool PathStillReferencesIdentity(
+        internal static OriginalPathRelation GetOriginalPathRelation(
+            FileStream stream,
+            FileSystemEntryIdentity expectedIdentity,
+            Func<string, FileSystemEntryIdentity> inspectPathForTest = null)
+        {
+            if (stream == null) throw new ArgumentNullException(nameof(stream));
+            if (stream is not ProvenanceFileStream associated)
+                return OriginalPathRelation.Unknown;
+            if (inspectPathForTest == null)
+                return ProbeOriginalPathRelation(associated.OriginalFullPath, expectedIdentity);
+            try
+            {
+                return inspectPathForTest(associated.OriginalFullPath).Equals(expectedIdentity)
+                    ? OriginalPathRelation.SameOpenedFile
+                    : OriginalPathRelation.Displaced;
+            }
+            catch (FileNotFoundException)
+            {
+                return OriginalPathRelation.Displaced;
+            }
+            catch (DirectoryNotFoundException)
+            {
+                return OriginalPathRelation.Displaced;
+            }
+        }
+
+        static OriginalPathRelation ProbeOriginalPathRelation(
             string path,
             FileSystemEntryIdentity expectedIdentity)
         {
@@ -548,23 +612,35 @@ namespace FEBuilderGBA
             {
                 try
                 {
-                    _ = File.GetAttributes(path);
-                    return CaptureExistingFileSystemEntryIdentity(path)
-                        .Equals(expectedIdentity);
+                    const uint FileFlagBackupSemantics = 0x02000000;
+                    using SafeFileHandle probe = OpenWindows(
+                        BuildfilePathSafety.ToWindowsExtendedPath(path),
+                        0,
+                        FileShare.ReadWrite | FileShare.Delete,
+                        IntPtr.Zero,
+                        FileMode.Open,
+                        FileFlagOpenReparsePoint | FileFlagBackupSemantics,
+                        IntPtr.Zero);
+                    if (probe.IsInvalid)
+                    {
+                        int error = Marshal.GetLastPInvokeError();
+                        throw CreateWindowsNativeException(
+                            error,
+                            "Cannot inspect original pathname (Win32 error " + error + ").",
+                            path);
+                    }
+                    return BuildfilePathSafety.ReadWindowsFileSystemEntryIdentity(
+                        probe, "original pathname", try128BitIdentity: false).Equals(expectedIdentity)
+                        ? OriginalPathRelation.SameOpenedFile
+                        : OriginalPathRelation.Displaced;
                 }
                 catch (FileNotFoundException)
                 {
-                    return false;
+                    return OriginalPathRelation.Displaced;
                 }
                 catch (DirectoryNotFoundException)
                 {
-                    return false;
-                }
-                catch (IOException)
-                    when (!File.Exists(path)
-                        && !Directory.Exists(path))
-                {
-                    return false;
+                    return OriginalPathRelation.Displaced;
                 }
             }
             if (OperatingSystem.IsLinux() || OperatingSystem.IsMacOS()
@@ -580,7 +656,7 @@ namespace FEBuilderGBA
                     if (nativeError == UnixErrorNoSuchFileOrDirectory
                         || nativeError == UnixErrorNotADirectory)
                     {
-                        return false;
+                        return OriginalPathRelation.Displaced;
                     }
                     throw new IOException(error);
                 }
@@ -589,9 +665,11 @@ namespace FEBuilderGBA
                     unchecked((ulong)status.Dev),
                     unchecked((ulong)status.Ino),
                     0);
-                return currentIdentity.Equals(expectedIdentity);
+                return currentIdentity.Equals(expectedIdentity)
+                    ? OriginalPathRelation.SameOpenedFile
+                    : OriginalPathRelation.Displaced;
             }
-            return true;
+            return OriginalPathRelation.Unknown;
         }
 
         static uint ReadUnixLinkCount(
@@ -1081,7 +1159,7 @@ namespace FEBuilderGBA
                         "File changed between inspection and open: " + path);
                 }
 
-                return CreateOwningReadStream(handle);
+                return CreateOwningReadStream(handle, path);
             }
             catch
             {
@@ -1127,7 +1205,7 @@ namespace FEBuilderGBA
                         "Opened path is not a plain regular file: " + path);
                 }
 
-                return CreateOwningReadStream(handle);
+                return CreateOwningReadStream(handle, path);
             }
             catch
             {
@@ -1136,11 +1214,11 @@ namespace FEBuilderGBA
             }
         }
 
-        static FileStream CreateOwningReadStream(SafeFileHandle handle)
+        static FileStream CreateOwningReadStream(SafeFileHandle handle, string originalFullPath)
         {
             try
             {
-                return new FileStream(handle, FileAccess.Read);
+                return new ProvenanceFileStream(handle, originalFullPath);
             }
             catch
             {

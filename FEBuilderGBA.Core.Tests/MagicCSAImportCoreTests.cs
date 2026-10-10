@@ -26,6 +26,42 @@ namespace FEBuilderGBA.Core.Tests
     [Collection("SharedState")]
     public class MagicCSAImportCoreTests
     {
+        [Fact]
+        public void ImportCsaMagicScript_UnallocatedTable_RefusedWithoutMutation()
+        {
+            var previous = CoreState.ROM;
+            try
+            {
+                var rom = MakeSyntheticCsaRom(out uint magicBaseAddr);
+                Array.Clear(rom.Data, 0x100010, 4);
+                CoreState.ROM = rom;
+                byte[] before = (byte[])rom.Data.Clone();
+                int length = rom.Data.Length;
+                var undo = new Undo.UndoData();
+                bool called = false;
+
+                using (ROM.BeginUndoScope(undo))
+                {
+                    string error = MagicEffectCSAImportCore.ImportCsaMagicScript(
+                        rom, magicBaseAddr, MakeOneFrameCsaScript(), _ =>
+                        {
+                            called = true;
+                            return null;
+                        });
+                    Assert.Contains("allocated", error, StringComparison.OrdinalIgnoreCase);
+                }
+
+                Assert.False(called);
+                Assert.Equal(length, rom.Data.Length);
+                Assert.Equal(before, rom.Data);
+                Assert.True(undo.list == null || undo.list.Count == 0);
+            }
+            finally
+            {
+                CoreState.ROM = previous;
+            }
+        }
+
         // =================================================================
         // Test 1 — Real-format round-trip
         // =================================================================

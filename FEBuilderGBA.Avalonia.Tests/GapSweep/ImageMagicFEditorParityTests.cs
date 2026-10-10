@@ -605,9 +605,9 @@ public class ImageMagicFEditorParityTests
             0x01, 0xB4, 0x7D, 0xE7, 0x34, 0xFF, 0x03, 0x02,
             0x80, 0xD7, 0x95, 0x08, 0x1A, 0xE1, 0x03, 0x02,
         };
-        Array.Copy(csaPat, 0, rom.Data, 0x00200000, csaPat.Length);
+        Array.Copy(csaPat, 0, rom.Data, 0x95D8F4, csaPat.Length);
         BitConverter.GetBytes(0x00100000u | 0x08000000u)
-            .CopyTo(rom.Data, 0x00200000 + csaPat.Length);
+            .CopyTo(rom.Data, 0x95D904);
     }
 
     static string ReadAxaml() => File.ReadAllText(Path.Combine(FindRepoRoot(),

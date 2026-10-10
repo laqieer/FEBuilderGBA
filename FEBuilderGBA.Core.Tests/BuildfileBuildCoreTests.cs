@@ -1169,6 +1169,50 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Contains("parent", error, StringComparison.OrdinalIgnoreCase);
         }
 
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public void PublishBytesNoReplace_RestoredMtimeRewriteCannotBypassExpectedHash(
+            bool mutateAfterMove)
+        {
+            string parent = FreshParent();
+            string destination = Path.Combine(parent, "report.json");
+            byte[] expected = Encoding.UTF8.GetBytes("AAAA");
+            byte[] replacement = Encoding.UTF8.GetBytes("BBBB");
+            bool mutationApplied = false;
+            Action<string, string> mutate = (stage, dest) =>
+            {
+                string path = mutateAfterMove ? dest : stage;
+                DateTime mtime = File.GetLastWriteTimeUtc(path);
+                File.WriteAllBytes(path, replacement);
+                File.SetLastWriteTimeUtc(path, mtime);
+                mutationApplied = true;
+            };
+
+            bool success = BuildfileBuildCore.PublishBytesNoReplace(
+                expected,
+                destination,
+                beforePublishForTest: mutateAfterMove ? null! : mutate,
+                afterPublishBeforeVerificationForTest: mutateAfterMove ? mutate : null!,
+                beforeCleanupFinalIdentityCheckForTest: null!,
+                deleteStagingForTest: null!,
+                out string error);
+
+            Assert.True(mutationApplied);
+            Assert.False(success);
+            Assert.True(error.Contains("bytes do not match the durable stage", StringComparison.Ordinal));
+            if (mutateAfterMove)
+            {
+                Assert.True(error.Contains("destination retained", StringComparison.Ordinal));
+                Assert.True(replacement.SequenceEqual(File.ReadAllBytes(destination)));
+            }
+            else
+            {
+                Assert.False(File.Exists(destination));
+                Assert.Empty(Directory.GetFiles(parent));
+            }
+        }
+
         [Fact]
         public void ReserveScratchDirectory_AndDeleteTreeAndVerifyGone_RoundTrip()
         {

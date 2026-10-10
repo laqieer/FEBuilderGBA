@@ -117,6 +117,17 @@ style-expanded capacity checks. It never opens a font face, rasterizes, creates
 package staging, or writes package files; an optional outside-package dry-run
 report is its only output file.
 
+An external generation report is read through a held safe-open handle whose
+original full pathname is retained by Core. Unknown provenance or the same
+associated file requires a full metadata snapshot, including Unix ctime; only
+proven pathname displacement permits ctime omission. Inspection faults fail
+closed. Genuine replacement reads the original held report bytes, not the
+replacement. Concurrent mutation of the displaced held inode with restored
+size/mtime remains outside this metadata guarantee; the input report is an
+oracle, not independently authenticated report content. Publication still
+requires expected byte hashes, current pathname identity, and strict final
+held-file verification.
+
 The cleanup threat boundary excludes a malicious concurrent process running
 under the same OS identity during the final delete syscall. Quarantine names
 are unguessable and identity is checked repeatedly, but Unix has no

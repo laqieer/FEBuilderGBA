@@ -78,6 +78,27 @@ namespace FEBuilderGBA.Core.Tests
             Assert.Equal(U.NOT_FOUND, csaTablePointer);
         }
 
+        [Fact]
+        public void SearchMagicSystem_UnallocatedSlot_KeepsExactSlotAndNoTable()
+        {
+            var rom = MakeMinimalFE8URomWithCsa(out _, out uint slot);
+            WriteU32(rom.Data, (int)slot, 0u);
+            byte[] before = (byte[])rom.Data.Clone();
+            var kind = MagicCSACore.SearchMagicSystem(rom,
+                out uint baseAddr, out uint dimAddr, out uint noDimAddr,
+                out uint table, out uint pointer);
+
+            Assert.Equal(MagicSystemKind.CsaCreator, kind);
+            Assert.Equal(0x95d780u, baseAddr);
+            Assert.Equal(0x95d7edu, dimAddr);
+            Assert.Equal(0x95d899u, noDimAddr);
+            Assert.Equal(U.NOT_FOUND, table);
+            Assert.Equal(slot, pointer);
+            Assert.Equal(U.NOT_FOUND, MagicCSACore.GetCSASpellTableAddr(rom));
+            Assert.Equal(slot, MagicCSACore.GetCSASpellTablePointer(rom));
+            Assert.Equal(before, rom.Data);
+        }
+
         /// <summary>
         /// Null ROM must safely return None, not throw.
         /// </summary>
