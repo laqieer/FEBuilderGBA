@@ -128,7 +128,7 @@
         <DockPanel Name="SearchPanel" IsVisible="False" Margin="0,0,0,4">
           <TextBlock AutomationProperties.AutomationId="Main_Filter_Label" Name="FilterLabel" Text="Filter:" VerticalAlignment="Center" Margin="0,0,8,0" DockPanel.Dock="Left" />
           <Button AutomationProperties.AutomationId="Main_ClearFilter_Button" Name="ClearFilterButton" Content="Clear" Click="ClearFilter_Click" DockPanel.Dock="Right" Margin="8,0,0,0" Padding="8,4" />
-          <TextBox AutomationProperties.AutomationId="Main_FilterText_Input" Name="FilterTextBox" Watermark="Type to filter editors..." />
+          <TextBox AutomationProperties.AutomationId="Main_FilterText_Input" AutomationProperties.LabeledBy="{Binding #FilterLabel}" Name="FilterTextBox" Watermark="Type to filter editors..." />
         </DockPanel>
 
         <!-- Match count label -->
