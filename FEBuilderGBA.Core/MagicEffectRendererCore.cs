@@ -105,6 +105,11 @@ namespace FEBuilderGBA
                 log = "No magic system patch detected.";
                 return null;
             }
+            if (ImageUtilMagicCore.FindCSASpellTable(rom, ms, out _) == U.NOT_FOUND)
+            {
+                log = "CSA spell table must be allocated before rendering magic frames.";
+                return null;
+            }
 
             // Convert GBA pointers to ROM offsets.
             uint frameDataOffset = U.isSafetyPointer(frameDataAddr)

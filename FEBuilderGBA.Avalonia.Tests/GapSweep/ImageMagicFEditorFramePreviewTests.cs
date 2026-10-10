@@ -286,9 +286,9 @@ public class ImageMagicFEditorFramePreviewTests
             0x01, 0xB4, 0x7D, 0xE7, 0x34, 0xFF, 0x03, 0x02,
             0x80, 0xD7, 0x95, 0x08, 0x1A, 0xE1, 0x03, 0x02,
         };
-        Array.Copy(csaPat, 0, data, 0x00200000, csaPat.Length);
+        Array.Copy(csaPat, 0, data, 0x95D8F4, csaPat.Length);
         BitConverter.GetBytes(0x00100000u | 0x08000000u)
-            .CopyTo(data, 0x00200000 + csaPat.Length);
+            .CopyTo(data, 0x95D904);
         var rom = new ROM();
         rom.LoadLow("synthetic-fe8u.gba", data, "BE8E01");
         return rom;

@@ -154,6 +154,9 @@ namespace FEBuilderGBA
             uint csaSpellTablePointer = MagicCSACore.GetCSASpellTablePointer(rom);
             if (csaSpellTablePointer == U.NOT_FOUND)
                 return Fail(R._("CSASpellTable Not Found."));
+            uint csaSpellTable = MagicCSACore.GetCSASpellTableAddr(rom);
+            if (csaSpellTable == U.NOT_FOUND)
+                return Fail(R._("CSASpellTable is not allocated."));
 
             // --- Step 2: guard the fixed newCount against table-1's count ----
             // WF InputFormRef.ExpandsArea asserts/NOT_FOUNDs when newCount is
@@ -185,11 +188,11 @@ namespace FEBuilderGBA
             // Expanded CONDITIONALLY-sized (WF :601-610: datasize =
             // InputFormRef.DataCount when csaSpellTablePointer is a safety
             // offset, else 0). The pointer slot is unaffected by the table-1
-            // move, so re-reading the CSA base here is valid.
+            // move, so the previously resolved CSA base remains valid.
             uint csaSizeCurrent = (U.isSafetyOffset(csaSpellTablePointer, rom))
                 ? csaCurrentCount
                 : 0u;
-            uint csaOldBase = rom.p32(csaSpellTablePointer);
+            uint csaOldBase = csaSpellTable;
             var r2 = DataExpansionCore.ExpandTableTo(
                 rom, csaSpellTablePointer, CsaEntrySize, csaSizeCurrent, NewCount);
             if (!r2.Success)
