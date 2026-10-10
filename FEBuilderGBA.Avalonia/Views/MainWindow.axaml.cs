@@ -2527,25 +2527,22 @@ namespace FEBuilderGBA.Avalonia.Views
             // leaves a currently-open decomp preview (and its save guard) intact.
             CoreState.DecompProject = null;
 
-            string? localPath = file.TryGetLocalPath();
-            bool ok;
-            if (!string.IsNullOrEmpty(localPath))
-            {
-                // Desktop / any provider with a real filesystem path — unchanged behavior.
-                _currentRomStorageFile = null;
-                ok = LoadRomFile(localPath);
-            }
-            else
-            {
-                // Android SAF content:// — no local path. Read via the stream API and
-                // retain the handle so a later Save can OpenWriteAsync() it (#1124).
-                ok = await LoadRomFromStorageFile(file);
-            }
+            bool ok = await LoadPickedRomAsync(file);
             if (!ok)
             {
                 await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
             }
             UpdateDecompBadge();
+        }
+
+        internal async Task<bool> LoadPickedRomAsync(IStorageFile file)
+        {
+            string? localPath = file.TryGetLocalPath();
+            if (!string.IsNullOrEmpty(localPath))
+            {
+                return LoadRomFile(localPath);
+            }
+            return await LoadRomFromStorageFile(file);
         }
 
         /// <summary>
@@ -2563,7 +2560,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 var result = await rom.LoadFromStreamAsync(stream, displayName);
                 ok = result.ok;
             }
-            if (!ok) { _currentRomStorageFile = null; return false; }
+            if (!ok) return false;
             _currentRomStorageFile = file;
             return FinishLoadedRom(rom, displayName);
         }

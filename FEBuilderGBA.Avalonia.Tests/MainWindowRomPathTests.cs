@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Reflection;
+using System.Threading.Tasks;
 using FEBuilderGBA.Avalonia;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
@@ -10,6 +12,7 @@ using global::Avalonia.Headless;
 using global::Avalonia.Headless.XUnit;
 using global::Avalonia.Input;
 using global::Avalonia.Media;
+using global::Avalonia.Platform.Storage;
 using global::Avalonia.Threading;
 using Xunit;
 
@@ -18,6 +21,83 @@ namespace FEBuilderGBA.Avalonia.Tests;
 [Collection("WindowManagerSerial")]
 public sealed class MainWindowRomPathTests
 {
+    [AvaloniaTheory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task FailedPickedOpen_PreservesStorageRomPathAndHandle(bool localFile)
+    {
+        var previousRom = CoreState.ROM;
+        var previousWindow = WindowManager.Instance.MainWindow;
+        bool previousSmoke = App.SmokeTestMode;
+        string? previousStartup = App.StartupRomPath;
+        string? previousProject = App.StartupProjectDir;
+        MainWindow? window = null;
+        try
+        {
+            CoreState.ROM = null;
+            App.SmokeTestMode = true;
+            App.StartupRomPath = null;
+            App.StartupProjectDir = null;
+            window = new MainWindow();
+            window.Show();
+            Dispatcher.UIThread.RunJobs();
+
+            var loadedRom = new ROM { Filename = "provider-only.gba" };
+            CoreState.ROM = loadedRom;
+            var storageFile = CreateStorageFile(new Uri("content://roms/provider-only.gba"));
+            var storageField = typeof(MainWindow).GetField("_currentRomStorageFile",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            storageField.SetValue(window, storageFile);
+            var vm = Assert.IsType<MainWindowViewModel>(window.DataContext);
+            vm.UpdateFromRom(hasLocalPath: false);
+
+            var failedUri = localFile
+                ? new Uri(Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "missing.gba"))
+                : new Uri("content://roms/invalid.gba");
+            Assert.False(await window.LoadPickedRomAsync(CreateStorageFile(failedUri)));
+
+            Assert.Same(loadedRom, CoreState.ROM);
+            Assert.Same(storageFile, storageField.GetValue(window));
+            typeof(MainWindow).GetMethod("OnLanguageChanged",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.Invoke(window, null);
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("provider-only.gba", vm.RomFilePath);
+            Assert.Equal("FEBuilderGBA - provider-only.gba", vm.WindowTitle);
+        }
+        finally
+        {
+            CoreState.ROM = null;
+            window?.Close();
+            WindowManager.Instance.MainWindow = previousWindow;
+            App.SmokeTestMode = previousSmoke;
+            App.StartupRomPath = previousStartup;
+            App.StartupProjectDir = previousProject;
+            CoreState.ROM = previousRom;
+        }
+    }
+
+    static IStorageFile CreateStorageFile(Uri path)
+    {
+        var file = DispatchProxy.Create<IStorageFile, StorageFileProxy>();
+        ((StorageFileProxy)(object)file).Path = path;
+        return file;
+    }
+
+    public class StorageFileProxy : DispatchProxy
+    {
+        public Uri Path { get; set; } = null!;
+
+        protected override object? Invoke(MethodInfo? method, object?[]? args)
+            => method?.Name switch
+            {
+                "get_Path" => Path,
+                "get_Name" => "invalid.gba",
+                "OpenReadAsync" => Task.FromResult<Stream>(Stream.Null),
+                "Dispose" => null,
+                _ => throw new NotSupportedException(method?.Name)
+            };
+    }
+
     [Fact]
     public void UpdateFromRom_DisplaysAbsoluteLocalPathAndClearsItWithoutRom()
     {
