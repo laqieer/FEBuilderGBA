@@ -149,7 +149,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (string.IsNullOrEmpty(path) || !File.Exists(path))
                 {
                     _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
-                        R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                        R._("File not found:") + $" {path}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                     return;
                 }
 
@@ -163,7 +163,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     else
                     {
                         _ = MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
-                            R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                            R._("Failed to load ROM:") + $" {path}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                     }
                 }
             }

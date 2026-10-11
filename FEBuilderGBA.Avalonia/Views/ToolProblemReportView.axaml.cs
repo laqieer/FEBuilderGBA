@@ -120,13 +120,13 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (!string.IsNullOrEmpty(err))
                 {
                     StatusLabel.Text = err;
-                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, err, R._("Error"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, err, "Error", MessageBoxMode.Ok, titleIsKey: true);
                     return;
                 }
 
                 StatusLabel.Text = R._("Report created:") + " " + written;
                 await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
-                    R._("Report created:") + "\r\n" + written, R._("Problem Reporter"), MessageBoxMode.Ok);
+                    R._("Report created:") + "\r\n" + written, "Problem Reporter", MessageBoxMode.Ok, titleIsKey: true);
             }
             catch (Exception ex)
             {

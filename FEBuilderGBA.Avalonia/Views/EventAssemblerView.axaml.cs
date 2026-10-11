@@ -330,7 +330,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     + detail + "\r\n\r\n"
                     + R._("Proceed with a partial uninstall?");
                 var answer = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, prompt,
-                    R._("Partial uninstall"), MessageBoxMode.YesNo);
+                    "Partial uninstall", MessageBoxMode.YesNo, titleIsKey: true);
                 if (answer != MessageBoxResult.Yes)
                 {
                     _vm.StatusMessage = R._("Uninstall cancelled.");

@@ -182,13 +182,13 @@ namespace FEBuilderGBA.Avalonia.Views
         {
             if (!File.Exists(path))
             {
-                _ = MessageBoxWindow.Show(this, R._("File not found:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("File not found:") + $" {path}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
             bool ok = LoadRecentRomFile(path);
             if (!ok)
             {
-                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {path}", R._("Error"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {path}", "Error", MessageBoxMode.Ok, titleIsKey: true);
             }
         }
 
@@ -283,6 +283,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (RunProgram3MenuItem != null) RunProgram3MenuItem.Header = R._("Run Program _3...");
             if (OptionsMenuItem != null) OptionsMenuItem.Header = R._("_Options...");
             if (ContentRepoSetupMenuItem != null) ContentRepoSetupMenuItem.Header = R._("Content Repositories…");
+            if (VersionMenuItem != null) VersionMenuItem.Header = ViewTranslationHelper.TranslateTitle("_Version Information");
 
             // Help sub-items
             if (OnlineManualMenuItem != null) OnlineManualMenuItem.Header = R._("_Online Manual");
@@ -676,7 +677,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         Close();
                         return;
                     }
-                    await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {App.StartupRomPath}", R._("Error"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {App.StartupRomPath}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                     return;
                 }
 
@@ -727,7 +728,7 @@ namespace FEBuilderGBA.Avalonia.Views
                         Close();
                         return;
                     }
-                    await MessageBoxWindow.Show(this, R._("Failed to open decomp project:") + $" {App.StartupProjectDir}", R._("Error"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Failed to open decomp project:") + $" {App.StartupProjectDir}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                     return;
                 }
 
@@ -2530,7 +2531,7 @@ namespace FEBuilderGBA.Avalonia.Views
             bool ok = await LoadPickedRomAsync(file);
             if (!ok)
             {
-                await MessageBoxWindow.Show(this, R._("Failed to load ROM."), R._("Error"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Failed to load ROM."), "Error", MessageBoxMode.Ok, titleIsKey: true);
             }
             UpdateDecompBadge();
         }
@@ -2579,26 +2580,26 @@ namespace FEBuilderGBA.Avalonia.Views
             if (string.IsNullOrEmpty(dir))
             {
                 if (OperatingSystem.IsAndroid())
-                    await MessageBoxWindow.Show(this, R._("Opening a decomp project reads a folder tree and requires desktop file-system access; it is not available on this device."), R._("Decomp Project"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Opening a decomp project reads a folder tree and requires desktop file-system access; it is not available on this device."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
             var project = DecompProjectDetector.Detect(dir);
             if (project == null)
             {
-                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
             var resolved = DecompProjectDetector.ResolveBuiltRom(dir, project);
             if (resolved.Status == DecompResolveStatus.NotBuilt)
             {
-                await MessageBoxWindow.Show(this, R._("Project found but no built ROM — run the build first, then reload."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Project found but no built ROM — run the build first, then reload."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
             if (resolved.Status != DecompResolveStatus.Ok)
             {
-                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Not a decomp project directory."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
@@ -2610,7 +2611,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 CoreState.DecompProject = null;
                 UpdateDecompBadge();
-                await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {resolved.Path}", R._("Error"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {resolved.Path}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
             UpdateDecompBadge();
@@ -2643,13 +2644,13 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 await MessageBoxWindow.Show(this,
                     R._("Project has not opted into FEBuilder-managed builds. Add a build section to febuilder.project.json."),
-                    R._("Decomp Build"), MessageBoxMode.Ok);
+                    "Decomp Build", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
             string cmdLine = DecompBuildCore.GetEffectiveCommandLine(project);
             string confirmMsg = $"{R._("Run build command?")}\n\n{cmdLine}\n\n{R._("Working directory:")} {project.ProjectRoot}";
-            var confirm = await MessageBoxWindow.Show(this, confirmMsg, R._("Decomp Build"), MessageBoxMode.YesNo);
+            var confirm = await MessageBoxWindow.Show(this, confirmMsg, "Decomp Build", MessageBoxMode.YesNo, titleIsKey: true);
             if (confirm != MessageBoxResult.Yes) return;
 
             _vm.DecompBuildOutput = R._("Building...");
@@ -2752,7 +2753,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Amendment 5: decomp preview ROMs are read-only — block save.
             if (CoreState.IsDecompMode)
             {
-                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
             if (_currentRomStorageFile != null && string.IsNullOrEmpty(_currentRomStorageFile.TryGetLocalPath()))
@@ -2776,7 +2777,7 @@ namespace FEBuilderGBA.Avalonia.Views
             // Amendment 5: block Save As for decomp preview ROMs too.
             if (CoreState.IsDecompMode)
             {
-                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), R._("Decomp Project"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("This is a source-backed decomp project. The built ROM is a preview and cannot be saved over. Edit the source and rebuild instead."), "Decomp Project", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
@@ -2818,14 +2819,14 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 // No recent ROM — leave a currently-open decomp preview (and its
                 // save guard) intact rather than dropping decomp mode (#1129).
-                _ = MessageBoxWindow.Show(this, R._("No recent ROM found."), R._("Open Last ROM"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("No recent ROM found."), "Open Last ROM", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
             bool ok = LoadRecentRomFile(lastPath);
             if (!ok)
             {
-                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {lastPath}", R._("Error"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("Failed to load ROM:") + $" {lastPath}", "Error", MessageBoxMode.Ok, titleIsKey: true);
             }
         }
 
@@ -3018,8 +3019,8 @@ namespace FEBuilderGBA.Avalonia.Views
             e.Cancel = true;
             var result = await MessageBoxWindow.Show(this,
                 R._("You have unsaved changes. Close without saving?"),
-                R._("Unsaved Changes"),
-                MessageBoxMode.YesNo);
+                "Unsaved Changes",
+                MessageBoxMode.YesNo, titleIsKey: true);
 
             if (result == MessageBoxResult.Yes)
             {
@@ -3358,7 +3359,7 @@ namespace FEBuilderGBA.Avalonia.Views
 
             if (errors.Count == 0)
             {
-                _ = MessageBoxWindow.Show(this, R._("Lint: No errors found."), R._("Lint Results"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, R._("Lint: No errors found."), "Lint Results", MessageBoxMode.Ok, titleIsKey: true);
             }
             else
             {
@@ -3369,7 +3370,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     string severity = err.Severity == FELintCore.ErrorType.ERROR ? "ERROR" : "WARNING";
                     sb.AppendLine($"[{severity}] 0x{err.Addr:X08}: {err.ErrorMessage}");
                 }
-                _ = MessageBoxWindow.Show(this, sb.ToString(), R._("Lint Results"), MessageBoxMode.Ok);
+                _ = MessageBoxWindow.Show(this, sb.ToString(), "Lint Results", MessageBoxMode.Ok, titleIsKey: true);
             }
         }
 
@@ -3408,7 +3409,7 @@ namespace FEBuilderGBA.Avalonia.Views
         internal static Task<MessageBoxResult> ShowAbout(Window? owner)
         {
             return MessageBoxWindow.ShowSelectable(
-                owner, BuildAboutText(), R._("About"), MessageBoxMode.Ok);
+                owner, BuildAboutText(), "About", MessageBoxMode.Ok, titleIsKey: true);
         }
 
         private async void About_Click(object? sender, RoutedEventArgs e)
@@ -3753,7 +3754,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (!result.CheckSucceeded)
             {
                 if (manual)
-                    await MessageBoxWindow.Show(this, R._("Could not check for updates (offline or GitHub unavailable)."), R._("FEBuilderGBA"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(this, R._("Could not check for updates (offline or GitHub unavailable)."), "FEBuilderGBA", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
@@ -3762,14 +3763,14 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (manual)
                     await MessageBoxWindow.Show(this,
                         string.Format(R._("You are running the latest version (current {0})."), result.CurrentVersion),
-                        R._("FEBuilderGBA"), MessageBoxMode.Ok);
+                        "FEBuilderGBA", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
 
             var answer = await MessageBoxWindow.Show(this,
                 string.Format(R._("A new version is available: {0} (you have {1}). Open the releases page to download and install it?"),
                     result.LatestVersion, result.CurrentVersion),
-                R._("FEBuilderGBA"), MessageBoxMode.YesNo);
+                "FEBuilderGBA", MessageBoxMode.YesNo, titleIsKey: true);
             if (answer == MessageBoxResult.Yes)
                 await OpenUrlInBrowser(result.ReleasePageUrl);
         }
@@ -3865,7 +3866,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     : R._("Couldn't capture a screenshot automatically — please attach one manually in the issue's Screenshot box.");
                 await MessageBoxWindow.Show(this,
                     head + "\n\n" + shotNote + "\n\n" + R._("Never attach your ROM (.gba)."),
-                    R._("Report a Bug"), MessageBoxMode.Ok);
+                    "Report a Bug", MessageBoxMode.Ok, titleIsKey: true);
             }
             catch (Exception ex)
             {
@@ -3922,7 +3923,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 await MessageBoxWindow.Show(this,
                     R._("No") + $" {toolName} " + R._("configured. Set the path in Options first."),
-                    R._("External Tool"), MessageBoxMode.Ok);
+                    "External Tool", MessageBoxMode.Ok, titleIsKey: true);
                 return;
             }
             try
@@ -3931,18 +3932,18 @@ namespace FEBuilderGBA.Avalonia.Views
                 {
                     var result = await ExternalLauncher.Current.OpenPathAsync(path, $"\"{CoreState.ROM.Filename}\"");
                     if (!result.IsSucceeded)
-                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                 }
                 else
                 {
                     var result = await ExternalLauncher.Current.OpenPathAsync(path);
                     if (!result.IsSucceeded)
-                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", R._("Error"), MessageBoxMode.Ok);
+                        await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {result.Message}", "Error", MessageBoxMode.Ok, titleIsKey: true);
                 }
             }
             catch (Exception ex)
             {
-                await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {ex.Message}", R._("Error"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(this, R._("Failed to run") + $" {toolName}: {ex.Message}", "Error", MessageBoxMode.Ok, titleIsKey: true);
             }
         }
 

@@ -1,14 +1,12 @@
-using global::Avalonia.Controls;
-
 namespace FEBuilderGBA.Avalonia.Services
 {
     /// <summary>Desktop top-level wrapper for embeddable editor content.</summary>
-    public sealed class EditorHostWindow : Window
+    public sealed class EditorHostWindow : TitleTranslatedWindow
     {
         public EditorHostWindow(IEmbeddableEditor editor)
         {
             var descriptor = editor.Descriptor;
-            Title = descriptor.Title;
+            SetTitle(descriptor.Title, editor.TitleKey);
             Width = descriptor.PreferredWidth;
             Height = descriptor.PreferredHeight;
             MinWidth = descriptor.MinWidth;

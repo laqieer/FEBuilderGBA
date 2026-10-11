@@ -570,7 +570,7 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window, content =>
                     {
                         content.Configure(PatchDatabaseImportService.ConfirmationMessage(prepared),
-                            R._("Import Patch Database ZIP"), MessageBoxMode.YesNo);
+                            "Import Patch Database ZIP", MessageBoxMode.YesNo, titleIsKey: true);
                         SetDefaultImportConfirmation(content);
                     });
                 if (this.GetVisualRoot() == null) _importCancellation?.Cancel();

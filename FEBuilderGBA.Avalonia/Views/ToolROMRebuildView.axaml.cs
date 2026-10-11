@@ -114,7 +114,7 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Rebuilding an address ({0}) below the extended region is dangerous. Continue anyway?", "0x" + string.Format("{0:X8}", rebuildAddress)),
-                    ViewTitle, MessageBoxMode.YesNo);
+                    ViewTitle, MessageBoxMode.YesNo, titleIsKey: true);
                 if (dr != MessageBoxResult.Yes)
                 {
                     // Honour the doc-comment contract: set a status message in every abort case so

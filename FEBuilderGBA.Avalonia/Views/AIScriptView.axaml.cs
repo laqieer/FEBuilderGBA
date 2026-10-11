@@ -326,10 +326,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the AI pointer table (current: {0}, max: {1}).",
                         currentCount, maxCount),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     currentCount,
-                    maxCount);
+                    maxCount, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
                 if (newCount == currentCount)

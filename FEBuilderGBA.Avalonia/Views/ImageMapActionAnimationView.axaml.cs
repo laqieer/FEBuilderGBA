@@ -251,10 +251,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the map action animation list (current: {0}, max: 255).",
                         _vm.ReadCount),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     _vm.ReadCount,
-                    255);
+                    255, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
                 uint newCount = chosen.Value;
                 if (newCount == _vm.ReadCount)

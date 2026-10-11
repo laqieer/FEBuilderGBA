@@ -316,10 +316,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the SOURCE change-data address to import from (W×H×2 = {0} bytes will be copied into this record).",
                         _vm.B3 * _vm.B4 * 2),
-                    R._("Pointer Import"),
+                    "Pointer Import",
                     defaultSrc,
                     0,
-                    GBA_ADDRESS_MAX);
+                    GBA_ADDRESS_MAX, titleIsKey: true);
                 if (chosen == null) return; // cancelled
 
                 _undoService.Begin("Import Map Change Pointer");
@@ -385,10 +385,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? chosen = await NumberInputDialog.Show(
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the event map-change list (current: {0}, max: 255).", current),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     current,
-                    255);
+                    255, titleIsKey: true);
                 if (chosen == null) return; // cancelled
                 uint newCount = chosen.Value;
                 if (newCount == current)

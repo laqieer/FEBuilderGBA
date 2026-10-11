@@ -83,10 +83,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? chosen = await NumberInputDialog.Show(
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new game option entry count (current: {0}, max: {1}).", current, maxCount),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     current,
-                    maxCount);
+                    maxCount, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
 
                 uint newCount = chosen.Value;

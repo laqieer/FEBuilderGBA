@@ -11,7 +11,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     /// Returns the chosen value via <see cref="Value"/> when
     /// <see cref="DialogResult"/> is true; null/false on cancel.
     /// </summary>
-    public partial class NumberInputDialog : Window
+    public partial class NumberInputDialog : TitleTranslatedWindow
     {
         NumberInputContent? _content;
 
@@ -28,12 +28,12 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             Content = _content;
         }
 
-        public NumberInputDialog(string prompt, string title, uint defaultValue, uint min, uint max)
+        public NumberInputDialog(string prompt, string title, uint defaultValue, uint min, uint max, bool titleIsKey = false)
             : this()
         {
-            Title = title;
+            SetTitle(title, titleIsKey ? title : null);
             _content ??= new NumberInputContent();
-            _content.Configure(prompt, title, defaultValue, min, max);
+            _content.Configure(prompt, title, defaultValue, min, max, titleIsKey);
             _content.CloseRequested += (_, _) =>
             {
                 DialogResult = _content.Confirmed;
@@ -48,16 +48,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
         /// <see cref="MessageBoxWindow.Show"/>.
         /// </summary>
         public static async System.Threading.Tasks.Task<uint?> Show(
-            Window? owner, string prompt, string title, uint defaultValue, uint min, uint max)
+            Window? owner, string prompt, string title, uint defaultValue, uint min, uint max, bool titleIsKey = false)
         {
             if (WindowManager.Instance.Service is AndroidNavigationService)
             {
                 return await WindowManager.Instance.OpenModal<NumberInputContent, uint?>(
                     owner,
-                    content => content.Configure(prompt, title, defaultValue, min, max));
+                    content => content.Configure(prompt, title, defaultValue, min, max, titleIsKey));
             }
 
-            var dlg = new NumberInputDialog(prompt, title, defaultValue, min, max);
+            var dlg = new NumberInputDialog(prompt, title, defaultValue, min, max, titleIsKey);
             if (owner != null)
                 await dlg.ShowDialog(owner);
             else

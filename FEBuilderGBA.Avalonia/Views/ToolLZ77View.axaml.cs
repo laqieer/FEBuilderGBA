@@ -145,8 +145,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var result = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Zeroing 0x{0:X8}..0x{1:X8} hits a dangerous low-address region (ROM header, fixed tables). Continue?", from, to),
-                    R._("Confirm Zero Clear"),
-                    MessageBoxMode.YesNo);
+                    "Confirm Zero Clear",
+                    MessageBoxMode.YesNo, titleIsKey: true);
                 if (result != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("ZeroClear: canceled by user.");
@@ -195,8 +195,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("LDR pointer search returned no hits. Falling back to a raw 4-byte binary pointer scan (may match unrelated bytes). Continue?"),
-                    R._("Confirm Raw Pointer Fallback"),
-                    MessageBoxMode.YesNo);
+                    "Confirm Raw Pointer Fallback",
+                    MessageBoxMode.YesNo, titleIsKey: true);
                 if (dr != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Move: canceled at raw-fallback prompt.");
@@ -212,8 +212,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("{0} pointer reference(s) will be rewritten. Continue?", sp.Pointers.Count),
-                    R._("Confirm Multi-Pointer Move"),
-                    MessageBoxMode.YesNo);
+                    "Confirm Multi-Pointer Move",
+                    MessageBoxMode.YesNo, titleIsKey: true);
                 if (dr != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Move: canceled at pointer-count prompt.");
@@ -230,8 +230,8 @@ namespace FEBuilderGBA.Avalonia.Views
                 R._("Move 0x{0:X} bytes from 0x{1:X8} to 0x{2:X8}{3}?",
                     length, srcOffset, dstOffset,
                     dstOffset == 0 ? " (auto-allocate)" : ""),
-                R._("Confirm Move"),
-                MessageBoxMode.YesNo);
+                "Confirm Move",
+                MessageBoxMode.YesNo, titleIsKey: true);
             if (confirm != MessageBoxResult.Yes)
             {
                 _vm.StatusText = R._("Move: canceled at final prompt.");
@@ -258,8 +258,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("ROM has unsaved modifications. Save first before recompressing? (Pressing No will proceed anyway, which is risky.)"),
-                    R._("Confirm Recompress"),
-                    MessageBoxMode.YesNo);
+                    "Confirm Recompress",
+                    MessageBoxMode.YesNo, titleIsKey: true);
                 if (dr == MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Recompress: save ROM and retry.");
@@ -273,8 +273,8 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 var dr = await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window,
                     R._("Run LZ77 recompress? This walks the entire ROM (slow) and rewrites any entries that compress smaller. Heuristic scan — may miss entries WinForms catches."),
-                    R._("Confirm Recompress"),
-                    MessageBoxMode.YesNo);
+                    "Confirm Recompress",
+                    MessageBoxMode.YesNo, titleIsKey: true);
                 if (dr != MessageBoxResult.Yes)
                 {
                     _vm.StatusText = R._("Recompress: canceled by user.");

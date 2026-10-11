@@ -534,7 +534,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 string? written = await FileDialogHelper.WriteViaAsync(file,
                     path => { count = _vm.ExportAllTexts(path, includeAIHints, filterIndex); });
                 if (written == null) return;
-                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
+                await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok, titleIsKey: true);
             }
             catch (Exception ex)
             {
@@ -554,7 +554,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (count > 0)
                 {
                     LoadList(); // Refresh the list to show updated texts
-                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
+                    await MessageBoxWindow.Show(TopLevel.GetTopLevel(this) as Window, $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok, titleIsKey: true);
                 }
                 else
                 {

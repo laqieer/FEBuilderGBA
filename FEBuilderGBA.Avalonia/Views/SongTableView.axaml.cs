@@ -95,10 +95,10 @@ namespace FEBuilderGBA.Avalonia.Views
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the Song Table (current: {0}, max: {1}).",
                         currentCount, SongTableViewModel.MaxSongCount),
-                    R._("Data Expansion"),
+                    "Data Expansion",
                     currentCount + 1,
                     currentCount + 1,
-                    SongTableViewModel.MaxSongCount);
+                    SongTableViewModel.MaxSongCount, titleIsKey: true);
                 if (chosen == null) return;
                 uint newCount = chosen.Value;
 

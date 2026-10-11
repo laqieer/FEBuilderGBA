@@ -190,7 +190,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (written == null) return;
                 var ownerWindow = topLevel as Window ?? new Window();
                 await MessageBoxWindow.Show(ownerWindow,
-                    $"Exported {count} text entries to TSV.", R._("Export Complete"), MessageBoxMode.Ok);
+                    $"Exported {count} text entries to TSV.", "Export Complete", MessageBoxMode.Ok, titleIsKey: true);
             }
             catch (Exception ex)
             {
@@ -220,12 +220,12 @@ namespace FEBuilderGBA.Avalonia.Views
                 if (count > 0)
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        $"Imported {count} text entries.", R._("Import Complete"), MessageBoxMode.Ok);
+                        $"Imported {count} text entries.", "Import Complete", MessageBoxMode.Ok, titleIsKey: true);
                 }
                 else
                 {
                     await MessageBoxWindow.Show(ownerWindow,
-                        R._("No texts were imported. Check the file format."), R._("Import"), MessageBoxMode.Ok);
+                        R._("No texts were imported. Check the file format."), "Import", MessageBoxMode.Ok, titleIsKey: true);
                 }
             }
             catch (Exception ex)
