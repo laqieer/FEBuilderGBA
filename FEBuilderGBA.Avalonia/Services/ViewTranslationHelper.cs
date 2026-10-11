@@ -97,6 +97,27 @@ namespace FEBuilderGBA.Avalonia.Services
             _root = root;
         }
 
+        /// <summary>Translate host chrome without rescanning translated editor content.</summary>
+        internal static string TranslateTitle(string key)
+        {
+            string translated = R._(key);
+            if (translated != key || (key != "Version Information" && key != "_Version Information"))
+                return translated;
+
+            // Reuse existing terms when the combined title is not cataloged.
+            string information = R._("Information");
+            if (information == "Information")
+            {
+                string infoLabel = R._("Info:");
+                if (infoLabel != "Info:")
+                    information = infoLabel.TrimEnd(':');
+            }
+            string versionTitle = R._("Version") + " " + information;
+            if (key == "Version Information")
+                return versionTitle;
+            return versionTitle == "Version Information" ? key : versionTitle + "(_V)";
+        }
+
         /// <summary>
         /// Scan all controls and translate their text.
         /// Call this after InitializeComponent() or on Opened.

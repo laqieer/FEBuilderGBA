@@ -436,10 +436,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? chosen = await NumberInputDialog.Show(
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the world map border list (current: {0}, max: 255).", current),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     current,
-                    255);
+                    255, titleIsKey: true);
                 if (chosen == null) return; // cancelled
                 uint newCount = chosen.Value;
                 if (newCount == current)
@@ -626,10 +626,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? chosen = await NumberInputDialog.Show(
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new entry count for the world map icon-data list (current: {0}, max: 255).", current),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     current,
-                    255);
+                    255, titleIsKey: true);
                 if (chosen == null) return; // cancelled
                 uint newCount = chosen.Value;
                 if (newCount == current)

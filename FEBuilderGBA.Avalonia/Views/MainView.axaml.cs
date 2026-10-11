@@ -114,11 +114,12 @@ namespace FEBuilderGBA.Avalonia.Views
 
         string DescribeTop()
         {
-            // The page title comes from the OWNING view Window's ViewTitle, which
-            // the nav host resolves via its page->Window map (IEditorView is
-            // implemented by the Window subclass, NOT the page content's
-            // DataContext). Falls back to the app name for the root/untitled page.
-            return Host.CurrentTitle ?? "FEBuilderGBA";
+            if (Host.CurrentContent is IEditorView editor)
+                return editor.TitleKey is string key
+                    ? ViewTranslationHelper.TranslateTitle(key)
+                    : editor.ViewTitle;
+            // Translate only the presentation; navigation retains the editor's original key.
+            return ViewTranslationHelper.TranslateTitle(Host.CurrentTitle ?? "FEBuilderGBA");
         }
 
 #if E2E_HOOKS

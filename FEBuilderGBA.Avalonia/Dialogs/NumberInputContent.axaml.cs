@@ -9,6 +9,7 @@ namespace FEBuilderGBA.Avalonia.Dialogs
     public partial class NumberInputContent : UserControl, IEmbeddableEditor
     {
         public string ViewTitle { get; private set; } = "FEBuilderGBA";
+        public string? TitleKey { get; private set; }
         public new bool IsLoaded => true;
         public EditorDescriptor Descriptor => new(
             ViewTitle,
@@ -26,14 +27,16 @@ namespace FEBuilderGBA.Avalonia.Dialogs
             InitializeComponent();
         }
 
-        public NumberInputContent(string prompt, string title, uint defaultValue, uint min, uint max) : this()
+        public NumberInputContent(string prompt, string title, uint defaultValue, uint min, uint max, bool titleIsKey = false) : this()
         {
-            Configure(prompt, title, defaultValue, min, max);
+            Configure(prompt, title, defaultValue, min, max, titleIsKey);
         }
 
-        public void Configure(string prompt, string title, uint defaultValue, uint min, uint max)
+        /// <param name="titleIsKey">Retain an untranslated catalog key; otherwise preserve title literally.</param>
+        public void Configure(string prompt, string title, uint defaultValue, uint min, uint max, bool titleIsKey = false)
         {
             ViewTitle = title;
+            TitleKey = titleIsKey ? title : null;
             PromptText.Text = prompt;
             ValueBox.Minimum = min;
             ValueBox.Maximum = max;

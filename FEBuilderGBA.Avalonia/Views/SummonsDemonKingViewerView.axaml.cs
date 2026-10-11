@@ -165,10 +165,10 @@ namespace FEBuilderGBA.Avalonia.Views
                 uint? chosen = await NumberInputDialog.Show(
                     TopLevel.GetTopLevel(this) as Window,
                     R._("Enter the new Demon King Summon count (current: {0}, max: {1}).", current, SummonsDemonKingExpandCore.MaxCountByte),
-                    R._("List Expansion"),
+                    "List Expansion",
                     defaultCount,
                     defaultCount,
-                    SummonsDemonKingExpandCore.MaxCountByte);
+                    SummonsDemonKingExpandCore.MaxCountByte, titleIsKey: true);
                 if (chosen == null) return; // user cancelled
 
                 // Preserve the selection by ORIGINAL INDEX, not by address: the
