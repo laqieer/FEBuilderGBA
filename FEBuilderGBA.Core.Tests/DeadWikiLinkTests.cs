@@ -37,13 +37,46 @@ namespace FEBuilderGBA.Core.Tests
             "config",                 // generated game data + config/patch2 submodule
             "tools/Event-Assembler",  // submodule
             "tools/ColorzCore",       // submodule
-            "resources/FE-Repo",      // FE-Repo + FE-Repo-Music-No-Preview submodules
+            "resources/FE-Repo",      // submodule
+            "resources/FE-Repo-Music-No-Preview", // submodule
+            "resources/fe-info",      // submodule
         };
 
         private static readonly string[] ScanExtensions =
         {
             ".cs", ".md", ".axaml",
         };
+
+        [Theory]
+        [InlineData("resources/FE-Repo", true)]
+        [InlineData("resources/FE-Repo/help", true)]
+        [InlineData("resources/FE-Repo-Music-No-Preview", true)]
+        [InlineData("resources/FE-Repo-Music-No-Preview/DirectPlayS", true)]
+        [InlineData("resources/fe-info", true)]
+        [InlineData("resources/fe-info/help", true)]
+        [InlineData("tools/Event-Assembler", true)]
+        [InlineData("tools/ColorzCore/help", true)]
+        [InlineData("resources/FE-Repo-local", false)]
+        [InlineData("resources/FE-Repo-Music-No-Preview-local", false)]
+        [InlineData("resources/fe-info-local", false)]
+        [InlineData("resources/help", false)]
+        [InlineData("tools/WinCapture", false)]
+        [InlineData("tools/ColorzCore-local", false)]
+        public void SourceScan_PrunesOnlyDeclaredExcludedDirectories(string relativePath, bool expected)
+        {
+            Assert.Equal(expected, IsExcludedRelativeDirectory(relativePath));
+        }
+
+        private static bool IsExcludedRelativeDirectory(string relativePath)
+        {
+            foreach (var excluded in SkipRelDirs)
+            {
+                if (relativePath.Equals(excluded, StringComparison.OrdinalIgnoreCase) ||
+                    relativePath.StartsWith(excluded + "/", StringComparison.OrdinalIgnoreCase))
+                    return true;
+            }
+            return false;
+        }
 
         private static string? FindRepoRoot()
         {
@@ -95,11 +128,7 @@ namespace FEBuilderGBA.Core.Tests
                     if (!prune)
                     {
                         var rel = Path.GetRelativePath(root, sub).Replace(Path.DirectorySeparatorChar, '/');
-                        foreach (var s in SkipRelDirs)
-                        {
-                            if (rel.Equals(s, StringComparison.OrdinalIgnoreCase) ||
-                                rel.StartsWith(s + "/", StringComparison.OrdinalIgnoreCase)) { prune = true; break; }
-                        }
+                        prune = IsExcludedRelativeDirectory(rel);
                     }
                     if (!prune) stack.Push(sub);
                 }
