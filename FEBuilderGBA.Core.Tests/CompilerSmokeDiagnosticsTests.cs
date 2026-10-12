@@ -12,6 +12,9 @@ using OwnedFixtureDirectory = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.O
 using OwnedIdentityMismatchException = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.OwnedIdentityMismatchException;
 using IOwnedDirectoryHandle = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.IOwnedDirectoryHandle;
 using IOwnedDirectoryOperations = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.IOwnedDirectoryOperations;
+using RunnerOverlapObserver = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.RunnerOverlapObserver;
+using RunnerOverlapObservation = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.RunnerOverlapObservation;
+using RunnerOverlapCapture = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.RunnerOverlapCapture;
 
 namespace FEBuilderGBA.Core.Tests;
 
@@ -859,6 +862,79 @@ public class CompilerSmokeDiagnosticsTests
         Assert.Empty(CompilerSmokeDiagnostics.RequiredOwnedFixtureStages(Enum.Parse<FixtureMode>(mode), count, true));
     }
 
+    [Fact]
+    public void RunnerOverlap_SequentialCallsDoNotClaimOverlap()
+    {
+        var observer = new RunnerOverlapObserver();
+        for (int index = 0; index < 3; index++)
+        {
+            var lease = observer.Enter();
+            Assert.Null(lease.Observation);
+            lease.Dispose();
+            Assert.Equal(new RunnerOverlapObservation(0, 0, 0), lease.Observation);
+        }
+    }
+
+    [Fact]
+    public void RunnerOverlap_CountsPeerThatStartsAndFinishesInsideCall()
+    {
+        var observer = new RunnerOverlapObserver();
+        var outer = observer.Enter();
+        var inner = observer.Enter();
+        inner.Dispose();
+        outer.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(1, 0, 1), inner.Observation);
+        Assert.Equal(new RunnerOverlapObservation(0, 1, 0), outer.Observation);
+        var after = observer.Enter();
+        after.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(0, 0, 0), after.Observation);
+    }
+
+    [Fact]
+    public void RunnerOverlap_InterleavedCallsObservePeersAtEntryAndReturn()
+    {
+        var observer = new RunnerOverlapObserver();
+        var first = observer.Enter();
+        var observed = observer.Enter();
+        var last = observer.Enter();
+        observed.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(1, 1, 2), observed.Observation);
+        first.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(0, 2, 1), first.Observation);
+        last.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(2, 0, 0), last.Observation);
+        var after = observer.Enter();
+        after.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(0, 0, 0), after.Observation);
+    }
+
+    [Fact]
+    public void RunnerOverlap_ExceptionalCompletionAndDoubleDisposeReleaseExactlyOnce()
+    {
+        var observer = new RunnerOverlapObserver();
+        var expected = new InvalidOperationException("fixture failure");
+        RunnerOverlapObserver.Lease? failed = null;
+        Action fail = () =>
+        {
+            using var lease = observer.Enter();
+            failed = lease;
+            throw expected;
+        };
+        Assert.Same(expected, Assert.Throws<InvalidOperationException>(fail));
+        Assert.NotNull(failed);
+        var completed = failed.Observation;
+        Assert.Equal(new RunnerOverlapObservation(0, 0, 0), completed);
+        var peer = observer.Enter();
+        failed.Dispose();
+        failed.Dispose();
+        Assert.Same(completed, failed.Observation);
+        peer.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(0, 0, 0), peer.Observation);
+        var after = observer.Enter();
+        after.Dispose();
+        Assert.Equal(new RunnerOverlapObservation(0, 0, 0), after.Observation);
+    }
+
     [Theory]
     [InlineData("Stdout", 16_384, "success", 10_000)]
     [InlineData("Stderr", 16_384, "success", 10_000)]
@@ -875,7 +951,7 @@ public class CompilerSmokeDiagnosticsTests
         var stages = PresentOwnedStages();
         CompilerSmokeDiagnostics.AssertOwnedFixtureContract(mode, count, result, stages);
         string report = CompilerSmokeDiagnostics.DescribeOwnedFixture(mode, count, result,
-            TimeSpan.FromMilliseconds(123), stages);
+            TimeSpan.FromMilliseconds(123), stages, new RunnerOverlapObservation(0, 0, 0));
         Assert.InRange(report.Length, 1, 4096);
         using var json = System.Text.Json.JsonDocument.Parse(report);
         var body = json.RootElement;
@@ -888,6 +964,114 @@ public class CompilerSmokeDiagnosticsTests
         Assert.Equal(result.Stdout.Length, body.GetProperty("capturedStdoutChars").GetInt32());
         Assert.Equal(result.Stderr.Length, body.GetProperty("capturedStderrChars").GetInt32());
         Assert.Equal(5, body.GetProperty("stages").GetArrayLength());
+        Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
+        var overlap = body.GetProperty("runnerOverlap");
+        Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process", overlap.GetProperty("scope").GetString());
+        Assert.Equal("observed", overlap.GetProperty("status").GetString());
+        Assert.Equal(0, overlap.GetProperty("otherCallsActiveAtEntry").GetInt64());
+        Assert.Equal(0, overlap.GetProperty("otherCallsStartedDuringCall").GetInt64());
+        Assert.Equal(0, overlap.GetProperty("otherCallsActiveAtReturn").GetInt64());
+        Assert.False(overlap.GetProperty("overlapObserved").GetBoolean());
+        Assert.Equal(6, overlap.EnumerateObject().Count());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void OwnedFixture_ReportWithoutRealRunnerObservationDoesNotClaimZeroOverlap(bool injectedRunner)
+    {
+        const string secret = "SECRET_EXECUTABLE_ARGUMENT_DIRECTORY";
+        var result = OwnedResult(FixtureMode.Exit, 0);
+        var capture = new RunnerOverlapCapture();
+        TimeSpan elapsed = TimeSpan.Zero;
+        if (injectedRunner)
+        {
+            int calls = 0;
+            var call = CompilerSmokeDiagnostics.Run(
+                secret, new[] { secret }, secret, CompilerSmokeDiagnostics.ProbeTimeoutMs,
+                (_, _, _, _, _) =>
+                {
+                    calls++;
+                    return result;
+                }, capture);
+            Assert.Equal(1, calls);
+            Assert.Null(capture.Observation);
+            result = call.Result;
+            elapsed = call.Elapsed;
+        }
+
+        string report = CompilerSmokeDiagnostics.DescribeOwnedFixture(
+            FixtureMode.Exit, 0, result, elapsed, PresentOwnedStages(), capture.Observation);
+        Assert.InRange(report.Length, 1, 4096);
+        Assert.DoesNotContain(secret, report);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        Assert.True(json.RootElement.TryGetProperty("runnerOverlap", out var overlap),
+            "Owned reports must distinguish unavailable real-runner overlap evidence from measured zero overlap.");
+        Assert.Equal(System.Text.Json.JsonValueKind.Object, overlap.ValueKind);
+        Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process",
+            overlap.GetProperty("scope").GetString());
+        Assert.Equal("unavailable", overlap.GetProperty("status").GetString());
+        foreach (string field in new[]
+        {
+            "otherCallsActiveAtEntry", "otherCallsStartedDuringCall", "otherCallsActiveAtReturn", "overlapObserved",
+        })
+            Assert.Equal(System.Text.Json.JsonValueKind.Null, overlap.GetProperty(field).ValueKind);
+        Assert.Equal(6, overlap.EnumerateObject().Count());
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RunnerOverlap_InjectedRunnerClearsCaptureEvenOnException(bool throws)
+    {
+        var capture = new RunnerOverlapCapture { Observation = new RunnerOverlapObservation(1, 2, 3) };
+        var expected = new InvalidOperationException("injected failure");
+        int calls = 0;
+        void Invoke() => CompilerSmokeDiagnostics.Run(
+            "not-executed", Array.Empty<string>(), "not-accessed", CompilerSmokeDiagnostics.ProbeTimeoutMs,
+            (_, _, _, _, _) =>
+            {
+                calls++;
+                if (throws) throw expected;
+                return Success();
+            }, capture);
+        if (throws)
+            Assert.Same(expected, Assert.Throws<InvalidOperationException>(Invoke));
+        else
+            Invoke();
+        Assert.Equal(1, calls);
+        Assert.Null(capture.Observation);
+    }
+
+    [Theory]
+    [InlineData(0, 0, 0, false)]
+    [InlineData(1, 0, 0, true)]
+    [InlineData(0, 1, 0, true)]
+    [InlineData(0, 0, 1, true)]
+    [InlineData(1, 2, 3, true)]
+    public void OwnedFixture_ReportDerivesOverlapOnlyFromMeasuredCounts(
+        long atEntry, long startedDuring, long atReturn, bool expected)
+    {
+        using var json = System.Text.Json.JsonDocument.Parse(CompilerSmokeDiagnostics.DescribeOwnedFixture(
+            FixtureMode.Exit, 0, OwnedResult(FixtureMode.Exit, 0), TimeSpan.Zero, PresentOwnedStages(),
+            new RunnerOverlapObservation(atEntry, startedDuring, atReturn)));
+        var overlap = json.RootElement.GetProperty("runnerOverlap");
+        Assert.Equal("observed", overlap.GetProperty("status").GetString());
+        Assert.Equal(atEntry, overlap.GetProperty("otherCallsActiveAtEntry").GetInt64());
+        Assert.Equal(startedDuring, overlap.GetProperty("otherCallsStartedDuringCall").GetInt64());
+        Assert.Equal(atReturn, overlap.GetProperty("otherCallsActiveAtReturn").GetInt64());
+        Assert.Equal(expected, overlap.GetProperty("overlapObserved").GetBoolean());
+    }
+
+    [Theory]
+    [InlineData(-1, 0, 0)]
+    [InlineData(0, -1, 0)]
+    [InlineData(0, 0, -1)]
+    public void OwnedFixture_ReportRejectsNegativeOverlapCounts(long atEntry, long startedDuring, long atReturn)
+    {
+        Assert.Throws<ArgumentException>(() => CompilerSmokeDiagnostics.DescribeOwnedFixture(
+            FixtureMode.Exit, 0, OwnedResult(FixtureMode.Exit, 0), TimeSpan.Zero, PresentOwnedStages(),
+            new RunnerOverlapObservation(atEntry, startedDuring, atReturn)));
     }
 
     [Fact]
@@ -900,20 +1084,38 @@ public class CompilerSmokeDiagnosticsTests
             Cancelled = true, TerminationFailed = true,
             Stdout = secret + new string('\u0001', 20_000), Stderr = secret, ErrorMessage = secret,
         };
+        foreach (var overlap in new RunnerOverlapObservation?[]
+        {
+            null, new(long.MaxValue, long.MaxValue, long.MaxValue),
+        })
         foreach (var status in Enum.GetValues<FixtureStageStatus>())
         {
             var stages = Enum.GetValues<FixtureStage>()
                 .Select(stage => new FixtureStageObservation(stage, status)).ToArray();
             string report = CompilerSmokeDiagnostics.DescribeOwnedFixture(
-                FixtureMode.Stdout, 16_384, result, TimeSpan.FromMilliseconds(123), stages);
+                FixtureMode.Stdout, 16_384, result, TimeSpan.FromMilliseconds(123), stages, overlap);
             Assert.InRange(report.Length, 1, 4096);
             Assert.DoesNotContain(secret, report);
+            Assert.DoesNotContain(ProcessRunnerTestCollection.Name, report);
             using var json = System.Text.Json.JsonDocument.Parse(report);
             var body = json.RootElement;
             Assert.Equal("termination-failure", body.GetProperty("classification").GetString());
             Assert.Equal("unrecognized", body.GetProperty("errorCategory").GetString());
             Assert.Equal(secret.Length, body.GetProperty("errorMessageChars").GetInt32());
             Assert.Equal("synthetic-runner-result", body.GetProperty("exitCodeKind").GetString());
+            Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
+            var reportedOverlap = body.GetProperty("runnerOverlap");
+            Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process",
+                reportedOverlap.GetProperty("scope").GetString());
+            Assert.Equal(overlap == null ? "unavailable" : "observed", reportedOverlap.GetProperty("status").GetString());
+            Assert.Equal(6, reportedOverlap.EnumerateObject().Count());
+            if (overlap != null)
+            {
+                Assert.Equal(long.MaxValue, reportedOverlap.GetProperty("otherCallsActiveAtEntry").GetInt64());
+                Assert.Equal(long.MaxValue, reportedOverlap.GetProperty("otherCallsStartedDuringCall").GetInt64());
+                Assert.Equal(long.MaxValue, reportedOverlap.GetProperty("otherCallsActiveAtReturn").GetInt64());
+                Assert.True(reportedOverlap.GetProperty("overlapObserved").GetBoolean());
+            }
             foreach (string flag in new[] { "Started", "TimedOut", "OutputLimitExceeded", "Cancelled", "TerminationFailed" })
                 Assert.True(body.GetProperty(flag).GetBoolean());
             string expectedStatus = status switch
@@ -2251,7 +2453,8 @@ public class CompilerSmokeDiagnosticsTests
                 ? new[] { "-NoProfile", "-NonInteractive", "-File", script, mode, count.ToString(System.Globalization.CultureInfo.InvariantCulture) }
                 : new[] { script, mode, count.ToString(System.Globalization.CultureInfo.InvariantCulture) };
             int timeout = mode == "timeout" ? 1_500 : 10_000;
-            var call = CompilerSmokeDiagnostics.Run(executable, args, root, timeout);
+            var overlapCapture = new RunnerOverlapCapture();
+            var call = CompilerSmokeDiagnostics.Run(executable, args, root, timeout, overlapCapture: overlapCapture);
             outstanding = call.Result.TerminationFailed;
             var fixtureMode = mode switch
             {
@@ -2263,7 +2466,7 @@ public class CompilerSmokeDiagnosticsTests
             var stages = owned != null ? owned.ReadStages(outstanding)
                 : CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, outstanding);
             CompilerSmokeDiagnostics.EmitOwnedFixture(CompilerSmokeDiagnostics.DescribeOwnedFixture(
-                fixtureMode, count, call.Result, call.Elapsed, stages), null, output.WriteLine);
+                fixtureMode, count, call.Result, call.Elapsed, stages, overlapCapture.Observation), null, output.WriteLine);
             Assert.Equal(expected, CompilerSmokeDiagnostics.Classify(call.Result, true));
             CompilerSmokeDiagnostics.AssertOwnedFixtureContract(fixtureMode, count, call.Result, stages);
         }

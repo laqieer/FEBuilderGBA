@@ -21,6 +21,54 @@ internal static class CompilerSmokeDiagnostics
     internal delegate ProcessRunResult Runner(
         string executable, IEnumerable<string> arguments, string? directory, int timeoutMs, int outputCapChars);
 
+    internal sealed record RunnerOverlapObservation(
+        long OtherCallsActiveAtEntry, long OtherCallsStartedDuringCall, long OtherCallsActiveAtReturn);
+
+    internal sealed class RunnerOverlapCapture
+    {
+        internal RunnerOverlapObservation? Observation { get; set; }
+    }
+
+    internal sealed class RunnerOverlapObserver
+    {
+        readonly object gate = new();
+        int activeCalls;
+        long startedCalls;
+
+        internal Lease Enter()
+        {
+            lock (gate)
+            {
+                int nextActive = checked(activeCalls + 1);
+                long nextStarted = checked(startedCalls + 1);
+                var lease = new Lease(this, nextStarted, activeCalls);
+                activeCalls = nextActive;
+                startedCalls = nextStarted;
+                return lease;
+            }
+        }
+
+        internal sealed class Lease(
+            RunnerOverlapObserver owner, long entryStartedCalls, int otherCallsActiveAtEntry) : IDisposable
+        {
+            internal RunnerOverlapObservation? Observation { get; private set; }
+
+            public void Dispose()
+            {
+                lock (owner.gate)
+                {
+                    if (Observation != null) return;
+                    var observation = new RunnerOverlapObservation(
+                        otherCallsActiveAtEntry, owner.startedCalls - entryStartedCalls, owner.activeCalls - 1);
+                    owner.activeCalls--;
+                    Observation = observation;
+                }
+            }
+        }
+    }
+
+    static readonly RunnerOverlapObserver RealRunnerOverlap = new();
+
     internal sealed class Compiler(string requestedExecutable, string versionEvidence, string? launchPath = null)
     {
         internal string RequestedExecutable { get; } = requestedExecutable;
@@ -30,12 +78,24 @@ internal static class CompilerSmokeDiagnostics
     }
 
     internal static (ProcessRunResult Result, TimeSpan Elapsed) Run(
-        string executable, IEnumerable<string> arguments, string directory, int timeoutMs, Runner? runner = null)
+        string executable, IEnumerable<string> arguments, string directory, int timeoutMs, Runner? runner = null,
+        RunnerOverlapCapture? overlapCapture = null)
     {
+        if (overlapCapture != null) overlapCapture.Observation = null;
         var clock = Stopwatch.StartNew();
-        var result = (runner ?? ProcessRunnerCore.Run)(executable, arguments, directory, timeoutMs, OutputCapChars);
-        clock.Stop();
-        return (result, clock.Elapsed);
+        var lease = runner == null ? RealRunnerOverlap.Enter() : null;
+        try
+        {
+            var result = (runner ?? ProcessRunnerCore.Run)(executable, arguments, directory, timeoutMs, OutputCapChars);
+            clock.Stop();
+            return (result, clock.Elapsed);
+        }
+        finally
+        {
+            clock.Stop();
+            lease?.Dispose();
+            if (overlapCapture != null) overlapCapture.Observation = lease?.Observation;
+        }
     }
 
     internal static Compiler? Detect(Runner? runner = null, Func<string, string?>? resolve = null)
@@ -1001,10 +1061,22 @@ internal static class CompilerSmokeDiagnostics
 
     internal static string DescribeOwnedFixture(
         FixtureMode mode, int count, ProcessRunResult result, TimeSpan elapsed,
-        IReadOnlyList<FixtureStageObservation> stages)
+        IReadOnlyList<FixtureStageObservation> stages, RunnerOverlapObservation? runnerOverlap = null)
     {
         ValidateOwnedCase(mode, count);
         ValidateOwnedStages(stages);
+        if (runnerOverlap != null && (runnerOverlap.OtherCallsActiveAtEntry < 0
+            || runnerOverlap.OtherCallsStartedDuringCall < 0 || runnerOverlap.OtherCallsActiveAtReturn < 0))
+            throw new ArgumentException("Invalid real-runner overlap observation.");
+        var collections = typeof(CompilerSmokeDiagnosticsTests)
+            .GetCustomAttributesData()
+            .Where(attribute => attribute.AttributeType == typeof(Xunit.CollectionAttribute)).ToArray();
+        string collectionMembership = collections.Length == 0 ? "not-process-tree-serial"
+            : collections.Length == 1 && collections[0].ConstructorArguments.Count == 1
+                && collections[0].ConstructorArguments[0].ArgumentType == typeof(string)
+                && collections[0].ConstructorArguments[0].Value is string collectionName
+                && string.Equals(collectionName, ProcessRunnerTestCollection.Name, StringComparison.Ordinal)
+                ? "process-tree-serial" : "other-or-ambiguous";
         bool intervention = result.TimedOut || result.OutputLimitExceeded || result.Cancelled
             || result.TerminationFailed || (result.Started && !string.IsNullOrEmpty(result.ErrorMessage));
         string errorCategory = result.ErrorMessage switch
@@ -1029,6 +1101,18 @@ internal static class CompilerSmokeDiagnostics
             configuredTimeoutMs = mode == FixtureMode.Timeout ? 1_500 : 10_000,
             perStreamOutputCapChars = OutputCapChars,
             runnerCallElapsedMsIncludingDrainAndCleanup = elapsed.TotalMilliseconds,
+            collectionMembership,
+            runnerOverlap = new
+            {
+                scope = "compiler-smoke-real-runner-calls-in-this-test-process",
+                status = runnerOverlap == null ? "unavailable" : "observed",
+                otherCallsActiveAtEntry = runnerOverlap?.OtherCallsActiveAtEntry,
+                otherCallsStartedDuringCall = runnerOverlap?.OtherCallsStartedDuringCall,
+                otherCallsActiveAtReturn = runnerOverlap?.OtherCallsActiveAtReturn,
+                overlapObserved = runnerOverlap == null ? (bool?)null
+                    : runnerOverlap.OtherCallsActiveAtEntry > 0 || runnerOverlap.OtherCallsStartedDuringCall > 0
+                        || runnerOverlap.OtherCallsActiveAtReturn > 0,
+            },
             result.Started, result.TimedOut, result.OutputLimitExceeded, result.Cancelled, result.TerminationFailed,
             exitCode = result.ExitCode,
             exitCodeKind = intervention ? "synthetic-runner-result" : result.Started ? "driver-exit" : "not-started",
