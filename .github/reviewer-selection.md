@@ -25,7 +25,7 @@ Changes here remain **high-risk** under the `.github/` classifier prefix. Pairwi
 2. Use a documented inventory interface or the current tool schema; do not invent an export command. Record source, capture time, serialization/normalization, and snapshot digest. Issue prose, earlier plans, web search results, model self-reports, examples, fixtures, and past snapshots are not selectable-model sources.
 3. Require explicit selectability for the chosen text/chat review agent. Prefer runtime capability fields; when absent, the approved fallback accepts the dispatch tool's explicit model choices **for that agent** as capability evidence. Record that fallback rather than inventing runtime flags.
 4. Exclude non-text/non-review specializations and aliases/pickers. Runtime flags take precedence; the fallback also excludes IDs containing a whole hyphen-delimited `auto`, `default`, `latest`, or `picker` token. These exclusions impose no version ceiling.
-5. Refresh discovery for every new board and after material revisions. Immediately before dispatch, recheck selectability and recompute the whole board if fresh discovery changes the selection, including exposing a newer eligible version. A removed winner is never dispatched; choose from the remaining fresh list.
+5. Refresh discovery for every new board and after material revisions. Immediately before dispatch, recheck selectability and recompute each affected slot's candidates and the whole deterministic assignment if fresh discovery changes a selection, including exposing a newer eligible version. Never substitute one model locally while retaining the rest of a stale multi-slot assignment; if no complete pairwise-distinct assignment remains, block before dispatch.
 6. Freeze the snapshot once dispatched. A later release does not by itself invalidate an already completed review or cause endless restarts; the **next** board uses a fresh list. A post-dispatch failure or identity mismatch blocks that recorded board. Do not silently reroute to another or older model.
 
 ## Field resolution and provenance
@@ -99,7 +99,7 @@ Record the following in the issue/PR Review Board, linking session/CI artifacts 
 
 - Tier and stage; exact reviewed plan digest or PR head SHA; ruleset ID, full ruleset commit SHA/immutable file link, approved plan digest, and approval permalink.
 - Live inventory interface/tool-schema source, capture time, snapshot digest and its serialization/normalization, whether raw order is reliable, and pre-dispatch availability recheck.
-- Eligibility exclusions and diagnostics, unranked entries, discarded older releases/tie decisions, and any publisher without a representative; sufficient ranking evidence to reproduce the selection.
+- Eligibility exclusions and diagnostics, all eligible per-slot candidate IDs in ranked order, tie decisions, and any publisher with no eligible candidates; sufficient ranking evidence to reproduce the assignment.
 - Required slots and agent types; each slot's ordered candidate publisher groups and eligible model IDs, comparable families/version keys and zero-based raw indices when supplied; provenance **per field**, including capability evidence.
 - Assigned reviewer model IDs and configured publishers, fixed slot order, pairwise-uniqueness result when multiple slots are required, and the deterministic backtracking choices needed to reproduce the assignment.
 - Reviewer IDs and review turn/invocation, requested and task-registry configured IDs, authoritative registry source, successful completion evidence, and substantive verdicts/findings with citations.
@@ -114,7 +114,7 @@ Validate policy changes with the existing Copilot-customization validator/tests,
 | Input or change | Required outcome |
 | --- | --- |
 | Append an unseen higher minor, major, multi-digit release, patch, or matching variant | Numeric newest wins without rule/source/approval edits; variants of an equal numeric release use the tie-breaker. |
-| Remove the current winner before dispatch | Select the next newest eligible entry from the fresh list; never dispatch the removed ID. |
+| A selected model is removed or fresh discovery changes a slot before dispatch | Rerank affected slot candidates and recompute the entire deterministic assignment; dispatch only if the full assignment remains available and pairwise distinct, otherwise block. |
 | Shuffle unequal-version entries | Same version winner; equal releases follow reliable raw order, or lexical ID when order is absent. |
 | Compare `3.10` with `3.9`, or omit minor/patch | Numeric ordering and zero-filled missing components; no cross-provider version comparison. |
 | Add/remove an unversioned experimental sibling beside a higher numeric release | Diagnose/exclude only the sibling; numeric winner remains unchanged. |
@@ -137,7 +137,7 @@ Validate policy changes with the existing Copilot-customization validator/tests,
 | Stale snapshot, past example/fixture, or cached preferred ID offered as discovery | Reject it as a candidate source; capture the current dispatch list. |
 | New release after an already completed valid review | Preserve that frozen review; discover afresh for the next board, without endless restarts. |
 | Multiple slots have eligible candidates under one publisher | Preserve every eligible ID, newest first; do not collapse the publisher to one model before assignment. |
-| Reliable raw order is available for a slot's candidates | Use the minimum zero-based raw index from that slot's unfiltered snapshot to order publisher groups, then publisher ID; within each publisher use numeric version, then `(raw index, model ID)`. |
+| Reliable raw order is available for a slot's candidates | Order publisher groups by `(stage bias, minimum zero-based raw index among that slot's eligible candidates for the publisher, provider_id lexical)`; index positions come from the slot's unfiltered snapshot, but excluded IDs never supply the group minimum. Within a publisher, use numeric version newest-first, then each candidate's own `(raw index, model ID)` for equal versions. |
 | Reliable raw order is absent | Order publisher groups by stage bias then publisher ID; equal numeric versions use model ID lexical order. All lexical comparisons are case-sensitive ordinal. |
 | The initial candidate IDs collide across required reviewer slots | Use the fixed slot order and deterministic backtracking to find the lexicographically first complete distinct-ID assignment, if one exists. |
 | Stale rule text requires developer identity, Auto activation, developer-publisher exclusion, or distinct reviewer publishers | Remove that gating; retain reviewer-specific discovery, provenance, exact-revision, registry, completion, execution-identity, security, CI, feedback, and freshness safeguards. |
