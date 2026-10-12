@@ -13,6 +13,8 @@ namespace FEBuilderGBA
         public const uint FE6TableSize = 54;
         public const uint FE7AndFE8TableSize = 68;
         const uint PointerSize = 4;
+        static uint GetFirstPointerOffset(ROM rom) => rom.RomInfo.version == 6 ? 52u : 56u;
+        static uint GetPointerSlotCount(ROM rom) => rom.RomInfo.version == 6 ? 4u : 6u;
 
         public static uint GetTableSize(ROM rom)
         {
@@ -30,8 +32,8 @@ namespace FEBuilderGBA
             uint size = GetTableSize(rom);
             if (size == 0 || rom.Data == null) return Array.Empty<(uint, uint)>();
 
-            uint firstSlot = rom.RomInfo.version == 6 ? 52u : 56u;
-            uint slotCount = rom.RomInfo.version == 6 ? 4u : 6u;
+            uint firstSlot = GetFirstPointerOffset(rom);
+            uint slotCount = GetPointerSlotCount(rom);
             uint stride = rom.RomInfo.class_datasize;
             uint classPointer = rom.RomInfo.class_pointer;
             if (stride < firstSlot + slotCount * PointerSize
@@ -118,7 +120,8 @@ namespace FEBuilderGBA
                 return U.NOT_FOUND;
 
             uint newOffset;
-            if (CoreState.AppendBinaryData != null && (undoData != null || ambientUndo != null))
+            if (ReferenceEquals(rom, CoreState.ROM) && CoreState.AppendBinaryData != null
+                && (undoData != null || ambientUndo != null))
             {
                 Undo.UndoData allocatorUndo = ambientUndo != null ? null! : undoData!;
                 newOffset = CoreState.AppendBinaryData(clone, allocatorUndo);
@@ -153,7 +156,8 @@ namespace FEBuilderGBA
             out uint classBase, out uint classStride, out uint slotOffset, out uint selectedClass)
         {
             classBase = classStride = slotOffset = selectedClass = 0;
-            if (rom?.RomInfo == null || rom.Data == null || classCount == 0) return false;
+            if (rom?.RomInfo == null || rom.Data == null || classCount == 0 || GetTableSize(rom) == 0)
+                return false;
 
             classStride = rom.RomInfo.class_datasize;
             uint classPointerSlot = rom.RomInfo.class_pointer;
@@ -178,6 +182,11 @@ namespace FEBuilderGBA
                 return false;
 
             slotOffset = pointerSlot - classAddr;
+            uint firstSlot = GetFirstPointerOffset(rom);
+            if (slotOffset < firstSlot
+                || slotOffset >= firstSlot + GetPointerSlotCount(rom) * PointerSize
+                || (slotOffset - firstSlot) % PointerSize != 0)
+                return false;
             return true;
         }
 

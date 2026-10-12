@@ -162,6 +162,72 @@ public class MoveCostIndependenceCoreTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void MakeIndependent_DoesNotAllocateIntoADifferentGlobalRom(bool useDifferentRom)
+    {
+        var target = MakeRom();
+        var other = MakeRom();
+        byte[] otherBefore = (byte[])other.Data.Clone();
+        var previous = Enter(other);
+        try
+        {
+            CoreState.AppendBinaryData = null;
+            CoreState.WireHeadlessAppendBinaryData();
+            var undo = CoreState.Undo.NewUndoData("Explicit target independence");
+            if (!useDifferentRom) CoreState.ROM = null;
+            uint clone = MoveCostIndependenceCore.MakeIndependent(
+                target, ClassBase, ClassBase + GetMoveCostPointerOffset(target), ClassCount, undo);
+
+            Assert.NotEqual(U.NOT_FOUND, clone);
+            Assert.Equal((byte)0x5A, target.u8(clone));
+            Assert.True(other.Data.AsSpan().SequenceEqual(otherBefore));
+        }
+        finally { Exit(previous); }
+    }
+
+    [Theory]
+    [InlineData("outside-class-table")]
+    [InlineData("non-cost-slot")]
+    [InlineData("truncated-table")]
+    public void InvalidClassOrCostSlot_DoesNotAllocateOrMutate(string invalidInput)
+    {
+        var rom = MakeRom();
+        uint classAddr = ClassBase;
+        uint slot = ClassBase + GetMoveCostPointerOffset(rom);
+        if (invalidInput == "outside-class-table")
+        {
+            classAddr += ClassCount * rom.RomInfo.class_datasize;
+            slot = classAddr + GetMoveCostPointerOffset(rom);
+        }
+        else if (invalidInput == "non-cost-slot")
+        {
+            slot = ClassBase + 16;
+            rom.write_p32(slot, SharedCostTable);
+            rom.write_p32(slot + rom.RomInfo.class_datasize, SharedCostTable);
+        }
+        else
+        {
+            uint truncated = (uint)rom.Data.Length - MoveCostIndependenceCore.GetTableSize(rom) + 1;
+            rom.write_p32(slot, truncated);
+            rom.write_p32(slot + rom.RomInfo.class_datasize, truncated);
+        }
+        byte[] before = (byte[])rom.Data.Clone();
+        var previous = Enter(rom);
+        try
+        {
+            Assert.False(MoveCostIndependenceCore.IsTableShared(rom, classAddr, slot, ClassCount));
+            var undo = CoreState.Undo.NewUndoData("Invalid independence input");
+            using (ROM.BeginUndoScope(undo))
+                Assert.Equal(U.NOT_FOUND,
+                    MoveCostIndependenceCore.MakeIndependent(rom, classAddr, slot, ClassCount, undo));
+            Assert.Empty(undo.list);
+            Assert.True(rom.Data.AsSpan().SequenceEqual(before));
+        }
+        finally { Exit(previous); }
+    }
+
+    [Theory]
     [InlineData("AFEJ01", 54u)]
     public void MakeIndependent_Fe6ClonesExactly54Bytes(string gameCode, uint expectedSize)
         => AssertMakeIndependentClone(gameCode, expectedSize);

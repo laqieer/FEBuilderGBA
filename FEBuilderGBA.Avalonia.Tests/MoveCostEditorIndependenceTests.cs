@@ -184,11 +184,51 @@ public class MoveCostEditorIndependenceTests
             Assert.Equal((byte)0x3A, rom.u8(cloneOffset + 53));
             Assert.Equal((byte)53, rom.u8(SharedTable + 53));
             Assert.Equal(sentinel, rom.u8(cloneOffset + tableSize));
+            Assert.Contains("B53", vm.GetDataReport().Keys);
+            Assert.DoesNotContain("B54", vm.GetDataReport().Keys);
+            Assert.Contains("u8@0x35", vm.GetRawRomReport().Keys);
+            Assert.DoesNotContain("u8@0x36", vm.GetRawRomReport().Keys);
+            Assert.Contains("B53", vm.GetFieldOffsetMap().Keys);
+            Assert.DoesNotContain("B54", vm.GetFieldOffsetMap().Keys);
         }
         finally
         {
             CoreState.AppendBinaryData = previousAppend;
             CoreState.ROM = previousRom;
+            CoreState.Undo = previousUndo;
+        }
+    }
+
+    [AvaloniaFact]
+    public void RuntimeTerrainCountCaption_TranslatesAcrossLanguageChanges()
+    {
+        using var state = new GuiLocalizationState();
+        var previousUndo = CoreState.Undo;
+        MoveCostEditorView? view = null;
+        try
+        {
+            state.ApplyLanguage("en");
+            CoreState.ROM = MakeRom(gameCode: "AFEJ01");
+            CoreState.Undo = new Undo();
+            view = new MoveCostEditorView();
+            view.Show();
+            view.NavigateTo(ClassBase);
+            var caption = view.FindControl<TextBlock>("CostTypeLabel")!;
+            Assert.Equal("MoveCostNormal (54 terrains):", caption.Text);
+
+            state.ApplyLanguage("zh");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("MoveCostNormal\uFF0854 \u79CD\u5730\u5F62\uFF09\uFF1A", caption.Text);
+            state.ApplyLanguage("ja");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("MoveCostNormal\uFF08\u5730\u5F62\u6570: 54\uFF09:", caption.Text);
+            state.ApplyLanguage("en");
+            Dispatcher.UIThread.RunJobs();
+            Assert.Equal("MoveCostNormal (54 terrains):", caption.Text);
+        }
+        finally
+        {
+            if (view != null) DetachAndClose(view);
             CoreState.Undo = previousUndo;
         }
     }

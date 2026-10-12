@@ -45,6 +45,8 @@ namespace FEBuilderGBA.Avalonia.Views
             _attachmentGeneration++;
             Undo.OnAllFormsInvalidated -= OnAllFormsInvalidated;
             Undo.OnAllFormsInvalidated += OnAllFormsInvalidated;
+            CoreState.LanguageChanged -= OnLanguageChanged;
+            CoreState.LanguageChanged += OnLanguageChanged;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
@@ -58,8 +60,22 @@ namespace FEBuilderGBA.Avalonia.Views
             _isAttached = false;
             _attachmentGeneration++;
             Undo.OnAllFormsInvalidated -= OnAllFormsInvalidated;
+            CoreState.LanguageChanged -= OnLanguageChanged;
             base.OnDetachedFromVisualTree(e);
         }
+
+        void OnLanguageChanged()
+        {
+            int generation = _attachmentGeneration;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_isAttached && generation == _attachmentGeneration)
+                    UpdateCostTypeLabel();
+            });
+        }
+
+        void UpdateCostTypeLabel()
+            => CostTypeLabel.Text = R._("{0} ({1} terrains):", _vm.SelectedCostType, _vm.SupportedTerrainCount);
 
         void OnAllFormsInvalidated()
         {
@@ -286,7 +302,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 ClassNameLabel.Text = _vm.ClassName;
                 AddrLabel.Text = $"Class: 0x{_vm.CurrentAddr:X08}";
                 MoveCostAddrLabel.Text = $"Table: 0x{_vm.MoveCostAddr:X08}";
-                CostTypeLabel.Text = $"{_vm.SelectedCostType} ({_vm.SupportedTerrainCount} terrains):";
+                UpdateCostTypeLabel();
                 IndependenceButton.IsVisible = _vm.CanMakeIndependent;
                 IndependenceButton.IsEnabled = _vm.CanMakeIndependent;
 

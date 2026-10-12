@@ -572,7 +572,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 ["moveCostAddr"] = $"0x{MoveCostAddr:X08}",
                 ["costType"] = SelectedCostType.ToString(),
             };
-            for (int i = 0; i < TerrainCount; i++)
+            for (int i = 0; i < SupportedTerrainCount; i++)
             {
                 report[$"B{i}"] = $"0x{GetCost(i):X02}";
             }
@@ -608,8 +608,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             if (MoveCostAddr == 0 || !U.isSafetyOffset(MoveCostAddr)) return report;
             uint m = MoveCostAddr;
-            if (m + TerrainCount > (uint)rom.Data.Length) return report;
-            for (int i = 0; i < TerrainCount; i++)
+            int supportedTerrainCount = SupportedTerrainCount;
+            if ((ulong)m + (uint)supportedTerrainCount > (uint)rom.Data.Length) return report;
+            for (int i = 0; i < supportedTerrainCount; i++)
             {
                 report[$"u8@0x{i:X02}"] = $"0x{rom.u8((uint)(m + i)):X02}";
             }
@@ -625,7 +626,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public Dictionary<string, string> GetFieldOffsetMap()
         {
             var map = new Dictionary<string, string>();
-            for (int i = 0; i < TerrainCount; i++)
+            for (int i = 0; i < SupportedTerrainCount; i++)
             {
                 map[$"B{i}"] = $"u8@0x{i:X02}";
             }
