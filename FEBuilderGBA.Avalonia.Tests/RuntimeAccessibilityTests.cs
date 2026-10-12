@@ -11,6 +11,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Automation.Provider;
 using System.IO;
 using FEBuilderGBA.Core;
+using FEBuilderGBA.Avalonia.Dialogs;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Avalonia.Services;
@@ -26,6 +27,45 @@ public class RuntimeAccessibilityTests : IDisposable
 
     static string Name(Control control) =>
         ControlAutomationPeer.CreatePeerForElement(control)!.GetName();
+
+    [AvaloniaFact]
+    public void YesNoMessageBoxButtons_AreNamedInvokableAndModeSpecific()
+    {
+        var content = new MessageBoxContent("Continue?", "Question", MessageBoxMode.YesNo);
+        var window = new Window { Content = content, Width = 400, Height = 200 };
+        int closeRequests = 0;
+        content.CloseRequested += (_, _) => closeRequests++;
+        try
+        {
+            window.Show();
+            window.UpdateLayout();
+
+            var yes = content.FindControl<Button>("YesButton")!;
+            var no = content.FindControl<Button>("NoButton")!;
+            Assert.True(yes.IsVisible);
+            Assert.True(no.IsVisible);
+
+            foreach (var (button, name, result) in new[]
+            {
+                (yes, "Yes", MessageBoxResult.Yes),
+                (no, "No", MessageBoxResult.No),
+            })
+            {
+                var peer = ControlAutomationPeer.CreatePeerForElement(button)!;
+                Assert.Equal(name, peer.GetName());
+                Assert.Equal(AutomationControlType.Button, peer.GetAutomationControlType());
+                Assert.IsAssignableFrom<IInvokeProvider>(peer).Invoke();
+                Assert.Equal(result, content.Result);
+            }
+            Assert.Equal(2, closeRequests);
+
+            content.Configure("Saved", "Information", MessageBoxMode.Ok);
+            window.UpdateLayout();
+            Assert.False(yes.IsVisible);
+            Assert.False(no.IsVisible);
+        }
+        finally { window.Close(); }
+    }
 
     [AvaloniaFact]
     public void SharedTopBarFilter_AnnouncesLiveCaption()
