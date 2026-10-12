@@ -908,15 +908,15 @@ public class CompilerSmokeDiagnosticsTests
     public void RunnerOverlapBoundary_SharedBoundaryOwnsOneLeaseAndOneProductionCall()
     {
         var references = RunnerMethodReferences(RequiredObservedRunnerBoundary()).ToArray();
-        var production = Assert.Single(references.Where(reference => IsProductionRunnerReference(reference.Method)));
+        var production = Assert.Single(references, reference => IsProductionRunnerReference(reference.Method));
         Assert.True(IsDirectCall(production.Opcode));
         Assert.Equal(6, production.Method.GetParameters().Length);
-        Assert.Single(references.Where(reference => IsDirectCall(reference.Opcode)
+        Assert.Single(references, reference => IsDirectCall(reference.Opcode)
             && reference.Method.DeclaringType == typeof(RunnerOverlapObserver)
-            && reference.Method.Name == nameof(RunnerOverlapObserver.Enter)));
-        Assert.Single(references.Where(reference => IsDirectCall(reference.Opcode)
+            && reference.Method.Name == nameof(RunnerOverlapObserver.Enter));
+        Assert.Single(references, reference => IsDirectCall(reference.Opcode)
             && reference.Method.DeclaringType == typeof(RunnerOverlapObserver.Lease)
-            && reference.Method.Name == nameof(IDisposable.Dispose)));
+            && reference.Method.Name == nameof(IDisposable.Dispose));
     }
 
     [Theory]
@@ -2613,6 +2613,7 @@ public class CompilerSmokeDiagnosticsTests
                 : CompilerSmokeDiagnostics.ReadOwnedFixtureStages(root, outstanding);
             CompilerSmokeDiagnostics.EmitOwnedFixture(CompilerSmokeDiagnostics.DescribeOwnedFixture(
                 fixtureMode, count, call.Result, call.Elapsed, stages, overlapCapture.Observation), null, output.WriteLine);
+            Assert.NotNull(overlapCapture.Observation);
             Assert.Equal(expected, CompilerSmokeDiagnostics.Classify(call.Result, true));
             CompilerSmokeDiagnostics.AssertOwnedFixtureContract(fixtureMode, count, call.Result, stages);
         }
