@@ -43,10 +43,12 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         uint _currentAddr;
         string _className = "";
         bool _canWrite;
+        bool _canMakeIndependent;
         uint _moveCostAddr;
         CostType _selectedCostType = CostType.MoveCostNormal;
         List<CostTypeItem> _costTypeItems = new();
         int _selectedCostTypeIndex;
+        uint _classCount;
 
         // 65 terrain cost bytes (B0-B64), one per terrain type
         byte _b0, _b1, _b2, _b3, _b4, _b5, _b6, _b7, _b8, _b9;
@@ -63,7 +65,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         public uint CurrentAddr { get => _currentAddr; set => SetField(ref _currentAddr, value); }
         public string ClassName { get => _className; set => SetField(ref _className, value); }
         public bool CanWrite { get => _canWrite; set => SetField(ref _canWrite, value); }
+        public bool CanMakeIndependent { get => _canMakeIndependent; private set => SetField(ref _canMakeIndependent, value); }
         public uint MoveCostAddr { get => _moveCostAddr; set => SetField(ref _moveCostAddr, value); }
+        public int SupportedTerrainCount => GetSupportedTerrainCount(CoreState.ROM);
         public string[] TerrainNames { get => _terrainNames; set => SetField(ref _terrainNames, value); }
         public CostType SelectedCostType { get => _selectedCostType; set => SetField(ref _selectedCostType, value); }
         public List<CostTypeItem> CostTypeItems { get => _costTypeItems; set => SetField(ref _costTypeItems, value); }
@@ -156,6 +160,17 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         /// <summary>Total terrain count: 65 (indices 0 through 64).</summary>
         public const int TerrainCount = 65;
 
+        static int GetSupportedTerrainCount(ROM rom)
+        {
+            uint tableSize = MoveCostIndependenceCore.GetTableSize(rom);
+            return (int)Math.Min((uint)TerrainCount, tableSize);
+        }
+
+        public bool IsTerrainEnabled(int index)
+        {
+            return CanWrite && index >= 0 && index < SupportedTerrainCount;
+        }
+
         /// <summary>
         /// Build the list of available cost types based on the ROM version.
         /// FE6 lacks Rain and Snow cost types.
@@ -181,6 +196,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 items.Add(new CostTypeItem(CostType.BallistaMoveCost, "Ballista Move Cost"));
             }
             CostTypeItems = items;
+            _classCount = 0;
             if (items.Count > 0)
             {
                 SelectedCostTypeIndex = 0;
@@ -261,7 +277,52 @@ namespace FEBuilderGBA.Avalonia.ViewModels
                 string name = U.ToHexString(i) + " " + decoded;
                 result.Add(new AddrResult(addr, name, i));
             }
+            _classCount = (uint)result.Count;
+            UpdateIndependenceAvailability();
             return result;
+        }
+
+        void UpdateIndependenceAvailability()
+        {
+            if (_selectedCostType >= CostType.TerrainRecovery || _currentAddr == 0 || _classCount == 0)
+            {
+                CanMakeIndependent = false;
+                return;
+            }
+
+            uint pointerSlot = GetMoveCostPointerAddr(_currentAddr, _selectedCostType);
+            CanMakeIndependent = pointerSlot != 0
+                && MoveCostIndependenceCore.IsTableShared(CoreState.ROM, _currentAddr, pointerSlot, _classCount);
+        }
+
+        /// <summary>
+        /// Clone the selected class's shared, class-specific movement-cost
+        /// table and repoint only its pointer slot under the caller's ambient
+        /// undo scope.
+        /// </summary>
+        public uint MakeIndependent(Undo.UndoData undoData)
+        {
+            if (!CanMakeIndependent || CoreState.ROM == null) return U.NOT_FOUND;
+
+            uint classAddr = CurrentAddr;
+            CostType costType = SelectedCostType;
+            uint pointerSlot = GetMoveCostPointerAddr(classAddr, costType);
+            uint newOffset = MoveCostIndependenceCore.MakeIndependent(
+                CoreState.ROM, classAddr, pointerSlot, _classCount, undoData);
+            if (newOffset == U.NOT_FOUND) return U.NOT_FOUND;
+
+            bool wasLoading = IsLoading;
+            IsLoading = true;
+            try
+            {
+                MoveCostAddr = newOffset;
+                UpdateIndependenceAvailability();
+            }
+            finally
+            {
+                IsLoading = wasLoading;
+            }
+            return newOffset;
         }
 
         /// <summary>
@@ -349,6 +410,7 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             IsLoading = true;
             CurrentAddr = classAddr;
             SelectedCostType = costType;
+            CanMakeIndependent = false;
 
             uint nameId = rom.u16(classAddr + 0);
             try { ClassName = NameResolver.GetTextById(nameId); }
@@ -391,7 +453,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
 
             MoveCostAddr = moveCostAddr;
 
-            if (moveCostAddr + TerrainCount > (uint)rom.Data.Length)
+            uint tableSize = MoveCostIndependenceCore.GetTableSize(rom);
+            int supportedTerrainCount = GetSupportedTerrainCount(rom);
+            if (tableSize == 0 || (ulong)moveCostAddr + tableSize > (uint)rom.Data.Length)
             {
                 ClearAllFields();
                 CanWrite = false;
@@ -400,15 +464,18 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             }
 
             for (int i = 0; i < TerrainCount; i++)
-                SetCost(i, (byte)rom.u8((uint)(moveCostAddr + i)));
+                SetCost(i, i < supportedTerrainCount
+                    ? (byte)rom.u8((uint)(moveCostAddr + i))
+                    : (byte)0);
 
             CanWrite = true;
             IsLoading = false;
+            UpdateIndependenceAvailability();
             MarkClean();
         }
 
         /// <summary>
-        /// Write all 65 move cost bytes back to ROM.
+        /// Write the ROM-version-supported terrain costs back to ROM.
         /// </summary>
         public void WriteMoveCost()
         {
@@ -416,9 +483,14 @@ namespace FEBuilderGBA.Avalonia.ViewModels
             if (rom == null || !CanWrite) return;
 
             uint addr = MoveCostAddr;
-            if (!U.isSafetyOffset(addr) || addr + TerrainCount > (uint)rom.Data.Length) return;
+            uint tableSize = MoveCostIndependenceCore.GetTableSize(rom);
+            int supportedTerrainCount = GetSupportedTerrainCount(rom);
+            if (tableSize == 0 || supportedTerrainCount == 0
+                || !U.isSafetyOffset(addr, rom)
+                || (ulong)addr + tableSize > (uint)rom.Data.Length)
+                return;
 
-            for (int i = 0; i < TerrainCount; i++)
+            for (int i = 0; i < supportedTerrainCount; i++)
                 rom.write_u8((uint)(addr + i), GetCost(i));
         }
 
