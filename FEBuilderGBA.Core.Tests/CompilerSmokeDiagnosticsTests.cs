@@ -863,6 +863,151 @@ public class CompilerSmokeDiagnosticsTests
     }
 
     [Fact]
+    public void RunnerOverlapBoundary_CoreTestsUseSharedBoundaryWithoutProductionBypasses()
+    {
+        var references = RunnerMethodReferencesIncludingNestedTypes(typeof(ProcessRunnerCoreTests)).ToArray();
+        Assert.DoesNotContain(references, reference => IsProductionRunnerReference(reference.Method));
+        var boundary = RequiredObservedRunnerBoundary();
+        Assert.Contains(references, reference => IsDirectCall(reference.Opcode) && reference.Method.Equals(boundary));
+    }
+
+    [Fact]
+    public void RunnerOverlapBoundary_ScenarioSupportUsesSharedBoundaryWithoutProductionBypasses()
+    {
+        var references = RunnerMethodReferencesIncludingNestedTypes(typeof(ProcessRunnerScenarioSupport)).ToArray();
+        Assert.DoesNotContain(references, reference => IsProductionRunnerReference(reference.Method));
+        var boundary = RequiredObservedRunnerBoundary();
+        Assert.Contains(references, reference => IsDirectCall(reference.Opcode) && reference.Method.Equals(boundary));
+    }
+
+    [Fact]
+    public void RunnerOverlapBoundary_ContentionUsesObservedScenarioSupportRoute()
+    {
+        var references = RunnerMethodReferencesIncludingNestedTypes(typeof(ProcessRunnerContentionTests)).ToArray();
+        Assert.DoesNotContain(references, reference => IsProductionRunnerReference(reference.Method));
+        Assert.Contains(references, reference => IsDirectCall(reference.Opcode)
+            && reference.Method.DeclaringType == typeof(ProcessRunnerScenarioSupport)
+            && reference.Method.Name == nameof(ProcessRunnerScenarioSupport.StartRunWithCompletion));
+    }
+
+    [Fact]
+    public void RunnerOverlapBoundary_SmokeHelperDelegatesWithoutEnteringAnotherLease()
+    {
+        var method = typeof(CompilerSmokeDiagnostics).GetMethod(nameof(CompilerSmokeDiagnostics.Run),
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+        Assert.NotNull(method);
+        var references = RunnerMethodReferences(method).ToArray();
+        Assert.DoesNotContain(references, reference => IsProductionRunnerReference(reference.Method));
+        Assert.DoesNotContain(references, reference => reference.Method.DeclaringType == typeof(RunnerOverlapObserver)
+            && reference.Method.Name == nameof(RunnerOverlapObserver.Enter));
+        var boundary = RequiredObservedRunnerBoundary();
+        Assert.Contains(references, reference => IsDirectCall(reference.Opcode) && reference.Method.Equals(boundary));
+    }
+
+    [Fact]
+    public void RunnerOverlapBoundary_SharedBoundaryOwnsOneLeaseAndOneProductionCall()
+    {
+        var references = RunnerMethodReferences(RequiredObservedRunnerBoundary()).ToArray();
+        var production = Assert.Single(references.Where(reference => IsProductionRunnerReference(reference.Method)));
+        Assert.True(IsDirectCall(production.Opcode));
+        Assert.Equal(6, production.Method.GetParameters().Length);
+        Assert.Single(references.Where(reference => IsDirectCall(reference.Opcode)
+            && reference.Method.DeclaringType == typeof(RunnerOverlapObserver)
+            && reference.Method.Name == nameof(RunnerOverlapObserver.Enter)));
+        Assert.Single(references.Where(reference => IsDirectCall(reference.Opcode)
+            && reference.Method.DeclaringType == typeof(RunnerOverlapObserver.Lease)
+            && reference.Method.Name == nameof(IDisposable.Dispose)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void RunnerOverlapBoundary_ReportNamesTheMonitoredTestBoundaries(bool observed)
+    {
+        RunnerOverlapObservation? observation = observed ? new(0, 1, 0) : null;
+        string report = CompilerSmokeDiagnostics.DescribeOwnedFixture(
+            FixtureMode.Exit, 0, OwnedResult(FixtureMode.Exit, 0), TimeSpan.Zero, PresentOwnedStages(), observation);
+        Assert.InRange(report.Length, 1, 4096);
+        using var json = System.Text.Json.JsonDocument.Parse(report);
+        var overlap = json.RootElement.GetProperty("runnerOverlap");
+        Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
+            overlap.GetProperty("scope").GetString());
+        Assert.Equal(observed ? "observed" : "unavailable", overlap.GetProperty("status").GetString());
+    }
+
+    static System.Reflection.MethodInfo RequiredObservedRunnerBoundary()
+    {
+        var method = typeof(CompilerSmokeDiagnostics).GetMethod("RunObservedProcess",
+            System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic,
+            null, new[]
+            {
+                typeof(string), typeof(IEnumerable<string>), typeof(string), typeof(int), typeof(int),
+                typeof(CancellationToken), typeof(RunnerOverlapCapture),
+            }, null);
+        Assert.NotNull(method);
+        Assert.Equal(typeof(ProcessRunResult), method.ReturnType);
+        return method;
+    }
+
+    static bool IsProductionRunnerReference(System.Reflection.MethodBase method) =>
+        method.DeclaringType == typeof(ProcessRunnerCore) && method.Name == nameof(ProcessRunnerCore.Run);
+
+    static bool IsDirectCall(System.Reflection.Emit.OpCode opcode) =>
+        opcode == System.Reflection.Emit.OpCodes.Call || opcode == System.Reflection.Emit.OpCodes.Callvirt;
+
+    static IEnumerable<(System.Reflection.Emit.OpCode Opcode, System.Reflection.MethodBase Method)>
+        RunnerMethodReferencesIncludingNestedTypes(Type type)
+    {
+        const System.Reflection.BindingFlags flags = System.Reflection.BindingFlags.Static
+            | System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly;
+        foreach (var method in type.GetMethods(flags).Cast<System.Reflection.MethodBase>()
+            .Concat(type.GetConstructors(flags)))
+        foreach (var reference in RunnerMethodReferences(method))
+            yield return reference;
+        foreach (var nested in type.GetNestedTypes(System.Reflection.BindingFlags.Public
+            | System.Reflection.BindingFlags.NonPublic))
+        foreach (var reference in RunnerMethodReferencesIncludingNestedTypes(nested))
+            yield return reference;
+    }
+
+    static IEnumerable<(System.Reflection.Emit.OpCode Opcode, System.Reflection.MethodBase Method)>
+        RunnerMethodReferences(System.Reflection.MethodBase method)
+    {
+        byte[]? body = method.GetMethodBody()?.GetILAsByteArray();
+        if (body == null) yield break;
+        var opcodes = typeof(System.Reflection.Emit.OpCodes).GetFields()
+            .Where(field => field.FieldType == typeof(System.Reflection.Emit.OpCode))
+            .Select(field => (System.Reflection.Emit.OpCode)field.GetValue(null)!)
+            .ToDictionary(opcode => unchecked((ushort)opcode.Value));
+        for (int position = 0; position < body.Length;)
+        {
+            ushort code = body[position++];
+            if (code == 0xfe) code = (ushort)(0xfe00 | body[position++]);
+            var opcode = opcodes[code];
+            if (opcode.OperandType == System.Reflection.Emit.OperandType.InlineMethod)
+            {
+                var referenced = method.Module.ResolveMethod(BitConverter.ToInt32(body, position),
+                    method.DeclaringType?.GetGenericArguments(),
+                    method.IsGenericMethod ? method.GetGenericArguments() : null);
+                if (referenced != null) yield return (opcode, referenced);
+            }
+            position += opcode.OperandType switch
+            {
+                System.Reflection.Emit.OperandType.InlineNone => 0,
+                System.Reflection.Emit.OperandType.ShortInlineBrTarget or
+                System.Reflection.Emit.OperandType.ShortInlineI or
+                System.Reflection.Emit.OperandType.ShortInlineVar => 1,
+                System.Reflection.Emit.OperandType.InlineVar => 2,
+                System.Reflection.Emit.OperandType.InlineI8 or
+                System.Reflection.Emit.OperandType.InlineR => 8,
+                System.Reflection.Emit.OperandType.InlineSwitch => 4 + 4 * BitConverter.ToInt32(body, position),
+                _ => 4,
+            };
+        }
+    }
+
+    [Fact]
     public void RunnerOverlap_SequentialCallsDoNotClaimOverlap()
     {
         var observer = new RunnerOverlapObserver();
@@ -966,7 +1111,8 @@ public class CompilerSmokeDiagnosticsTests
         Assert.Equal(5, body.GetProperty("stages").GetArrayLength());
         Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
         var overlap = body.GetProperty("runnerOverlap");
-        Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process", overlap.GetProperty("scope").GetString());
+        Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
+            overlap.GetProperty("scope").GetString());
         Assert.Equal("observed", overlap.GetProperty("status").GetString());
         Assert.Equal(0, overlap.GetProperty("otherCallsActiveAtEntry").GetInt64());
         Assert.Equal(0, overlap.GetProperty("otherCallsStartedDuringCall").GetInt64());
@@ -1008,7 +1154,7 @@ public class CompilerSmokeDiagnosticsTests
         Assert.True(json.RootElement.TryGetProperty("runnerOverlap", out var overlap),
             "Owned reports must distinguish unavailable real-runner overlap evidence from measured zero overlap.");
         Assert.Equal(System.Text.Json.JsonValueKind.Object, overlap.ValueKind);
-        Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process",
+        Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
             overlap.GetProperty("scope").GetString());
         Assert.Equal("unavailable", overlap.GetProperty("status").GetString());
         foreach (string field in new[]
@@ -1105,7 +1251,7 @@ public class CompilerSmokeDiagnosticsTests
             Assert.Equal("synthetic-runner-result", body.GetProperty("exitCodeKind").GetString());
             Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
             var reportedOverlap = body.GetProperty("runnerOverlap");
-            Assert.Equal("compiler-smoke-real-runner-calls-in-this-test-process",
+            Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
                 reportedOverlap.GetProperty("scope").GetString());
             Assert.Equal(overlap == null ? "unavailable" : "observed", reportedOverlap.GetProperty("status").GetString());
             Assert.Equal(6, reportedOverlap.EnumerateObject().Count());

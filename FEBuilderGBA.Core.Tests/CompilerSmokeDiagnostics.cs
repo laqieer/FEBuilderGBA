@@ -83,18 +83,36 @@ internal static class CompilerSmokeDiagnostics
     {
         if (overlapCapture != null) overlapCapture.Observation = null;
         var clock = Stopwatch.StartNew();
-        var lease = runner == null ? RealRunnerOverlap.Enter() : null;
         try
         {
-            var result = (runner ?? ProcessRunnerCore.Run)(executable, arguments, directory, timeoutMs, OutputCapChars);
+            var result = runner == null
+                ? RunObservedProcess(executable, arguments, directory, timeoutMs, OutputCapChars,
+                    overlapCapture: overlapCapture)
+                : runner(executable, arguments, directory, timeoutMs, OutputCapChars);
             clock.Stop();
             return (result, clock.Elapsed);
         }
         finally
         {
             clock.Stop();
-            lease?.Dispose();
-            if (overlapCapture != null) overlapCapture.Observation = lease?.Observation;
+        }
+    }
+
+    internal static ProcessRunResult RunObservedProcess(
+        string command, IEnumerable<string> args, string? workingDir, int timeoutMs,
+        int maximumOutputChars = 0, CancellationToken cancellationToken = default,
+        RunnerOverlapCapture? overlapCapture = null)
+    {
+        if (overlapCapture != null) overlapCapture.Observation = null;
+        var lease = RealRunnerOverlap.Enter();
+        try
+        {
+            return ProcessRunnerCore.Run(command, args, workingDir, timeoutMs, maximumOutputChars, cancellationToken);
+        }
+        finally
+        {
+            lease.Dispose();
+            if (overlapCapture != null) overlapCapture.Observation = lease.Observation;
         }
     }
 
@@ -1104,7 +1122,7 @@ internal static class CompilerSmokeDiagnostics
             collectionMembership,
             runnerOverlap = new
             {
-                scope = "compiler-smoke-real-runner-calls-in-this-test-process",
+                scope = "core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
                 status = runnerOverlap == null ? "unavailable" : "observed",
                 otherCallsActiveAtEntry = runnerOverlap?.OtherCallsActiveAtEntry,
                 otherCallsStartedDuringCall = runnerOverlap?.OtherCallsStartedDuringCall,
