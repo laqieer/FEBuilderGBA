@@ -127,6 +127,41 @@ public class MoveCostIndependenceCoreTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FreeSpace_UsesTheExplicitRomWhenGlobalRomIsAbsentOrDifferent(bool useDifferentRom)
+    {
+        var rom = MakeRom();
+        uint size = MoveCostIndependenceCore.GetTableSize(rom);
+        uint source = (uint)(rom.Data.Length / 2);
+        uint clone = source + size;
+        rom.write_p32(ClassBase + GetMoveCostPointerOffset(rom), source);
+        rom.write_p32(ClassBase + rom.RomInfo.class_datasize + GetMoveCostPointerOffset(rom), clone);
+        var previousRom = CoreState.ROM;
+        try
+        {
+            if (useDifferentRom)
+            {
+                var different = new ROM();
+                different.LoadLow("different-allocator-state.gba", new byte[0x1000], "NAZO");
+                CoreState.ROM = different;
+            }
+            else
+            {
+                CoreState.ROM = null;
+            }
+
+            uint next = rom.FindFreeSpace(source, size);
+            uint expansion = DataExpansionCore.FindFreeSpace(rom, size, source);
+            Assert.NotEqual(U.NOT_FOUND, next);
+            Assert.NotEqual(U.NOT_FOUND, expansion);
+            Assert.True(next >= clone + size);
+            Assert.True(expansion >= clone + size);
+        }
+        finally { CoreState.ROM = previousRom; }
+    }
+
+    [Theory]
     [InlineData("AFEJ01", 54u)]
     public void MakeIndependent_Fe6ClonesExactly54Bytes(string gameCode, uint expectedSize)
         => AssertMakeIndependentClone(gameCode, expectedSize);

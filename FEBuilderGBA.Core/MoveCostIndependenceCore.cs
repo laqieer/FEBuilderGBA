@@ -40,7 +40,7 @@ namespace FEBuilderGBA
                 return Array.Empty<(uint, uint)>();
 
             uint pointer = rom.u32(classPointer);
-            if (!U.isSafetyPointer(pointer)) return Array.Empty<(uint, uint)>();
+            if (!U.isSafetyPointer(pointer, rom)) return Array.Empty<(uint, uint)>();
             uint classBase = U.toOffset(pointer);
             if (!U.isSafetyOffset(classBase, rom)) return Array.Empty<(uint, uint)>();
 
@@ -162,7 +162,7 @@ namespace FEBuilderGBA
                 return false;
 
             uint rawClassBase = rom.u32(classPointerSlot);
-            if (!U.isSafetyPointer(rawClassBase)) return false;
+            if (!U.isSafetyPointer(rawClassBase, rom)) return false;
             classBase = U.toOffset(rawClassBase);
             if (!U.isSafetyOffset(classBase, rom) || classAddr < classBase) return false;
 
@@ -183,7 +183,7 @@ namespace FEBuilderGBA
 
         static bool IsSafeTablePointer(ROM rom, uint pointer, uint tableSize)
         {
-            return U.isSafetyPointer(pointer)
+            return U.isSafetyPointer(pointer, rom)
                 && IsSafeTableOffset(rom, U.toOffset(pointer), tableSize);
         }
 
