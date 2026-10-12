@@ -755,7 +755,7 @@ namespace FEBuilderGBA.Core.Tests
             return Task.Factory.StartNew(
                 () =>
                 {
-                    ProcessRunResult result = ProcessRunnerCore.Run(
+                    ProcessRunResult result = CompilerSmokeDiagnostics.RunObservedProcess(
                         command,
                         args,
                         workingDirectory,

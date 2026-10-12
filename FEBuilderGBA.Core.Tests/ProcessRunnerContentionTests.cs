@@ -14,7 +14,9 @@ namespace FEBuilderGBA.Core.Tests
     /// launches against each other to exercise host-global process-tree containment under real
     /// concurrent load, reusing the exact same leader/descendant fixture as
     /// <see cref="ProcessRunnerProcessTreeTests.Run_ParentExitStillTerminatesDescendantHoldingPipes"/>
-    /// via <see cref="ProcessRunnerScenarioSupport"/>.
+    /// via <see cref="ProcessRunnerScenarioSupport"/>. Its existing StartRunWithCompletion
+    /// path routes each participant through CompilerSmokeDiagnostics.RunObservedProcess,
+    /// so each real runner call has one shared test-process overlap lease.
     ///
     /// Unlike that strict single-launch theory, real concurrent contention can legitimately put
     /// the dedicated LongRunning output-capture tasks under scheduler/OS process-thread
