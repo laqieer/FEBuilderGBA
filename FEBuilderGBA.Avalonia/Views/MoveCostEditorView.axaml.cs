@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using global::Avalonia;
+using global::Avalonia.Automation;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Layout;
@@ -94,6 +95,13 @@ namespace FEBuilderGBA.Avalonia.Views
                         HorizontalAlignment = HorizontalAlignment.Left,
                         FontSize = 11,
                         Tag = index,
+                    };
+                    AutomationProperties.SetLabeledBy(nud, label);
+                    nud.TemplateApplied += (_, e) =>
+                    {
+                        // The keyboard/value peer belongs to the template's TextBox.
+                        if (e.NameScope.Find<TextBox>("PART_TextBox") is { } input)
+                            AutomationProperties.SetLabeledBy(input, label);
                     };
                     nud.ValueChanged += OnTerrainCostChanged;
                     _nudFields[index] = nud;

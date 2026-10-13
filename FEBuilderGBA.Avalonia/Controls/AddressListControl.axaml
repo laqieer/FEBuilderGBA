@@ -6,7 +6,7 @@
   <Grid RowDefinitions="Auto,*,Auto,Auto">
     <!-- Search bar -->
     <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,4">
-      <TextBox Name="SearchBox" Watermark="Search..." />
+      <TextBox Name="SearchBox" Watermark="Search..." AutomationProperties.Name="{Binding Watermark, RelativeSource={RelativeSource Self}}" />
       <Button Grid.Column="1" Content="Find" Margin="4,0,0,0" Click="Search_Click" />
     </Grid>
 
@@ -26,6 +26,11 @@
     -->
     <ListBox Grid.Row="1" Name="AddressList" SelectionChanged="AddressList_SelectionChanged"
              ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+      <ListBox.Styles>
+        <Style Selector="ListBoxItem">
+          <Setter Property="AutomationProperties.Name" Value="{Binding Text}" />
+        </Style>
+      </ListBox.Styles>
       <ListBox.ItemTemplate>
         <DataTemplate>
           <DockPanel LastChildFill="True">

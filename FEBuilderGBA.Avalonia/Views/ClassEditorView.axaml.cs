@@ -5,6 +5,8 @@ using System.Linq;
 using global::Avalonia.Controls;
 using global::Avalonia.Input;
 using global::Avalonia.Interactivity;
+using global::Avalonia.Automation;
+using global::Avalonia.LogicalTree;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Core;
@@ -27,6 +29,7 @@ namespace FEBuilderGBA.Avalonia.Views
         public ClassEditorView()
         {
             InitializeComponent();
+            LabelEditableFields();
             ClassList.SelectedAddressChanged += OnClassSelected;
             ClassList.SelectionConfirmed += result => SelectionConfirmed?.Invoke(result);
 
@@ -66,6 +69,50 @@ namespace FEBuilderGBA.Avalonia.Views
             // the portrait or wait-icon field, refresh the card images.
             PortraitIdBox.ValueChanged += OnClassCardInputChanged;
             WaitIconBox.ValueChanged   += OnClassCardInputChanged;
+        }
+
+        void LabelEditableFields()
+        {
+            foreach (var field in this.GetLogicalDescendants().OfType<Control>()
+                .Where(x => (x is NumericUpDown or TextBox) &&
+                    AutomationProperties.GetAutomationId(x)?.StartsWith("ClassEditor_", StringComparison.Ordinal) == true))
+            {
+                var label = FindFieldLabel(field);
+                if (label == null)
+                    continue;
+                AutomationProperties.SetLabeledBy(field, label);
+                if (field is NumericUpDown numeric)
+                {
+                    // The native editable peer belongs to the template, not the numeric owner.
+                    numeric.TemplateApplied += (_, e) =>
+                    {
+                        if (e.NameScope.Find<TextBox>("PART_TextBox") is { } input)
+                            AutomationProperties.SetLabeledBy(input, label);
+                    };
+                }
+            }
+        }
+
+        static TextBlock? FindFieldLabel(Control field)
+        {
+            // These editor grids pair columns 0/1 and 3/4; wrappers also contain
+            // value previews, which must never be mistaken for field captions.
+            for (Control? owner = field; owner?.Parent is Control parent; owner = parent)
+            {
+                if (parent is Grid grid)
+                {
+                    return grid.Children.OfType<TextBlock>().SingleOrDefault(x =>
+                        Grid.GetRow(x) == Grid.GetRow(owner) &&
+                        Grid.GetColumn(x) == Grid.GetColumn(owner) - 1);
+                }
+                if (parent is StackPanel stack)
+                {
+                    var index = stack.Children.IndexOf(owner);
+                    if (index > 0 && stack.Children[index - 1] is TextBlock caption)
+                        return caption;
+                }
+            }
+            return null;
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
