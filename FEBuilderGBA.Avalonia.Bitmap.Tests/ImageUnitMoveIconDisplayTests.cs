@@ -112,6 +112,29 @@ public sealed partial class ImageUnitMoveIconDisplayTests : IClassFixture<RealBi
         await MoveIconLoader_UsesStableRowTag_ForActualThumbnailPixels(SelectedRow, true);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Host_CompletedWorker_RejectsDispatchWithoutQueueing(bool faulted)
+    {
+        var expected = new InvalidOperationException("Distinctive bitmap worker failure.");
+        Task completion = faulted ? Task.FromException(expected) : Task.CompletedTask;
+        bool queued = false;
+
+        var error = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+            RealBitmapTestHost.QueueDispatch(completion, () =>
+            {
+                queued = true;
+                return Task.CompletedTask;
+            }));
+
+        if (faulted)
+            Assert.Same(expected, error);
+        else
+            Assert.Equal("Bitmap worker stopped before dispatch completed.", error.Message);
+        Assert.False(queued);
+    }
+
     Task WithRealBitmapApp(Action action) => host.RunAsync(action);
 
     static byte[] ExpectedThumbnailPixels(ROM rom, int row)

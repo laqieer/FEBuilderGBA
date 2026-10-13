@@ -51,10 +51,7 @@ public sealed class RealBitmapTestHost : IAsyncLifetime
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(stopping, this);
-            if (exited.Task.IsCompleted)
-                operation = exited.Task;
-            else
-                operation = dispatcher.InvokeAsync(action).GetTask();
+            operation = QueueDispatch(exited.Task, () => dispatcher.InvokeAsync(action).GetTask());
         }
 
         try
@@ -93,6 +90,14 @@ public sealed class RealBitmapTestHost : IAsyncLifetime
             ExceptionDispatchInfo.Capture(failure).Throw();
         if (!operation.IsCompleted)
             throw new InvalidOperationException("Bitmap worker stopped before dispatch completed.");
+    }
+
+    internal static Task QueueDispatch(Task workerCompletion, Func<Task> queue)
+    {
+        if (!workerCompletion.IsCompleted)
+            return queue();
+        workerCompletion.GetAwaiter().GetResult();
+        throw new InvalidOperationException("Bitmap worker stopped before dispatch completed.");
     }
 
     public Task DisposeAsync()
