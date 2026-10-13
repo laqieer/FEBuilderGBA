@@ -367,6 +367,43 @@ public class MainWindowMaintenanceLocalizationTests
 [Collection("WindowManagerSerial")]
 public class SingleViewTitleLocalizationTests
 {
+    [AvaloniaFact]
+    public void Single_view_title_preserves_editor_caption_when_descriptor_title_differs()
+    {
+        using var state = new GuiLocalizationState();
+        state.ApplyLanguage("zh");
+        var previousService = WindowManager.Instance.Service;
+        var navigation = new AndroidNavigationService();
+        Window? window = null;
+        try
+        {
+            WindowManager.Instance.SetService(navigation);
+            var shell = new MainView();
+            window = new Window { Content = shell };
+            window.Show();
+
+            var editor = navigation.Open<WorldMapEventPointerFE7View>();
+            IEditorView editorView = editor;
+            var title = shell.FindControl<TextBlock>("TitleText")!;
+            Assert.Equal("Event Pointer (FE7)", editorView.TitleKey);
+            Assert.Equal("World Map Event (FE7)", editor.ViewTitle);
+
+            foreach (string language in new[] { "zh", "en" })
+            {
+                state.ApplyLanguage(language);
+                Dispatcher.UIThread.RunJobs();
+                Assert.Equal(editor.ViewTitle, title.Text);
+                Assert.Equal("World Map Event (FE7)", title.Text);
+            }
+        }
+        finally
+        {
+            navigation.CloseAll();
+            window?.Close();
+            WindowManager.Instance.SetService(previousService);
+        }
+    }
+
     [AvaloniaTheory]
     [InlineData("Item Editor")]
     [InlineData("Unit Editor")]
