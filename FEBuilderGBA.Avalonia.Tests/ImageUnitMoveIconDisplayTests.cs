@@ -1,35 +1,20 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-using System.Reflection;
-using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Headless;
 using Avalonia.Headless.XUnit;
-using Avalonia.Media.Imaging;
-using Avalonia.Platform;
-using Avalonia.Themes.Fluent;
 using FEBuilderGBA.Avalonia.Controls;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 using FEBuilderGBA.Avalonia.Views;
 using FEBuilderGBA.Core;
 using FEBuilderGBA.SkiaSharp;
-using FEBuilderGBA.TestFixtures;
 
 namespace FEBuilderGBA.Avalonia.Tests;
 
 [Collection("WindowManagerSerial")]
-public sealed class ImageUnitMoveIconDisplayTests
+public sealed partial class ImageUnitMoveIconDisplayTests
 {
-    const uint MoveBase = 0x3000;
-    const uint ApBase = 0x4000;
-    const uint ClassBase = 0x5000;
-    const uint WaitBase = 0x5800;
-    const uint ImageBase = 0x8000;
-    const int Count = 16;
-    const int SelectedRow = 0x0D;
-
     [Fact]
     public void LoadList_DisplaysOwningClassHexIds_WithoutChangingRowIdentity()
     {
@@ -88,73 +73,6 @@ public sealed class ImageUnitMoveIconDisplayTests
         Assert.Equal("01 A", reference[0].name);
         Assert.Equal("0E AA", reference[SelectedRow].name);
         Assert.Equal(before, SHA256.HashData(rom.Data));
-    }
-
-    [Theory]
-    [InlineData(0, false)]
-    [InlineData(SelectedRow, false)]
-    [InlineData(0, true)]
-    [InlineData(SelectedRow, true)]
-    public Task MoveIconLoader_UsesStableRowTag_ForActualThumbnailPixels(int row, bool reorderedAndRenamed)
-    {
-        return WithRealBitmapApp(() =>
-        {
-            using var state = new TestState();
-            ROM rom = CreateRom();
-            byte[] before = SHA256.HashData(rom.Data);
-            var items = new ImageUnitMoveIconViewModel().LoadList();
-            var original = items[row];
-            int index = row;
-            if (reorderedAndRenamed)
-            {
-                items = new List<AddrResult> { new(original.addr, "FF display-only label", original.tag) };
-                index = 0;
-            }
-
-            using Bitmap? thumbnail = ListIconLoaders.MoveIconLoader(items, index);
-
-            Assert.NotNull(thumbnail);
-            Assert.Equal(new PixelSize(32, 32), thumbnail.PixelSize);
-            Assert.Equal(ExpectedThumbnailPixels(rom, row), ReadBitmapRgba(thumbnail));
-            Assert.Equal(MoveBase + (uint)row * 8, items[index].addr);
-            Assert.Equal((uint)row, items[index].tag);
-            Assert.Equal(before, SHA256.HashData(rom.Data));
-        });
-    }
-
-    [Theory]
-    [InlineData(0)]
-    [InlineData(SelectedRow)]
-    public Task ViewList_UsesCorrectActualThumbnails_ForZeroBasedRows(int row)
-    {
-        return WithRealBitmapApp(() =>
-        {
-            using var state = new TestState();
-            ROM rom = CreateRom();
-            byte[] before = SHA256.HashData(rom.Data);
-            var view = new ImageUnitMoveIconView();
-            view.Show();
-            try
-            {
-                var list = view.FindControl<AddressListControl>("EntryList")!;
-                var listBox = list.FindControl<ListBox>("AddressList")!;
-                var displayed = Assert.IsType<AddressListItem>(listBox.Items[row]);
-                Assert.Equal(row == SelectedRow ? "0E AA" : "01 A", displayed.Text);
-                Assert.NotNull(displayed.Icon);
-                Assert.Equal(new PixelSize(32, 32), displayed.Icon.PixelSize);
-                Assert.Equal(ExpectedThumbnailPixels(rom, row), ReadBitmapRgba(displayed.Icon));
-                Assert.True(list.SelectByIndex(row));
-                var vm = Assert.IsType<ImageUnitMoveIconViewModel>(view.DataViewModel);
-                Assert.Equal(row, vm.CurrentIndex);
-                Assert.Equal(MoveBase + (uint)row * 8, vm.CurrentAddr);
-                Assert.Equal((uint)row, list.SelectedItem!.tag);
-                Assert.Equal(before, SHA256.HashData(rom.Data));
-            }
-            finally
-            {
-                view.Close();
-            }
-        });
     }
 
     [Fact]
@@ -362,169 +280,4 @@ public sealed class ImageUnitMoveIconDisplayTests
         Assert.Empty(new ImageUnitMoveIconViewModel().LoadList());
     }
 
-    static ROM CreateRom()
-    {
-        var rom = new ROM();
-        Assert.True(rom.LoadFromBytes("zipdb-proof.gba", SyntheticFe8URom.Create(), out _));
-        Assert.Equal("FE8U", rom.RomInfo.VersionToFilename);
-        CoreState.ROM = rom;
-        CoreState.Undo = new Undo();
-        using (ROM.BeginUndoScope(CoreState.Undo.NewUndoData("Synthetic move icon fixture")))
-        {
-            uint textTable = rom.p32(rom.RomInfo.text_pointer);
-            rom.write_p32(textTable + 8, 0x2008);
-            rom.write_u8(0x2008, 3); // Huffman AA followed by the zero leaf.
-            rom.write_p32(rom.RomInfo.unit_move_icon_pointer, MoveBase);
-            rom.write_p32(rom.RomInfo.class_pointer, ClassBase);
-            rom.write_p32(rom.RomInfo.unit_wait_icon_pointer, WaitBase);
-            for (uint row = 0; row < Count; row++)
-            {
-                uint addr = MoveBase + row * 8;
-                uint classAddr = ClassBase + (row + 1) * rom.RomInfo.class_datasize;
-                rom.write_u16(classAddr, row == SelectedRow ? 2u : 1u);
-                rom.write_u8(classAddr + 4, row + 1);
-                rom.write_u8(classAddr + 6, row);
-                uint imageAddr = ImageBase + row * 0x400;
-                byte[] compressed = LZ77.compress(ImageImportCore.EncodeDirectTiles4bpp(Pixels((int)row), 32, 64));
-                for (uint i = 0; i < compressed.Length; i++)
-                    rom.write_u8(imageAddr + i, compressed[i]);
-                rom.write_p32(addr, imageAddr);
-                byte[] ap = ApBytes((int)row);
-                uint apAddr = ApBase + row * 0x20;
-                for (uint i = 0; i < ap.Length; i++)
-                    rom.write_u8(apAddr + i, ap[i]);
-                rom.write_p32(addr + 4, apAddr);
-            }
-            for (uint color = 0; color < 16; color++)
-                rom.write_u16(rom.RomInfo.unit_icon_palette_address + color * 2,
-                    color | ((31 - color) << 5) | (color << 10));
-        }
-        NameResolver.ClearCache();
-        RomFileService.InitializeLoadedRom(rom);
-        Assert.NotNull(CoreState.FETextEncoder);
-        Assert.Equal("A", FETextDecode.Direct(1));
-        Assert.Equal("AA", FETextDecode.Direct(2));
-        return rom;
-    }
-
-    static async Task WithRealBitmapApp(Action action)
-    {
-        using var session = HeadlessUnitTestSession.StartNew(typeof(ImageUnitMoveIconThumbnailTestApp));
-        await session.Dispatch(action, CancellationToken.None);
-    }
-
-    static byte[] ExpectedThumbnailPixels(ROM rom, int row)
-    {
-        uint color = rom.u16(rom.RomInfo.unit_icon_palette_address + (uint)(row % 15 + 1) * 2);
-        byte[] pixels = new byte[32 * 32 * 4];
-        for (int pixel = 0; pixel < 32 * 32; pixel++)
-        {
-            pixels[pixel * 4] = (byte)((color & 0x1F) << 3);
-            pixels[pixel * 4 + 1] = (byte)(((color >> 5) & 0x1F) << 3);
-            pixels[pixel * 4 + 2] = (byte)(((color >> 10) & 0x1F) << 3);
-            pixels[pixel * 4 + 3] = 255;
-        }
-
-        return pixels;
-    }
-
-    static byte[] ReadBitmapRgba(Bitmap bitmap)
-    {
-        byte[] pixels = new byte[bitmap.PixelSize.Width * bitmap.PixelSize.Height * 4];
-        var buffer = GCHandle.Alloc(pixels, GCHandleType.Pinned);
-        try
-        {
-            bitmap.CopyPixels(new PixelRect(0, 0, bitmap.PixelSize.Width, bitmap.PixelSize.Height),
-                buffer.AddrOfPinnedObject(), pixels.Length, bitmap.PixelSize.Width * 4);
-        }
-        finally
-        {
-            buffer.Free();
-        }
-        if (bitmap.Format == PixelFormat.Bgra8888)
-        {
-            for (int offset = 0; offset < pixels.Length; offset += 4)
-                (pixels[offset], pixels[offset + 2]) = (pixels[offset + 2], pixels[offset]);
-        }
-        else
-        {
-            Assert.Equal(PixelFormat.Rgba8888, bitmap.Format);
-        }
-        return pixels;
-    }
-
-    static byte[] Pixels(int row)
-    {
-        byte[] pixels = new byte[32 * 64];
-        Array.Fill(pixels, (byte)(row % 15 + 1), 0, 32 * 32);
-        Array.Fill(pixels, (byte)((row + 1) % 15 + 1), 32 * 32, 32 * 32);
-        return pixels;
-    }
-
-    static byte[] ApBytes(int marker)
-    {
-        byte[] ap = new byte[24];
-        U.write_u16(ap, 0, 4);
-        U.write_u16(ap, 2, 6);
-        U.write_u16(ap, 4, 4);
-        U.write_u16(ap, 6, 10);
-        U.write_u16(ap, 8, 1);
-        U.write_u16(ap, 10, (uint)marker);
-        U.write_u16(ap, 14, (uint)marker);
-        U.write_u16(ap, 16, 1);
-        return ap;
-    }
-
-    public sealed class ImageUnitMoveIconThumbnailTestApp : Application
-    {
-        public override void Initialize() => Styles.Add(new FluentTheme());
-
-        public static AppBuilder BuildAvaloniaApp()
-            => AppBuilder.Configure<ImageUnitMoveIconThumbnailTestApp>()
-                .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-                .UseSkia();
-    }
-
-    sealed class TestState : IDisposable
-    {
-        readonly Dictionary<PropertyInfo, object?> core = typeof(CoreState)
-            .GetProperties(BindingFlags.Public | BindingFlags.Static)
-            .Where(property => property.CanRead && property.CanWrite)
-            .ToDictionary(property => property, property => property.GetValue(null));
-        readonly Dictionary<PropertyInfo, object?> detection = typeof(PatchDetectionService)
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Where(property => property.CanRead && property.CanWrite)
-            .ToDictionary(property => property, property => property.GetValue(PatchDetectionService.Instance));
-
-        public TestState()
-        {
-            CoreStateTestState.ClearRom();
-            CoreState.CommentCache = new HeadlessEtcCache();
-            CoreState.LintCache = new HeadlessEtcCache();
-            CoreState.WorkSupportCache = new HeadlessEtcCache();
-            CoreState.ResourceCache = null!;
-            CoreState.SystemTextEncoder = null!;
-            CoreState.FETextEncoder = null!;
-            CoreState.TextEscape = null!;
-            CoreState.FlagCache = null!;
-            CoreState.ExportFunction = null!;
-            CoreState.EventScript = null!;
-            CoreState.ProcsScript = null!;
-            CoreState.AIScript = null!;
-            CoreState.Config = new Config();
-            CoreState.Services = new HeadlessAppServices();
-            CoreState.BaseDirectory = AppContext.BaseDirectory;
-            CoreState.TextEncoding = TextEncodingEnum.Auto;
-            CoreState.ImageService = new SkiaImageService();
-        }
-
-        public void Dispose()
-        {
-            foreach (var pair in core) pair.Key.SetValue(null, pair.Value);
-            foreach (var pair in detection) pair.Key.SetValue(PatchDetectionService.Instance, pair.Value);
-            NameResolver.ClearCache();
-            PatchDetection.ClearAllCaches();
-            MagicSplitUtil.ClearCache();
-        }
-    }
 }

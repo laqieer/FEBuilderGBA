@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.3.18" />
+    <PackageReference Include="Avalonia.Headless" Version="11.3.18" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.3.18" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Using Include="Xunit" />
+    <ProjectReference Include="..\FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj" />
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\ImageUnitMoveIconTestFixture.cs" Link="Fixtures\ImageUnitMoveIconTestFixture.cs" />
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\CoreStateTestState.cs" Link="Fixtures\CoreStateTestState.cs" />
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\WindowManagerSerialCollection.cs" Link="Fixtures\WindowManagerSerialCollection.cs" />
+    <Compile Include="..\FEBuilderGBA.Avalonia.Tests\MoveCostEditorViewTestHostExtensions.cs" Link="Fixtures\MoveCostEditorViewTestHostExtensions.cs" />
+    <Compile Include="..\scripts\SyntheticProofFixtures\SyntheticFe8URom.cs" Link="Fixtures\SyntheticFe8URom.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\config\**\*.*"
+             Exclude="..\config\patch2\**"
+             LinkBase="config"
+             CopyToOutputDirectory="PreserveNewest" />
+    <Content Remove="..\config\**\*.gba;..\config\**\*.bin;..\config\**\*.iso" />
+    <Content Remove="..\config\**\*.zip;..\config\**\*.7z;..\config\**\*.rar" />
+  </ItemGroup>
+</Project>
