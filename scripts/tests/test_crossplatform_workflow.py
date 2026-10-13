@@ -228,6 +228,10 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     "test",
                     "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
                 ),
+                "Run isolated real-bitmap tests": (
+                    "test",
+                    "FEBuilderGBA.Avalonia.Bitmap.Tests/FEBuilderGBA.Avalonia.Bitmap.Tests.csproj",
+                ),
             },
             "mcp-real-backend-tests": {
                 "Build CLI": ("build", "FEBuilderGBA.CLI/FEBuilderGBA.CLI.csproj"),
@@ -278,6 +282,19 @@ class CrossPlatformWorkflowContractTests(unittest.TestCase):
                     self.assertIn("-p:UseSharedCompilation=false", tokens)
                     self.assertNotIn("|| true", command)
                     self.assertNotRegex(command, r"\bretry\b")
+
+    def test_real_bitmap_process_runs_unconditionally_with_bounded_hangs_and_results(self) -> None:
+        steps = dict(named_steps(self.jobs["build"]))
+        step = steps["Run isolated real-bitmap tests"]
+        self.assertNotRegex(step, r"(?m)^      (?:if|continue-on-error):")
+        self.assertRegex(step, r"(?m)^      timeout-minutes: 10$")
+        tokens = shlex.split(run_command(step))
+        self.assertIn("--blame-hang", tokens)
+        self.assertEqual("5m", tokens[tokens.index("--blame-hang-timeout") + 1])
+        self.assertIn("trx;LogFileName=avalonia-bitmap-tests.trx", tokens)
+        upload = steps["Upload test results"]
+        self.assertIn("**/avalonia-bitmap-tests.trx", upload)
+        self.assertRegex(upload, r"(?m)^      if: always\(\)$")
 
     def test_colorzcore_restore_steps_pair_with_no_restore_compiles(self) -> None:
         build_steps = dict(named_steps(self.jobs["build"]))
@@ -653,6 +670,7 @@ class MacCoreDiagnosticsWorkflowTests(unittest.TestCase):
             [
                 "**/core-tests.trx",
                 "**/avalonia-tests.trx",
+                "**/avalonia-bitmap-tests.trx",
             ],
             [line.strip() for line in match.group(1).splitlines()],
         )

@@ -142,6 +142,10 @@ jobs:
     - name: Run Avalonia tests (data-verify headless validation)
       run: dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-tests.trx"
 
+    - name: Run isolated real-bitmap tests
+      timeout-minutes: 10
+      run: dotnet test FEBuilderGBA.Avalonia.Bitmap.Tests/FEBuilderGBA.Avalonia.Bitmap.Tests.csproj -c Release -warnaserror --disable-build-servers -p:UseSharedCompilation=false --logger "trx;LogFileName=avalonia-bitmap-tests.trx" --blame-hang --blame-hang-timeout 5m
+
     - name: CLI smoke test
       run: dotnet FEBuilderGBA.CLI/bin/Release/net10.0/FEBuilderGBA.CLI.dll --version
 
@@ -174,6 +178,7 @@ jobs:
         path: |
           **/core-tests.trx
           **/avalonia-tests.trx
+          **/avalonia-bitmap-tests.trx
         if-no-files-found: error
         include-hidden-files: false
         retention-days: 7

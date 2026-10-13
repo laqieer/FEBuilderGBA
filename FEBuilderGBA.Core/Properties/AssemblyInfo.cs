@@ -8,6 +8,7 @@ using System.Runtime.CompilerServices;
 [assembly: InternalsVisibleTo("FEBuilderGBA.Core.Tests")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia.Tests")]
+[assembly: InternalsVisibleTo("FEBuilderGBA.Avalonia.Bitmap.Tests")]
 [assembly: InternalsVisibleTo("SyntheticProofFixtures")]
 [assembly: InternalsVisibleTo("FEBuilderGBA.Browser")]
 
