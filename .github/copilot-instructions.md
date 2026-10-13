@@ -59,6 +59,7 @@ dotnet build FEBuilderGBA.Avalonia\FEBuilderGBA.Avalonia.csproj -c Release
 # Tests
 dotnet test FEBuilderGBA.Core.Tests\FEBuilderGBA.Core.Tests.csproj -c Release
 dotnet test FEBuilderGBA.Avalonia.Tests\FEBuilderGBA.Avalonia.Tests.csproj -c Release
+dotnet test FEBuilderGBA.Avalonia.Bitmap.Tests\FEBuilderGBA.Avalonia.Bitmap.Tests.csproj -c Release
 dotnet test FEBuilderGBA.Tests\FEBuilderGBA.Tests.csproj -c Release
 dotnet test FEBuilderGBA.E2ETests\FEBuilderGBA.E2ETests.csproj -c Release --no-build
 ```
