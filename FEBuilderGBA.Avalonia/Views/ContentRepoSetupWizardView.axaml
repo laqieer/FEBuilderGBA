@@ -20,8 +20,8 @@
                 <DataTemplate>
                   <Border BorderBrush="#22000000" BorderThickness="0,1,0,0" Padding="0,8">
                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="140,*,140,130">
-                      <TextBlock Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center" FontWeight="SemiBold" />
-                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Url, Mode=TwoWay}" Watermark="Remote URL" />
+                      <TextBlock Name="RepositoryLabel" Grid.Row="0" Grid.Column="0" Text="{Binding DisplayName}" VerticalAlignment="Center" FontWeight="SemiBold" />
+                      <TextBox Grid.Row="0" Grid.Column="1" Text="{Binding Url, Mode=TwoWay}" Watermark="Remote URL" AutomationProperties.LabeledBy="{Binding #RepositoryLabel}" />
                       <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding Status}" VerticalAlignment="Center" TextWrapping="Wrap" />
                       <Button Grid.Row="0" Grid.Column="3" Content="{Binding InitializeButtonText}" IsEnabled="{Binding CanInitialize}" IsVisible="{Binding IsInitializeVisible}" Click="Initialize_Click" />
                       <TextBlock Grid.Row="1" Grid.Column="1" Grid.ColumnSpan="3" Text="{Binding Progress}" Foreground="Gray" TextWrapping="Wrap" Margin="0,4,0,0" />
@@ -46,4 +46,3 @@
     </StackPanel>
   </Grid>
 </UserControl>
-

@@ -608,6 +608,7 @@ namespace FEBuilderGBA.Avalonia.Views
             if (ClearFilterButton != null) ClearFilterButton.Content = R._("Clear");
             if (NoRomLabel != null) NoRomLabel.Text = R._("Open a ROM file to begin editing.");
             if (FilterTextBox != null) FilterTextBox.Watermark = R._("Type to filter editors...");
+            if (DecompBuildOutputBox != null) DecompBuildOutputBox.Watermark = R._("Build Output");
         }
 
         void OnDragOver(object? sender, DragEventArgs e)
