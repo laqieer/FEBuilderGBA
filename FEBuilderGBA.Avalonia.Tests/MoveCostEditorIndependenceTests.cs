@@ -242,6 +242,57 @@ public class MoveCostEditorIndependenceTests
         }
     }
 
+    [AvaloniaFact]
+    public void RuntimeTerrainCountCaption_ReattachTranslatesWithoutDiscardingPendingEdits()
+    {
+        using var state = new GuiLocalizationState();
+        var previousUndo = CoreState.Undo;
+        MoveCostEditorView? view = null;
+        try
+        {
+            state.ApplyLanguage("en");
+            ROM rom = MakeRom(gameCode: "AFEJ01");
+            byte[] originalData = rom.Data.ToArray();
+            CoreState.ROM = rom;
+            CoreState.Undo = new Undo();
+            view = new MoveCostEditorView();
+            view.Show();
+            view.NavigateTo(ClassBase);
+            var vm = Assert.IsType<MoveCostEditorViewModel>(view.DataViewModel);
+            var caption = view.FindControl<TextBlock>("CostTypeLabel")!;
+            var firstCost = view.GetVisualDescendants().OfType<NumericUpDown>()
+                .Single(control => control.Tag is int index && index == 0);
+            Assert.Equal("MoveCostNormal (51 terrains):", caption.Text);
+            firstCost.Value = 7;
+            Assert.True(vm.IsDirty);
+
+            foreach (var language in new[]
+            {
+                (Language: "zh", Caption: "MoveCostNormal\uFF0851 \u79CD\u5730\u5F62\uFF09\uFF1A"),
+                (Language: "ja", Caption: "MoveCostNormal\uFF08\u5730\u5F62\u6570: 51\uFF09:")
+            })
+            {
+                DetachAndClose(view);
+                state.ApplyLanguage(language.Language);
+                Dispatcher.UIThread.RunJobs();
+                view.Show();
+                Dispatcher.UIThread.RunJobs();
+
+                Assert.Equal(language.Caption, caption.Text);
+                Assert.Equal(7m, firstCost.Value);
+                Assert.Equal((byte)7, vm.GetCost(0));
+                Assert.True(vm.IsDirty);
+                Assert.Equal(SharedTable, rom.p32(ClassBase + 52));
+                Assert.Equal(originalData, rom.Data);
+            }
+        }
+        finally
+        {
+            if (view != null) DetachAndClose(view);
+            CoreState.Undo = previousUndo;
+        }
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

@@ -53,6 +53,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 LoadList();
             }
             RefreshRepointedTable();
+            UpdateCostTypeLabel();
         }
 
         protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
