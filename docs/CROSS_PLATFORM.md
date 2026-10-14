@@ -71,6 +71,10 @@ FEBuilderGBA.Avalonia.Tests (net10.0)
 ├── References: FEBuilderGBA.Avalonia, .Core
 └── Cross-platform Avalonia GUI/ViewModel tests (4,572 test methods)
 
+FEBuilderGBA.Avalonia.Bitmap.Tests (net10.0)
+├── References: FEBuilderGBA.Avalonia
+└── Isolated real-Skia move-icon bitmap tests (one application per test process)
+
 FEBuilderGBA.Tests (net10.0-windows)
 ├── References: FEBuilderGBA.Core, .CLI, .SkiaSharp
 └── Unit/integration tests (1,314 test methods)
@@ -201,6 +205,7 @@ dotnet build FEBuilderGBA.Avalonia/FEBuilderGBA.Avalonia.csproj
 # Cross-platform tests (any platform)
 dotnet test FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj
 dotnet test FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj
+dotnet test FEBuilderGBA.Avalonia.Bitmap.Tests/FEBuilderGBA.Avalonia.Bitmap.Tests.csproj
 
 # Full solution (Windows only — includes WinForms)
 dotnet msbuild /m /p:Configuration=Release /p:Platform=x86 /t:build /restore FEBuilderGBA.sln
