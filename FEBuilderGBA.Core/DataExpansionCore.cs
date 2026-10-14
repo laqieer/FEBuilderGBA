@@ -164,6 +164,7 @@ namespace FEBuilderGBA
             searchStart = U.Padding4(searchStart);
 
             uint endScan = length - requiredSize;
+            var costTables = MoveCostIndependenceCore.GetReferencedTableRanges(rom);
             for (uint addr = searchStart; addr <= endScan; addr += 4)
             {
                 if (data[addr] != 0xFF)
@@ -188,7 +189,15 @@ namespace FEBuilderGBA
                 }
 
                 if (good && runLen >= requiredSize)
+                {
+                    uint occupiedEnd = MoveCostIndependenceCore.GetOverlapEnd(costTables, addr, requiredSize);
+                    if (occupiedEnd != 0)
+                    {
+                        addr = U.Padding4(occupiedEnd) - 4;
+                        continue;
+                    }
                     return addr;
+                }
             }
 
             return U.NOT_FOUND;

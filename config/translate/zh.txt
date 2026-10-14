@@ -16313,6 +16313,9 @@ Conversation Text 3:
 :Cost Type:
 消费类型:
 
+:{0} ({1} terrains):
+{0}（{1} 种地形）：
+
 :Count:
 数量:
 

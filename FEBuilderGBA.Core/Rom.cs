@@ -1079,6 +1079,7 @@ namespace FEBuilderGBA
             }
 
             byte filldata = 0;
+            var costTables = MoveCostIndependenceCore.GetReferencedTableRanges(this);
 
             uint length = (uint)this.Data.Length - needsize;
             addr = U.Padding4(addr);
@@ -1110,7 +1111,10 @@ namespace FEBuilderGBA
                     matchsize++;
                     if (matchsize >= needsize)
                     {
-                        return start;
+                        uint occupiedEnd = MoveCostIndependenceCore.GetOverlapEnd(costTables, start, needsize);
+                        if (occupiedEnd == 0) return start;
+                        addr = U.Padding4(occupiedEnd) - 4;
+                        break;
                     }
                 }
                 addr = U.Padding4(addr);

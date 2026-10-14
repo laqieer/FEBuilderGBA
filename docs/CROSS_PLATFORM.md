@@ -104,6 +104,20 @@ FEBuilderGBA.E2ETests (net10.0-windows)
 
 > **Android / iOS / Web = Preview:** native heads (`FEBuilderGBA.Android` / `FEBuilderGBA.iOS` / `FEBuilderGBA.Browser`) build the shared Avalonia GUI into an APK / `.ipa` / wasm bundle; the runtime is maturing. See [docs/ANDROID.md](ANDROID.md) / [docs/IOS.md](IOS.md) / [docs/WEBASSEMBLY.md](WEBASSEMBLY.md). Try the web build: <https://laqieer.github.io/FEBuilderGBA/>.
 
+## Move Cost Editor
+
+In Avalonia, **Make Independent** is available when the selected class's cost
+table is shared with another class. It clones the table and repoints only that
+class; pending terrain edits are preserved until **Write**. Undo reverses a
+Write separately from the independence operation. Global Recovery and Ballista
+tables cannot be made class-independent.
+
+FE6 exposes 51 editable terrain costs; FE7/FE8 expose 65. Cloning preserves
+the full 54-byte FE6 or 68-byte FE7/FE8 allocation, including padding that
+is not editable and is preserved by **Write**. Referenced
+class-specific cost tables remain occupied even when all bytes are zero or FF,
+including after Undo or reopening the ROM.
+
 ## Migration Roadmap
 
 ### Phase 0: Foundation (Current)

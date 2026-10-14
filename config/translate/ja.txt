@@ -1751,6 +1751,9 @@ Coord ポインタ:
 :Cost Type:
 Cost タイプ:
 
+:{0} ({1} terrains):
+{0}（地形数: {1}）:
+
 :Count:
 読込数
 
