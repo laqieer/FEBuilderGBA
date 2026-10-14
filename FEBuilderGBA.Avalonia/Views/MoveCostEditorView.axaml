@@ -21,6 +21,7 @@
         </StackPanel>
 
         <Button AutomationProperties.AutomationId="MoveCostEditor_Write_Button" Name="WriteButton" Content="Write" HorizontalAlignment="Left" Margin="0,4,0,4" />
+        <Button AutomationProperties.AutomationId="MoveCostEditor_Independence_Button" Name="IndependenceButton" Content="Make Selected Class Independent" HorizontalAlignment="Left" Margin="0,0,0,4" IsVisible="False" />
 
         <TextBlock AutomationProperties.AutomationId="MoveCostEditor_CostType_Label" Name="CostTypeLabel" Text="Terrain Move Costs (65 terrains: 0x00 - 0x40):" FontWeight="SemiBold" Margin="0,4,0,4" />
 
