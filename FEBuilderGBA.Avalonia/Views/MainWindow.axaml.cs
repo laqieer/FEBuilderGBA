@@ -79,6 +79,17 @@ namespace FEBuilderGBA.Avalonia.Views
                 return;
             }
 
+            if (!e.Handled
+                && e.Key == Key.Z
+                && (e.KeyModifiers == KeyModifiers.Control || e.KeyModifiers == KeyModifiers.Meta)
+                && UndoMenuItem?.IsEffectivelyEnabled == true)
+            {
+                e.Handled = true;
+                MainMenu?.Close();
+                Undo_Click(this, new RoutedEventArgs());
+                return;
+            }
+
             base.OnKeyDown(e);
             if (e.KeyModifiers == KeyModifiers.Control && e.Key == Key.F)
             {
