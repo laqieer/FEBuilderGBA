@@ -4,6 +4,7 @@ using global::Avalonia;
 using global::Avalonia.Controls;
 using global::Avalonia.Interactivity;
 using global::Avalonia.Layout;
+using global::Avalonia.Threading;
 using FEBuilderGBA.Avalonia.Services;
 using FEBuilderGBA.Avalonia.ViewModels;
 
@@ -17,6 +18,8 @@ namespace FEBuilderGBA.Avalonia.Views
         readonly TextBlock[] _labelFields = new TextBlock[MoveCostEditorViewModel.TerrainCount];
         bool _suppressEvents;
         bool _hasLoadedList;
+        int _attachmentGeneration;
+        bool _isAttached;
 
         public string ViewTitle => "Move Cost Editor";
         public new bool IsLoaded => _vm.CanWrite;
@@ -31,16 +34,61 @@ namespace FEBuilderGBA.Avalonia.Views
             BuildTerrainGrid();
             ClassList.SelectedAddressChanged += OnClassSelected;
             WriteButton.Click += OnWriteClick;
+            IndependenceButton.Click += OnIndependenceClick;
             CostTypeCombo.SelectionChanged += OnCostTypeChanged;
         }
 
         protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
         {
             base.OnAttachedToVisualTree(e);
+            _isAttached = true;
+            _attachmentGeneration++;
+            Undo.OnAllFormsInvalidated -= OnAllFormsInvalidated;
+            Undo.OnAllFormsInvalidated += OnAllFormsInvalidated;
             if (!_hasLoadedList)
             {
                 _hasLoadedList = true;
                 LoadList();
+            }
+            RefreshRepointedTable();
+        }
+
+        protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+        {
+            _isAttached = false;
+            _attachmentGeneration++;
+            Undo.OnAllFormsInvalidated -= OnAllFormsInvalidated;
+            base.OnDetachedFromVisualTree(e);
+        }
+
+        void OnAllFormsInvalidated()
+        {
+            int generation = _attachmentGeneration;
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (_isAttached && generation == _attachmentGeneration)
+                    RefreshRepointedTable();
+            });
+        }
+
+        void RefreshRepointedTable()
+        {
+            ROM? rom = CoreState.ROM;
+            if (!_isAttached || rom == null || _vm.CurrentAddr == 0)
+                return;
+            try
+            {
+                uint pointerAddr = MoveCostEditorViewModel.GetMoveCostPointerAddr(
+                    _vm.CurrentAddr, _vm.SelectedCostType);
+                if (!U.isSafetyOffset(pointerAddr) || rom.p32(pointerAddr) == _vm.MoveCostAddr)
+                    return;
+
+                _vm.LoadMoveCost(_vm.CurrentAddr, _vm.SelectedCostType);
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                Log.ErrorF("MoveCostEditorView.RefreshRepointedTable failed: {0}", ex.Message);
             }
         }
 
@@ -237,7 +285,9 @@ namespace FEBuilderGBA.Avalonia.Views
                 ClassNameLabel.Text = _vm.ClassName;
                 AddrLabel.Text = $"Class: 0x{_vm.CurrentAddr:X08}";
                 MoveCostAddrLabel.Text = $"Table: 0x{_vm.MoveCostAddr:X08}";
-                CostTypeLabel.Text = $"{_vm.SelectedCostType} (65 terrains: 0x00 - 0x40):";
+                CostTypeLabel.Text = $"{_vm.SelectedCostType} ({_vm.SupportedTerrainCount} terrains):";
+                IndependenceButton.IsVisible = _vm.CanMakeIndependent;
+                IndependenceButton.IsEnabled = _vm.CanMakeIndependent;
 
                 // Update terrain labels with names. The labels are trimmed with
                 // an ellipsis (#1685), so mirror the full text into a tooltip so
@@ -267,7 +317,7 @@ namespace FEBuilderGBA.Avalonia.Views
                 for (int i = 0; i < MoveCostEditorViewModel.TerrainCount; i++)
                 {
                     _nudFields[i].Value = costs[i];
-                    _nudFields[i].IsEnabled = true;
+                    _nudFields[i].IsEnabled = _vm.IsTerrainEnabled(i);
                 }
             }
             finally
@@ -299,6 +349,41 @@ namespace FEBuilderGBA.Avalonia.Views
             {
                 _undoService.Rollback();
                 Log.ErrorF("MoveCostEditorView.OnWriteClick failed: {0}", ex.Message);
+            }
+        }
+
+        void OnIndependenceClick(object? sender, RoutedEventArgs e)
+        {
+            if (!_vm.CanMakeIndependent) return;
+            if (CoreState.Services?.ShowYesNo(
+                    R._("This data is shared with other items. Forking will isolate the current item's edits.")) != true)
+                return;
+
+            _undoService.Begin("Make Move Cost Independent");
+            try
+            {
+                Undo.UndoData? undoData = _undoService.GetActiveUndoData();
+                if (undoData == null)
+                {
+                    _undoService.Rollback();
+                    return;
+                }
+
+                uint newOffset = _vm.MakeIndependent(undoData);
+                if (newOffset == U.NOT_FOUND)
+                {
+                    _undoService.Rollback();
+                    return;
+                }
+
+                _undoService.Commit();
+                _vm.MarkClean();
+                UpdateUI();
+            }
+            catch (Exception ex)
+            {
+                _undoService.Rollback();
+                Log.ErrorF("MoveCostEditorView.OnIndependenceClick failed: {0}", ex.Message);
             }
         }
 
