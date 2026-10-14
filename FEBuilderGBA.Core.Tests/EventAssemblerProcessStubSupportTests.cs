@@ -59,101 +59,70 @@ namespace FEBuilderGBA.Core.Tests
             string root = CreateRoot();
             string path = Path.Combine(root, "child-survived.txt");
             string tempPath = path + ".tmp";
-            Exception? publisherError = null;
-            string? marker = null;
-            Exception? readerError = null;
-
-            using var publishReady = new ManualResetEventSlim(false);
-            using var allowPublish = new ManualResetEventSlim(false);
-            using var readerStarted = new ManualResetEventSlim(false);
+            int delayCalls = 0;
 
             File.WriteAllText(path, "");
-
-            var publisher = new Thread(() =>
-            {
-                try
-                {
-                    File.WriteAllText(tempPath, ParentExitChildMarker);
-                    publishReady.Set();
-                    if (!allowPublish.Wait(TimeSpan.FromSeconds(5)))
-                        throw new TimeoutException("Child-marker publisher timed out before the final atomic publish.");
-
-                    ReplaceStagedAtomicText(path, TimeSpan.FromSeconds(5));
-                }
-                catch (Exception ex)
-                {
-                    publisherError = ex;
-                }
-            });
-
-            Thread? reader = null;
+            File.WriteAllText(tempPath, ParentExitChildMarker);
 
             try
             {
-                publisher.Start();
-                Assert.True(
-                    publishReady.Wait(TimeSpan.FromSeconds(5)),
-                    "Child-marker publisher did not stage the atomic publish.");
-                Assert.True(File.Exists(tempPath), "The child-marker publisher did not stage the temporary file.");
-                Assert.Equal(ParentExitChildMarker, File.ReadAllText(tempPath));
-                Assert.True(
-                    File.Exists(path),
-                    "The child-marker final path should keep the seeded empty marker while staging the replacement.");
-                Assert.Equal(string.Empty, File.ReadAllText(path));
-
-                reader = new Thread(() =>
-                {
-                    try
+                string marker = EventAssemblerProcessStubSupport.ReadChildMarker(
+                    path,
+                    TimeSpan.FromSeconds(1),
+                    delayMs =>
                     {
-                        readerStarted.Set();
-                        marker = EventAssemblerProcessStubSupport.ReadChildMarker(
-                            path,
-                            TimeSpan.FromSeconds(1));
-                    }
-                    catch (Exception ex)
-                    {
-                        readerError = ex;
-                    }
-                });
-                reader.Start();
+                        delayCalls++;
+                        Assert.Equal(1, delayCalls);
+                        Assert.Equal(50, delayMs);
+                        Assert.True(File.Exists(path));
+                        Assert.Equal(string.Empty, File.ReadAllText(path));
+                        Assert.True(File.Exists(tempPath));
+                        Assert.Equal(ParentExitChildMarker, File.ReadAllText(tempPath));
+                        EventAssemblerProcessStubSupport.PublishStagedAtomicText(path, ParentExitChildMarker);
+                    });
 
-                Assert.True(readerStarted.Wait(TimeSpan.FromSeconds(5)), "Child-marker reader did not start.");
-                bool completedEarly = reader.Join(TimeSpan.FromMilliseconds(200));
-                Assert.False(
-                    completedEarly,
-                    readerError == null
-                        ? "Reader should keep retrying while the child-marker final marker is still empty before atomic replacement."
-                        : "Reader should keep retrying while the child-marker final marker is still empty before atomic replacement."
-                            + Environment.NewLine
-                            + readerError);
-
-                allowPublish.Set();
-                Assert.True(
-                    publisher.Join(TimeSpan.FromSeconds(5)),
-                    publisherError == null
-                        ? "Child-marker publisher thread did not finish."
-                        : "Child-marker publisher thread did not finish."
-                            + Environment.NewLine
-                            + publisherError);
-                Assert.Null(publisherError);
-                Assert.True(
-                    reader.Join(TimeSpan.FromSeconds(5)),
-                    readerError == null
-                        ? "Child-marker reader thread did not finish."
-                        : "Child-marker reader thread did not finish."
-                            + Environment.NewLine
-                            + readerError);
-                Assert.Null(readerError);
-
+                Assert.Equal(1, delayCalls);
                 Assert.Equal(ParentExitChildMarker, marker);
+                Assert.Equal(ParentExitChildMarker, File.ReadAllText(path));
+                Assert.False(File.Exists(tempPath));
             }
             finally
             {
-                allowPublish.Set();
-                if (publisher.IsAlive)
-                    publisher.Join(TimeSpan.FromSeconds(5));
-                if (reader?.IsAlive == true)
-                    reader.Join(TimeSpan.FromSeconds(5));
+                try { Directory.Delete(root, true); } catch { }
+            }
+        }
+
+        [Fact]
+        public void ReadChildMarker_PersistentEmptyFailsAfterBoundedRetries()
+        {
+            string root = CreateRoot();
+            string path = Path.Combine(root, "child-survived.txt");
+            int delayCalls = 0;
+            File.WriteAllText(path, "");
+
+            try
+            {
+                InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
+                    () => EventAssemblerProcessStubSupport.ReadChildMarker(
+                        path,
+                        TimeSpan.FromMilliseconds(200),
+                        delayMs =>
+                        {
+                            delayCalls++;
+                            Assert.True(delayCalls <= 4, "Child-marker reader exceeded its retry budget.");
+                            Assert.Equal(50, delayMs);
+                            Assert.Equal(string.Empty, File.ReadAllText(path));
+                        }));
+
+                Assert.Equal(4, delayCalls);
+                Assert.Equal("Could not read a complete process stub child marker: " + path, ex.Message);
+                InvalidDataException inner = Assert.IsType<InvalidDataException>(ex.InnerException);
+                Assert.Equal("Process stub child marker was empty.", inner.Message);
+                Assert.Equal(string.Empty, File.ReadAllText(path));
+                Assert.False(File.Exists(path + ".tmp"));
+            }
+            finally
+            {
                 try { Directory.Delete(root, true); } catch { }
             }
         }

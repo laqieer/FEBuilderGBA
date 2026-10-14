@@ -32,6 +32,7 @@ README
 | `FEBuilderGBA.Tests` | net10.0-windows | WinForms unit and integration tests |
 | `FEBuilderGBA.Core.Tests` | net10.0 | Cross-platform Core unit tests (Linux/macOS/Windows), including the SkiaSharp native-version guard and render byte-parity smoke tests. |
 | `FEBuilderGBA.Avalonia.Tests` | net10.0 | Avalonia GUI / ViewModel unit tests (data verification, navigation, field completeness). |
+| `FEBuilderGBA.Avalonia.Bitmap.Tests` | net10.0 | Real-Skia move-icon bitmap tests in a separate process, with one owned application/dispatcher. |
 | `FEBuilderGBA.Android.Tests` | net10.0-android | On-device instrumentation head: reflection-runs the SkiaSharp byte-parity / version-guard suites on an Android emulator (not run by `dotnet test`). |
 | `FEBuilderGBA.E2ETests` | net10.0-windows | End-to-end GUI/CLI tests |
 
@@ -636,13 +637,14 @@ FEBuilderGBA.sln
 ├── FEBuilderGBA.Tests/          net10.0-windows (WinForms unit tests)
 ├── FEBuilderGBA.Core.Tests/     net10.0    (cross-platform Core tests)
 ├── FEBuilderGBA.Avalonia.Tests/ net10.0    (Avalonia GUI / ViewModel tests)
+├── FEBuilderGBA.Avalonia.Bitmap.Tests/ net10.0 (isolated real-bitmap tests)
 ├── FEBuilderGBA.Android.Tests/  net10.0-android (on-device reflection-runner parity/version-guard head)
 └── FEBuilderGBA.E2ETests/       net10.0-windows (E2E tests)
 ```
 
 ## Testing & Coverage
 
-- ✅ **11,000+ unit/integration tests** passing across the four desktop test projects — `FEBuilderGBA.Core.Tests` (~5.5k, cross-platform), `FEBuilderGBA.Avalonia.Tests` (~4.6k, GUI/ViewModel), `FEBuilderGBA.Tests` (~1.3k, WinForms), and `FEBuilderGBA.E2ETests` (E2E). `[Theory]` cases expand at runtime, so the authoritative live total for these is the one reported by `dotnet test` / [CI](https://github.com/laqieer/FEBuilderGBA/actions). The fifth project, `FEBuilderGBA.Android.Tests`, is an Android **instrumentation** head (not run by `dotnet test`) — its on-device SkiaSharp byte-parity/version-guard results come from the [Android Emulator Parity workflow](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml), whose cached-AVD install path verifies and removes any stale test package before running the current APK.
+- ✅ **11,000+ unit/integration tests** across the five desktop test projects — `FEBuilderGBA.Core.Tests` (~5.5k, cross-platform), `FEBuilderGBA.Avalonia.Tests` (~4.6k, GUI/ViewModel), `FEBuilderGBA.Avalonia.Bitmap.Tests` (isolated real-Skia bitmap cases), `FEBuilderGBA.Tests` (~1.3k, WinForms), and `FEBuilderGBA.E2ETests` (E2E). `[Theory]` cases expand at runtime, so the authoritative live total and pass status are those reported by `dotnet test` / [CI](https://github.com/laqieer/FEBuilderGBA/actions). `FEBuilderGBA.Android.Tests` is an Android **instrumentation** head (not run by `dotnet test`) — its on-device SkiaSharp byte-parity/version-guard results come from the [Android Emulator Parity workflow](https://github.com/laqieer/FEBuilderGBA/actions/workflows/android-emulator-parity.yml), whose cached-AVD install path verifies and removes any stale test package before running the current APK.
 - 🧰 **Cross-platform CI reliability:** a dependency-free contract runs before the .NET jobs, every build/test/publish command disables persistent MSBuild/Roslyn servers, and CLI smoke checks invoke the already-built Release DLL. .NET-heavy macOS build/publish legs are pinned to the stable macOS 15 ARM64 image while Python MCP tests remain on `macos-latest` as a lightweight image canary; compile/test failures stay fail-closed.
 - 🍎 **macOS External Tools:** Avalonia accepts native `.app` bundles such as `/Applications/mGBA.app`. The original bundle path remains in config; launch and validation safely resolve a direct executable under `Contents/MacOS` (bundle-name match or one unambiguous executable).
 - ✅ **E2E suite** (`FEBuilderGBA.E2ETests`) covers CLI + GUI automation + output-log capture: a no-ROM subset runs on every PR, and the full suite (including the 324-editor Avalonia smoke test, screenshot capture for both GUIs, and CLI output-log capture for both the new CLI and WinForms executables) runs with all 5 ROMs. See the [E2E CI workflows](https://github.com/laqieer/FEBuilderGBA/actions) for the live pass/skip counts.

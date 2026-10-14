@@ -377,6 +377,7 @@ class BuildWarningContractTests(unittest.TestCase):
         expected_projects = [
             "FEBuilderGBA.Core.Tests/FEBuilderGBA.Core.Tests.csproj",
             "FEBuilderGBA.Avalonia.Tests/FEBuilderGBA.Avalonia.Tests.csproj",
+            "FEBuilderGBA.Avalonia.Bitmap.Tests/FEBuilderGBA.Avalonia.Bitmap.Tests.csproj",
             "FEBuilderGBA.Tests/FEBuilderGBA.Tests.csproj",
             "FEBuilderGBA.E2ETests/FEBuilderGBA.E2ETests.csproj",
         ]

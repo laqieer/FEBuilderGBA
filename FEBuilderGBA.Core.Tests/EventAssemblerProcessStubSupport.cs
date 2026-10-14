@@ -74,7 +74,13 @@ internal static class EventAssemblerProcessStubSupport
 
     internal static string ReadChildMarker(string path, TimeSpan timeout)
     {
-        if (TryReadChildMarker(path, timeout, out string? marker, out Exception? lastError))
+        return ReadChildMarker(path, timeout, Thread.Sleep);
+    }
+
+    internal static string ReadChildMarker(string path, TimeSpan timeout, Action<int> delay)
+    {
+        ArgumentNullException.ThrowIfNull(delay);
+        if (TryReadChildMarker(path, timeout, delay, out string? marker, out Exception? lastError))
             return marker!;
 
         throw new InvalidOperationException(
@@ -208,11 +214,22 @@ internal static class EventAssemblerProcessStubSupport
         out string? marker,
         out Exception? lastError)
     {
+        return TryReadChildMarker(path, timeout, Thread.Sleep, out marker, out lastError);
+    }
+
+    static bool TryReadChildMarker(
+        string path,
+        TimeSpan timeout,
+        Action<int> delay,
+        out string? marker,
+        out Exception? lastError)
+    {
         return TryReadNonEmptyText(
             path,
             GetRetryCount(timeout, ChildMarkerReadRetryDelayMs),
             ChildMarkerReadRetryDelayMs,
             "Process stub child marker was empty.",
+            delay,
             out marker,
             out lastError);
     }
@@ -222,6 +239,7 @@ internal static class EventAssemblerProcessStubSupport
         int retryCount,
         int retryDelayMs,
         string emptyMessage,
+        Action<int> delay,
         out string? text,
         out Exception? lastError)
     {
@@ -246,7 +264,7 @@ internal static class EventAssemblerProcessStubSupport
                 if (attempt + 1 == retryCount)
                     break;
 
-                Thread.Sleep(retryDelayMs);
+                delay(retryDelayMs);
             }
         }
 

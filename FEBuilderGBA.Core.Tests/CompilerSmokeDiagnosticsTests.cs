@@ -18,6 +18,7 @@ using RunnerOverlapCapture = FEBuilderGBA.Core.Tests.CompilerSmokeDiagnostics.Ru
 
 namespace FEBuilderGBA.Core.Tests;
 
+[Collection(ProcessRunnerTestCollection.Name)]
 public class CompilerSmokeDiagnosticsTests
 {
     readonly Xunit.Abstractions.ITestOutputHelper output;
@@ -1109,7 +1110,7 @@ public class CompilerSmokeDiagnosticsTests
         Assert.Equal(result.Stdout.Length, body.GetProperty("capturedStdoutChars").GetInt32());
         Assert.Equal(result.Stderr.Length, body.GetProperty("capturedStderrChars").GetInt32());
         Assert.Equal(5, body.GetProperty("stages").GetArrayLength());
-        Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
+        Assert.Equal("process-tree-serial", body.GetProperty("collectionMembership").GetString());
         var overlap = body.GetProperty("runnerOverlap");
         Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
             overlap.GetProperty("scope").GetString());
@@ -1249,7 +1250,7 @@ public class CompilerSmokeDiagnosticsTests
             Assert.Equal("unrecognized", body.GetProperty("errorCategory").GetString());
             Assert.Equal(secret.Length, body.GetProperty("errorMessageChars").GetInt32());
             Assert.Equal("synthetic-runner-result", body.GetProperty("exitCodeKind").GetString());
-            Assert.Equal("not-process-tree-serial", body.GetProperty("collectionMembership").GetString());
+            Assert.Equal("process-tree-serial", body.GetProperty("collectionMembership").GetString());
             var reportedOverlap = body.GetProperty("runnerOverlap");
             Assert.Equal("core-tests-compiler-smoke-core-runner-and-scenario-runner-calls-in-this-test-process",
                 reportedOverlap.GetProperty("scope").GetString());

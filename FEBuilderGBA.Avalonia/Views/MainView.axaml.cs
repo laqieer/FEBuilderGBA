@@ -115,9 +115,16 @@ namespace FEBuilderGBA.Avalonia.Views
         string DescribeTop()
         {
             if (Host.CurrentContent is IEditorView editor)
-                return editor.TitleKey is string key
-                    ? ViewTranslationHelper.TranslateTitle(key)
-                    : editor.ViewTitle;
+            {
+                if (editor.TitleKey is string key)
+                {
+                    string translatedKey = ViewTranslationHelper.TranslateTitle(key);
+                    if (string.Equals(editor.ViewTitle, key, StringComparison.Ordinal)
+                        || string.Equals(editor.ViewTitle, translatedKey, StringComparison.Ordinal))
+                        return translatedKey;
+                }
+                return editor.ViewTitle;
+            }
             // Translate only the presentation; navigation retains the editor's original key.
             return ViewTranslationHelper.TranslateTitle(Host.CurrentTitle ?? "FEBuilderGBA");
         }
