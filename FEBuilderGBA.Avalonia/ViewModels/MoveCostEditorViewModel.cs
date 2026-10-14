@@ -163,7 +163,9 @@ namespace FEBuilderGBA.Avalonia.ViewModels
         static int GetSupportedTerrainCount(ROM rom)
         {
             uint tableSize = MoveCostIndependenceCore.GetTableSize(rom);
-            return (int)Math.Min((uint)TerrainCount, tableSize);
+            // Clone sizes include padding, not additional editable terrain costs.
+            uint terrainCount = rom?.RomInfo?.version == 6 ? 51u : (uint)TerrainCount;
+            return (int)Math.Min(terrainCount, tableSize);
         }
 
         public bool IsTerrainEnabled(int index)

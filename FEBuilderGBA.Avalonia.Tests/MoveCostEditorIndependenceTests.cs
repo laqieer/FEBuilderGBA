@@ -132,7 +132,7 @@ public class MoveCostEditorIndependenceTests
     }
 
     [Fact]
-    public void Fe6_LoadAndWriteStopAtThe54ByteTableBoundary()
+    public void Fe6_LoadAndWriteStopAtThe51EditableCostsAndPreserveClonePadding()
     {
         ROM? previousRom = CoreState.ROM;
         Undo? previousUndo = CoreState.Undo;
@@ -169,27 +169,36 @@ public class MoveCostEditorIndependenceTests
             vm.LoadMoveCost(ClassBase, CostType.MoveCostNormal);
 
             Assert.True(vm.CanWrite);
-            Assert.Equal(54, vm.SupportedTerrainCount);
-            Assert.True(vm.IsTerrainEnabled(53));
-            Assert.False(vm.IsTerrainEnabled(54));
-            Assert.Equal(53, vm.GetCost(53));
-            Assert.Equal(0, vm.GetCost(54));
-            Assert.Equal((byte)53, rom.u8(cloneOffset + 53));
+            Assert.Equal(51, vm.SupportedTerrainCount);
+            Assert.True(vm.IsTerrainEnabled(50));
+            Assert.Equal(50, vm.GetCost(50));
+            for (int i = 51; i < MoveCostEditorViewModel.TerrainCount; i++)
+            {
+                Assert.False(vm.IsTerrainEnabled(i));
+                Assert.Equal(0, vm.GetCost(i));
+            }
             Assert.Equal(sentinel, rom.u8(cloneOffset + tableSize));
 
-            vm.SetCost(53, 0x3A);
-            vm.SetCost(54, 0x77);
+            vm.SetCost(50, 0x3A);
+            for (int i = 51; i < MoveCostEditorViewModel.TerrainCount; i++)
+                vm.SetCost(i, 0x77);
             vm.WriteMoveCost();
 
-            Assert.Equal((byte)0x3A, rom.u8(cloneOffset + 53));
-            Assert.Equal((byte)53, rom.u8(SharedTable + 53));
+            Assert.Equal((byte)0x3A, rom.u8(cloneOffset + 50));
+            Assert.Equal((byte)50, rom.u8(SharedTable + 50));
+            for (uint i = 51; i < tableSize; i++)
+            {
+                Assert.Equal((byte)i, rom.u8(cloneOffset + i));
+                Assert.Equal((byte)i, rom.u8(SharedTable + i));
+            }
             Assert.Equal(sentinel, rom.u8(cloneOffset + tableSize));
-            Assert.Contains("B53", vm.GetDataReport().Keys);
-            Assert.DoesNotContain("B54", vm.GetDataReport().Keys);
-            Assert.Contains("u8@0x35", vm.GetRawRomReport().Keys);
-            Assert.DoesNotContain("u8@0x36", vm.GetRawRomReport().Keys);
-            Assert.Contains("B53", vm.GetFieldOffsetMap().Keys);
-            Assert.DoesNotContain("B54", vm.GetFieldOffsetMap().Keys);
+            Assert.Equal(sentinel, rom.u8(SharedTable + tableSize));
+            Assert.Contains("B50", vm.GetDataReport().Keys);
+            Assert.DoesNotContain("B51", vm.GetDataReport().Keys);
+            Assert.Contains("u8@0x32", vm.GetRawRomReport().Keys);
+            Assert.DoesNotContain("u8@0x33", vm.GetRawRomReport().Keys);
+            Assert.Contains("B50", vm.GetFieldOffsetMap().Keys);
+            Assert.DoesNotContain("B51", vm.GetFieldOffsetMap().Keys);
         }
         finally
         {
@@ -214,17 +223,17 @@ public class MoveCostEditorIndependenceTests
             view.Show();
             view.NavigateTo(ClassBase);
             var caption = view.FindControl<TextBlock>("CostTypeLabel")!;
-            Assert.Equal("MoveCostNormal (54 terrains):", caption.Text);
+            Assert.Equal("MoveCostNormal (51 terrains):", caption.Text);
 
             state.ApplyLanguage("zh");
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal("MoveCostNormal\uFF0854 \u79CD\u5730\u5F62\uFF09\uFF1A", caption.Text);
+            Assert.Equal("MoveCostNormal\uFF0851 \u79CD\u5730\u5F62\uFF09\uFF1A", caption.Text);
             state.ApplyLanguage("ja");
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal("MoveCostNormal\uFF08\u5730\u5F62\u6570: 54\uFF09:", caption.Text);
+            Assert.Equal("MoveCostNormal\uFF08\u5730\u5F62\u6570: 51\uFF09:", caption.Text);
             state.ApplyLanguage("en");
             Dispatcher.UIThread.RunJobs();
-            Assert.Equal("MoveCostNormal (54 terrains):", caption.Text);
+            Assert.Equal("MoveCostNormal (51 terrains):", caption.Text);
         }
         finally
         {

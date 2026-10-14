@@ -112,7 +112,9 @@ class; pending terrain edits are preserved until **Write**. Undo reverses a
 Write separately from the independence operation. Global Recovery and Ballista
 tables cannot be made class-independent.
 
-FE6 tables contain 54 bytes; FE7/FE8 tables contain 68 bytes. Referenced
+FE6 exposes 51 editable terrain costs; FE7/FE8 expose 65. Cloning preserves
+the full 54-byte FE6 or 68-byte FE7/FE8 allocation, including padding that
+is not editable and is preserved by **Write**. Referenced
 class-specific cost tables remain occupied even when all bytes are zero or FF,
 including after Undo or reopening the ROM.
 
